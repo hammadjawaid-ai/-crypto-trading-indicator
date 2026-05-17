@@ -1083,30 +1083,46 @@ _STAGE_WORD = {"COILED": "Building Up", "FRESH": "Just Started",
                "EXTENDED": "Already Ran"}
 
 
-def breakout_side_table(df_side: pd.DataFrame) -> None:
-    """Render a compact ranked table for one direction (up or down)."""
+def breakout_side_table(df_side: pd.DataFrame, side: str) -> None:
+    """Render a compact ranked table for one side — 'UP' (long) or 'DOWN'
+    (short). Entry and Target are computed for that side's trade."""
     if df_side.empty:
         st.caption("No coins on this side right now.")
         return
+
+    def _entry(r: dict) -> float:
+        idea = r["idea"]
+        if idea["side"] != "EITHER":
+            return idea["entry_low"]
+        return r["win_high"] if side == "UP" else r["win_low"]
+
+    def _target(r: dict) -> float:
+        idea = r["idea"]
+        if idea["side"] != "EITHER":
+            return idea["target_1"]
+        return idea["target_1"] if side == "UP" else idea["target_2"]
+
     tbl = pd.DataFrame({
         "Coin": df_side["base"],
+        "Trade": "LONG" if side == "UP" else "SHORT",
         "Status": df_side.apply(
             lambda r: ("🔥 " if r["ignited"] else "")
             + _STAGE_WORD.get(r["stage"], r["stage"]), axis=1),
         "Score": df_side["opportunity"],
         "Confidence": df_side["confidence"],
-        "Entry": df_side["idea"].map(lambda i: fmt_price(i["entry_low"])),
-        "Target": df_side["idea"].map(lambda i: fmt_price(i["target_1"])),
+        "Entry": df_side.apply(lambda r: fmt_price(_entry(r)), axis=1),
+        "Target": df_side.apply(lambda r: fmt_price(_target(r)), axis=1),
     })
     st.dataframe(
         tbl, use_container_width=True, hide_index=True,
-        height=min((len(tbl) + 1) * 36 + 3, 580),
+        height=min((len(tbl) + 1) * 36 + 3, 760),
         column_config={
             "Score": st.column_config.ProgressColumn(
                 "Score", min_value=0, max_value=100, format="%d",
                 help="0-100 radar rank — higher is a stronger setup"),
             "Confidence": st.column_config.NumberColumn(
-                "Confidence", format="%d%%"),
+                "Confidence", format="%d%%",
+                help="How sure the engine is of the direction"),
         })
 
 
@@ -1379,8 +1395,8 @@ with tab_breakout:
         "and coins that have already run (too late to chase).")
 
     hz_label = st.radio(
-        "Horizon", ["⚡ Imminent — next 15m to 1h move",
-                    "📅 Next 24 hours"],
+        "Horizon", ["⚡ Imminent — next 15m–4h move  (scans 15m · 1h · 4h)",
+                    "📅 Next 24 hours  (scans 1h · 4h · 1d)"],
         horizontal=True, label_visibility="collapsed")
     horizon = "24h" if hz_label.startswith("📅") else "imminent"
     tf_note = ("1h · 4h · 1d charts" if horizon == "24h"
@@ -1427,56 +1443,58 @@ with tab_breakout:
             f"scores, never overrides them.</span></div>",
             unsafe_allow_html=True)
 
-        # Shortlist: real opportunity only — up to 30 on the 24h horizon.
-        take = 30 if horizon == "24h" else 20
-        shortlist = radar[radar["opportunity"] >= 25].head(take)
-        if shortlist.empty:
-            shortlist = radar.head(12)
+        # Decision board: the top 30 coins by radar score.
+        shortlist = radar.head(30)
 
         loading = int((shortlist["stage"] == "COILED").sum())
         fresh = int((shortlist["stage"] == "FRESH").sum())
         extended = int((shortlist["stage"] == "EXTENDED").sum())
-        bull_n = int((shortlist["dir_word"] == "BULLISH").sum())
-        bear_n = int((shortlist["dir_word"] == "BEARISH").sum())
+        # Split by the direction score's sign so every coin is a long or a
+        # short call — no coin is left without a decision.
+        up_df = shortlist[shortlist["direction"] >= 0]
+        down_df = shortlist[shortlist["direction"] < 0]
+
         k1, k2, k3, k4 = st.columns(4)
-        k1.metric("🔋 Building up", loading,
+        k1.metric("🔋 Building Up", loading,
                   help="Hasn't moved yet — the earliest, safest entries")
-        k2.metric("🚀 Just started", fresh,
+        k2.metric("🚀 Just Started", fresh,
                   help="Already moving but still early — room to run")
-        k3.metric("⚠️ Already ran", extended,
+        k3.metric("⚠️ Already Ran", extended,
                   help="Move mostly done — too late, risky to chase")
-        k4.metric("🟢 Going up / 🔴 Going down", f"{bull_n} / {bear_n}")
+        k4.metric("🟢 Long / 🔴 Short", f"{len(up_df)} / {len(down_df)}")
 
-        # --- Clean up vs down split ---------------------------------------
-        per_side = 15 if horizon == "24h" else 10
-        bull_df = shortlist[shortlist["dir_word"] == "BULLISH"].head(per_side)
-        bear_df = shortlist[shortlist["dir_word"] == "BEARISH"].head(per_side)
-        unclear_n = int((shortlist["dir_word"] == "UNCLEAR").sum())
+        st.caption(
+            "**The summary above counts the 30 coins by status.** "
+            "🔋 **Building Up** = coiled, has not moved yet — the earliest and "
+            "safest entry. 🚀 **Just Started** = the move just began, still "
+            "early. ⚠️ **Already Ran** = the move is mostly done — too late, "
+            "risky to chase.")
 
-        st.markdown("### 🎯 Top coins to watch")
+        # --- The decision board: LONG vs SHORT ----------------------------
+        st.markdown("### 🎯 Top 30 coins — your long / short decision board")
         bc, sc = st.columns(2)
         with bc:
             st.markdown(
-                "<h4 style='color:#2ed47a;border-color:#2ed47a'>🟢 Likely to "
-                "go UP</h4>", unsafe_allow_html=True)
-            breakout_side_table(bull_df)
+                f"<h4 style='color:#2ed47a;border-color:#2ed47a'>🟢 GO LONG "
+                f"&nbsp;<span style='font-size:0.8rem;color:#8b8d98'>"
+                f"buy — price likely to rise ({len(up_df)})</span></h4>",
+                unsafe_allow_html=True)
+            breakout_side_table(up_df, "UP")
         with sc:
             st.markdown(
-                "<h4 style='color:#ff5c5c;border-color:#ff5c5c'>🔴 Likely to "
-                "go DOWN</h4>", unsafe_allow_html=True)
-            breakout_side_table(bear_df)
-        if unclear_n:
-            st.caption(f"➕ {unclear_n} more coins look ready for a big move "
-                       f"but the direction isn't clear yet — see the full "
-                       f"read below.")
+                f"<h4 style='color:#ff5c5c;border-color:#ff5c5c'>🔴 GO SHORT "
+                f"&nbsp;<span style='font-size:0.8rem;color:#8b8d98'>"
+                f"sell — price likely to fall ({len(down_df)})</span></h4>",
+                unsafe_allow_html=True)
+            breakout_side_table(down_df, "DOWN")
         st.caption(
-            "**Status** tells you how early you are — **Building Up** = hasn't "
-            "moved yet (earliest, safest entry) · **Just Started** = move just "
-            "began, still early · **Already Ran** = move mostly done, risky to "
-            "chase. **Score** is the 0-100 radar rank, higher is better. "
-            "**🔥** = volume surging. **Entry** is the price to act at, "
-            "**Target** is the first place to take profit — full plan per "
-            "coin below.")
+            "**How to read this:** coins on the **left → open a LONG** (buy, "
+            "betting price goes up); coins on the **right → open a SHORT** "
+            "(sell, betting price goes down). **Entry** = the price to act at, "
+            "**Target** = the first place to take profit. Prefer high "
+            "**Score** and high **Confidence**; **Building Up** is the safest "
+            "timing, **Already Ran** is the riskiest. 🔥 = volume surging. "
+            "Full plan and reasoning for every coin below.")
 
         st.divider()
 
@@ -1488,7 +1506,7 @@ with tab_breakout:
                        "⚠️ Already ran"],
             horizontal=True, label_visibility="collapsed")
         dir_flt = fc2.radio(
-            "Direction", ["Up & down", "🟢 Going up", "🔴 Going down"],
+            "Direction", ["Long & short", "🟢 Long only", "🔴 Short only"],
             horizontal=True, label_visibility="collapsed")
 
         view = shortlist
@@ -1499,9 +1517,9 @@ with tab_breakout:
         elif stage_flt.startswith("⚠️"):
             view = view[view["stage"] == "EXTENDED"]
         if dir_flt.startswith("🟢"):
-            view = view[view["dir_word"] == "BULLISH"]
+            view = view[view["direction"] >= 0]
         elif dir_flt.startswith("🔴"):
-            view = view[view["dir_word"] == "BEARISH"]
+            view = view[view["direction"] < 0]
 
         if view.empty:
             st.info("No coins match that filter right now.")
