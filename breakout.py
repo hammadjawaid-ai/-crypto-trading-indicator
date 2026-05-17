@@ -80,7 +80,7 @@ HORIZONS: dict[str, dict] = {
         "name": "Imminent — 15m to 1h",
         "tfs": ("15m", "1h", "4h"),
         "limits": (220, 240, 260),
-        "candle": "15m", "mid": "1h", "high": "4h",
+        "candle": "15m", "candle_min": 15, "mid": "1h", "high": "4h",
         "range_label": "6-hour",
         "win_coil": ("it has not moved yet — a setup this tight usually "
                      "breaks within the next 1–6 hours, so get your order "
@@ -94,7 +94,7 @@ HORIZONS: dict[str, dict] = {
         "name": "Next 24 hours",
         "tfs": ("1h", "4h", "1d"),
         "limits": (240, 260, 320),
-        "candle": "1h", "mid": "4h", "high": "1d",
+        "candle": "1h", "candle_min": 60, "mid": "4h", "high": "1d",
         "range_label": "24-hour",
         "win_coil": ("it has not moved yet — a setup this tight usually "
                      "breaks within the next 12–36 hours"),
@@ -848,10 +848,14 @@ def _analyze(symbol: str, d15: pd.DataFrame, d1h: pd.DataFrame,
     verdict, emoji = _verdict(stage, dir_word)
     chasing_risk = stage == "EXTENDED"
 
+    # Price changes over real wall-clock windows — offsets derived from the
+    # active horizon's candle size so "1h" / "24h" are correct on both scans.
     c = d15["close"].to_numpy(dtype=float)
-    chg1h = (c[-1] / c[-5] - 1) * 100 if len(c) >= 5 else 0.0
-    chg4h = (c[-1] / c[-17] - 1) * 100 if len(c) >= 17 else 0.0
-    chg24 = (c[-1] / c[-97] - 1) * 100 if len(c) >= 97 else 0.0
+    cm = hz.get("candle_min", 15)
+    off_1h = max(1, round(60 / cm))
+    off_24h = max(1, round(1440 / cm))
+    chg1h = (c[-1] / c[-1 - off_1h] - 1) * 100 if len(c) > off_1h else 0.0
+    chg24 = (c[-1] / c[-1 - off_24h] - 1) * 100 if len(c) > off_24h else 0.0
 
     drivers = [
         {"force": "Volume", "score": round(vol_score), "signed": False,
@@ -904,7 +908,6 @@ def _analyze(symbol: str, d15: pd.DataFrame, d1h: pd.DataFrame,
         "rsi": round(rsi, 1),
         "funding": funding,
         "chg_1h": round(chg1h, 2),
-        "chg_4h": round(chg4h, 2),
         "chg_24h": round(chg24, 2),
         "energy": round(energy, 1),
         "direction": round(direction, 1),
