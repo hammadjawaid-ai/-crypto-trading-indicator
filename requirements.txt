@@ -1,0 +1,9 @@
+streamlit>=1.31
+pandas>=2.0
+numpy>=1.24
+requests>=2.31
+plotly>=5.18
+vaderSentiment>=3.3
+tradingview-ta>=3.3
+truststore>=0.9
+

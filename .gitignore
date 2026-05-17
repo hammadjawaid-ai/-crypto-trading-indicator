@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+
+# Virtual environment — never commit (huge, machine-specific)
+.venv/
+venv/
+
+# Secrets — NEVER commit these
+.env
+.streamlit/secrets.toml
+
+# Claude Code local files
+.claude/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+
+# Local artifacts
+screenshot*.png
+*.log

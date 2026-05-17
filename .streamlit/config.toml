@@ -1,0 +1,10 @@
+# Streamlit theme & client config for the Crypto Trading Indicator.
+[theme]
+base = "dark"
+primaryColor = "#6e8bff"
+backgroundColor = "#0b0c10"
+secondaryBackgroundColor = "#15161c"
+textColor = "#e7e8ec"
+
+[browser]
+gatherUsageStats = false
