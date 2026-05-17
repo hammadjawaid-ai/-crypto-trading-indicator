@@ -82,6 +82,12 @@ HORIZONS: dict[str, dict] = {
         "limits": (220, 240, 260),
         "candle": "15m", "candle_min": 15, "mid": "1h", "high": "4h",
         "range_label": "6-hour",
+        # An imminent move is driven by microstructure — volume, volatility
+        # and live order flow carry the weight.
+        "energy_w": {"vol": 0.34, "vlt": 0.30, "soc": 0.22, "news": 0.14},
+        "lead_w": {"flow": 0.22, "obv": 0.17, "htf": 0.19, "rs": 0.16,
+                   "soc": 0.13, "news": 0.13},
+        "news_opp": 0.08, "news_recent_h": 6, "news_fresh_h": 18,
         "win_coil": ("it has not moved yet — a setup this tight usually "
                      "breaks within the next 1–6 hours, so get your order "
                      "ready at the trigger price"),
@@ -96,6 +102,12 @@ HORIZONS: dict[str, dict] = {
         "limits": (240, 260, 320),
         "candle": "1h", "candle_min": 60, "mid": "4h", "high": "1d",
         "range_label": "24-hour",
+        # A 24-hour move is driven by catalysts — news, social attention and
+        # the bigger trend carry the weight; live order flow matters far less.
+        "energy_w": {"vol": 0.26, "vlt": 0.24, "soc": 0.28, "news": 0.22},
+        "lead_w": {"flow": 0.12, "obv": 0.16, "htf": 0.24, "rs": 0.16,
+                   "soc": 0.16, "news": 0.16},
+        "news_opp": 0.14, "news_recent_h": 12, "news_fresh_h": 36,
         "win_coil": ("it has not moved yet — a setup this tight usually "
                      "breaks within the next 12–36 hours"),
         "win_fresh": ("it is moving now — expect it to keep developing over "
@@ -519,12 +531,20 @@ def _build_social_index(lc_rows: list) -> dict[str, dict]:
     return out
 
 
-def _build_news_index(news_df, symbols: list[str],
-                       lc_rows: list) -> dict[str, dict]:
-    """Per-coin news-catalyst index — fresh headlines naming each coin."""
+def _build_news_index(news_df, symbols: list[str], lc_rows: list,
+                       hz: dict | None = None) -> dict[str, dict]:
+    """Per-coin news-catalyst index — headlines naming each coin.
+
+    The 'still relevant' age window widens with the horizon: a catalyst from
+    yesterday barely matters for a 15-minute move but is central to a
+    24-hour call.
+    """
     out: dict[str, dict] = {}
     if news_df is None or getattr(news_df, "empty", True):
         return out
+    hz = hz or HORIZONS["imminent"]
+    recent_h = hz.get("news_recent_h", 6)
+    fresh_h = hz.get("news_fresh_h", 18)
 
     lc_name = {str(r.get("symbol", "")).upper(): str(r.get("name", "")).lower()
                for r in lc_rows if r.get("symbol")}
@@ -554,10 +574,11 @@ def _build_news_index(news_df, symbols: list[str],
         weighted_sent, weight_sum, fresh = 0.0, 0.0, 0
         for _, h in hits.head(12).iterrows():
             age_h = max((now - h["published"]).total_seconds() / 3600, 0.1)
-            w = 1.0 if age_h <= 6 else 0.6 if age_h <= 18 else 0.3
+            w = (1.0 if age_h <= recent_h
+                 else 0.6 if age_h <= fresh_h else 0.3)
             weighted_sent += h["sentiment"] * w
             weight_sum += w
-            if age_h <= 18:
+            if age_h <= fresh_h:
                 fresh += 1
         if weight_sum == 0:
             continue
@@ -782,17 +803,21 @@ def _analyze(symbol: str, d15: pd.DataFrame, d1h: pd.DataFrame,
     extension, _ext_note = _extension(d15, win_h, win_l)
     stage = _stage(d15, brk_score, recent_brk, extension, rsi)
 
-    # ENERGY — how loaded the spring is (no realized-move terms).
-    e_parts = [(vol_score, 0.34), (vlt_score, 0.30)]
+    # ENERGY — how loaded the spring is (no realized-move terms). Weights are
+    # horizon-specific: microstructure for imminent, catalysts for 24h.
+    ew = hz["energy_w"]
+    e_parts = [(vol_score, ew["vol"]), (vlt_score, ew["vlt"])]
     if social:
-        e_parts.append((soc_heat, 0.22))
+        e_parts.append((soc_heat, ew["soc"]))
     if news:
-        e_parts.append((news_score, 0.14))
+        e_parts.append((news_score, ew["news"]))
     energy = _renorm(e_parts)
 
     # LEADING pressure — what hints at the move before price confirms it.
-    l_parts = [(flow_score, 0.22), (obv_score, 0.17), (htf_score, 0.19),
-               (rs_score, 0.16), (soc_dir, 0.13), (news_dir, 0.13)]
+    lw = hz["lead_w"]
+    l_parts = [(flow_score, lw["flow"]), (obv_score, lw["obv"]),
+               (htf_score, lw["htf"]), (rs_score, lw["rs"]),
+               (soc_dir, lw["soc"]), (news_dir, lw["news"])]
     if funding is not None:
         l_parts.append((fund_score, 0.16))
     leading = float(np.clip(_renorm(l_parts), -100, 100))
@@ -825,7 +850,7 @@ def _analyze(symbol: str, d15: pd.DataFrame, d1h: pd.DataFrame,
     stage_mult = {"COILED": 1.0, "FRESH": 1.06, "EXTENDED": 0.5}[stage]
     room = 1 - extension / 100
     opportunity = energy * stage_mult * (0.60 + 0.40 * room)
-    opportunity += news_score * 0.08
+    opportunity += news_score * hz.get("news_opp", 0.08)
     # Volume igniting off a base while the move is still early is the textbook
     # pre-parabola setup — push it to the very top of the radar.
     if ignited and stage in ("COILED", "FRESH") and extension < 38:
@@ -1067,7 +1092,7 @@ def scan(symbols: list[str], funding_map: dict | None = None,
     except Exception:
         social_idx = {}
     try:
-        news_idx = _build_news_index(news_df, symbols, lc_rows or [])
+        news_idx = _build_news_index(news_df, symbols, lc_rows or [], hz)
     except Exception:
         news_idx = {}
 
