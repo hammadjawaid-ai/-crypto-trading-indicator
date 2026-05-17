@@ -57,7 +57,8 @@ KLINE_LIMIT = 300             # candles fetched per symbol/timeframe
 # have no meaningful price action.
 EXCLUDE_SUBSTRINGS = ("UP", "DOWN", "BULL", "BEAR")
 EXCLUDE_BASES = ("USDC", "FDUSD", "TUSD", "BUSD", "DAI", "USDP", "EUR", "GBP",
-                 "USD1", "USDE", "USDD", "AEUR", "XUSD", "EURI")
+                 "USD1", "USDE", "USDD", "AEUR", "XUSD", "EURI", "RLUSD",
+                 "USDG", "GUSD", "PYUSD")
 
 # --- Timeframes ------------------------------------------------------------
 TIMEFRAMES = ["15m", "1h", "4h", "1d"]

@@ -71,6 +71,39 @@ _NAME_STOPWORDS = {
     "snt", "rare", "super", "city", "lit", "key", "dia", "ray",
 }
 
+# --- Scan horizons ---------------------------------------------------------
+# The engine is timeframe-agnostic: each horizon just feeds it a different
+# trio of charts. `imminent` hunts a 15m–1h move; `24h` hunts a move that
+# resolves over the coming day, scored off the 1h chart with a 4h/1d backdrop.
+HORIZONS: dict[str, dict] = {
+    "imminent": {
+        "name": "Imminent — 15m to 1h",
+        "tfs": ("15m", "1h", "4h"),
+        "limits": (220, 240, 260),
+        "candle": "15m", "mid": "1h", "high": "4h",
+        "range_label": "6-hour",
+        "win_coil": ("has not fired yet — the coil typically resolves within "
+                     "the next 1–6 hours; get positioned on the trigger"),
+        "win_fresh": ("underway now — expect the bulk of the follow-through "
+                      "over the next 15–90 minutes"),
+        "win_ext": ("the move is mature — late-stage; a stall or pullback is "
+                    "more likely than a clean continuation from here"),
+    },
+    "24h": {
+        "name": "Next 24 hours",
+        "tfs": ("1h", "4h", "1d"),
+        "limits": (240, 260, 320),
+        "candle": "1h", "mid": "4h", "high": "1d",
+        "range_label": "24-hour",
+        "win_coil": ("has not fired yet — a coil this tight on the 1h chart "
+                     "usually resolves within the next 12–36 hours"),
+        "win_fresh": ("underway now — expect the move to develop over the "
+                      "next 4–12 hours"),
+        "win_ext": ("the move is mature — most of the daily range is spent; "
+                    "expect consolidation over the coming day"),
+    },
+}
+
 
 def _fmt(value: float) -> str:
     """Compact price formatter for written notes."""
@@ -132,7 +165,7 @@ def _volume(d15: pd.DataFrame) -> tuple[float, float, float, bool, str]:
                 f"waking up like this is the classic pre-move tell")
     elif peak >= 1.8:
         note = (f"a volume spike to {peak:.1f}x its 20-candle average fired "
-                f"in the last hour")
+                f"recently")
     elif ignition >= 1.8:
         note = (f"volume is starting to build — ~{ignition:.1f}x the recent "
                 f"baseline; early participation, worth watching")
@@ -202,12 +235,14 @@ def _momentum(d15: pd.DataFrame, d1h: pd.DataFrame) -> tuple[float, str]:
             else "drifting higher" if score >= 12
             else "accelerating lower" if score <= -35
             else "drifting lower" if score <= -12 else "flat")
-    note = (f"price is {word} — {r4:+.2f}% over the last hour, {r8:+.2f}% over "
-            f"two hours, with the 1h candle {r1h:+.2f}%")
+    note = (f"price is {word} — {r4:+.2f}% over the recent window, "
+            f"{r8:+.2f}% over a wider window, with the higher timeframe "
+            f"{r1h:+.2f}%")
     return score, note
 
 
-def _range_break(d15: pd.DataFrame) -> tuple[float, float, float, bool, str]:
+def _range_break(d15: pd.DataFrame, range_label: str = "6-hour"
+                 ) -> tuple[float, float, float, bool, str]:
     """Signed range-break score, the 24-candle high & low, a `recent` flag
     and a note."""
     high = d15["high"].to_numpy(dtype=float)
@@ -226,13 +261,15 @@ def _range_break(d15: pd.DataFrame) -> tuple[float, float, float, bool, str]:
         over = (close - win_h) / span * 100
         score = float(np.clip(48 + over * 4, 0, 100))
         recent = close_5 <= win_h
-        note = (f"price has broken above its 6-hour high of {_fmt(win_h)}"
+        note = (f"price has broken above its {range_label} high of "
+                f"{_fmt(win_h)}"
                 + (" just now" if recent else " and has been extending"))
     elif close < win_l:
         under = (win_l - close) / span * 100
         score = float(np.clip(-48 - under * 4, -100, 0))
         recent = close_5 >= win_l
-        note = (f"price has broken below its 6-hour low of {_fmt(win_l)}"
+        note = (f"price has broken below its {range_label} low of "
+                f"{_fmt(win_l)}"
                 + (" just now" if recent else " and has been extending"))
     else:
         pos = (close - (win_h + win_l) / 2) / (span / 2)
@@ -241,7 +278,7 @@ def _range_break(d15: pd.DataFrame) -> tuple[float, float, float, bool, str]:
         edge = ("coiled just under resistance" if pos > 0.45
                 else "pressing on support" if pos < -0.45 else "mid-range")
         note = (f"price is {edge} inside a {_fmt(win_l)}–{_fmt(win_h)} "
-                f"6-hour range — no break yet")
+                f"{range_label} range — no break yet")
     return score, win_h, win_l, recent, note
 
 
@@ -256,11 +293,11 @@ def _order_flow(d15: pd.DataFrame) -> tuple[float, str]:
     val = float(bp.mean())
     score = float(np.clip((val - 0.5) * 420, -100, 100))
     if score >= 18:
-        note = (f"aggressive order flow is buy-led — {val * 100:.0f}% of taker "
-                f"volume over the last hour hit the ask")
+        note = (f"aggressive order flow is buy-led — {val * 100:.0f}% of recent "
+                f"taker volume hit the ask")
     elif score <= -18:
         note = (f"aggressive order flow is sell-led — {(1 - val) * 100:.0f}% of "
-                f"taker volume over the last hour hit the bid")
+                f"recent taker volume hit the bid")
     else:
         note = f"taker order flow is balanced ({val * 100:.0f}% buys)"
     return score, note
@@ -303,14 +340,14 @@ def _relative_strength(d15: pd.DataFrame,
     score = float(np.clip(rs * 7, -100, 100))
     if score >= 20:
         note = (f"strongly outperforming BTC — {coin_ret:+.1f}% vs BTC "
-                f"{btc_ret:+.1f}% over 4h; an idiosyncratic move, not just "
-                f"market beta")
+                f"{btc_ret:+.1f}% over the same window; an idiosyncratic move, "
+                f"not just market beta")
     elif score <= -20:
         note = (f"underperforming BTC — {coin_ret:+.1f}% vs BTC {btc_ret:+.1f}% "
-                f"over 4h; independent weakness, not just the market")
+                f"over the same window; independent weakness, not the market")
     else:
-        note = (f"tracking BTC closely ({coin_ret:+.1f}% vs {btc_ret:+.1f}% "
-                f"over 4h) — little independent strength either way")
+        note = (f"tracking BTC closely ({coin_ret:+.1f}% vs {btc_ret:+.1f}%) "
+                f"— little independent strength either way")
     return score, note
 
 
@@ -336,28 +373,32 @@ def _tf_lean(d: pd.DataFrame) -> float:
     return 0.0
 
 
-def _htf_lean(d1h: pd.DataFrame,
-              d4h: pd.DataFrame) -> tuple[float, str, str]:
-    """Signed multi-timeframe trend lean from the 1h and 4h charts.
+def _htf_lean(d_mid: pd.DataFrame, d_high: pd.DataFrame,
+              mid_label: str = "1h",
+              high_label: str = "4h") -> tuple[float, str, str]:
+    """Signed multi-timeframe trend lean from the two higher charts.
 
-    The 4h chart carries more weight — it sets the dominant trend a 15m coil
-    is most likely to resolve with. Also returns a 4h regime word.
+    The higher chart carries more weight — it sets the dominant trend the
+    primary-timeframe coil is most likely to resolve with. Also returns a
+    higher-timeframe regime word.
     """
-    l1 = _tf_lean(d1h)
-    l4 = _tf_lean(d4h)
-    score = float(np.clip((l1 * 0.4 + l4 * 0.6) * 100, -100, 100))
+    l_mid = _tf_lean(d_mid)
+    l_high = _tf_lean(d_high)
+    score = float(np.clip((l_mid * 0.4 + l_high * 0.6) * 100, -100, 100))
 
     def word(v: float) -> str:
         return "up" if v > 0.2 else "down" if v < -0.2 else "flat"
 
-    regime = ("4h uptrend" if l4 > 0.2 else "4h downtrend" if l4 < -0.2
-              else "4h range")
-    adx4 = d4h["adx"].iloc[-1]
-    strong = pd.notna(adx4) and adx4 >= config.ADX_TRENDING
-    note = (f"the 1h trend is {word(l1)} and the 4h trend is {word(l4)}"
-            + (" with real strength behind it (4h ADX confirms)"
-               if strong and abs(l4) > 0.2 else "")
-            + " — the higher-timeframe backdrop a 15m setup resolves into")
+    regime = (f"{high_label} uptrend" if l_high > 0.2
+              else f"{high_label} downtrend" if l_high < -0.2
+              else f"{high_label} range")
+    adx_h = d_high["adx"].iloc[-1]
+    strong = pd.notna(adx_h) and adx_h >= config.ADX_TRENDING
+    note = (f"the {mid_label} trend is {word(l_mid)} and the {high_label} "
+            f"trend is {word(l_high)}"
+            + (f" with real strength behind it ({high_label} ADX confirms)"
+               if strong and abs(l_high) > 0.2 else "")
+            + " — the higher-timeframe backdrop this setup resolves into")
     return score, note, regime
 
 
@@ -535,8 +576,9 @@ def _build_news_index(news_df, symbols: list[str],
 # Market backdrop — the broad-tape context every per-coin read sits inside
 # ===========================================================================
 def _market_backdrop(fear_greed: int | None, mcap_change: float | None,
-                      btc_d4h: pd.DataFrame | None) -> dict:
-    """Build the broad-market regime read from Fear & Greed, BTC's 4h trend
+                      btc_high: pd.DataFrame | None,
+                      btc_label: str = "4h") -> dict:
+    """Build the broad-market regime read from Fear & Greed, BTC's trend
     and the 24h move in total crypto market cap.
 
     A breakout fights or rides this backdrop — a bullish setup in a risk-off
@@ -556,10 +598,10 @@ def _market_backdrop(fear_greed: int | None, mcap_change: float | None,
         notes.append(f"Fear & Greed {fear_greed} ({fg_word})")
 
     btc_lean = 0.0
-    if btc_d4h is not None and len(btc_d4h) > 0:
-        btc_lean = _tf_lean(btc_d4h)
+    if btc_high is not None and len(btc_high) > 0:
+        btc_lean = _tf_lean(btc_high)
         parts.append((btc_lean * 90, 0.40))
-        notes.append(f"BTC 4h trend "
+        notes.append(f"BTC {btc_label} trend "
                      + ("up" if btc_lean > 0.2 else "down" if btc_lean < -0.2
                         else "flat"))
 
@@ -585,7 +627,8 @@ def _market_backdrop(fear_greed: int | None, mcap_change: float | None,
 # Trade idea — entry zone, stop and exit targets, stage-aware
 # ===========================================================================
 def _trade_idea(stage: str, dir_word: str, price: float, atr: float,
-                win_h: float, win_l: float, ema_fast: float) -> dict:
+                win_h: float, win_l: float, ema_fast: float,
+                candle: str = "15m") -> dict:
     """A concrete entry/exit plan tuned to the coin's stage and direction."""
     atr = atr if atr and atr > 0 else price * 0.01
 
@@ -594,7 +637,7 @@ def _trade_idea(stage: str, dir_word: str, price: float, atr: float,
         if stage == "COILED":
             return {
                 "side": "LONG", "chasing_risk": False,
-                "play": (f"Loading for an upside break. Enter on a 15m close "
+                "play": (f"Loading for an upside break. Enter on a {candle} close "
                          f"above {_fmt(win_h)} — that confirmation is the "
                          f"lowest-risk entry; or scale in early near "
                          f"{_fmt(win_l + 0.2 * (win_h - win_l))} with a wider "
@@ -603,7 +646,7 @@ def _trade_idea(stage: str, dir_word: str, price: float, atr: float,
                 "stop": win_l - 0.5 * atr,
                 "target_1": win_h + 2.4 * atr, "target_2": win_h + 4.2 * atr,
                 "exit_note": (f"Targets {_fmt(win_h + 2.4 * atr)} then "
-                              f"{_fmt(win_h + 4.2 * atr)}. A 15m close back "
+                              f"{_fmt(win_h + 4.2 * atr)}. A {candle} close back "
                               f"below {_fmt(win_l)} kills the thesis — stand "
                               f"aside or flip."),
             }
@@ -640,14 +683,14 @@ def _trade_idea(stage: str, dir_word: str, price: float, atr: float,
         if stage == "COILED":
             return {
                 "side": "SHORT", "chasing_risk": False,
-                "play": (f"Loading for a downside break. Enter on a 15m close "
+                "play": (f"Loading for a downside break. Enter on a {candle} close "
                          f"below {_fmt(win_l)} — that confirmation is the "
                          f"lowest-risk short."),
                 "entry_low": win_l - 0.5 * atr, "entry_high": win_l,
                 "stop": win_h + 0.5 * atr,
                 "target_1": win_l - 2.4 * atr, "target_2": win_l - 4.2 * atr,
                 "exit_note": (f"Targets {_fmt(win_l - 2.4 * atr)} then "
-                              f"{_fmt(win_l - 4.2 * atr)}. A 15m close back "
+                              f"{_fmt(win_l - 4.2 * atr)}. A {candle} close back "
                               f"above {_fmt(win_h)} kills the thesis."),
             }
         if stage == "FRESH":
@@ -696,8 +739,15 @@ def _trade_idea(stage: str, dir_word: str, price: float, atr: float,
 def _analyze(symbol: str, d15: pd.DataFrame, d1h: pd.DataFrame,
              d4h: pd.DataFrame, funding: float | None, social: dict | None,
              news: dict | None, btc_d15: pd.DataFrame | None = None,
-             backdrop: dict | None = None) -> dict | None:
-    """Score one coin's blowout potential, stage and direction."""
+             backdrop: dict | None = None,
+             hz: dict | None = None) -> dict | None:
+    """Score one coin's blowout potential, stage and direction.
+
+    `d15`, `d1h`, `d4h` are the primary / mid / high charts for the active
+    horizon (literally 15m/1h/4h for the imminent scan, 1h/4h/1d for the 24h
+    scan). The engine itself is timeframe-agnostic.
+    """
+    hz = hz or HORIZONS["imminent"]
     last = d15.iloc[-1]
     price = float(last["close"])
     atr = float(last["atr"]) if pd.notna(last["atr"]) else price * 0.01
@@ -707,10 +757,11 @@ def _analyze(symbol: str, d15: pd.DataFrame, d1h: pd.DataFrame,
     vol_score, vol_peak, ignition, ignited, vol_note = _volume(d15)
     vlt_score, expanding, vlt_note = _volatility(d15)
     mom_score, mom_note = _momentum(d15, d1h)
-    brk_score, win_h, win_l, recent_brk, brk_note = _range_break(d15)
+    brk_score, win_h, win_l, recent_brk, brk_note = _range_break(
+        d15, hz["range_label"])
     flow_score, flow_note = _order_flow(d15)
     obv_score, obv_note = _accumulation(d15)
-    htf_score, htf_note, regime_4h = _htf_lean(d1h, d4h)
+    htf_score, htf_note, regime_4h = _htf_lean(d1h, d4h, hz["mid"], hz["high"])
     rs_score, rs_note = _relative_strength(d15, btc_d15)
 
     # Realized move so far (lagging) and funding fuel (uses realized sign).
@@ -840,8 +891,9 @@ def _analyze(symbol: str, d15: pd.DataFrame, d1h: pd.DataFrame,
                        extension, confidence, drivers, win_h, win_l, rsi)
     if backdrop_note:
         summary += " " + backdrop_note
-    idea = _trade_idea(stage, dir_word, price, atr, win_h, win_l, ema_fast)
-    window = _window(stage, expanding)
+    idea = _trade_idea(stage, dir_word, price, atr, win_h, win_l, ema_fast,
+                       hz["candle"])
+    window = _window(stage, hz)
 
     return {
         "symbol": symbol,
@@ -896,16 +948,13 @@ def _verdict(stage: str, dir_word: str) -> tuple[str, str]:
     return "EXTENDED LONG · CHASING RISK", "⚠️"
 
 
-def _window(stage: str, expanding: bool) -> str:
-    """A plain-language estimate of when the move is expected."""
+def _window(stage: str, hz: dict) -> str:
+    """A plain-language estimate of when the move is expected, per horizon."""
     if stage == "COILED":
-        return ("has not fired yet — the coil typically resolves within the "
-                "next 1–6 hours; get positioned on the trigger")
+        return hz["win_coil"]
     if stage == "FRESH":
-        return ("underway now — expect the bulk of the follow-through over the "
-                "next 15–90 minutes")
-    return ("the move is mature — late-stage; a stall or pullback is more "
-            "likely than a clean continuation from here")
+        return hz["win_fresh"]
+    return hz["win_ext"]
 
 
 def _news_read(news: dict | None) -> str:
@@ -941,9 +990,10 @@ def _summary(symbol: str, stage: str, dir_word: str, energy: float,
                     f"NOT fired yet, which is the whole point: this is a "
                     f"predictive, early entry rather than a chase. ")
             lvl = win_h if dir_word == "BULLISH" else win_l
-            close = (f"The leading tells (order flow, accumulation, 1h/4h "
-                     f"trend, sentiment) lean {dir_word.lower()}; enter on the "
-                     f"break of {_fmt(lvl)} for the lowest-risk entry.")
+            close = (f"The leading tells (order flow, accumulation, trend, "
+                     f"relative strength, sentiment) lean {dir_word.lower()}; "
+                     f"enter on the break of {_fmt(lvl)} for the lowest-risk "
+                     f"entry.")
     elif stage == "FRESH":
         way = "higher" if dir_word == "BULLISH" else "lower"
         head = (f"{base} has just broken {way} and is still early — there is "
@@ -967,37 +1017,36 @@ def _summary(symbol: str, stage: str, dir_word: str, energy: float,
 # ===========================================================================
 # Scan entry point
 # ===========================================================================
-def _fetch(symbol: str):
-    """Fetch and enrich 15m + 1h + 4h candles for one symbol.
+def _fetch(symbol: str, tfs: tuple, limits: tuple):
+    """Fetch and enrich the primary / mid / high candles for one symbol.
 
-    15m drives the breakout signal; 1h and 4h supply the higher-timeframe
-    trend backdrop a 15m setup resolves into. Enough candles are pulled for
-    the 200-period trend EMA to be meaningful on each timeframe.
+    Enough candles are pulled on each timeframe for the 200-period trend EMA
+    to be meaningful.
     """
     try:
-        d15 = indicators.enrich(
-            binance_client.get_klines(symbol, "15m", limit=220))
-        d1h = indicators.enrich(
-            binance_client.get_klines(symbol, "1h", limit=240))
-        d4h = indicators.enrich(
-            binance_client.get_klines(symbol, "4h", limit=260))
-        return symbol, d15, d1h, d4h
+        frames = [
+            indicators.enrich(binance_client.get_klines(symbol, tf, limit=lim))
+            for tf, lim in zip(tfs, limits)]
+        return (symbol, frames[0], frames[1], frames[2])
     except Exception:
         return symbol, None, None, None
 
 
 def scan(symbols: list[str], funding_map: dict | None = None,
          lc_rows: list | None = None, news_df=None,
-         fear_greed: int | None = None,
-         mcap_change: float | None = None) -> tuple[pd.DataFrame, dict]:
-    """Scan a list of symbols for blowout candidates.
+         fear_greed: int | None = None, mcap_change: float | None = None,
+         horizon: str = "imminent") -> tuple[pd.DataFrame, dict]:
+    """Scan a list of symbols for blowout candidates on the given horizon.
 
-    Returns ``(DataFrame, backdrop)`` — the DataFrame sorted by OPPORTUNITY
-    (highest first) and the market-backdrop read every coin was scored
-    against. `funding_map`, `lc_rows` (a LunarCrush coin list), `news_df`,
-    `fear_greed` and `mcap_change` are optional — the scan degrades
-    gracefully when any are missing.
+    `horizon` is "imminent" (a 15m–1h move) or "24h" (a move over the coming
+    day). Returns ``(DataFrame, backdrop)`` — the DataFrame sorted by
+    OPPORTUNITY (highest first) and the market-backdrop read every coin was
+    scored against. `funding_map`, `lc_rows` (a LunarCrush coin list),
+    `news_df`, `fear_greed` and `mcap_change` are optional — the scan
+    degrades gracefully when any are missing.
     """
+    hz = HORIZONS.get(horizon, HORIZONS["imminent"])
+    tfs, limits = hz["tfs"], hz["limits"]
     funding_map = funding_map or {}
     social_idx = _build_social_index(lc_rows or [])
     news_idx = _build_news_index(news_df, symbols, lc_rows or [])
@@ -1005,26 +1054,27 @@ def scan(symbols: list[str], funding_map: dict | None = None,
     # Pass 1 — fetch every coin's candles in parallel.
     frames: dict[str, tuple] = {}
     with ThreadPoolExecutor(max_workers=config.SCAN_WORKERS) as pool:
-        for symbol, d15, d1h, d4h in pool.map(_fetch, symbols):
-            if (d15 is None or d1h is None or d4h is None
-                    or len(d15) < 40 or len(d1h) < 26 or len(d4h) < 26):
+        for symbol, dp, dm, dh in pool.map(
+                lambda s: _fetch(s, tfs, limits), symbols):
+            if (dp is None or dm is None or dh is None
+                    or len(dp) < 40 or len(dm) < 26 or len(dh) < 26):
                 continue
-            frames[symbol] = (d15, d1h, d4h)
+            frames[symbol] = (dp, dm, dh)
 
     # The broad-market backdrop, built once, from BTC + Fear & Greed + mcap.
     btc = frames.get("BTCUSDT")
-    btc_d15 = btc[0] if btc else None
-    btc_d4h = btc[2] if btc else None
-    backdrop = _market_backdrop(fear_greed, mcap_change, btc_d4h)
+    btc_prim = btc[0] if btc else None
+    btc_high = btc[2] if btc else None
+    backdrop = _market_backdrop(fear_greed, mcap_change, btc_high, hz["high"])
 
     # Pass 2 — score every coin against that backdrop and the BTC reference.
     rows: list[dict] = []
-    for symbol, (d15, d1h, d4h) in frames.items():
+    for symbol, (dp, dm, dh) in frames.items():
         base = symbol[:-4] if symbol.endswith("USDT") else symbol
         try:
-            res = _analyze(symbol, d15, d1h, d4h, funding_map.get(symbol),
+            res = _analyze(symbol, dp, dm, dh, funding_map.get(symbol),
                            social_idx.get(base.upper()),
-                           news_idx.get(base.upper()), btc_d15, backdrop)
+                           news_idx.get(base.upper()), btc_prim, backdrop, hz)
         except Exception:
             res = None
         if res:

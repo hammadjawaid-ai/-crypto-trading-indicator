@@ -202,9 +202,11 @@ def scan_market(symbols: tuple[str, ...], interval: str) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=config.MARKET_CACHE_TTL, show_spinner=False)
-def scan_breakouts(symbols: tuple[str, ...]) -> tuple[pd.DataFrame, dict]:
-    """Scan symbols for blowout candidates, wiring in funding, social, news
-    and the broad-market backdrop. Returns (radar DataFrame, backdrop dict)."""
+def scan_breakouts(symbols: tuple[str, ...],
+                   horizon: str = "imminent") -> tuple[pd.DataFrame, dict]:
+    """Scan symbols for blowout candidates on a horizon ("imminent" or "24h"),
+    wiring in funding, social, news and the broad-market backdrop. Returns
+    (radar DataFrame, backdrop dict)."""
     try:
         funding = derivatives.all_funding_rates()
     except Exception:
@@ -228,7 +230,7 @@ def scan_breakouts(symbols: tuple[str, ...]) -> tuple[pd.DataFrame, dict]:
     except Exception:
         mcap_change = None
     return breakout.scan(list(symbols), funding, lc_rows, news_df,
-                         fg_val, mcap_change)
+                         fg_val, mcap_change, horizon)
 
 
 @st.cache_data(ttl=config.NEWS_CACHE_TTL, show_spinner=False)
@@ -1078,6 +1080,36 @@ def render_breakout_card(row: dict, rank: int) -> None:
                    "advice. Fast moves can gap straight through stops.")
 
 
+_STAGE_WORD = {"COILED": "Loading", "FRESH": "Fresh", "EXTENDED": "Extended"}
+
+
+def breakout_side_table(df_side: pd.DataFrame) -> None:
+    """Render a compact ranked table for one direction (bullish or bearish)."""
+    if df_side.empty:
+        st.caption("No candidates on this side right now.")
+        return
+    tbl = pd.DataFrame({
+        "Coin": df_side["base"],
+        "Stage": df_side.apply(
+            lambda r: ("🔥 " if r["ignited"] else "")
+            + _STAGE_WORD.get(r["stage"], r["stage"]), axis=1),
+        "Opportunity": df_side["opportunity"],
+        "Conviction": df_side["confidence"],
+        "Entry": df_side["idea"].map(lambda i: fmt_price(i["entry_low"])),
+        "Target": df_side["idea"].map(lambda i: fmt_price(i["target_1"])),
+    })
+    st.dataframe(
+        tbl, use_container_width=True, hide_index=True,
+        height=min((len(tbl) + 1) * 36 + 3, 580),
+        column_config={
+            "Opportunity": st.column_config.ProgressColumn(
+                "Opportunity", min_value=0, max_value=100, format="%d",
+                help="0-100 headline rank — higher is a stronger setup"),
+            "Conviction": st.column_config.NumberColumn(
+                "Conviction", format="%d%%"),
+        })
+
+
 # ===========================================================================
 # Sidebar
 # ===========================================================================
@@ -1337,14 +1369,22 @@ with tab_scan:
 with tab_breakout:
     st.subheader("🚀 Breakout Radar — predict the next coins to blow out")
     st.caption(
-        "A self-contained intelligence engine: it scans every coin across the "
-        "15m, 1h and 4h charts and fuses price action, volume, volatility, "
-        "live order flow, quiet accumulation, derivatives funding, social "
-        "attention and fresh news into one read. Crucially it grades **how "
-        "far along** each move is — so it surfaces coins that are still "
-        "loading (the predictive, lowest-risk entries) and flags coins that "
-        "have already run as a chasing risk. Ranked by opportunity, not raw "
-        "movement.")
+        "A self-contained intelligence engine. It scans every coin across "
+        "three charts and fuses price action, volume + ignition, volatility, "
+        "live order flow, quiet accumulation, multi-timeframe trend, relative "
+        "strength vs BTC, derivatives funding, social attention and fresh "
+        "news into one read — set inside the broad market backdrop. It grades "
+        "**how far along** each move is, so it surfaces coins still loading "
+        "(the predictive, lowest-risk entries) and flags coins that have "
+        "already run as a chasing risk.")
+
+    hz_label = st.radio(
+        "Horizon", ["⚡ Imminent — next 15m to 1h move",
+                    "📅 Next 24 hours"],
+        horizontal=True, label_visibility="collapsed")
+    horizon = "24h" if hz_label.startswith("📅") else "imminent"
+    tf_note = ("1h · 4h · 1d charts" if horizon == "24h"
+               else "15m · 1h · 4h charts")
 
     try:
         b_tickers = load_top_symbols(top_n)
@@ -1352,8 +1392,8 @@ with tab_breakout:
         st.error(f"Could not load Binance market data: {exc}")
         st.stop()
 
-    with st.spinner(f"Scanning {len(b_tickers)} coins across 15m · 1h · 4h…"):
-        radar, backdrop = scan_breakouts(tuple(b_tickers["symbol"]))
+    with st.spinner(f"Scanning {len(b_tickers)} coins across {tf_note}…"):
+        radar, backdrop = scan_breakouts(tuple(b_tickers["symbol"]), horizon)
 
     if radar.empty:
         st.warning("No analysis available right now — try refreshing.")
@@ -1378,16 +1418,17 @@ with tab_breakout:
             f"scores, never overrides them.</span></div>",
             unsafe_allow_html=True)
 
-        # Shortlist: only coins with a real opportunity score, up to 20.
-        shortlist = radar[radar["opportunity"] >= 28].head(20)
+        # Shortlist: real opportunity only — up to 30 on the 24h horizon.
+        take = 30 if horizon == "24h" else 20
+        shortlist = radar[radar["opportunity"] >= 25].head(take)
         if shortlist.empty:
-            shortlist = radar.head(10)
+            shortlist = radar.head(12)
 
         loading = int((shortlist["stage"] == "COILED").sum())
         fresh = int((shortlist["stage"] == "FRESH").sum())
         extended = int((shortlist["stage"] == "EXTENDED").sum())
-        bull = int((shortlist["dir_word"] == "BULLISH").sum())
-        bear = int((shortlist["dir_word"] == "BEARISH").sum())
+        bull_n = int((shortlist["dir_word"] == "BULLISH").sum())
+        bear_n = int((shortlist["dir_word"] == "BEARISH").sum())
         k1, k2, k3, k4 = st.columns(4)
         k1.metric("🔋 Loading — predicted", loading,
                   help="Coiled, not fired yet — the earliest, lowest-risk "
@@ -1396,15 +1437,49 @@ with tab_breakout:
                   help="Already moving but still early — room to run")
         k3.metric("⚠️ Extended — chasing risk", extended,
                   help="Move largely spent — risky to chase")
-        k4.metric("Bullish / Bearish", f"{bull} / {bear}")
+        k4.metric("🟢 Bullish / 🔴 Bearish", f"{bull_n} / {bear_n}")
 
+        # --- Clean bullish vs bearish split -------------------------------
+        per_side = 15 if horizon == "24h" else 10
+        bull_df = shortlist[shortlist["dir_word"] == "BULLISH"].head(per_side)
+        bear_df = shortlist[shortlist["dir_word"] == "BEARISH"].head(per_side)
+        unclear_n = int((shortlist["dir_word"] == "UNCLEAR").sum())
+
+        st.markdown("### 🎯 Candidates — bullish vs bearish")
+        bc, sc = st.columns(2)
+        with bc:
+            st.markdown(
+                "<h4 style='color:#2ed47a;border-color:#2ed47a'>🟢 Bullish "
+                "breakout candidates</h4>", unsafe_allow_html=True)
+            breakout_side_table(bull_df)
+        with sc:
+            st.markdown(
+                "<h4 style='color:#ff5c5c;border-color:#ff5c5c'>🔴 Bearish "
+                "breakdown candidates</h4>", unsafe_allow_html=True)
+            breakout_side_table(bear_df)
+        if unclear_n:
+            st.caption(f"➕ {unclear_n} more coins are coiled with no clear "
+                       f"direction yet — trade their break either way; they "
+                       f"are in the full read below.")
+        st.caption(
+            "**Stage** is your timing: **Loading** = coiled, not fired yet "
+            "(earliest, lowest-risk entry) · **Fresh** = just broke, still "
+            "early · **Extended** = already run, a chasing risk. "
+            "**Opportunity** is the 0-100 headline rank. **🔥** = volume "
+            "igniting off a dormant base. Entry & Target are the trigger and "
+            "first profit level — full plan per coin below.")
+
+        st.divider()
+
+        # --- Full read & trade plan per coin ------------------------------
+        st.markdown("### 📋 Full read & trade plan")
         fc1, fc2 = st.columns([3, 2])
         stage_flt = fc1.radio(
             "Stage", ["All stages", "🔋 Loading (predicted)",
                       "🚀 Fresh breakouts", "⚠️ Extended (risky)"],
             horizontal=True, label_visibility="collapsed")
         dir_flt = fc2.radio(
-            "Direction", ["Both", "🟢 Bullish", "🔴 Bearish"],
+            "Direction", ["Both sides", "🟢 Bullish", "🔴 Bearish"],
             horizontal=True, label_visibility="collapsed")
 
         view = shortlist
@@ -1419,40 +1494,6 @@ with tab_breakout:
         elif dir_flt.startswith("🔴"):
             view = view[view["dir_word"] == "BEARISH"]
 
-        overview = pd.DataFrame({
-            "Coin": shortlist["base"],
-            "Setup": shortlist.apply(
-                lambda r: ("🔥 " if r["ignited"] else "") + r["emoji"] + " "
-                + r["verdict"], axis=1),
-            "Opportunity": shortlist["opportunity"],
-            "Direction": shortlist["direction"],
-            "Extension": shortlist["extension"],
-            "Conviction": shortlist["confidence"],
-            "Surge": shortlist["vol_peak"].map(lambda v: f"{v:.1f}x"),
-            "1h %": shortlist["chg_1h"],
-            "Price": shortlist["price"].map(fmt_price),
-        })
-        st.dataframe(
-            overview, use_container_width=True, hide_index=True, height=440,
-            column_config={
-                "Opportunity": st.column_config.ProgressColumn(
-                    "Opportunity", min_value=0, max_value=100, format="%d"),
-                "Direction": st.column_config.ProgressColumn(
-                    "Direction", min_value=-100, max_value=100, format="%d"),
-                "Extension": st.column_config.ProgressColumn(
-                    "Extension", min_value=0, max_value=100, format="%d"),
-                "Conviction": st.column_config.NumberColumn(
-                    "Conviction", format="%d%%"),
-                "1h %": st.column_config.NumberColumn("1h %", format="%.2f%%"),
-            })
-        st.caption(
-            "Opportunity = the headline rank — explosive energy, rewarded for "
-            "early (loading / fresh) setups and penalised hard once a move is "
-            "extended. Direction: -100 bearish → +100 bullish. Extension = how "
-            "much of the move is already spent (low = early, high = late/"
-            "risky). Full expert read and entry/exit plan per coin below.")
-
-        st.divider()
         if view.empty:
             st.info("No coins match that filter right now.")
         else:
