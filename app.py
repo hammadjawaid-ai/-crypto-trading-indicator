@@ -14,6 +14,7 @@ import streamlit.components.v1 as components
 from plotly.subplots import make_subplots
 
 import binance_client
+import breakout
 import config
 import derivatives
 import indicators
@@ -200,6 +201,36 @@ def scan_market(symbols: tuple[str, ...], interval: str) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+@st.cache_data(ttl=config.MARKET_CACHE_TTL, show_spinner=False)
+def scan_breakouts(symbols: tuple[str, ...]) -> tuple[pd.DataFrame, dict]:
+    """Scan symbols for blowout candidates, wiring in funding, social, news
+    and the broad-market backdrop. Returns (radar DataFrame, backdrop dict)."""
+    try:
+        funding = derivatives.all_funding_rates()
+    except Exception:
+        funding = {}
+    lc_rows: list = []
+    if lunarcrush.is_configured():
+        try:
+            lc_rows = load_lunarcrush_list()
+        except Exception:
+            lc_rows = []
+    try:
+        news_df = load_news()
+    except Exception:
+        news_df = pd.DataFrame()
+    try:
+        fg_val = load_fear_greed().get("value")
+    except Exception:
+        fg_val = None
+    try:
+        mcap_change = load_global_market().get("market_cap_change_24h")
+    except Exception:
+        mcap_change = None
+    return breakout.scan(list(symbols), funding, lc_rows, news_df,
+                         fg_val, mcap_change)
+
+
 @st.cache_data(ttl=config.NEWS_CACHE_TTL, show_spinner=False)
 def load_news() -> pd.DataFrame:
     return news_mod.fetch_news()
@@ -274,6 +305,11 @@ def fmt_price(value: float) -> str:
     if value >= 1:
         return f"${value:,.4f}"
     return f"${value:.8f}".rstrip("0").rstrip(".")
+
+
+def md_safe(text: str) -> str:
+    """Escape `$` so Streamlit markdown does not parse price text as LaTeX."""
+    return str(text).replace("$", "\\$")
 
 
 def label_badge(label: str) -> str:
@@ -930,6 +966,118 @@ def render_lunarcrush_leaderboard(rows: list) -> None:
                    "the previous reading.")
 
 
+def breakout_accent(row: dict) -> str:
+    """Pick the accent colour for a Breakout Radar card."""
+    if row["chasing_risk"]:
+        return "#e0a92b"                       # amber — extended / chasing risk
+    if row["dir_word"] == "BULLISH":
+        return "#2ed47a"
+    if row["dir_word"] == "BEARISH":
+        return "#ff5c5c"
+    return "#8b8d98"
+
+
+def render_breakout_card(row: dict, rank: int) -> None:
+    """Render one Breakout Radar candidate card."""
+    accent = breakout_accent(row)
+    idea = row["idea"]
+    ignite = (
+        "&nbsp;<span style='background:rgba(255,138,43,0.16);"
+        "border:1px solid rgba(255,138,43,0.55);color:#ff9d3d;padding:3px 9px;"
+        "border-radius:7px;font-size:0.68rem;font-weight:800'>🔥 VOLUME "
+        "IGNITING</span>" if row.get("ignited") else "")
+    with st.container(border=True):
+        st.markdown(
+            f"<div style='display:flex;justify-content:space-between;"
+            f"align-items:baseline;flex-wrap:wrap;gap:6px'>"
+            f"<div style='font-size:1.16rem;font-weight:800'>"
+            f"<span style='color:#6b7080'>#{rank}</span>&nbsp; "
+            f"{row['emoji']} {row['base']} / USDT &nbsp;"
+            f"<span style='background:{accent};color:#06121f;padding:3px 12px;"
+            f"border-radius:7px;font-size:0.72rem;font-weight:800;"
+            f"letter-spacing:0.03em'>{row['verdict']}</span>{ignite}</div>"
+            f"<div style='color:#8b8d98;font-size:0.82rem;font-weight:600'>"
+            f"opportunity {row['opportunity']:.0f} · energy {row['energy']:.0f}"
+            f" · extension {row['extension']:.0f} · {row['confidence']}% "
+            f"conviction</div></div>",
+            unsafe_allow_html=True)
+
+        if row["chasing_risk"]:
+            st.markdown(
+                "<div style='background:rgba(224,169,43,0.12);"
+                "border:1px solid rgba(224,169,43,0.45);border-radius:9px;"
+                "padding:7px 12px;margin:8px 0;font-size:0.84rem;"
+                "color:#e9c66b;font-weight:600'>⚠️ Extended — most of this "
+                "move is already done. Flagged as a <b>chasing risk</b>: this "
+                "is not a fresh entry. Wait for a pullback, or manage an "
+                "existing position.</div>",
+                unsafe_allow_html=True)
+
+        m = st.columns(5)
+        m[0].metric("Price", fmt_price(row["price"]))
+        m[1].metric("1h", f"{row['chg_1h']:+.2f}%")
+        m[2].metric("24h", f"{row['chg_24h']:+.2f}%")
+        m[3].metric("Surge", f"{row['vol_peak']:.1f}x",
+                    help="Peak recent volume vs its 20-candle average")
+        m[4].metric("RSI", f"{row['rsi']:.0f}")
+
+        st.progress(min(int(row["opportunity"]), 100),
+                    text=f"🎯 Opportunity score · {row['opportunity']:.0f} / 100"
+                         f"  ·  {row['stage'].title()} stage")
+
+        st.markdown(f"**Why it's on the radar** — {md_safe(row['summary'])}")
+        st.markdown(f"**📰 News** — {md_safe(row['news_read'])}")
+        st.caption(f"⏱️ Timing — {row['window']} · {row['regime_4h']} backdrop")
+
+        # --- Entry & exit plan, shown prominently in the card body ---------
+        st.markdown(f"**🎯 The play** — {md_safe(idea['play'])}")
+        if idea["side"] != "EITHER":
+            tc = st.columns(4)
+            tc[0].metric("Entry zone", md_safe(
+                f"{fmt_price(idea['entry_low'])} – "
+                f"{fmt_price(idea['entry_high'])}"))
+            tc[1].metric("Stop loss", fmt_price(idea["stop"]))
+            tc[2].metric("Exit 1", fmt_price(idea["target_1"]))
+            tc[3].metric("Exit 2", fmt_price(idea["target_2"]))
+        else:
+            tc = st.columns(3)
+            tc[0].metric("Long trigger", fmt_price(row["win_high"]))
+            tc[1].metric("Short trigger", fmt_price(row["win_low"]))
+            tc[2].metric("Stay flat inside", md_safe(
+                f"{fmt_price(row['win_low'])} – "
+                f"{fmt_price(row['win_high'])}"))
+        st.caption(f"Exit plan — {md_safe(idea['exit_note'])}")
+
+        chips = ""
+        for d in row["drivers"]:
+            sc = d["score"]
+            if d["signed"]:
+                col = ("#2ed47a" if sc >= 15 else "#ff5c5c" if sc <= -15
+                       else "#8b8d98")
+                val = f"{sc:+d}"
+            else:
+                col = ("#6e8bff" if sc >= 55 else "#9aa0b4" if sc >= 25
+                       else "#5b5f6e")
+                val = f"{sc}"
+            chips += (f"<span style='display:inline-block;margin:3px 6px 3px 0;"
+                      f"padding:4px 10px;border-radius:7px;font-size:0.76rem;"
+                      f"background:#1a1c24;border:1px solid {col}55'>"
+                      f"<span style='color:#c9cbd4;font-weight:600'>"
+                      f"{d['force']}</span> "
+                      f"<span style='color:{col};font-weight:800'>{val}</span>"
+                      f"</span>")
+        st.markdown(chips, unsafe_allow_html=True)
+
+        with st.expander("🔬 Force-by-force detail"):
+            for d in row["drivers"]:
+                tag = (f"{d['score']:+d}" if d["signed"]
+                       else f"{d['score']} / 100")
+                st.markdown(f"- **{d['force']}** ({tag}) — "
+                            f"{md_safe(d['note'])}")
+        st.caption("Educational — algorithmic detection, not financial "
+                   "advice. Fast moves can gap straight through stops.")
+
+
 # ===========================================================================
 # Sidebar
 # ===========================================================================
@@ -1043,9 +1191,9 @@ if glob:
         f"BTC {glob['btc_dominance']:.1f}% / "
         f"ETH {glob['eth_dominance']:.1f}% dominance")
 
-tab_scan, tab_coin, tab_news, tab_decision = st.tabs(
-    ["🔍 Market Scanner", "🪙 Coin Analysis", "📰 News & Sentiment",
-     "🧭 Decision Mode"])
+tab_scan, tab_breakout, tab_coin, tab_news, tab_decision = st.tabs(
+    ["🔍 Market Scanner", "🚀 Breakout Radar", "🪙 Coin Analysis",
+     "📰 News & Sentiment", "🧭 Decision Mode"])
 
 
 # ===========================================================================
@@ -1184,7 +1332,140 @@ with tab_scan:
 
 
 # ===========================================================================
-# Tab 2 — Coin Analysis
+# Tab 2 — Breakout Radar
+# ===========================================================================
+with tab_breakout:
+    st.subheader("🚀 Breakout Radar — predict the next coins to blow out")
+    st.caption(
+        "A self-contained intelligence engine: it scans every coin across the "
+        "15m, 1h and 4h charts and fuses price action, volume, volatility, "
+        "live order flow, quiet accumulation, derivatives funding, social "
+        "attention and fresh news into one read. Crucially it grades **how "
+        "far along** each move is — so it surfaces coins that are still "
+        "loading (the predictive, lowest-risk entries) and flags coins that "
+        "have already run as a chasing risk. Ranked by opportunity, not raw "
+        "movement.")
+
+    try:
+        b_tickers = load_top_symbols(top_n)
+    except Exception as exc:
+        st.error(f"Could not load Binance market data: {exc}")
+        st.stop()
+
+    with st.spinner(f"Scanning {len(b_tickers)} coins across 15m · 1h · 4h…"):
+        radar, backdrop = scan_breakouts(tuple(b_tickers["symbol"]))
+
+    if radar.empty:
+        st.warning("No analysis available right now — try refreshing.")
+    else:
+        bd_color = {"Risk-on": "#2ed47a", "Risk-off": "#ff5c5c"}.get(
+            backdrop["label"], "#e0a92b")
+        st.markdown(
+            f"<div style='background:rgba(110,139,255,0.05);border:1px solid "
+            f"rgba(255,255,255,0.07);border-left:3px solid {bd_color};"
+            f"border-radius:10px;padding:10px 15px;margin:2px 0 14px 0'>"
+            f"<span style='font-size:0.7rem;letter-spacing:0.09em;"
+            f"color:#8b8d98;font-weight:700'>MARKET BACKDROP — THE TAPE EVERY "
+            f"SETUP SITS INSIDE</span><br>"
+            f"<span style='font-size:1.08rem;font-weight:800;color:{bd_color}'>"
+            f"{backdrop['label']}</span>"
+            f"<span style='color:#8b8d98;font-size:0.84rem'> &nbsp;·&nbsp; "
+            f"score {backdrop['score']:+.0f} &nbsp;·&nbsp; "
+            f"{backdrop['note']}</span><br>"
+            f"<span style='color:#9aa0b4;font-size:0.79rem'>Bullish setups get "
+            f"a small tailwind when the tape is risk-on and a headwind when "
+            f"it is risk-off — and the reverse for shorts. It tilts the "
+            f"scores, never overrides them.</span></div>",
+            unsafe_allow_html=True)
+
+        # Shortlist: only coins with a real opportunity score, up to 20.
+        shortlist = radar[radar["opportunity"] >= 28].head(20)
+        if shortlist.empty:
+            shortlist = radar.head(10)
+
+        loading = int((shortlist["stage"] == "COILED").sum())
+        fresh = int((shortlist["stage"] == "FRESH").sum())
+        extended = int((shortlist["stage"] == "EXTENDED").sum())
+        bull = int((shortlist["dir_word"] == "BULLISH").sum())
+        bear = int((shortlist["dir_word"] == "BEARISH").sum())
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric("🔋 Loading — predicted", loading,
+                  help="Coiled, not fired yet — the earliest, lowest-risk "
+                       "entries")
+        k2.metric("🚀 Fresh breakouts", fresh,
+                  help="Already moving but still early — room to run")
+        k3.metric("⚠️ Extended — chasing risk", extended,
+                  help="Move largely spent — risky to chase")
+        k4.metric("Bullish / Bearish", f"{bull} / {bear}")
+
+        fc1, fc2 = st.columns([3, 2])
+        stage_flt = fc1.radio(
+            "Stage", ["All stages", "🔋 Loading (predicted)",
+                      "🚀 Fresh breakouts", "⚠️ Extended (risky)"],
+            horizontal=True, label_visibility="collapsed")
+        dir_flt = fc2.radio(
+            "Direction", ["Both", "🟢 Bullish", "🔴 Bearish"],
+            horizontal=True, label_visibility="collapsed")
+
+        view = shortlist
+        if stage_flt.startswith("🔋"):
+            view = view[view["stage"] == "COILED"]
+        elif stage_flt.startswith("🚀"):
+            view = view[view["stage"] == "FRESH"]
+        elif stage_flt.startswith("⚠️"):
+            view = view[view["stage"] == "EXTENDED"]
+        if dir_flt.startswith("🟢"):
+            view = view[view["dir_word"] == "BULLISH"]
+        elif dir_flt.startswith("🔴"):
+            view = view[view["dir_word"] == "BEARISH"]
+
+        overview = pd.DataFrame({
+            "Coin": shortlist["base"],
+            "Setup": shortlist.apply(
+                lambda r: ("🔥 " if r["ignited"] else "") + r["emoji"] + " "
+                + r["verdict"], axis=1),
+            "Opportunity": shortlist["opportunity"],
+            "Direction": shortlist["direction"],
+            "Extension": shortlist["extension"],
+            "Conviction": shortlist["confidence"],
+            "Surge": shortlist["vol_peak"].map(lambda v: f"{v:.1f}x"),
+            "1h %": shortlist["chg_1h"],
+            "Price": shortlist["price"].map(fmt_price),
+        })
+        st.dataframe(
+            overview, use_container_width=True, hide_index=True, height=440,
+            column_config={
+                "Opportunity": st.column_config.ProgressColumn(
+                    "Opportunity", min_value=0, max_value=100, format="%d"),
+                "Direction": st.column_config.ProgressColumn(
+                    "Direction", min_value=-100, max_value=100, format="%d"),
+                "Extension": st.column_config.ProgressColumn(
+                    "Extension", min_value=0, max_value=100, format="%d"),
+                "Conviction": st.column_config.NumberColumn(
+                    "Conviction", format="%d%%"),
+                "1h %": st.column_config.NumberColumn("1h %", format="%.2f%%"),
+            })
+        st.caption(
+            "Opportunity = the headline rank — explosive energy, rewarded for "
+            "early (loading / fresh) setups and penalised hard once a move is "
+            "extended. Direction: -100 bearish → +100 bullish. Extension = how "
+            "much of the move is already spent (low = early, high = late/"
+            "risky). Full expert read and entry/exit plan per coin below.")
+
+        st.divider()
+        if view.empty:
+            st.info("No coins match that filter right now.")
+        else:
+            for _, r in view.iterrows():
+                render_breakout_card(r.to_dict(), int(r.name) + 1)
+
+        st.caption("The radar is algorithmic — it flags where the conditions "
+                   "for a violent move are stacking up; it does not promise "
+                   "one will happen. Educational only, not financial advice.")
+
+
+# ===========================================================================
+# Tab 3 — Coin Analysis
 # ===========================================================================
 with tab_coin:
     try:
@@ -1451,7 +1732,7 @@ with tab_coin:
 
 
 # ===========================================================================
-# Tab 3 — News & Sentiment
+# Tab 4 — News & Sentiment
 # ===========================================================================
 with tab_news:
     st.subheader("Market Sentiment & Live News")
@@ -1583,7 +1864,7 @@ with tab_news:
 
 
 # ===========================================================================
-# Tab 4 — Decision Mode
+# Tab 5 — Decision Mode
 # ===========================================================================
 with tab_decision:
     st.subheader("🧭 Decision Mode — Top 30 Coins")
