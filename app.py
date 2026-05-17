@@ -1392,8 +1392,17 @@ with tab_breakout:
         st.error(f"Could not load Binance market data: {exc}")
         st.stop()
 
-    with st.spinner(f"Scanning {len(b_tickers)} coins across {tf_note}…"):
-        radar, backdrop = scan_breakouts(tuple(b_tickers["symbol"]), horizon)
+    try:
+        with st.spinner(f"Scanning {len(b_tickers)} coins across {tf_note}…"):
+            radar, backdrop = scan_breakouts(
+                tuple(b_tickers["symbol"]), horizon)
+    except Exception as exc:
+        import traceback as _tb
+        st.error(f"The Breakout Radar hit an error — "
+                 f"{type(exc).__name__}: {exc}")
+        with st.expander("Technical details"):
+            st.code(_tb.format_exc())
+        radar, backdrop = pd.DataFrame(), {}
 
     if radar.empty:
         st.warning("No analysis available right now — try refreshing.")

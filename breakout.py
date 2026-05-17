@@ -545,7 +545,7 @@ def _build_news_index(news_df, symbols: list[str],
         if not terms:
             continue
 
-        pattern = r"\b(" + "|".join(re.escape(t) for t in terms) + r")\b"
+        pattern = r"\b(?:" + "|".join(re.escape(t) for t in terms) + r")\b"
         hits = titles[titles["lower"].str.contains(pattern, regex=True,
                                                    na=False)]
         if hits.empty:
@@ -576,6 +576,11 @@ def _build_news_index(news_df, symbols: list[str],
 # ===========================================================================
 # Market backdrop — the broad-tape context every per-coin read sits inside
 # ===========================================================================
+_NEUTRAL_BACKDROP: dict = {
+    "score": 0.0, "label": "Neutral / mixed",
+    "note": "market context unavailable", "fear_greed": None,
+    "fg_word": "unknown", "btc_lean": 0.0, "mcap_change": None,
+}
 def _market_backdrop(fear_greed: int | None, mcap_change: float | None,
                       btc_high: pd.DataFrame | None,
                       btc_label: str = "4h") -> dict:
@@ -1054,8 +1059,17 @@ def scan(symbols: list[str], funding_map: dict | None = None,
     hz = HORIZONS.get(horizon, HORIZONS["imminent"])
     tfs, limits = hz["tfs"], hz["limits"]
     funding_map = funding_map or {}
-    social_idx = _build_social_index(lc_rows or [])
-    news_idx = _build_news_index(news_df, symbols, lc_rows or [])
+    # Preprocessing steps are wrapped — if a social/news feed returns
+    # something unexpected the radar still runs on price action alone
+    # rather than crashing the whole tab.
+    try:
+        social_idx = _build_social_index(lc_rows or [])
+    except Exception:
+        social_idx = {}
+    try:
+        news_idx = _build_news_index(news_df, symbols, lc_rows or [])
+    except Exception:
+        news_idx = {}
 
     # Pass 1 — fetch every coin's candles in parallel.
     frames: dict[str, tuple] = {}
@@ -1071,7 +1085,11 @@ def scan(symbols: list[str], funding_map: dict | None = None,
     btc = frames.get("BTCUSDT")
     btc_prim = btc[0] if btc else None
     btc_high = btc[2] if btc else None
-    backdrop = _market_backdrop(fear_greed, mcap_change, btc_high, hz["high"])
+    try:
+        backdrop = _market_backdrop(fear_greed, mcap_change, btc_high,
+                                    hz["high"])
+    except Exception:
+        backdrop = dict(_NEUTRAL_BACKDROP)
 
     # Pass 2 — score every coin against that backdrop and the BTC reference.
     rows: list[dict] = []
