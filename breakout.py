@@ -836,15 +836,28 @@ def _analyze(symbol: str, d15: pd.DataFrame, d1h: pd.DataFrame,
     else:
         dir_word = "UNCLEAR"
 
-    # Conviction — agreement of the forces that fed the direction.
-    comps = ([(realized, 1.0), (leading, 1.0)] if stage != "COILED"
-             else [(leading, 1.3), (realized, 0.5)])
+    # Conviction — how many of the engine's independent signals agree on the
+    # direction. A call backed by 8 of 9 signals is far more trustworthy than
+    # one backed by 5, so confidence rises with the BREADTH of agreement, not
+    # just the headline score. Trading with the higher-timeframe trend (a real
+    # edge) earns a bonus.
     sign = np.sign(direction) or 1
-    agree = sum(w for v, w in comps if v != 0 and np.sign(v) == sign)
-    total = sum(w for v, w in comps if v != 0) or 1
-    confidence = round(min(95.0, abs(direction) * 0.5 + agree / total * 48))
+    signed_signals = [
+        (mom_score, 1.0), (brk_score, 0.9), (flow_score, 0.8),
+        (obv_score, 0.8), (htf_score, 1.1), (rs_score, 0.9),
+        (fund_score, 0.6), (soc_dir, 0.7), (news_dir, 0.7),
+    ]
+    active = [(v, w) for v, w in signed_signals if v != 0]
+    agree_w = sum(w for v, w in active if np.sign(v) == sign)
+    total_w = sum(w for v, w in active) or 1.0
+    agreement = agree_w / total_w
+    htf_aligns = htf_score != 0 and np.sign(htf_score) == sign
+    confidence = round(min(96.0,
+                           abs(direction) * 0.34          # how decisive
+                           + agreement * 52               # breadth of agree
+                           + (8 if htf_aligns else 0)))   # with-trend bonus
     if stage == "COILED":
-        confidence = max(0, confidence - 10)   # a coil is inherently less sure
+        confidence = max(0, confidence - 8)   # a coil has not proven itself
 
     # OPPORTUNITY — the headline rank: rewards COILED/FRESH, punishes EXTENDED.
     stage_mult = {"COILED": 1.0, "FRESH": 1.06, "EXTENDED": 0.5}[stage]
