@@ -82,12 +82,13 @@ HORIZONS: dict[str, dict] = {
         "limits": (220, 240, 260),
         "candle": "15m", "mid": "1h", "high": "4h",
         "range_label": "6-hour",
-        "win_coil": ("has not fired yet — the coil typically resolves within "
-                     "the next 1–6 hours; get positioned on the trigger"),
-        "win_fresh": ("underway now — expect the bulk of the follow-through "
+        "win_coil": ("it has not moved yet — a setup this tight usually "
+                     "breaks within the next 1–6 hours, so get your order "
+                     "ready at the trigger price"),
+        "win_fresh": ("it is moving now — most of the move usually plays out "
                       "over the next 15–90 minutes"),
-        "win_ext": ("the move is mature — late-stage; a stall or pullback is "
-                    "more likely than a clean continuation from here"),
+        "win_ext": ("the move is mostly done — more likely to stall or pull "
+                    "back now than to keep running"),
     },
     "24h": {
         "name": "Next 24 hours",
@@ -95,12 +96,12 @@ HORIZONS: dict[str, dict] = {
         "limits": (240, 260, 320),
         "candle": "1h", "mid": "4h", "high": "1d",
         "range_label": "24-hour",
-        "win_coil": ("has not fired yet — a coil this tight on the 1h chart "
-                     "usually resolves within the next 12–36 hours"),
-        "win_fresh": ("underway now — expect the move to develop over the "
-                      "next 4–12 hours"),
-        "win_ext": ("the move is mature — most of the daily range is spent; "
-                    "expect consolidation over the coming day"),
+        "win_coil": ("it has not moved yet — a setup this tight usually "
+                     "breaks within the next 12–36 hours"),
+        "win_fresh": ("it is moving now — expect it to keep developing over "
+                      "the next 4–12 hours"),
+        "win_ext": ("the move is mostly done — expect it to cool off over "
+                    "the coming day"),
     },
 }
 
@@ -863,13 +864,13 @@ def _analyze(symbol: str, d15: pd.DataFrame, d1h: pd.DataFrame,
          "note": brk_note},
         {"force": "Order flow", "score": round(flow_score), "signed": True,
          "note": flow_note},
-        {"force": "Accumulation", "score": round(obv_score), "signed": True,
-         "note": obv_note},
-        {"force": "Multi-TF trend", "score": round(htf_score), "signed": True,
+        {"force": "Quiet buying/selling", "score": round(obv_score),
+         "signed": True, "note": obv_note},
+        {"force": "Bigger trend", "score": round(htf_score), "signed": True,
          "note": htf_note},
-        {"force": "Rel. strength", "score": round(rs_score), "signed": True,
-         "note": rs_note},
-        {"force": "Derivatives fuel", "score": round(fund_score),
+        {"force": "Strength vs Bitcoin", "score": round(rs_score),
+         "signed": True, "note": rs_note},
+        {"force": "Futures / funding", "score": round(fund_score),
          "signed": True, "note": fund_note},
     ]
     if social:
@@ -887,8 +888,8 @@ def _analyze(symbol: str, d15: pd.DataFrame, d1h: pd.DataFrame,
                      f"{news['fresh']} fresh — “{news['headline'][:88]}”")})
 
     news_read = _news_read(news)
-    summary = _summary(symbol, stage, dir_word, energy, opportunity,
-                       extension, confidence, drivers, win_h, win_l, rsi)
+    summary = _summary(symbol, stage, dir_word, opportunity,
+                       confidence, drivers, win_h, win_l, rsi)
     if backdrop_note:
         summary += " " + backdrop_note
     idea = _trade_idea(stage, dir_word, price, atr, win_h, win_l, ema_fast,
@@ -930,22 +931,22 @@ def _analyze(symbol: str, d15: pd.DataFrame, d1h: pd.DataFrame,
 
 
 def _verdict(stage: str, dir_word: str) -> tuple[str, str]:
-    """Map (stage, direction) to a display verdict string and emoji."""
+    """Map (stage, direction) to a plain-language verdict and emoji."""
     if stage == "COILED":
         if dir_word == "BULLISH":
-            return "LOADING · BULLISH LEAN", "🔋"
+            return "LIKELY TO GO UP SOON", "🔋"
         if dir_word == "BEARISH":
-            return "LOADING · BEARISH LEAN", "🔋"
-        return "COILED · DIRECTION UNCLEAR", "⚡"
+            return "LIKELY TO GO DOWN SOON", "🔋"
+        return "BIG MOVE COMING — WATCH IT", "⚡"
     if stage == "FRESH":
         if dir_word == "BULLISH":
-            return "FRESH BULL BREAKOUT", "🚀"
+            return "GOING UP NOW — STILL EARLY", "🚀"
         if dir_word == "BEARISH":
-            return "FRESH BEAR BREAKDOWN", "🔻"
-        return "FRESH BREAK · UNCLEAR", "⚡"
+            return "GOING DOWN NOW — STILL EARLY", "🔻"
+        return "JUST STARTED MOVING", "⚡"
     if dir_word == "BEARISH":
-        return "EXTENDED SHORT · CHASING RISK", "⚠️"
-    return "EXTENDED LONG · CHASING RISK", "⚠️"
+        return "ALREADY DROPPED — DON'T CHASE", "⚠️"
+    return "ALREADY JUMPED — DON'T CHASE", "⚠️"
 
 
 def _window(stage: str, hz: dict) -> str:
@@ -969,10 +970,10 @@ def _news_read(news: dict | None) -> str:
             f"“{news['headline']}”.")
 
 
-def _summary(symbol: str, stage: str, dir_word: str, energy: float,
-             opportunity: float, extension: float, confidence: int,
-             drivers: list, win_h: float, win_l: float, rsi: float) -> str:
-    """Synthesise the scores into one expert, stage-aware paragraph."""
+def _summary(symbol: str, stage: str, dir_word: str, opportunity: float,
+             confidence: int, drivers: list, win_h: float, win_l: float,
+             rsi: float) -> str:
+    """Synthesise the scores into one plain-language, stage-aware paragraph."""
     base = symbol[:-4] if symbol.endswith("USDT") else symbol
     ranked = sorted(drivers, key=lambda d: abs(d["score"]), reverse=True)
     lead = [d for d in ranked if abs(d["score"]) >= 28][:3] or ranked[:2]
@@ -980,38 +981,40 @@ def _summary(symbol: str, stage: str, dir_word: str, energy: float,
 
     if stage == "COILED":
         if dir_word == "UNCLEAR":
-            head = (f"{base} is wound tight but has not picked a side — the "
-                    f"leading tells are mixed. ")
-            close = (f"Do not pre-guess it: trade the break above "
-                     f"{_fmt(win_h)} or below {_fmt(win_l)}.")
+            head = (f"{base} looks ready for a big move, but it is not yet "
+                    f"clear which way it will go. ")
+            close = (f"Do not guess the direction — wait for price to commit, "
+                     f"then go with it: buy a break above {_fmt(win_h)}, sell "
+                     f"a break below {_fmt(win_l)}.")
         else:
-            way = "an upside" if dir_word == "BULLISH" else "a downside"
-            head = (f"{base} is coiled and loading for {way} break — it has "
-                    f"NOT fired yet, which is the whole point: this is a "
-                    f"predictive, early entry rather than a chase. ")
+            way = "up" if dir_word == "BULLISH" else "down"
+            head = (f"{base} looks ready to go {way} — but it has not actually "
+                    f"moved yet, and that is exactly the point: you would be "
+                    f"getting in early, before the move, not chasing it. ")
             lvl = win_h if dir_word == "BULLISH" else win_l
-            close = (f"The leading tells (order flow, accumulation, trend, "
-                     f"relative strength, sentiment) lean {dir_word.lower()}; "
-                     f"enter on the break of {_fmt(lvl)} for the lowest-risk "
-                     f"entry.")
+            act = "buy" if dir_word == "BULLISH" else "sell"
+            close = (f"The early signs — order flow, quiet buying/selling, the "
+                     f"bigger-picture trend, strength vs Bitcoin and sentiment "
+                     f"— all point {way}. The safest entry is to {act} once "
+                     f"price breaks {_fmt(lvl)}.")
     elif stage == "FRESH":
-        way = "higher" if dir_word == "BULLISH" else "lower"
-        head = (f"{base} has just broken {way} and is still early — there is "
-                f"room left before the move is extended. ")
-        close = ("Join the breakout on the retest; this is a continuation "
-                 "setup with the move already confirmed.")
+        way = "up" if dir_word == "BULLISH" else "down"
+        head = (f"{base} has just started moving {way} and it is still early "
+                f"— there should be more room before the move is spent. ")
+        close = ("The move is already confirmed — join it on the first small "
+                 "pullback rather than chasing the current candle.")
     else:  # EXTENDED
-        head = (f"{base} has ALREADY made its move — RSI {rsi:.0f}, price "
-                f"stretched and {extension:.0f}/100 on the extension gauge. "
-                f"Chasing it here is exactly the risky, late trade this radar "
-                f"is built to flag. ")
-        close = ("Wait for a pullback to value before any fresh entry; "
-                 "holders should be trailing stops and banking profit.")
+        head = (f"{base} has ALREADY made its move and is stretched (RSI "
+                f"{rsi:.0f}). Buying or selling here is the late, risky trade "
+                f"this radar is built to warn you away from. ")
+        close = ("Do not chase it — wait for it to pull back and calm down "
+                 "before any new entry; if you are already in, protect your "
+                 "profit with a tight stop.")
 
     art = "an" if dir_word == "UNCLEAR" else "a"
-    return (f"{head}{body} Opportunity scores {opportunity:.0f}/100 "
-            f"(energy {energy:.0f}, extension {extension:.0f}) with {art} "
-            f"{dir_word.lower()} read at {confidence}% conviction. {close}")
+    return (f"{head}{body} It scores {opportunity:.0f} out of 100 on the "
+            f"radar, with {art} {dir_word.lower()} read at {confidence}% "
+            f"confidence. {close}")
 
 
 # ===========================================================================

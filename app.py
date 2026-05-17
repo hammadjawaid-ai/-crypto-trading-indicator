@@ -987,7 +987,7 @@ def render_breakout_card(row: dict, rank: int) -> None:
         "&nbsp;<span style='background:rgba(255,138,43,0.16);"
         "border:1px solid rgba(255,138,43,0.55);color:#ff9d3d;padding:3px 9px;"
         "border-radius:7px;font-size:0.68rem;font-weight:800'>🔥 VOLUME "
-        "IGNITING</span>" if row.get("ignited") else "")
+        "SURGING</span>" if row.get("ignited") else "")
     with st.container(border=True):
         st.markdown(
             f"<div style='display:flex;justify-content:space-between;"
@@ -999,9 +999,8 @@ def render_breakout_card(row: dict, rank: int) -> None:
             f"border-radius:7px;font-size:0.72rem;font-weight:800;"
             f"letter-spacing:0.03em'>{row['verdict']}</span>{ignite}</div>"
             f"<div style='color:#8b8d98;font-size:0.82rem;font-weight:600'>"
-            f"opportunity {row['opportunity']:.0f} · energy {row['energy']:.0f}"
-            f" · extension {row['extension']:.0f} · {row['confidence']}% "
-            f"conviction</div></div>",
+            f"radar score {row['opportunity']:.0f}/100 · "
+            f"{row['confidence']}% confidence</div></div>",
             unsafe_allow_html=True)
 
         if row["chasing_risk"]:
@@ -1009,10 +1008,10 @@ def render_breakout_card(row: dict, rank: int) -> None:
                 "<div style='background:rgba(224,169,43,0.12);"
                 "border:1px solid rgba(224,169,43,0.45);border-radius:9px;"
                 "padding:7px 12px;margin:8px 0;font-size:0.84rem;"
-                "color:#e9c66b;font-weight:600'>⚠️ Extended — most of this "
-                "move is already done. Flagged as a <b>chasing risk</b>: this "
-                "is not a fresh entry. Wait for a pullback, or manage an "
-                "existing position.</div>",
+                "color:#e9c66b;font-weight:600'>⚠️ This coin has already made "
+                "its big move — it is too late to enter safely. Don't chase "
+                "it: wait for it to pull back, or just manage a position you "
+                "already hold.</div>",
                 unsafe_allow_html=True)
 
         m = st.columns(5)
@@ -1024,8 +1023,8 @@ def render_breakout_card(row: dict, rank: int) -> None:
         m[4].metric("RSI", f"{row['rsi']:.0f}")
 
         st.progress(min(int(row["opportunity"]), 100),
-                    text=f"🎯 Opportunity score · {row['opportunity']:.0f} / 100"
-                         f"  ·  {row['stage'].title()} stage")
+                    text=f"🎯 Radar score {row['opportunity']:.0f}/100  ·  "
+                         f"{_STAGE_WORD.get(row['stage'], row['stage'])}")
 
         st.markdown(f"**Why it's on the radar** — {md_safe(row['summary'])}")
         st.markdown(f"**📰 News** — {md_safe(row['news_read'])}")
@@ -1070,7 +1069,7 @@ def render_breakout_card(row: dict, rank: int) -> None:
                       f"</span>")
         st.markdown(chips, unsafe_allow_html=True)
 
-        with st.expander("🔬 Force-by-force detail"):
+        with st.expander("🔬 Full breakdown — every signal explained"):
             for d in row["drivers"]:
                 tag = (f"{d['score']:+d}" if d["signed"]
                        else f"{d['score']} / 100")
@@ -1080,21 +1079,22 @@ def render_breakout_card(row: dict, rank: int) -> None:
                    "advice. Fast moves can gap straight through stops.")
 
 
-_STAGE_WORD = {"COILED": "Loading", "FRESH": "Fresh", "EXTENDED": "Extended"}
+_STAGE_WORD = {"COILED": "Building Up", "FRESH": "Just Started",
+               "EXTENDED": "Already Ran"}
 
 
 def breakout_side_table(df_side: pd.DataFrame) -> None:
-    """Render a compact ranked table for one direction (bullish or bearish)."""
+    """Render a compact ranked table for one direction (up or down)."""
     if df_side.empty:
-        st.caption("No candidates on this side right now.")
+        st.caption("No coins on this side right now.")
         return
     tbl = pd.DataFrame({
         "Coin": df_side["base"],
-        "Stage": df_side.apply(
+        "Status": df_side.apply(
             lambda r: ("🔥 " if r["ignited"] else "")
             + _STAGE_WORD.get(r["stage"], r["stage"]), axis=1),
-        "Opportunity": df_side["opportunity"],
-        "Conviction": df_side["confidence"],
+        "Score": df_side["opportunity"],
+        "Confidence": df_side["confidence"],
         "Entry": df_side["idea"].map(lambda i: fmt_price(i["entry_low"])),
         "Target": df_side["idea"].map(lambda i: fmt_price(i["target_1"])),
     })
@@ -1102,11 +1102,11 @@ def breakout_side_table(df_side: pd.DataFrame) -> None:
         tbl, use_container_width=True, hide_index=True,
         height=min((len(tbl) + 1) * 36 + 3, 580),
         column_config={
-            "Opportunity": st.column_config.ProgressColumn(
-                "Opportunity", min_value=0, max_value=100, format="%d",
-                help="0-100 headline rank — higher is a stronger setup"),
-            "Conviction": st.column_config.NumberColumn(
-                "Conviction", format="%d%%"),
+            "Score": st.column_config.ProgressColumn(
+                "Score", min_value=0, max_value=100, format="%d",
+                help="0-100 radar rank — higher is a stronger setup"),
+            "Confidence": st.column_config.NumberColumn(
+                "Confidence", format="%d%%"),
         })
 
 
@@ -1370,13 +1370,13 @@ with tab_breakout:
     st.subheader("🚀 Breakout Radar — predict the next coins to blow out")
     st.caption(
         "A self-contained intelligence engine. It scans every coin across "
-        "three charts and fuses price action, volume + ignition, volatility, "
-        "live order flow, quiet accumulation, multi-timeframe trend, relative "
-        "strength vs BTC, derivatives funding, social attention and fresh "
-        "news into one read — set inside the broad market backdrop. It grades "
-        "**how far along** each move is, so it surfaces coins still loading "
-        "(the predictive, lowest-risk entries) and flags coins that have "
-        "already run as a chasing risk.")
+        "three charts and fuses price action, volume surges, volatility, "
+        "live buying/selling, the bigger trend, strength versus Bitcoin, "
+        "futures funding, social attention and fresh news into one plain "
+        "verdict — set inside the overall market mood. It tells you which "
+        "coins look ready to move and **how early you are**: coins that "
+        "haven't moved yet (the safest entries), coins just starting to move, "
+        "and coins that have already run (too late to chase).")
 
     hz_label = st.radio(
         "Horizon", ["⚡ Imminent — next 15m to 1h move",
@@ -1430,56 +1430,56 @@ with tab_breakout:
         bull_n = int((shortlist["dir_word"] == "BULLISH").sum())
         bear_n = int((shortlist["dir_word"] == "BEARISH").sum())
         k1, k2, k3, k4 = st.columns(4)
-        k1.metric("🔋 Loading — predicted", loading,
-                  help="Coiled, not fired yet — the earliest, lowest-risk "
-                       "entries")
-        k2.metric("🚀 Fresh breakouts", fresh,
+        k1.metric("🔋 Building up", loading,
+                  help="Hasn't moved yet — the earliest, safest entries")
+        k2.metric("🚀 Just started", fresh,
                   help="Already moving but still early — room to run")
-        k3.metric("⚠️ Extended — chasing risk", extended,
-                  help="Move largely spent — risky to chase")
-        k4.metric("🟢 Bullish / 🔴 Bearish", f"{bull_n} / {bear_n}")
+        k3.metric("⚠️ Already ran", extended,
+                  help="Move mostly done — too late, risky to chase")
+        k4.metric("🟢 Going up / 🔴 Going down", f"{bull_n} / {bear_n}")
 
-        # --- Clean bullish vs bearish split -------------------------------
+        # --- Clean up vs down split ---------------------------------------
         per_side = 15 if horizon == "24h" else 10
         bull_df = shortlist[shortlist["dir_word"] == "BULLISH"].head(per_side)
         bear_df = shortlist[shortlist["dir_word"] == "BEARISH"].head(per_side)
         unclear_n = int((shortlist["dir_word"] == "UNCLEAR").sum())
 
-        st.markdown("### 🎯 Candidates — bullish vs bearish")
+        st.markdown("### 🎯 Top coins to watch")
         bc, sc = st.columns(2)
         with bc:
             st.markdown(
-                "<h4 style='color:#2ed47a;border-color:#2ed47a'>🟢 Bullish "
-                "breakout candidates</h4>", unsafe_allow_html=True)
+                "<h4 style='color:#2ed47a;border-color:#2ed47a'>🟢 Likely to "
+                "go UP</h4>", unsafe_allow_html=True)
             breakout_side_table(bull_df)
         with sc:
             st.markdown(
-                "<h4 style='color:#ff5c5c;border-color:#ff5c5c'>🔴 Bearish "
-                "breakdown candidates</h4>", unsafe_allow_html=True)
+                "<h4 style='color:#ff5c5c;border-color:#ff5c5c'>🔴 Likely to "
+                "go DOWN</h4>", unsafe_allow_html=True)
             breakout_side_table(bear_df)
         if unclear_n:
-            st.caption(f"➕ {unclear_n} more coins are coiled with no clear "
-                       f"direction yet — trade their break either way; they "
-                       f"are in the full read below.")
+            st.caption(f"➕ {unclear_n} more coins look ready for a big move "
+                       f"but the direction isn't clear yet — see the full "
+                       f"read below.")
         st.caption(
-            "**Stage** is your timing: **Loading** = coiled, not fired yet "
-            "(earliest, lowest-risk entry) · **Fresh** = just broke, still "
-            "early · **Extended** = already run, a chasing risk. "
-            "**Opportunity** is the 0-100 headline rank. **🔥** = volume "
-            "igniting off a dormant base. Entry & Target are the trigger and "
-            "first profit level — full plan per coin below.")
+            "**Status** tells you how early you are — **Building Up** = hasn't "
+            "moved yet (earliest, safest entry) · **Just Started** = move just "
+            "began, still early · **Already Ran** = move mostly done, risky to "
+            "chase. **Score** is the 0-100 radar rank, higher is better. "
+            "**🔥** = volume surging. **Entry** is the price to act at, "
+            "**Target** is the first place to take profit — full plan per "
+            "coin below.")
 
         st.divider()
 
         # --- Full read & trade plan per coin ------------------------------
-        st.markdown("### 📋 Full read & trade plan")
+        st.markdown("### 📋 Full read & trade plan for each coin")
         fc1, fc2 = st.columns([3, 2])
         stage_flt = fc1.radio(
-            "Stage", ["All stages", "🔋 Loading (predicted)",
-                      "🚀 Fresh breakouts", "⚠️ Extended (risky)"],
+            "Status", ["All", "🔋 Building up", "🚀 Just started",
+                       "⚠️ Already ran"],
             horizontal=True, label_visibility="collapsed")
         dir_flt = fc2.radio(
-            "Direction", ["Both sides", "🟢 Bullish", "🔴 Bearish"],
+            "Direction", ["Up & down", "🟢 Going up", "🔴 Going down"],
             horizontal=True, label_visibility="collapsed")
 
         view = shortlist
