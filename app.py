@@ -309,6 +309,23 @@ def fmt_price(value: float) -> str:
     return f"${value:.8f}".rstrip("0").rstrip(".")
 
 
+def fmt_volume(value: float) -> str:
+    """Human-readable money amount — billions / millions / thousands.
+
+    Avoids the '$0.0B' problem where dividing every coin by a billion hides
+    anything that does not trade in the billions.
+    """
+    if value is None or value != value:   # None or NaN
+        return "—"
+    if value >= 1e9:
+        return f"${value / 1e9:.2f}B"
+    if value >= 1e6:
+        return f"${value / 1e6:.1f}M"
+    if value >= 1e3:
+        return f"${value / 1e3:.0f}K"
+    return f"${value:,.0f}"
+
+
 def md_safe(text: str) -> str:
     """Escape `$` so Streamlit markdown does not parse price text as LaTeX."""
     return str(text).replace("$", "\\$")
@@ -1014,13 +1031,15 @@ def render_breakout_card(row: dict, rank: int) -> None:
                 "already hold.</div>",
                 unsafe_allow_html=True)
 
-        m = st.columns(5)
+        m = st.columns(6)
         m[0].metric("Price", fmt_price(row["price"]))
         m[1].metric("1h", f"{row['chg_1h']:+.2f}%")
         m[2].metric("24h", f"{row['chg_24h']:+.2f}%")
-        m[3].metric("Surge", f"{row['vol_peak']:.1f}x",
+        m[3].metric("24h Vol", fmt_volume(row.get("quoteVolume")),
+                    help="24h traded value — a liquidity check")
+        m[4].metric("Surge", f"{row['vol_peak']:.1f}x",
                     help="Peak recent volume vs its 20-candle average")
-        m[4].metric("RSI", f"{row['rsi']:.0f}")
+        m[5].metric("RSI", f"{row['rsi']:.0f}")
 
         st.progress(min(int(row["opportunity"]), 100),
                     text=f"🎯 Radar score {row['opportunity']:.0f}/100  ·  "
@@ -1104,7 +1123,6 @@ def breakout_side_table(df_side: pd.DataFrame, side: str) -> None:
 
     tbl = pd.DataFrame({
         "Coin": df_side["base"],
-        "Trade": "LONG" if side == "UP" else "SHORT",
         "Status": df_side.apply(
             lambda r: ("🔥 " if r["ignited"] else "")
             + _STAGE_WORD.get(r["stage"], r["stage"]), axis=1),
@@ -1112,6 +1130,8 @@ def breakout_side_table(df_side: pd.DataFrame, side: str) -> None:
         "Confidence": df_side["confidence"],
         "Entry": df_side.apply(lambda r: fmt_price(_entry(r)), axis=1),
         "Target": df_side.apply(lambda r: fmt_price(_target(r)), axis=1),
+        "24h Vol": (df_side["quoteVolume"].map(fmt_volume)
+                    if "quoteVolume" in df_side.columns else "—"),
     })
     st.dataframe(
         tbl, use_container_width=True, hide_index=True,
@@ -1419,6 +1439,11 @@ with tab_breakout:
         with st.expander("Technical details"):
             st.code(_tb.format_exc())
         radar, backdrop = pd.DataFrame(), {}
+
+    # Attach each coin's 24h USDT volume for a liquidity read on the cards.
+    if not radar.empty:
+        radar = radar.merge(
+            b_tickers[["symbol", "quoteVolume"]], on="symbol", how="left")
 
     if radar.empty:
         st.warning("No analysis available right now — try refreshing.")
@@ -2013,8 +2038,7 @@ with tab_decision:
                 m = st.columns(6)
                 m[0].metric("Price", fmt_price(r["price"]))
                 m[1].metric("24h", f"{r['priceChangePercent']:+.2f}%")
-                m[2].metric("24h volume",
-                            f"${r['quoteVolume'] / 1e9:.1f}B")
+                m[2].metric("24h volume", fmt_volume(r["quoteVolume"]))
                 m[3].metric("RSI", r["rsi"])
                 m[4].metric("TradingView", tv.get("recommendation", "—"))
                 _sent = lc.get("sentiment")
