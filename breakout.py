@@ -85,8 +85,8 @@ HORIZONS: dict[str, dict] = {
         # An imminent move is driven by microstructure — volume, volatility
         # and live order flow carry the weight.
         "energy_w": {"vol": 0.34, "vlt": 0.30, "soc": 0.22, "news": 0.14},
-        "lead_w": {"flow": 0.22, "obv": 0.17, "htf": 0.19, "rs": 0.16,
-                   "soc": 0.13, "news": 0.13},
+        "lead_w": {"flow": 0.20, "obv": 0.15, "htf": 0.17, "rs": 0.14,
+                   "soc": 0.11, "news": 0.11, "prim": 0.20},
         "news_opp": 0.08, "news_recent_h": 6, "news_fresh_h": 18,
         "win_coil": ("it has not moved yet — a setup this tight usually "
                      "breaks within the next 1–6 hours, so get your order "
@@ -105,8 +105,8 @@ HORIZONS: dict[str, dict] = {
         # A 24-hour move is driven by catalysts — news, social attention and
         # the bigger trend carry the weight; live order flow matters far less.
         "energy_w": {"vol": 0.26, "vlt": 0.24, "soc": 0.28, "news": 0.22},
-        "lead_w": {"flow": 0.12, "obv": 0.16, "htf": 0.24, "rs": 0.16,
-                   "soc": 0.16, "news": 0.16},
+        "lead_w": {"flow": 0.10, "obv": 0.14, "htf": 0.22, "rs": 0.14,
+                   "soc": 0.14, "news": 0.14, "prim": 0.22},
         "news_opp": 0.14, "news_recent_h": 12, "news_fresh_h": 36,
         "win_coil": ("it has not moved yet — a setup this tight usually "
                      "breaks within the next 12–36 hours"),
@@ -791,6 +791,15 @@ def _analyze(symbol: str, d15: pd.DataFrame, d1h: pd.DataFrame,
     htf_score, htf_note, regime_4h = _htf_lean(d1h, d4h, hz["mid"], hz["high"])
     rs_score, rs_note = _relative_strength(d15, btc_d15)
 
+    # The coin's OWN trend backbone — its EMA structure on the primary chart
+    # blended with the higher-timeframe lean. This is the single biggest fix
+    # for calls that "don't follow the direction of trading": a setup is only
+    # trustworthy when it respects the trend the coin is actually in.
+    prim_lean = _tf_lean(d15)
+    prim_score = float(np.clip(prim_lean * 100, -100, 100))
+    trend_score = float(np.clip(0.34 * prim_score + 0.66 * htf_score,
+                                -100, 100))
+
     # Realized move so far (lagging) and funding fuel (uses realized sign).
     realized = float(np.clip(0.6 * mom_score + 0.4 * brk_score, -100, 100))
     fund_score, fund_note = _funding_fuel(funding, realized)
@@ -814,10 +823,13 @@ def _analyze(symbol: str, d15: pd.DataFrame, d1h: pd.DataFrame,
     energy = _renorm(e_parts)
 
     # LEADING pressure — what hints at the move before price confirms it.
+    # The coin's own chart trend now sits in this group, so direction is
+    # anchored to real price structure, not just flow and sentiment.
     lw = hz["lead_w"]
     l_parts = [(flow_score, lw["flow"]), (obv_score, lw["obv"]),
                (htf_score, lw["htf"]), (rs_score, lw["rs"]),
-               (soc_dir, lw["soc"]), (news_dir, lw["news"])]
+               (soc_dir, lw["soc"]), (news_dir, lw["news"]),
+               (prim_score, lw["prim"])]
     if funding is not None:
         l_parts.append((fund_score, 0.16))
     leading = float(np.clip(_renorm(l_parts), -100, 100))
@@ -827,6 +839,20 @@ def _analyze(symbol: str, d15: pd.DataFrame, d1h: pd.DataFrame,
         direction = float(np.clip(0.72 * leading + 0.28 * realized, -100, 100))
     else:
         direction = float(np.clip(0.55 * realized + 0.45 * leading, -100, 100))
+
+    # --- Trend respect — the core fix for signals that fight the tape -------
+    # A breakout call most often goes the WRONG way by calling a reversal
+    # against a strong, established trend. So a call that rides a strong
+    # multi-timeframe trend is firmed up, and one fighting it is heavily
+    # damped (and flagged) — which correctly pulls weak counter-trend reads
+    # back toward UNCLEAR instead of presenting them as confident signals.
+    trend_conflict = False
+    if abs(trend_score) >= 50 and direction != 0:
+        if np.sign(direction) == np.sign(trend_score):
+            direction = float(np.clip(direction * 1.15, -100, 100))
+        else:
+            direction *= 0.5
+            trend_conflict = True
 
     thresh = 16 if stage == "COILED" else 20
     if direction >= thresh:
@@ -844,20 +870,23 @@ def _analyze(symbol: str, d15: pd.DataFrame, d1h: pd.DataFrame,
     sign = np.sign(direction) or 1
     signed_signals = [
         (mom_score, 1.0), (brk_score, 0.9), (flow_score, 0.8),
-        (obv_score, 0.8), (htf_score, 1.1), (rs_score, 0.9),
+        (obv_score, 0.8), (htf_score, 1.0), (rs_score, 0.9),
         (fund_score, 0.6), (soc_dir, 0.7), (news_dir, 0.7),
+        (trend_score, 1.3),
     ]
     active = [(v, w) for v, w in signed_signals if v != 0]
     agree_w = sum(w for v, w in active if np.sign(v) == sign)
     total_w = sum(w for v, w in active) or 1.0
     agreement = agree_w / total_w
-    htf_aligns = htf_score != 0 and np.sign(htf_score) == sign
+    trend_aligns = trend_score != 0 and np.sign(trend_score) == sign
     confidence = round(min(96.0,
                            abs(direction) * 0.34          # how decisive
-                           + agreement * 52               # breadth of agree
-                           + (8 if htf_aligns else 0)))   # with-trend bonus
+                           + agreement * 50               # breadth of agree
+                           + (10 if trend_aligns else 0)))  # with-trend bonus
     if stage == "COILED":
         confidence = max(0, confidence - 8)   # a coil has not proven itself
+    if trend_conflict:
+        confidence = max(0, confidence - 14)  # fighting the trend — unreliable
 
     # OPPORTUNITY — the headline rank: rewards COILED/FRESH, punishes EXTENDED.
     stage_mult = {"COILED": 1.0, "FRESH": 1.06, "EXTENDED": 0.5}[stage]
@@ -868,8 +897,10 @@ def _analyze(symbol: str, d15: pd.DataFrame, d1h: pd.DataFrame,
     # pre-parabola setup — push it to the very top of the radar.
     if ignited and stage in ("COILED", "FRESH") and extension < 38:
         opportunity += 11
-    if dir_word == "UNCLEAR":
-        opportunity *= 0.9
+    # A decisive directional read is itself part of a good opportunity — a
+    # coiled coin nobody can call is worth less than one leaning hard one way.
+    conviction = abs(direction) / 100.0
+    opportunity *= (0.85 + 0.15 * conviction)
 
     # MARKET BACKDROP — a lean that rides the broad tape is more trustworthy;
     # one that fights it is less so. Modest by design: it tilts, never rules.
@@ -915,6 +946,8 @@ def _analyze(symbol: str, d15: pd.DataFrame, d1h: pd.DataFrame,
          "signed": True, "note": obv_note},
         {"force": "Bigger trend", "score": round(htf_score), "signed": True,
          "note": htf_note},
+        {"force": "Chart trend", "score": round(trend_score), "signed": True,
+         "note": _trend_note(trend_score, trend_conflict, hz)},
         {"force": "Strength vs Bitcoin", "score": round(rs_score),
          "signed": True, "note": rs_note},
         {"force": "Futures / funding", "score": round(fund_score),
@@ -939,6 +972,11 @@ def _analyze(symbol: str, d15: pd.DataFrame, d1h: pd.DataFrame,
                        confidence, drivers, win_h, win_l, rsi)
     if backdrop_note:
         summary += " " + backdrop_note
+    if trend_conflict:
+        summary += (" ⚠️ This call is fighting the coin's dominant "
+                    "higher-timeframe trend — a lower-probability, "
+                    "counter-trend setup; size down hard or simply wait for "
+                    "the trend itself to turn before trusting it.")
     idea = _trade_idea(stage, dir_word, price, atr, win_h, win_l, ema_fast,
                        hz["candle"])
     window = _window(stage, hz)
@@ -954,6 +992,8 @@ def _analyze(symbol: str, d15: pd.DataFrame, d1h: pd.DataFrame,
         "chg_24h": round(chg24, 2),
         "energy": round(energy, 1),
         "direction": round(direction, 1),
+        "trend_score": round(trend_score, 1),
+        "trend_conflict": trend_conflict,
         "extension": round(extension, 1),
         "opportunity": round(opportunity, 1),
         "confidence": confidence,
@@ -1002,6 +1042,20 @@ def _window(stage: str, hz: dict) -> str:
     if stage == "FRESH":
         return hz["win_fresh"]
     return hz["win_ext"]
+
+
+def _trend_note(trend_score: float, conflict: bool, hz: dict) -> str:
+    """A plain-language note for the chart-trend backbone driver."""
+    word = ("up" if trend_score >= 22 else "down" if trend_score <= -22
+            else "flat / mixed")
+    base = (f"the coin's own trend across the {hz['candle']}, {hz['mid']} and "
+            f"{hz['high']} charts is {word}")
+    if conflict:
+        return (base + " — and this setup is leaning AGAINST it, which is the "
+                "single most common way a signal goes the wrong way")
+    if abs(trend_score) >= 22:
+        return base + " — the move would be running with the trend, a real edge"
+    return base + " — no strong trend to ride either way"
 
 
 def _news_read(news: dict | None) -> str:

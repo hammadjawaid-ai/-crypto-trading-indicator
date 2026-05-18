@@ -21,6 +21,7 @@ import indicators
 import lunarcrush
 import market_context
 import news as news_mod
+import oracle
 import orderflow
 import sentiment as sentiment_mod
 import signals
@@ -1146,6 +1147,95 @@ def breakout_side_table(df_side: pd.DataFrame, side: str) -> None:
         })
 
 
+def render_oracle_answer(result: dict) -> None:
+    """Render the Oracle's answer — a headline panel plus matching cards."""
+    accent = {"bullish": "#2ed47a", "bearish": "#ff5c5c",
+              "mixed": "#e0a92b", "empty": "#8b8d98"}.get(
+                  result.get("tone", "mixed"), "#6e8bff")
+    with st.container(border=True):
+        st.markdown(
+            f"<div style='font-size:0.72rem;letter-spacing:0.09em;"
+            f"color:#8b8d98;font-weight:700'>🤖 THE ORACLE SAYS</div>"
+            f"<div style='font-size:1.22rem;font-weight:800;color:{accent};"
+            f"margin:4px 0 6px 0'>{md_safe(result['headline'])}</div>"
+            f"<div style='color:#c9cbd4;font-size:0.9rem'>"
+            f"{md_safe(result['detail'])}</div>",
+            unsafe_allow_html=True)
+    coins = result.get("coins")
+    if coins is not None and not coins.empty:
+        for _i, (_, _r) in enumerate(coins.iterrows(), 1):
+            render_breakout_card(_r.to_dict(), _i)
+
+
+def render_buy_zone_board(radar: pd.DataFrame, backdrop: dict,
+                          mcap_map: dict) -> None:
+    """Render the bullish-accumulation buy-zone board."""
+    st.markdown("### 🟢 Bullish Buy Zones — where to accumulate")
+    zones = oracle.buy_zones(radar, mcap_map)
+    if zones is None or zones.empty:
+        st.info("No clean bullish accumulation setups on the radar right "
+                "now — nothing is coiled or freshly breaking to the upside. "
+                "Try the other horizon, or check back after the next "
+                "candles close.")
+        return
+
+    if backdrop:
+        score = backdrop.get("score", 0) or 0
+        tape = ("a tailwind for these longs" if score >= 22
+                else "a headwind — size these down" if score <= -22
+                else "broadly neutral for these longs")
+        st.caption(f"🌍 **Worldwide backdrop** — {backdrop.get('label', '—')}: "
+                   f"{backdrop.get('note', '')}. That is {tape}.")
+
+    table = pd.DataFrame({
+        "Coin": zones["base"],
+        "Status": zones.apply(
+            lambda r: ("🔥 " if r["ignited"] else "")
+            + _STAGE_WORD.get(r["stage"], r["stage"]), axis=1),
+        "Buy zone": zones.apply(
+            lambda r: f"{fmt_price(r['buy_low'])} – {fmt_price(r['buy_high'])}",
+            axis=1),
+        "Breakout trigger": zones["trigger"].map(fmt_price),
+        "Stop": zones["bz_stop"].map(fmt_price),
+        "Target 1": zones["bz_t1"].map(fmt_price),
+        "Target 2": zones["bz_t2"].map(fmt_price),
+        "Score": zones["opportunity"],
+        "Confidence": zones["confidence"],
+        "Market cap": zones["market_cap"].map(
+            lambda v: fmt_volume(v) if v and v == v else "—"),
+        "Cap tier": zones["cap_tier"],
+        "Circulating": zones["circ_pct"].map(
+            lambda v: f"{v:.0f}%" if v is not None and v == v else "—"),
+    })
+    st.dataframe(
+        table, use_container_width=True, hide_index=True,
+        height=min((len(table) + 1) * 36 + 3, 520),
+        column_config={
+            "Score": st.column_config.ProgressColumn(
+                "Score", min_value=0, max_value=100, format="%d"),
+            "Confidence": st.column_config.NumberColumn(
+                "Confidence", format="%d%%"),
+            "Circulating": st.column_config.TextColumn(
+                "Circulating",
+                help="Circulating supply as a % of max supply — a high % "
+                     "means little future dilution; a low % means many "
+                     "tokens are still to be unlocked."),
+        })
+    st.caption(
+        "**How to use this** — the **Buy zone** is the price band to "
+        "accumulate in: for *Building Up* coins it sits inside the range so "
+        "you get positioned **before** the breakout, for *Just Started* "
+        "coins it is the retest of the level just broken. A clean candle "
+        "close above the **Breakout trigger** confirms the move; always set "
+        "the **Stop**. Larger-cap coins move more slowly but reverse less "
+        "violently; a low **Circulating** % flags dilution risk as more "
+        "tokens unlock. Educational only — not financial advice.")
+
+    st.markdown("#### 📋 Top 3 — full read & trade plan")
+    for _i, (_, _r) in enumerate(zones.head(3).iterrows(), 1):
+        render_breakout_card(_r.to_dict(), _i)
+
+
 # ===========================================================================
 # Sidebar
 # ===========================================================================
@@ -1259,9 +1349,10 @@ if glob:
         f"BTC {glob['btc_dominance']:.1f}% / "
         f"ETH {glob['eth_dominance']:.1f}% dominance")
 
-tab_scan, tab_breakout, tab_coin, tab_news, tab_decision = st.tabs(
-    ["🔍 Market Scanner", "🚀 Breakout Radar", "🪙 Coin Analysis",
-     "📰 News & Sentiment", "🧭 Decision Mode"])
+(tab_scan, tab_breakout, tab_oracle, tab_coin, tab_news,
+ tab_decision) = st.tabs(
+    ["🔍 Market Scanner", "🚀 Breakout Radar", "🤖 Ask the Oracle",
+     "🪙 Coin Analysis", "📰 News & Sentiment", "🧭 Decision Mode"])
 
 
 # ===========================================================================
@@ -1558,7 +1649,74 @@ with tab_breakout:
 
 
 # ===========================================================================
-# Tab 3 — Coin Analysis
+# Tab 3 — Ask the Oracle
+# ===========================================================================
+with tab_oracle:
+    st.subheader("🤖 Ask the Oracle — your trading-desk analyst")
+    st.caption(
+        "Ask in plain English which coin is next to blow out — up or down — "
+        "and the Oracle answers straight from the live Breakout Radar. Below, "
+        "a curated board of bullish coins with concrete buy zones, read "
+        "against circulating supply and the worldwide market backdrop.")
+
+    o_hz_label = st.radio(
+        "Horizon",
+        ["⚡ Imminent — next 15m–4h move", "📅 Next 24 hours"],
+        horizontal=True, label_visibility="collapsed", key="oracle_horizon")
+    o_horizon = "24h" if o_hz_label.startswith("📅") else "imminent"
+
+    try:
+        o_tickers = load_top_symbols(top_n)
+        with st.spinner("Scanning the market for the Oracle…"):
+            o_radar, o_backdrop = scan_breakouts(
+                tuple(o_tickers["symbol"]), o_horizon)
+        if not o_radar.empty:
+            o_radar = o_radar.merge(
+                o_tickers[["symbol", "quoteVolume"]], on="symbol", how="left")
+    except Exception as exc:
+        st.error(f"Could not load the radar: {exc}")
+        o_radar, o_backdrop = pd.DataFrame(), {}
+
+    # Market-cap / circulating-supply context for the buy zones.
+    o_mcap_map: dict = {}
+    if lunarcrush.is_configured():
+        try:
+            o_mcap_map = oracle.market_cap_map(load_lunarcrush_list())
+        except Exception:
+            o_mcap_map = {}
+
+    st.markdown("#### 💬 Ask anything")
+    o_question = st.text_input(
+        "Your question", value="",
+        placeholder="e.g. Which coin is about to blow out?",
+        label_visibility="collapsed", key="oracle_question")
+    st.caption("Try: “which coin is next for a bullish blowout?” · "
+               "“safest long right now” · “what about SOL?” · "
+               "“show me the next breakdown” · “volume igniting”")
+
+    o_presets = ["Next bullish blowout", "Next bearish blowout",
+                 "Safest long now", "Volume igniting"]
+    o_cols = st.columns(len(o_presets))
+    for _col, _preset in zip(o_cols, o_presets):
+        if _col.button(_preset, use_container_width=True,
+                       key=f"oracle_preset_{_preset}"):
+            o_question = _preset
+
+    if o_question:
+        render_oracle_answer(oracle.answer(o_question, o_radar, o_backdrop))
+    else:
+        st.caption("Ask a question above, or tap a quick button — the Oracle "
+                   "replies instantly from the live radar.")
+
+    st.divider()
+    render_buy_zone_board(o_radar, o_backdrop, o_mcap_map)
+    st.caption("The Oracle reads only the live Breakout Radar — no "
+               "predictions beyond what the engine sees. Educational only, "
+               "not financial advice.")
+
+
+# ===========================================================================
+# Tab 4 — Coin Analysis
 # ===========================================================================
 with tab_coin:
     try:
@@ -1825,7 +1983,7 @@ with tab_coin:
 
 
 # ===========================================================================
-# Tab 4 — News & Sentiment
+# Tab 5 — News & Sentiment
 # ===========================================================================
 with tab_news:
     st.subheader("Market Sentiment & Live News")
@@ -1957,7 +2115,7 @@ with tab_news:
 
 
 # ===========================================================================
-# Tab 5 — Decision Mode
+# Tab 6 — Decision Mode
 # ===========================================================================
 with tab_decision:
     st.subheader("🧭 Decision Mode — Top 30 Coins")
