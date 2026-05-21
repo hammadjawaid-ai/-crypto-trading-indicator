@@ -240,6 +240,51 @@ def answer(question: str, radar: pd.DataFrame, backdrop: dict) -> dict:
 
 
 # ===========================================================================
+# Signal strength — how forcefully the breakout signal is backed
+# ===========================================================================
+_STRENGTH_BANDS = ((78, "Very Strong"), (60, "Strong"),
+                   (42, "Moderate"), (0, "Weak"))
+
+
+def signal_strength(row) -> dict:
+    """How forcefully a breakout signal is backed — the breadth and force of
+    the detection signals pulling the trade's way.
+
+    This is an honest count of real agreement (the same philosophy as the
+    engine's confidence score), not a flattering rescale: a setup backed by
+    eight aligned forces firing hard scores far above one backed by three.
+
+    Returns {score: 0-100, label: Weak | Moderate | Strong | Very Strong}.
+    """
+    drivers = row.get("drivers") or []
+    sgn = 1 if row.get("dir_word") == "BULLISH" else -1
+    signed = [d for d in drivers if d.get("signed")]
+    unsigned = [d for d in drivers if not d.get("signed")]
+
+    # breadth — share of directional forces leaning the trade's way
+    aligned = [d for d in signed if d.get("score", 0) * sgn >= 12]
+    breadth = len(aligned) / len(signed) if signed else 0.0
+    # force — how hard those aligned forces are firing (saturates near 60)
+    force = (sum(min(abs(d["score"]), 60) for d in aligned)
+             / (len(aligned) * 60)) if aligned else 0.0
+    # tailwind — non-directional forces (volume, volatility, social, news)
+    tail = (sum(min(max(d.get("score", 0), 0), 100) for d in unsigned)
+            / (len(unsigned) * 100)) if unsigned else 0.0
+
+    score = (breadth * 46 + force * 30 + tail * 14
+             + min(float(row.get("energy", 0.0)), 100) / 100 * 10)
+    if row.get("ignited"):
+        score += 6                       # volume igniting is a real edge
+    if row.get("stage") == "EXTENDED":
+        score -= 12                      # an exhausted move is not a fresh signal
+    if row.get("trend_conflict"):
+        score -= 10                      # fighting the trend undercuts it
+    score = max(0.0, min(100.0, score))
+    label = next(lbl for cut, lbl in _STRENGTH_BANDS if score >= cut)
+    return {"score": round(score), "label": label}
+
+
+# ===========================================================================
 # Bullish buy-zone finder
 # ===========================================================================
 _CAP_TIERS = ((10, "Mega cap"), (30, "Large cap"), (100, "Mid cap"))
@@ -273,12 +318,14 @@ def _cap_tier(rank: float | None) -> str:
 
 def buy_zones(radar: pd.DataFrame, mcap_map: dict | None = None,
               limit: int = 12) -> pd.DataFrame:
-    """Bullish-leaning coins with a concrete accumulation zone.
+    """Bullish-leaning coins with a concrete accumulation plan.
 
     Filters the radar to bullish COILED / FRESH coins, then attaches a buy
-    zone, breakout trigger, stop, targets, and market-cap / circulating-supply
-    context. Returns a DataFrame carrying every original engine field (so the
-    app can still render full cards) plus the added columns.
+    zone, breakout trigger, stop, THREE targets — each with its own honest
+    reward-to-risk and % gain measured from the buy zone — a signal-strength
+    read, and market-cap / circulating-supply context. Returns a DataFrame
+    carrying every original engine field (so the app can still render full
+    cards) plus the added columns.
     """
     if radar is None or radar.empty:
         return pd.DataFrame()
@@ -289,9 +336,13 @@ def buy_zones(radar: pd.DataFrame, mcap_map: dict | None = None,
     df = df.sort_values("opportunity", ascending=False).head(limit)
     mcap_map = mcap_map or {}
 
-    buy_low, buy_high, trigger = [], [], []
-    stop, t1, t2 = [], [], []
-    mcap, mrank, tier, circ = [], [], [], []
+    cols: dict[str, list] = {k: [] for k in (
+        "buy_low", "buy_high", "trigger", "bz_entry", "bz_stop",
+        "bz_t1", "bz_t2", "bz_t3", "bz_rr1", "bz_rr2", "bz_rr3",
+        "bz_gain1", "bz_gain2", "bz_gain3", "bz_risk_pct",
+        "strength", "strength_label",
+        "market_cap", "market_cap_rank", "cap_tier", "circ_pct")}
+
     for _, r in df.iterrows():
         idea = r["idea"]
         if r["stage"] == "COILED":
@@ -302,29 +353,40 @@ def buy_zones(radar: pd.DataFrame, mcap_map: dict | None = None,
             hi = float(r["win_high"])
         else:  # FRESH — buy the retest of the level just broken
             lo, hi = float(idea["entry_low"]), float(idea["entry_high"])
-        buy_low.append(lo)
-        buy_high.append(hi)
-        trigger.append(float(r["win_high"]))
-        stop.append(idea["stop"])
-        t1.append(idea["target_1"])
-        t2.append(idea["target_2"])
+        entry = (lo + hi) / 2.0
+        stop = idea["stop"]
+        risk = entry - stop if (stop is not None and entry > stop) else 0.0
+        t1, t2 = float(idea["target_1"]), float(idea["target_2"])
+        t3 = t2 + (t2 - t1)              # the next measured leg higher
+
+        cols["buy_low"].append(lo)
+        cols["buy_high"].append(hi)
+        cols["trigger"].append(float(r["win_high"]))
+        cols["bz_entry"].append(entry)
+        cols["bz_stop"].append(stop)
+        cols["bz_t1"].append(t1)
+        cols["bz_t2"].append(t2)
+        cols["bz_t3"].append(t3)
+        cols["bz_rr1"].append((t1 - entry) / risk if risk > 0 else 0.0)
+        cols["bz_rr2"].append((t2 - entry) / risk if risk > 0 else 0.0)
+        cols["bz_rr3"].append((t3 - entry) / risk if risk > 0 else 0.0)
+        cols["bz_gain1"].append((t1 / entry - 1) * 100 if entry else 0.0)
+        cols["bz_gain2"].append((t2 / entry - 1) * 100 if entry else 0.0)
+        cols["bz_gain3"].append((t3 / entry - 1) * 100 if entry else 0.0)
+        cols["bz_risk_pct"].append(risk / entry * 100 if entry else 0.0)
+
+        strg = signal_strength(r)
+        cols["strength"].append(strg["score"])
+        cols["strength_label"].append(strg["label"])
 
         m = mcap_map.get(str(r["base"]).upper(), {})
         cap, rank = m.get("market_cap"), m.get("market_cap_rank")
-        mcap.append(cap)
-        mrank.append(rank)
-        tier.append(_cap_tier(rank))
+        cols["market_cap"].append(cap)
+        cols["market_cap_rank"].append(rank)
+        cols["cap_tier"].append(_cap_tier(rank))
         cs, ms = m.get("circulating_supply"), m.get("max_supply")
-        circ.append(cs / ms * 100 if cs and ms else None)
+        cols["circ_pct"].append(cs / ms * 100 if cs and ms else None)
 
-    df["buy_low"] = buy_low
-    df["buy_high"] = buy_high
-    df["trigger"] = trigger
-    df["bz_stop"] = stop
-    df["bz_t1"] = t1
-    df["bz_t2"] = t2
-    df["market_cap"] = mcap
-    df["market_cap_rank"] = mrank
-    df["cap_tier"] = tier
-    df["circ_pct"] = circ
+    for key, values in cols.items():
+        df[key] = values
     return df

@@ -1044,6 +1044,7 @@ def render_breakout_card(row: dict, rank: int) -> None:
     """Render one Breakout Radar candidate card."""
     accent = breakout_accent(row)
     idea = row["idea"]
+    strength = oracle.signal_strength(row)
     ignite = (
         "&nbsp;<span style='background:rgba(255,138,43,0.16);"
         "border:1px solid rgba(255,138,43,0.55);color:#ff9d3d;padding:3px 9px;"
@@ -1061,7 +1062,9 @@ def render_breakout_card(row: dict, rank: int) -> None:
             f"letter-spacing:0.03em'>{row['verdict']}</span>{ignite}</div>"
             f"<div style='color:#8b8d98;font-size:0.82rem;font-weight:600'>"
             f"radar score {row['opportunity']:.0f}/100 · "
-            f"{row['confidence']}% confidence</div></div>",
+            f"{row['confidence']}% confidence · "
+            f"signal {strength['label'].lower()} ({strength['score']})"
+            f"</div></div>",
             unsafe_allow_html=True)
 
         if row["chasing_risk"]:
@@ -1232,20 +1235,31 @@ def render_buy_zone_board(radar: pd.DataFrame, backdrop: dict,
 
     table = pd.DataFrame({
         "Coin": zones["base"],
+        "Signal": zones.apply(
+            lambda r: f"{r['strength_label']} · {r['strength']:.0f}", axis=1),
         "Status": zones.apply(
             lambda r: ("🔥 " if r["ignited"] else "")
             + _STAGE_WORD.get(r["stage"], r["stage"]), axis=1),
         "Buy zone": zones.apply(
             lambda r: f"{fmt_price(r['buy_low'])} – {fmt_price(r['buy_high'])}",
             axis=1),
-        "Breakout trigger": zones["trigger"].map(fmt_price),
-        "Stop": zones["bz_stop"].map(fmt_price),
-        "Target 1": zones["bz_t1"].map(fmt_price),
-        "Target 2": zones["bz_t2"].map(fmt_price),
+        "Trigger": zones["trigger"].map(fmt_price),
+        "Stop": zones["bz_stop"].map(
+            lambda v: fmt_price(v) if v is not None and v == v else "—"),
+        "Target 1": zones.apply(
+            lambda r: f"{fmt_price(r['bz_t1'])}  (+{r['bz_gain1']:.1f}%)",
+            axis=1),
+        "Target 2": zones.apply(
+            lambda r: f"{fmt_price(r['bz_t2'])}  (+{r['bz_gain2']:.1f}%)",
+            axis=1),
+        "Target 3": zones.apply(
+            lambda r: f"{fmt_price(r['bz_t3'])}  (+{r['bz_gain3']:.1f}%)",
+            axis=1),
+        "R : R": zones.apply(
+            lambda r: (f"{r['bz_rr1']:.1f}–{r['bz_rr3']:.1f}"
+                       if r['bz_rr1'] > 0 else "—"), axis=1),
         "Score": zones["opportunity"],
-        "Confidence": zones["confidence"],
-        "Market cap": zones["market_cap"].map(
-            lambda v: fmt_volume(v) if v and v == v else "—"),
+        "Conf": zones["confidence"],
         "Cap tier": zones["cap_tier"],
         "Circulating": zones["circ_pct"].map(
             lambda v: f"{v:.0f}%" if v is not None and v == v else "—"),
@@ -1255,9 +1269,22 @@ def render_buy_zone_board(radar: pd.DataFrame, backdrop: dict,
         height=min((len(table) + 1) * 36 + 3, 520),
         column_config={
             "Score": st.column_config.ProgressColumn(
-                "Score", min_value=0, max_value=100, format="%d"),
-            "Confidence": st.column_config.NumberColumn(
-                "Confidence", format="%d%%"),
+                "Score", min_value=0, max_value=100, format="%d",
+                help="Radar opportunity rank — rewards early, coiled setups."),
+            "Conf": st.column_config.NumberColumn(
+                "Conf", format="%d%%",
+                help="How sure the engine is of the bullish direction."),
+            "Signal": st.column_config.TextColumn(
+                "Signal",
+                help="Signal strength — the breadth and force of the ~11 "
+                     "detection signals backing this breakout "
+                     "(Weak / Moderate / Strong / Very Strong, 0-100). "
+                     "Trade the strongest rows first."),
+            "R : R": st.column_config.TextColumn(
+                "R : R",
+                help="Reward-to-risk from the buy zone, Target 1 through "
+                     "Target 3 — e.g. '1.8–5.4' means Target 1 pays 1.8x "
+                     "the risked amount and Target 3 pays 5.4x."),
             "Circulating": st.column_config.TextColumn(
                 "Circulating",
                 help="Circulating supply as a % of max supply — a high % "
@@ -1265,14 +1292,19 @@ def render_buy_zone_board(radar: pd.DataFrame, backdrop: dict,
                      "tokens are still to be unlocked."),
         })
     st.caption(
-        "**How to use this** — the **Buy zone** is the price band to "
-        "accumulate in: for *Building Up* coins it sits inside the range so "
-        "you get positioned **before** the breakout, for *Just Started* "
-        "coins it is the retest of the level just broken. A clean candle "
-        "close above the **Breakout trigger** confirms the move; always set "
-        "the **Stop**. Larger-cap coins move more slowly but reverse less "
-        "violently; a low **Circulating** % flags dilution risk as more "
-        "tokens unlock. Educational only — not financial advice.")
+        "**How to use this** — **Signal** is how forcefully the breakout is "
+        "backed: how many of the ~11 detection forces (volume, momentum, "
+        "order flow, trend, strength vs BTC, social, news…) pull the same "
+        "way, and how hard — trade the **Strong** and **Very Strong** rows "
+        "first. The **Buy zone** is where to accumulate: inside the range "
+        "for *Building Up* coins (positioned **before** the break), the "
+        "retest of the broken level for *Just Started* coins. A clean "
+        "candle close above the **Trigger** confirms the move; always set "
+        "the **Stop**. **R : R** is reward-to-risk measured from the buy "
+        "zone — the three targets carry +% gains; only take rows where "
+        "Target 1 already pays more than 1.0x the risk. A low "
+        "**Circulating** % flags dilution as more tokens unlock. "
+        "Educational only — not financial advice.")
 
     st.markdown("#### 📋 Top 3 — full read & trade plan")
     for _i, (_, _r) in enumerate(zones.head(3).iterrows(), 1):
