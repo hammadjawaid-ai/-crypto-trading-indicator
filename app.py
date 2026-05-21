@@ -1391,11 +1391,13 @@ else:
     hcol4.metric("Macro Mood", "unavailable")
 
 if glob:
+    _eth = glob.get("eth_dominance") or 0.0
+    _eth_txt = f" / ETH {_eth:.1f}%" if _eth else ""
     st.caption(
         f"Total crypto market cap ${glob['market_cap_usd'] / 1e12:.2f}T · "
         f"24h volume ${glob['volume_usd'] / 1e9:.0f}B · "
-        f"BTC {glob['btc_dominance']:.1f}% / "
-        f"ETH {glob['eth_dominance']:.1f}% dominance")
+        f"BTC {glob['btc_dominance']:.1f}%{_eth_txt} dominance · "
+        f"via {glob.get('source', '—')}")
 
 (tab_scan, tab_breakout, tab_oracle, tab_coin, tab_news,
  tab_decision) = st.tabs(
