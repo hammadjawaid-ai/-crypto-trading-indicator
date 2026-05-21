@@ -4,6 +4,7 @@ Run with:  streamlit run app.py
 """
 from __future__ import annotations
 
+import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
@@ -13,6 +14,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 from plotly.subplots import make_subplots
 
+import alerts
 import binance_client
 import breakout
 import config
@@ -1311,6 +1313,194 @@ def render_buy_zone_board(radar: pd.DataFrame, backdrop: dict,
         render_breakout_card(_r.to_dict(), _i)
 
 
+def _render_alert_setup(s: dict, is_new: bool) -> None:
+    """One high-confidence setup line inside the Trade Alerts strip."""
+    color = "#2ed47a" if s["side"] == "LONG" else "#ff5c5c"
+    word = "BULLISH" if s["side"] == "LONG" else "BEARISH"
+    proof = " · ".join(s["proof"]) if s["proof"] else "multiple signals aligned"
+    new_tag = " 🆕" if is_new else ""
+    st.markdown(
+        f"<div style='border-left:3px solid {color};padding:6px 11px;"
+        f"margin:6px 0;background:{color}14;border-radius:5px'>"
+        f"<span style='font-weight:800'>{s['base']}</span> "
+        f"<span style='color:{color};font-weight:800'>{word}</span> · "
+        f"{s['confidence']}% confidence · R:R {s['rr']:.1f}{new_tag}<br>"
+        f"<span style='font-size:0.8rem;color:#aab'>proof — "
+        f"{md_safe(proof)}</span><br>"
+        f"<span style='font-size:0.8rem;color:#889'>entry "
+        f"{fmt_price(s['entry_low'])}–{fmt_price(s['entry_high'])} · stop "
+        f"{fmt_price(s['stop'])} · target {fmt_price(s['target'])}</span>"
+        f"</div>",
+        unsafe_allow_html=True)
+
+
+def _render_alert_surge(s: dict, is_new: bool) -> None:
+    """One volume-surge line inside the Trade Alerts strip."""
+    chg = s.get("change_24h")
+    chg_txt = (f" · {chg:+.1f}% 24h" if chg is not None and chg == chg else "")
+    lab = s["label"]
+    lab_col = ("#2ed47a" if "LONG" in lab else "#ff5c5c" if "SHORT" in lab
+               else "#8b8d98")
+    new_tag = " 🆕" if is_new else ""
+    st.markdown(
+        f"<div style='padding:5px 11px;margin:6px 0;background:#1a1c24;"
+        f"border-radius:5px;border:1px solid #ff8a3d44'>"
+        f"🔥 <span style='font-weight:800'>{s['base']}</span> — volume "
+        f"<span style='color:#ff9d3d;font-weight:800'>{s['vol_ratio']:.1f}×</span>"
+        f" average{chg_txt} · <span style='color:{lab_col};font-weight:700'>"
+        f"{lab}</span>{new_tag}</div>",
+        unsafe_allow_html=True)
+
+
+_BROWSER_ALERT_JS = """
+<script>
+(function(){
+  try {
+    var P = window.parent || window;
+    var N = P.Notification || window.Notification;
+    var items = __PAYLOAD__;
+    var KEY = 'ti_notified_alerts';
+    function fire(){
+      var raw = null;
+      try { raw = P.localStorage.getItem(KEY); } catch(e){}
+      var firstEver = (raw === null);
+      var prev = {};
+      if (!firstEver) {
+        try { (JSON.parse(raw) || []).forEach(function(id){ prev[id]=1; }); }
+        catch(e){}
+      }
+      items.forEach(function(a){
+        if (!firstEver && !prev[a.id]) {
+          try { new N(a.title, {body:a.body, tag:a.id, renotify:true}); }
+          catch(e){}
+        }
+      });
+      try {
+        P.localStorage.setItem(KEY,
+          JSON.stringify(items.map(function(a){ return a.id; })));
+      } catch(e){}
+    }
+    if (N) {
+      if (N.permission === 'granted') { fire(); }
+      else if (N.permission !== 'denied') {
+        N.requestPermission().then(function(p){ if(p==='granted') fire(); });
+      }
+    }
+    var secs = __REFRESH__;
+    if (secs > 0 && !P.__tiAutoReload) {
+      P.__tiAutoReload = 1;
+      setTimeout(function(){ try { P.location.reload(); } catch(e){} },
+                 secs * 1000);
+    }
+  } catch(e){}
+})();
+</script>
+"""
+
+
+def _inject_browser_alerts(items: list[dict], refresh_secs: int) -> None:
+    """Inject the JS that fires browser desktop notifications for new alerts
+    and auto-refreshes the page so scanning continues in the background.
+
+    De-duplication is client-side (localStorage), so it survives the
+    auto-refresh — a full page reload resets Python state, but the browser
+    remembers what it has already notified about and never repeats itself.
+    The very first load only seeds that memory; it never fires a burst."""
+    html = (_BROWSER_ALERT_JS
+            .replace("__PAYLOAD__", json.dumps(items))
+            .replace("__REFRESH__", str(int(refresh_secs))))
+    components.html(html, height=0)
+
+
+def render_alerts(merged: pd.DataFrame, timeframe: str) -> None:
+    """Global Trade Alerts strip — the few high-confidence setups and volume
+    surges worth acting on for the *currently selected* timeframe, each shown
+    with its proof, plus toast pop-ups when a brand-new one appears."""
+    data = alerts.build_alerts(merged, timeframe)
+    setups, surges = data["setups"], data["surges"]
+
+    # New-since-last-view tracking, kept separately per timeframe.
+    seen_all = st.session_state.setdefault("alert_seen", {})
+    first_visit = timeframe not in seen_all
+    prev = seen_all.get(timeframe, set())
+    new_setup_syms = {s["symbol"] for s in setups
+                      if s["symbol"] not in prev}
+    new_surge_syms = {s["symbol"] for s in surges
+                      if ("vol:" + s["symbol"]) not in prev}
+    seen_all[timeframe] = ({s["symbol"] for s in setups}
+                           | {"vol:" + s["symbol"] for s in surges})
+
+    # Toast only genuinely new alerts — never on the first visit (which would
+    # pop the whole board at once).
+    if not first_visit:
+        for s in [x for x in setups if x["symbol"] in new_setup_syms][:3]:
+            st.toast(f"{s['base']} — {s['side']} setup, "
+                     f"{s['confidence']}% confidence", icon="🚨")
+        for s in [x for x in surges if x["symbol"] in new_surge_syms][:2]:
+            st.toast(f"{s['base']} — volume surging {s['vol_ratio']:.1f}×",
+                     icon="🔊")
+
+    with st.container(border=True):
+        st.markdown(
+            f"<div style='display:flex;justify-content:space-between;"
+            f"align-items:baseline'><span style='font-size:1.06rem;"
+            f"font-weight:800'>🚨 Trade Alerts</span>"
+            f"<span style='color:#8b8d98;font-size:0.8rem;font-weight:600'>"
+            f"{timeframe} timeframe · {trade_mode.upper()} mode</span></div>",
+            unsafe_allow_html=True)
+
+        if not setups and not surges:
+            st.info(
+                f"No high-confidence setup on the **{timeframe}** timeframe "
+                f"right now — nothing crosses the bar to act on. That is a "
+                f"valid, useful answer: wait, don't force a trade.")
+        else:
+            ac1, ac2 = st.columns(2)
+            with ac1:
+                st.markdown(f"**🟢 High-confidence setups** ({len(setups)})")
+                if not setups:
+                    st.caption("None clear the confidence bar right now.")
+                for s in setups[:5]:
+                    _render_alert_setup(s, s["symbol"] in new_setup_syms)
+            with ac2:
+                st.markdown(f"**🔥 Volume surging** ({len(surges)})")
+                if not surges:
+                    st.caption("No coin's volume is surging right now.")
+                for s in surges[:6]:
+                    _render_alert_surge(s, s["symbol"] in new_surge_syms)
+
+        st.caption(
+            f"Alerts are built only from **{timeframe}** data — 15m, 1h, 4h "
+            f"and 1d each have their own setups, so a coin can be a buy on "
+            f"one timeframe and not another; that is expected, not a glitch. "
+            f"A setup that stays on this list across refreshes is more "
+            f"trustworthy than one that just appeared. 🆕 marks alerts new "
+            f"since you last looked; pop-ups fire when a fresh one lands.")
+
+    # Browser desktop notifications + background auto-refresh (opt-in).
+    if alerts_on:
+        notify_items: list[dict] = []
+        for s in setups:
+            bullish = s["side"] == "LONG"
+            notify_items.append({
+                "id": f"{s['symbol']}:{s['side']}",
+                "title": (f"{'🟢' if bullish else '🔴'} {s['base']} "
+                          f"{'BULLISH' if bullish else 'BEARISH'} setup"),
+                "body": (f"{s['confidence']}% confidence · R:R "
+                         f"{s['rr']:.1f} · {timeframe} · entry "
+                         f"{fmt_price(s['entry_low'])}–"
+                         f"{fmt_price(s['entry_high'])}"),
+            })
+        for s in surges:
+            notify_items.append({
+                "id": f"vol:{s['symbol']}",
+                "title": f"🔥 {s['base']} volume surge",
+                "body": (f"Volume {s['vol_ratio']:.1f}× average · "
+                         f"{timeframe} timeframe"),
+            })
+        _inject_browser_alerts(notify_items, alert_every * 60)
+
+
 # ===========================================================================
 # Sidebar
 # ===========================================================================
@@ -1327,6 +1517,22 @@ trade_mode = st.sidebar.radio(
          "conviction. Spot — long-only (no shorting), no leverage, "
          "wider swing-horizon targets and stops.").lower()
 top_n = st.sidebar.slider("Coins to track", 10, config.TOP_N, config.TOP_N, 5)
+
+alerts_on = st.sidebar.checkbox(
+    "🔔 Desktop alerts", value=False,
+    help="Browser desktop notifications for new high-confidence setups and "
+         "volume surges. Keep this dashboard tab open and allow "
+         "notifications when the browser asks — the page auto-refreshes so "
+         "it keeps scanning in the background.")
+alert_every = 5
+if alerts_on:
+    alert_every = st.sidebar.selectbox(
+        "Check for new signals every", [3, 5, 10], index=1,
+        format_func=lambda m: f"{m} minutes")
+    st.sidebar.caption(
+        f"🔔 Desktop alerts ON — re-scanning every {alert_every} min. Keep "
+        f"this tab open (a background tab is fine); allow notifications when "
+        f"the browser prompts.")
 
 if st.sidebar.button("🔄 Refresh data", use_container_width=True):
     st.cache_data.clear()
@@ -1430,6 +1636,20 @@ if glob:
         f"24h volume ${glob['volume_usd'] / 1e9:.0f}B · "
         f"BTC {glob['btc_dominance']:.1f}%{_eth_txt} dominance · "
         f"via {glob.get('source', '—')}")
+
+# --- Global Trade Alerts strip — high-confidence setups & volume surges,
+# computed for the selected timeframe and shown above every tab. -------------
+try:
+    _alert_tickers = load_top_symbols(top_n)
+    with st.spinner(f"Scanning {len(_alert_tickers)} coins for alerts…"):
+        _alert_scan = scan_market(
+            tuple(_alert_tickers["symbol"]), timeframe, trade_mode)
+    _alert_merged = _alert_scan.merge(
+        _alert_tickers[["symbol", "priceChangePercent", "quoteVolume"]],
+        on="symbol", how="left")
+    render_alerts(_alert_merged, timeframe)
+except Exception:
+    pass  # never let the alerts strip block the rest of the dashboard
 
 (tab_scan, tab_breakout, tab_oracle, tab_coin, tab_news,
  tab_decision) = st.tabs(
