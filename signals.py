@@ -380,27 +380,37 @@ def _trade_plan(label: str, df: pd.DataFrame, regime: str,
         entry_low = price
     entry = (entry_low + entry_high) / 2
 
-    # --- Stop: just beyond the structure that would invalidate the idea ---
-    buf = 0.35 * atr
-    atr_stop_mult = 2.2 if mode == "spot" else 1.6
+    # --- Stop: the CLOSEST genuine invalidation level, kept tight ----------
+    # A tight stop lifts reward:risk and lets you size up — so the stop sits
+    # at the NEAREST level that truly invalidates the idea (the closest swing
+    # the trade leans on), not beyond every level with a loose buffer. It is
+    # still floored at 0.6 ATR: any tighter and normal candle noise wicks it
+    # out, turning trades that would have worked into losses.
+    buf = 0.20 * atr                              # minimal cushion past a level
+    atr_stop_mult = 1.5 if mode == "spot" else 1.1
+    noise_floor = 0.6 * atr                       # tightest a stop may sit
+    max_stop = 2.6 * atr                          # widest a stop may sit
     if long:
-        protect = [s for s in supports if s < entry - buf]
-        struct_stop = (max(protect) - buf) if protect else None
+        # nearest support far enough below entry to survive noise
+        protect = sorted((s for s in supports if s < entry - noise_floor),
+                         reverse=True)
+        struct_stop = (protect[0] - buf) if protect else None
         atr_stop = entry - atr_stop_mult * atr
-        if struct_stop is not None and struct_stop < atr_stop:
+        # take the TIGHTER (higher) of the two valid candidates
+        if struct_stop is not None and struct_stop >= atr_stop:
             stop, stop_basis = struct_stop, "structure"
         else:
             stop, stop_basis = atr_stop, "volatility"
-        stop = min(max(stop, entry - 4.0 * atr), entry - 0.8 * atr)
+        stop = min(max(stop, entry - max_stop), entry - noise_floor)
     else:
-        protect = [r for r in resistances if r > entry + buf]
-        struct_stop = (min(protect) + buf) if protect else None
+        protect = sorted(r for r in resistances if r > entry + noise_floor)
+        struct_stop = (protect[0] + buf) if protect else None
         atr_stop = entry + atr_stop_mult * atr
-        if struct_stop is not None and struct_stop > atr_stop:
+        if struct_stop is not None and struct_stop <= atr_stop:
             stop, stop_basis = struct_stop, "structure"
         else:
             stop, stop_basis = atr_stop, "volatility"
-        stop = max(min(stop, entry + 4.0 * atr), entry + 0.8 * atr)
+        stop = max(min(stop, entry + max_stop), entry + noise_floor)
     risk = abs(entry - stop)
 
     # --- Targets: the next swing levels price must clear, then projections ---

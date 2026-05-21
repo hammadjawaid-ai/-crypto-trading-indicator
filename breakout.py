@@ -670,7 +670,7 @@ def _trade_idea(stage: str, dir_word: str, price: float, atr: float,
                          f"{_fmt(win_l + 0.2 * (win_h - win_l))} with a wider "
                          f"stop."),
                 "entry_low": win_h, "entry_high": win_h + 0.5 * atr,
-                "stop": win_l - 0.5 * atr,
+                "stop": win_l - 0.3 * atr,
                 "target_1": win_h + 2.4 * atr, "target_2": win_h + 4.2 * atr,
                 "exit_note": (f"Targets {_fmt(win_h + 2.4 * atr)} then "
                               f"{_fmt(win_h + 4.2 * atr)}. A {candle} close back "
@@ -685,7 +685,7 @@ def _trade_idea(stage: str, dir_word: str, price: float, atr: float,
                          f"candle."),
                 "entry_low": min(win_h, price - 0.5 * atr),
                 "entry_high": price + 0.3 * atr,
-                "stop": win_h - 1.3 * atr,
+                "stop": win_h - 0.9 * atr,
                 "target_1": t1, "target_2": t2,
                 "exit_note": (f"Scale out — about half at {_fmt(t1)}, the rest "
                               f"at {_fmt(t2)}; move the stop to break-even once "
@@ -697,7 +697,7 @@ def _trade_idea(stage: str, dir_word: str, price: float, atr: float,
                      f"risky trade. No new entry; wait for a pullback to "
                      f"{_fmt(ema_fast)} that holds."),
             "entry_low": ema_fast - 0.4 * atr, "entry_high": ema_fast,
-            "stop": ema_fast - 1.6 * atr,
+            "stop": ema_fast - 1.1 * atr,
             "target_1": price + 1.6 * atr, "target_2": price + 3.0 * atr,
             "exit_note": (f"If already long: trail the stop under "
                           f"{_fmt(ema_fast)} and bank into strength near "
@@ -714,7 +714,7 @@ def _trade_idea(stage: str, dir_word: str, price: float, atr: float,
                          f"below {_fmt(win_l)} — that confirmation is the "
                          f"lowest-risk short."),
                 "entry_low": win_l - 0.5 * atr, "entry_high": win_l,
-                "stop": win_h + 0.5 * atr,
+                "stop": win_h + 0.3 * atr,
                 "target_1": win_l - 2.4 * atr, "target_2": win_l - 4.2 * atr,
                 "exit_note": (f"Targets {_fmt(win_l - 2.4 * atr)} then "
                               f"{_fmt(win_l - 4.2 * atr)}. A {candle} close back "
@@ -727,7 +727,7 @@ def _trade_idea(stage: str, dir_word: str, price: float, atr: float,
                          f"{_fmt(price)}–{_fmt(win_l)} rather than the lows."),
                 "entry_low": price - 0.3 * atr,
                 "entry_high": max(win_l, price + 0.5 * atr),
-                "stop": win_l + 1.3 * atr,
+                "stop": win_l + 0.9 * atr,
                 "target_1": t1, "target_2": t2,
                 "exit_note": (f"Cover about half at {_fmt(t1)}, the rest at "
                               f"{_fmt(t2)}; move the stop to break-even once "
@@ -739,7 +739,7 @@ def _trade_idea(stage: str, dir_word: str, price: float, atr: float,
                      f"here is the risky trade. Wait for a bounce to "
                      f"{_fmt(ema_fast)} that fails."),
             "entry_low": ema_fast, "entry_high": ema_fast + 0.4 * atr,
-            "stop": ema_fast + 1.6 * atr,
+            "stop": ema_fast + 1.1 * atr,
             "target_1": price - 1.6 * atr, "target_2": price - 3.0 * atr,
             "exit_note": (f"If already short: trail the stop above "
                           f"{_fmt(ema_fast)} and cover into weakness near "
