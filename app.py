@@ -19,6 +19,7 @@ import binance_client
 import breakout
 import config
 import derivatives
+import forecast
 import indicators
 import lunarcrush
 import market_context
@@ -202,6 +203,43 @@ def scan_market(symbols: tuple[str, ...], interval: str,
                                     social_map.get(s.replace("USDT", "")),
                                     mode),
                 symbols):
+            if res:
+                rows.append(res)
+    return pd.DataFrame(rows)
+
+
+@st.cache_data(ttl=config.MARKET_CACHE_TTL, show_spinner=False)
+def forecast_market(symbols: tuple[str, ...]) -> pd.DataFrame:
+    """Per-coin multi-horizon forecast — blends the per-timeframe technical
+    read with the comprehensive Breakout Radar read (news catalysts, the
+    macro / geopolitical backdrop, volume ignition, social heat and funding).
+    See forecast.py."""
+    tfs = [tf for tf, _ in forecast.HORIZONS]
+    try:
+        radar_df, backdrop = scan_breakouts(symbols, "imminent")
+        radar_by_sym = ({r["symbol"]: r.to_dict()
+                         for _, r in radar_df.iterrows()}
+                        if radar_df is not None and not radar_df.empty
+                        else {})
+    except Exception:
+        radar_by_sym, backdrop = {}, {}
+
+    def one(sym: str):
+        try:
+            per_tf = {tf: signals.analyze(binance_client.get_klines(sym, tf))
+                      for tf in tfs}
+            pred = forecast.predict_one(
+                per_tf, radar_by_sym.get(sym), backdrop)
+            pred["symbol"] = sym
+            pred["base"] = sym[:-4] if sym.endswith("USDT") else sym
+            pred["price"] = per_tf[tfs[0]]["price"]
+            return pred
+        except Exception:  # skip a coin that fails rather than break the scan
+            return None
+
+    rows: list[dict] = []
+    with ThreadPoolExecutor(max_workers=config.SCAN_WORKERS) as pool:
+        for res in pool.map(one, symbols):
             if res:
                 rows.append(res)
     return pd.DataFrame(rows)
@@ -1359,7 +1397,7 @@ _BROWSER_ALERT_JS = """
     var P = window.parent || window;
     var N = P.Notification || window.Notification;
     var items = __PAYLOAD__;
-    var KEY = 'ti_notified_alerts';
+    var KEY = '__KEY__';
     function fire(){
       var raw = null;
       try { raw = P.localStorage.getItem(KEY); } catch(e){}
@@ -1398,17 +1436,21 @@ _BROWSER_ALERT_JS = """
 """
 
 
-def _inject_browser_alerts(items: list[dict], refresh_secs: int) -> None:
+def _inject_browser_alerts(items: list[dict], refresh_secs: int,
+                           key: str = "ti_notified_alerts") -> None:
     """Inject the JS that fires browser desktop notifications for new alerts
-    and auto-refreshes the page so scanning continues in the background.
+    and (when refresh_secs > 0) auto-refreshes the page so scanning continues
+    in the background.
 
-    De-duplication is client-side (localStorage), so it survives the
-    auto-refresh — a full page reload resets Python state, but the browser
-    remembers what it has already notified about and never repeats itself.
-    The very first load only seeds that memory; it never fires a burst."""
+    De-duplication is client-side (localStorage under `key`), so it survives
+    the auto-refresh — a full page reload resets Python state, but the
+    browser remembers what it has already notified about and never repeats
+    itself. The very first load only seeds that memory; it never fires a
+    burst. A distinct `key` keeps separate alert streams independent."""
     html = (_BROWSER_ALERT_JS
             .replace("__PAYLOAD__", json.dumps(items))
-            .replace("__REFRESH__", str(int(refresh_secs))))
+            .replace("__REFRESH__", str(int(refresh_secs)))
+            .replace("__KEY__", key))
     components.html(html, height=0)
 
 
@@ -1499,6 +1541,160 @@ def render_alerts(merged: pd.DataFrame, timeframe: str) -> None:
                          f"{timeframe} timeframe"),
             })
         _inject_browser_alerts(notify_items, alert_every * 60)
+
+
+def render_forecast(fc_df: pd.DataFrame) -> None:
+    """Render the multi-timeframe forecast board with its alert callout."""
+    st.subheader("🔮 Multi-Timeframe Forecast")
+    st.caption(
+        "Where each coin is projected to head over the next 15m, 1h and 4h "
+        "candle. Each call fuses that timeframe's own technicals with the "
+        "Breakout Radar read — news catalysts, the macro / geopolitical "
+        "backdrop, volume ignition, social heat and funding. A forecast is "
+        "a probabilistic lean with an expected move sized from the "
+        "timeframe's ATR — not a guaranteed price.")
+    if fc_df is None or fc_df.empty:
+        st.warning("No forecast data right now — try refreshing.")
+        return
+
+    # --- Forecast alerts — aligned, high-conviction calls ------------------
+    fa = alerts.build_forecast_alerts(fc_df)
+    prev = st.session_state.get("forecast_seen")
+    first_visit = prev is None
+    new_syms = {a["symbol"] for a in fa
+                if not first_visit and a["symbol"] not in prev}
+    st.session_state["forecast_seen"] = {a["symbol"] for a in fa}
+    for a in [x for x in fa if x["symbol"] in new_syms][:3]:
+        st.toast(f"Forecast: {a['base']} {a['outlook'].lower()} across "
+                 f"15m / 1h / 4h ({a['confidence']}%)", icon="🔮")
+
+    with st.container(border=True):
+        st.markdown("**🚨 Forecast Alerts** — coins projected the same way "
+                    "across all three horizons with strong confidence")
+        if not fa:
+            st.caption("No coin is aligned across 15m, 1h and 4h with strong "
+                       "confidence right now — the tape is mixed; wait.")
+        else:
+            for a in fa[:6]:
+                color = "#2ed47a" if a["outlook"] == "Bullish" else "#ff5c5c"
+                fire = " &nbsp;🔥 volume igniting" if a["ignited"] else ""
+                tag = " 🆕" if a["symbol"] in new_syms else ""
+                st.markdown(
+                    f"<div style='border-left:3px solid {color};"
+                    f"padding:5px 11px;margin:5px 0;background:{color}14;"
+                    f"border-radius:5px'><b>{a['base']}</b> "
+                    f"<span style='color:{color};font-weight:800'>"
+                    f"{a['outlook'].upper()}</span> across 15m / 1h / 4h · "
+                    f"{a['confidence']}% confidence · 4h move "
+                    f"<b>{a['proj_4h_pct']:+.2f}%</b>{fire}{tag}</div>",
+                    unsafe_allow_html=True)
+
+    # Browser desktop notifications for forecast alerts — only when the user
+    # has Desktop alerts switched on. Own localStorage key, no extra refresh.
+    if alerts_on and fa:
+        _inject_browser_alerts(
+            [{"id": f"fc:{a['symbol']}:{a['outlook']}",
+              "title": f"🔮 {a['base']} — {a['outlook']} forecast",
+              "body": (f"Aligned across 15m / 1h / 4h · {a['confidence']}% "
+                       f"confidence · 4h move {a['proj_4h_pct']:+.2f}%")}
+             for a in fa],
+            0, key="ti_notified_forecast")
+
+    aligned_up = int(((fc_df["outlook_word"] == "Bullish")
+                      & fc_df["aligned"]).sum())
+    aligned_down = int(((fc_df["outlook_word"] == "Bearish")
+                        & fc_df["aligned"]).sum())
+    st.markdown(
+        f"**{aligned_up}** coin(s) projected **up across all three "
+        f"horizons**, **{aligned_down}** projected **down across all "
+        f"three**. The full board is below, ranked by total expected move.")
+
+    arrow = {"Up": "▲", "Down": "▼", "Sideways": "▬"}
+
+    def cell(h: dict | None) -> str:
+        if not h:
+            return "—"
+        return f"{arrow.get(h['direction'], '·')} {h['move_pct']:+.2f}%"
+
+    rows = []
+    for _, r in fc_df.iterrows():
+        hz = r["horizons"] or {}
+        h4 = hz.get("4h")
+        rows.append({
+            "Coin": ("🔥 " if r["ignited"] else "") + r["base"],
+            "Price now": fmt_price(r["price"]),
+            "Next 15m": cell(hz.get("15m")),
+            "Next 1h": cell(hz.get("1h")),
+            "Next 4h": cell(hz.get("4h")),
+            "Projected 4h": fmt_price(h4["projected"]) if h4 else "—",
+            "Outlook": r["outlook_word"],
+            "Conf": int(r["confidence"]),
+            "_lean": float(r["net_lean"]),
+        })
+    table = pd.DataFrame(rows).sort_values(
+        "_lean", ascending=False).drop(columns=["_lean"])
+
+    def _cell_color(v):
+        if isinstance(v, str):
+            if v.startswith("▲"):
+                return "color:#2ed47a;font-weight:700"
+            if v.startswith("▼"):
+                return "color:#ff5c5c;font-weight:700"
+            if v.startswith("▬"):
+                return "color:#8b8d98"
+        return ""
+
+    def _outlook_color(v):
+        return {"Bullish": "color:#2ed47a;font-weight:700",
+                "Bearish": "color:#ff5c5c;font-weight:700"}.get(
+                    v, "color:#8b8d98")
+
+    styled = (table.style
+              .map(_cell_color, subset=["Next 15m", "Next 1h", "Next 4h"])
+              .map(_outlook_color, subset=["Outlook"]))
+    st.dataframe(
+        styled, use_container_width=True, hide_index=True,
+        height=min((len(table) + 1) * 36 + 3, 720),
+        column_config={
+            "Conf": st.column_config.NumberColumn(
+                "Conf", format="%d%%",
+                help="Average confidence across the three horizons, with a "
+                     "bonus when all three agree."),
+        })
+
+    with st.expander("📋 Why these forecasts — news, key drivers & backdrop"):
+        bd = fc_df.iloc[0].get("backdrop_label", "")
+        if bd:
+            st.markdown(f"🌍 **Macro / geopolitical backdrop** — {md_safe(bd)}")
+        ranked = fc_df.reindex(
+            fc_df["net_lean"].abs().sort_values(ascending=False).index)
+        for _, r in ranked.head(6).iterrows():
+            drivers = " · ".join(r["drivers"]) if r["drivers"] else "—"
+            news = r["news_read"] or "no specific news catalyst"
+            fire = " · 🔥 volume igniting" if r["ignited"] else ""
+            st.markdown(
+                f"**{r['base']}** — {r['outlook_word']} "
+                f"({r['confidence']}%){fire}  \n"
+                f"Key drivers: {md_safe(drivers)}  \n"
+                f"News: {md_safe(news)}")
+
+    st.caption(
+        "Each cell shows the projected direction (▲ up · ▼ down · ▬ "
+        "sideways) and the expected NET move for that candle. The call "
+        "fuses the timeframe's technicals with news, the macro backdrop, "
+        "volume ignition, social heat and funding — every input tilts the "
+        "read within bounds, none overrides it. 'Projected 4h' applies the "
+        "4h expected move to the current price. Probabilistic projections, "
+        "not guarantees. Educational only, not financial advice.")
+
+
+def _inject_autorefresh(seconds: int) -> None:
+    """Reload the whole app after `seconds` — used for the live forecast."""
+    components.html(
+        "<script>(function(){var P=window.parent||window;"
+        "if(!P.__tiFcReload){P.__tiFcReload=1;setTimeout(function(){"
+        "try{P.location.reload();}catch(e){}}," + str(int(seconds * 1000))
+        + ");}})();</script>", height=0)
 
 
 # ===========================================================================
@@ -1651,10 +1847,11 @@ try:
 except Exception:
     pass  # never let the alerts strip block the rest of the dashboard
 
-(tab_scan, tab_breakout, tab_oracle, tab_coin, tab_news,
+(tab_scan, tab_forecast, tab_breakout, tab_oracle, tab_coin, tab_news,
  tab_decision) = st.tabs(
-    ["🔍 Market Scanner", "🚀 Breakout Radar", "🤖 Ask the Oracle",
-     "🪙 Coin Analysis", "📰 News & Sentiment", "🧭 Decision Mode"])
+    ["🔍 Market Scanner", "🔮 Forecast", "🚀 Breakout Radar",
+     "🤖 Ask the Oracle", "🪙 Coin Analysis", "📰 News & Sentiment",
+     "🧭 Decision Mode"])
 
 
 # ===========================================================================
@@ -1797,7 +1994,29 @@ with tab_scan:
 
 
 # ===========================================================================
-# Tab 2 — Breakout Radar
+# Tab 2 — Forecast
+# ===========================================================================
+with tab_forecast:
+    _fc_live = st.checkbox(
+        "🔴 Live forecast — keep it auto-refreshing every 5 min",
+        value=False, key="forecast_live",
+        help="Re-runs the forecast on an interval so the predictions and "
+             "their alerts stay current without you refreshing the page.")
+    try:
+        _fc_tickers = load_top_symbols(top_n)
+        _fc_syms = tuple(_fc_tickers["symbol"].head(40))
+        with st.spinner(f"Forecasting {len(_fc_syms)} coins across "
+                        f"15m / 1h / 4h with full news & macro context…"):
+            _fc_df = forecast_market(_fc_syms)
+        render_forecast(_fc_df)
+    except Exception as exc:
+        st.error(f"Could not build the forecast right now: {exc}")
+    if _fc_live:
+        _inject_autorefresh(300)
+
+
+# ===========================================================================
+# Tab 3 — Breakout Radar
 # ===========================================================================
 with tab_breakout:
     st.subheader("🚀 Breakout Radar — predict the next coins to blow out")
@@ -1955,7 +2174,7 @@ with tab_breakout:
 
 
 # ===========================================================================
-# Tab 3 — Ask the Oracle
+# Tab 4 — Ask the Oracle
 # ===========================================================================
 with tab_oracle:
     st.subheader("🤖 Ask the Oracle — your trading-desk analyst")
@@ -2022,7 +2241,7 @@ with tab_oracle:
 
 
 # ===========================================================================
-# Tab 4 — Coin Analysis
+# Tab 5 — Coin Analysis
 # ===========================================================================
 with tab_coin:
     try:
@@ -2298,7 +2517,7 @@ with tab_coin:
 
 
 # ===========================================================================
-# Tab 5 — News & Sentiment
+# Tab 6 — News & Sentiment
 # ===========================================================================
 with tab_news:
     st.subheader("Market Sentiment & Live News")
@@ -2430,7 +2649,7 @@ with tab_news:
 
 
 # ===========================================================================
-# Tab 6 — Decision Mode
+# Tab 7 — Decision Mode
 # ===========================================================================
 with tab_decision:
     st.subheader("🧭 Decision Mode — Top 30 Coins")

@@ -13,6 +13,7 @@ import pandas as pd
 # A call must clear these bars before it is allowed to raise an alert.
 CONF_ALERT = 70        # signal confidence (%) for a high-conviction setup
 VOL_SURGE = 2.0        # last-candle volume vs its 20-candle average
+FORECAST_CONF = 62     # confidence (%) for a high-conviction aligned forecast
 
 
 def _proof(row: dict, bullish: bool) -> list[str]:
@@ -78,3 +79,32 @@ def build_alerts(merged: pd.DataFrame, timeframe: str) -> dict:
     setups.sort(key=lambda a: a["confidence"], reverse=True)
     surges.sort(key=lambda a: a["vol_ratio"], reverse=True)
     return {"setups": setups, "surges": surges, "timeframe": timeframe}
+
+
+def build_forecast_alerts(fc_df) -> list[dict]:
+    """High-conviction forecasts worth flagging — coins the multi-timeframe
+    forecast projects the SAME way across all three horizons (15m, 1h, 4h)
+    with strong confidence. Sorted strongest-first."""
+    out: list[dict] = []
+    if fc_df is None or len(fc_df) == 0:
+        return out
+    for _, r in fc_df.iterrows():
+        row = r.to_dict()
+        word = row.get("outlook_word")
+        conf = int(row.get("confidence") or 0)
+        if (not row.get("aligned") or conf < FORECAST_CONF
+                or word not in ("Bullish", "Bearish")):
+            continue
+        hz = row.get("horizons") or {}
+        h4 = hz.get("4h") or {}
+        out.append({
+            "symbol": row.get("symbol", ""),
+            "base": row.get("base", ""),
+            "outlook": word,
+            "confidence": conf,
+            "net_lean": float(row.get("net_lean") or 0.0),
+            "ignited": bool(row.get("ignited")),
+            "proj_4h_pct": float(h4.get("move_pct") or 0.0),
+        })
+    out.sort(key=lambda a: a["confidence"], reverse=True)
+    return out
