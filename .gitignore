@@ -21,3 +21,6 @@ Thumbs.db
 # Local artifacts
 screenshot*.png
 *.log
+
+# Notifier state — local, machine-specific
+.notifier_seen.json

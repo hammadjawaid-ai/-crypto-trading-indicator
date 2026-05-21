@@ -1,0 +1,4 @@
+# Extra dependency for the LOCAL desktop notifier (notifier.py) only.
+# Not needed by the Streamlit dashboard or the cloud deploy.
+#   .venv\Scripts\python.exe -m pip install -r requirements-notifier.txt
+winotify
