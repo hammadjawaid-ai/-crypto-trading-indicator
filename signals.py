@@ -260,63 +260,231 @@ def _regime(last: pd.Series) -> str:
     return "Developing"
 
 
-def _trade_plan(label: str, last: pd.Series, regime: str) -> dict | None:
-    """ATR-based action plan: entry zone, stop, two targets and R:R.
+# Account-risk model: a professional desk risks a fixed slice of capital on
+# each trade. Position size is then DERIVED from how far the stop sits — so a
+# volatile coin with a wide stop gets a smaller position, never a copy-paste.
+RISK_PER_TRADE_PCT = 1.0
 
-    Targets are placed at 2.0 and 3.5 ATR; the stop at 1.5 ATR. `risk_pct`
-    is the stop distance as a % of price, which the UI turns into a
-    position-sizing hint.
+
+def _nearest_levels(levels: list[float], ref: float, above: bool,
+                    min_dist: float, cluster: float) -> list[float]:
+    """Up to three swing levels on one side of `ref`, nearest first.
+
+    Levels closer than `min_dist` are skipped (too close to be a real
+    target); a level within `cluster` of one already chosen is merged out.
     """
-    atr = last["atr"]
-    price = last["close"]
+    side = sorted((l for l in levels if (l > ref) == above),
+                  reverse=not above)
+    picked: list[float] = []
+    for lvl in side:
+        if abs(lvl - ref) < min_dist:
+            continue
+        if picked and abs(lvl - picked[-1]) < cluster:
+            continue
+        picked.append(lvl)
+        if len(picked) >= 3:
+            break
+    return picked
+
+
+def _move_maturity(df: pd.DataFrame, last: pd.Series, long: bool) -> dict:
+    """Gauge how far the current move has already run — the 're-run' read.
+
+    Tells a trader whether a signal is a fresh entry, a chase, or a
+    second-leg ('re-run') setup after a pullback:
+      EARLY    — move is young, room to run
+      EXTENDED — already travelled far and stretched; chasing risk is high
+      RE-RUN   — ran, then pulled back into support with the trend intact —
+                 the high-quality second-leg entry
+    Each carries its own confidence (how clear-cut the read is).
+    """
+    price = float(last["close"])
+    atr = float(last["atr"])
+    if np.isnan(atr) or atr <= 0:
+        return {"stage": "UNKNOWN", "confidence": 0,
+                "note": "Not enough history to gauge how far the move has run."}
+    ef, es = float(last["ema_fast"]), float(last["ema_slow"])
+    rsi = float(last["rsi"])
+    stretch = (price - ef) / atr            # ATR units from the fast EMA
+    if not long:
+        stretch, rsi = -stretch, 100 - rsi
+    trend_intact = price > es if long else price < es
+
+    hi = float(df["high"].tail(30).max())
+    lo = float(df["low"].tail(30).min())
+    ran = (hi - lo) / atr                   # size of the recent swing, ATR units
+    pullback = (hi - price) / atr if long else (price - lo) / atr
+
+    if stretch >= 2.2 or rsi >= 76:
+        conf = int(min(95, 58 + stretch * 9 + max(0.0, rsi - 70)))
+        return {"stage": "EXTENDED", "confidence": conf,
+                "note": (f"Price is stretched {stretch:+.1f} ATR from the fast "
+                         "EMA and the move has already run — entering here is "
+                         "chasing; wait for a pullback.")}
+    if trend_intact and ran >= 4 and 1.0 <= pullback <= 4.0 and stretch <= 1.2:
+        conf = int(min(93, 52 + ran * 4 + (12 if 40 <= rsi <= 62 else 0)))
+        return {"stage": "RE-RUN", "confidence": conf,
+                "note": ("Price ran, then pulled back into support with the "
+                         "trend still intact — a second-leg ('re-run') setup, "
+                         "typically the lowest-risk entry.")}
+    conf = int(min(90, 60 + max(0.0, 2.0 - abs(stretch)) * 12))
+    return {"stage": "EARLY", "confidence": conf,
+            "note": ("Move is still young and not yet stretched — room to run "
+                     "before it becomes a chase.")}
+
+
+def _trade_plan(label: str, df: pd.DataFrame, regime: str,
+                mode: str = "futures", confidence: float = 50.0) -> dict | None:
+    """Structure-aware action plan: entry zone, stop, three targets, an
+    honest per-coin risk/reward and a risk-based position size.
+
+    Stops and targets are anchored to *real* swing structure — the pivot
+    highs and lows price has actually reacted to (`indicators.swing_levels`)
+    — not flat ATR multiples. That is why every coin gets its OWN R:R
+    instead of a copy-paste 1.3R: the numbers come from where price can
+    actually travel. Risk-multiple projections only fill in when a coin has
+    no clean structure on one side.
+
+    `mode`:
+      'spot'    — long-only (you cannot short spot), no leverage, wider
+                  swing-horizon targets.
+      'futures' — both directions, leverage sized from conviction and capped
+                  by volatility.
+
+    Position size uses a fixed-fractional risk model: risk
+    RISK_PER_TRADE_PCT of the account on the stop, so a wide-stop coin gets
+    a smaller position automatically.
+    """
+    last = df.iloc[-1]
+    atr = float(last["atr"])
+    price = float(last["close"])
     if np.isnan(atr) or atr <= 0 or label == "NEUTRAL":
         return None
     long = "LONG" in label
-    entry_lo = price - 0.25 * atr
-    entry_hi = price + 0.25 * atr
+    if mode == "spot" and not long:
+        return None  # there is no short side to trade on spot
+
+    supports, resistances = indicators.swing_levels(df)
+    maturity = _move_maturity(df, last, long)
+
+    # --- Entry zone: a real pullback band toward the nearest structure ---
     if long:
-        stop = price - 1.5 * atr
-        tp1 = price + 2.0 * atr
-        tp2 = price + 3.5 * atr
+        below = [s for s in supports if s < price]
+        anchor = max(below) if below else price - 0.6 * atr
+        entry_low = max(anchor, price - 1.0 * atr)
+        entry_high = price
     else:
-        stop = price + 1.5 * atr
-        tp1 = price - 2.0 * atr
-        tp2 = price - 3.5 * atr
-    risk = abs(price - stop)
+        above = [r for r in resistances if r > price]
+        anchor = min(above) if above else price + 0.6 * atr
+        entry_high = min(anchor, price + 1.0 * atr)
+        entry_low = price
+    entry = (entry_low + entry_high) / 2
+
+    # --- Stop: just beyond the structure that would invalidate the idea ---
+    buf = 0.35 * atr
+    atr_stop_mult = 2.2 if mode == "spot" else 1.6
+    if long:
+        protect = [s for s in supports if s < entry - buf]
+        struct_stop = (max(protect) - buf) if protect else None
+        atr_stop = entry - atr_stop_mult * atr
+        if struct_stop is not None and struct_stop < atr_stop:
+            stop, stop_basis = struct_stop, "structure"
+        else:
+            stop, stop_basis = atr_stop, "volatility"
+        stop = min(max(stop, entry - 4.0 * atr), entry - 0.8 * atr)
+    else:
+        protect = [r for r in resistances if r > entry + buf]
+        struct_stop = (min(protect) + buf) if protect else None
+        atr_stop = entry + atr_stop_mult * atr
+        if struct_stop is not None and struct_stop > atr_stop:
+            stop, stop_basis = struct_stop, "structure"
+        else:
+            stop, stop_basis = atr_stop, "volatility"
+        stop = max(min(stop, entry + 4.0 * atr), entry + 0.8 * atr)
+    risk = abs(entry - stop)
+
+    # --- Targets: the next swing levels price must clear, then projections ---
+    struct_t = _nearest_levels(resistances if long else supports, entry, long,
+                               max(0.6 * atr, 0.9 * risk), 0.8 * atr)
+    targets = list(struct_t)
+    proj_r = (2.0, 3.0, 4.5) if mode == "spot" else (1.5, 2.5, 4.0)
+    pi = 0
+    while len(targets) < 3 and pi < len(proj_r):
+        proj = entry + proj_r[pi] * risk * (1 if long else -1)
+        if not targets:
+            ok = True
+        elif long:
+            ok = proj > max(targets) + 0.5 * atr
+        else:
+            ok = proj < min(targets) - 0.5 * atr
+        if ok:
+            targets.append(proj)
+        pi += 1
+    targets = sorted(set(targets), reverse=not long)[:3]
+    while len(targets) < 3:
+        base = targets[-1] if targets else entry
+        targets.append(base + 1.5 * risk * (1 if long else -1))
+
+    rrs = [abs(t - entry) / risk if risk else 0.0 for t in targets]
+    risk_pct = risk / entry * 100 if entry else 0.0
+
+    # --- Position size from the fixed-fractional risk model ---
+    if risk_pct > 0:
+        if mode == "spot":
+            leverage = 1.0
+            position_pct = min(100.0, RISK_PER_TRADE_PCT / risk_pct * 100)
+        else:
+            lev = min(10.0, confidence / 12.0)
+            lev = min(lev, 6.0 / max(risk_pct, 0.3))  # wide stop -> less leverage
+            leverage = max(1.0, round(lev, 1))        # never below 1x
+            position_pct = min(
+                100.0, RISK_PER_TRADE_PCT / (risk_pct * leverage) * 100)
+    else:
+        leverage, position_pct = 1.0, 0.0
 
     if regime == "Trending":
-        fit = ("Trending market — momentum supports holding toward the "
-               "2nd target; trail the stop behind structure.")
+        fit = ("Trending market — momentum supports holding toward the far "
+               "target; trail the stop behind each new structure level.")
     elif regime == "Ranging":
-        fit = ("Ranging market — chop likely; bank the 1st target and keep "
-               "the stop tight, the directional edge is weaker here.")
+        fit = ("Ranging market — chop likely; bank Target 1 and tighten the "
+               "stop, the directional edge is weaker here.")
     else:
-        fit = ("Developing trend — consider scaling in and confirming with "
-               "momentum before sizing up.")
+        fit = ("Developing trend — scale in and confirm with momentum before "
+               "sizing up to the full position.")
 
     return {
         "side": "LONG" if long else "SHORT",
-        "entry": price,
-        "entry_low": min(entry_lo, entry_hi),
-        "entry_high": max(entry_lo, entry_hi),
+        "mode": mode,
+        "entry": entry,
+        "entry_low": min(entry_low, entry_high),
+        "entry_high": max(entry_low, entry_high),
         "stop_loss": stop,
-        "take_profit": tp1,
-        "take_profit_2": tp2,
-        "risk_reward": abs(tp1 - price) / risk if risk else 0.0,
-        "risk_reward_2": abs(tp2 - price) / risk if risk else 0.0,
-        "risk_pct": risk / price * 100 if price else 0.0,
+        "stop_basis": stop_basis,
+        "take_profit": targets[0],
+        "take_profit_2": targets[1],
+        "take_profit_3": targets[2],
+        "targets": targets,
+        "target_rr": [round(r, 2) for r in rrs],
+        "risk_reward": rrs[0],
+        "risk_reward_2": rrs[1],
+        "risk_reward_3": rrs[2],
+        "risk_pct": risk_pct,
+        "position_pct": round(position_pct, 1),
+        "leverage": leverage,
+        "maturity": maturity,
         "regime_fit": fit,
     }
 
 
 def analyze(df: pd.DataFrame, deriv: dict | None = None,
-            social: dict | None = None) -> dict:
+            social: dict | None = None, mode: str = "futures") -> dict:
     """Analyse one OHLCV DataFrame and return a decision dict.
 
     `df` may be raw OHLCV (it will be enriched) or already enriched. `deriv`,
     when supplied, is a derivatives snapshot and `social` a LunarCrush social
     snapshot ({galaxy_score, sentiment}); both join the directional-bias group
-    when present.
+    when present. `mode` ('spot' | 'futures') shapes the trade plan only —
+    the directional read is the same either way.
 
     The result carries two separate verdicts: `bias_label` (LONG/SHORT/NEUTRAL)
     and `action_label` (BUY/SELL/NEUTRAL), plus a blended composite `score`.
@@ -403,7 +571,7 @@ def analyze(df: pd.DataFrame, deriv: dict | None = None,
         if not np.isnan(last["buy_pressure"]) else None,
         "vwap": float(last["vwap"]) if not np.isnan(last["vwap"]) else None,
         "breakdown": breakdown,
-        "trade_plan": _trade_plan(label, last, regime),
+        "trade_plan": _trade_plan(label, df, regime, mode, confidence),
         "derivatives": deriv,
     }
 

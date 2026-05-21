@@ -170,11 +170,12 @@ def load_klines(symbol: str, interval: str) -> pd.DataFrame:
 
 
 def _scan_one(symbol: str, interval: str, funding: float | None = None,
-              social: dict | None = None) -> dict | None:
+              social: dict | None = None,
+              mode: str = "futures") -> dict | None:
     try:
         df = binance_client.get_klines(symbol, interval)
         deriv = {"funding": funding} if funding is not None else None
-        result = signals.analyze(df, deriv, social)
+        result = signals.analyze(df, deriv, social, mode)
         result["symbol"] = symbol
         result["funding"] = funding
         return result
@@ -183,7 +184,8 @@ def _scan_one(symbol: str, interval: str, funding: float | None = None,
 
 
 @st.cache_data(ttl=config.MARKET_CACHE_TTL, show_spinner=False)
-def scan_market(symbols: tuple[str, ...], interval: str) -> pd.DataFrame:
+def scan_market(symbols: tuple[str, ...], interval: str,
+                mode: str = "futures") -> pd.DataFrame:
     try:
         funding = derivatives.all_funding_rates()
     except Exception:
@@ -195,7 +197,8 @@ def scan_market(symbols: tuple[str, ...], interval: str) -> pd.DataFrame:
     with ThreadPoolExecutor(max_workers=config.SCAN_WORKERS) as pool:
         for res in pool.map(
                 lambda s: _scan_one(s, interval, funding.get(s),
-                                    social_map.get(s.replace("USDT", ""))),
+                                    social_map.get(s.replace("USDT", "")),
+                                    mode),
                 symbols):
             if res:
                 rows.append(res)
@@ -558,17 +561,27 @@ def _action_steps(plan: dict | None, agg: dict,
                      f"{fmt_price(nearest_res)}.")
     steps += [
         f"As soon as you are filled, set a stop-loss at "
-        f"{fmt_price(plan['stop_loss'])} ({plan['risk_pct']:.2f}% away). A "
-        f"candle close beyond it invalidates the trade — exit, no exceptions.",
-        f"Set take-profits: close ~50% at Target 1 "
-        f"{fmt_price(plan['take_profit'])} ({plan['risk_reward']:.1f}R), the "
-        f"rest at Target 2 {fmt_price(plan['take_profit_2'])} "
-        f"({plan['risk_reward_2']:.1f}R).",
+        f"{fmt_price(plan['stop_loss'])} ({plan['risk_pct']:.2f}% away, placed "
+        f"on {plan.get('stop_basis', 'volatility')}). A candle close beyond it "
+        f"invalidates the trade — exit, no exceptions.",
+        f"Scale out: ~40% at Target 1 {fmt_price(plan['take_profit'])} "
+        f"({plan['risk_reward']:.1f}R), ~35% at Target 2 "
+        f"{fmt_price(plan['take_profit_2'])} ({plan['risk_reward_2']:.1f}R), "
+        f"the rest at Target 3 {fmt_price(plan['take_profit_3'])} "
+        f"({plan['risk_reward_3']:.1f}R). Each target is a real swing level.",
         "Once Target 1 fills, move the stop to your entry price "
         "(break-even) — the rest of the trade is then risk-free.",
-        f"Size the position so the stop ({plan['risk_pct']:.2f}%) costs only "
-        f"1–2% of your account; divide size by your leverage multiple.",
     ]
+    if plan.get("mode") == "spot":
+        steps.append(
+            f"Spot sizing — buy ≈{plan.get('position_pct', 0):.0f}% of your "
+            f"account capital so a stop-out costs only "
+            f"~{signals.RISK_PER_TRADE_PCT:g}% of the account (no leverage).")
+    else:
+        steps.append(
+            f"Futures sizing — ≈{plan.get('leverage', 1):g}× leverage on a "
+            f"≈{plan.get('position_pct', 0):.0f}% margin allocation; a stop-out "
+            f"then costs ~{signals.RISK_PER_TRADE_PCT:g}% of the account.")
     return steps
 
 
@@ -633,31 +646,61 @@ def render_action_plan(plan: dict, regime: str, confidence: int,
     side = plan["side"]
     accent = "#34c759" if side == "LONG" else "#ff6b5b"
     coin = symbol.replace("USDT", "")
+    mode = plan.get("mode", "futures")
+    mat = plan.get("maturity") or {}
+    mat_color = {"EARLY": "#34c759", "RE-RUN": "#6e8bff",
+                 "EXTENDED": "#ff8a3d"}.get(mat.get("stage"), "#8e8e93")
+    mat_label = {"EARLY": "EARLY — room to run",
+                 "RE-RUN": "RE-RUN SETUP — second-leg entry",
+                 "EXTENDED": "EXTENDED — move already ran"}.get(
+                     mat.get("stage"), "MOVE STAGE UNKNOWN")
+    risk_unit = signals.RISK_PER_TRADE_PCT
     with st.container(border=True):
         st.markdown(
             f"<h4 style='margin:0 0 6px 0'>📋 Action Plan &nbsp;"
             f"<span style='color:{accent}'>{side} {coin}</span>"
             f"<span style='float:right;color:#888;font-size:0.8rem'>"
-            f"market regime: {regime}</span></h4>",
+            f"{mode.upper()} · regime: {regime}</span></h4>",
             unsafe_allow_html=True)
+        if mat:
+            st.markdown(
+                f"<div style='background:{mat_color}1f;border-left:3px solid "
+                f"{mat_color};padding:6px 11px;border-radius:4px;"
+                f"margin:2px 0 12px 0'>"
+                f"<b style='color:{mat_color}'>{mat_label}</b>"
+                f"<span style='color:#888'> · {mat.get('confidence', 0)}% "
+                f"confidence</span><br><span style='font-size:0.85rem;"
+                f"color:#bbb'>{mat.get('note', '')}</span></div>",
+                unsafe_allow_html=True)
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Entry zone", fmt_price(plan["entry"]),
                   f"{fmt_price(plan['entry_low'])} – "
                   f"{fmt_price(plan['entry_high'])}")
         c2.metric("Stop loss", fmt_price(plan["stop_loss"]),
-                  f"-{plan['risk_pct']:.2f}% risk")
+                  f"-{plan['risk_pct']:.2f}% · {plan.get('stop_basis', '')}")
         c3.metric("Target 1", fmt_price(plan["take_profit"]),
                   f"{plan['risk_reward']:.1f}R")
         c4.metric("Target 2", fmt_price(plan["take_profit_2"]),
                   f"{plan['risk_reward_2']:.1f}R")
-        rp = plan["risk_pct"] or 0.01
-        size1 = min(100.0, 1.0 / rp * 100)
-        size2 = min(100.0, 2.0 / rp * 100)
-        st.markdown(
-            f"**Position sizing** — the stop sits **{rp:.2f}%** from entry. "
-            f"For **1% account risk**, size ≈ **{size1:.0f}%** of account "
-            f"(1× notional); for **2% risk**, ≈ **{size2:.0f}%**. "
-            f"Cut these proportionally if you trade with leverage.")
+        t1, t2 = st.columns([1, 3])
+        t1.metric("Target 3", fmt_price(plan["take_profit_3"]),
+                  f"{plan['risk_reward_3']:.1f}R")
+        pos = plan.get("position_pct", 0.0)
+        lev = plan.get("leverage", 1.0)
+        if mode == "spot":
+            t2.markdown(
+                f"**Position sizing** — risking **{risk_unit:g}%** of your "
+                f"account: with the stop **{plan['risk_pct']:.2f}%** away, buy "
+                f"**≈{pos:.0f}%** of account capital (spot, no leverage). "
+                f"R:R is built from real swing structure, so a wider stop "
+                f"gives a smaller position — that is why every coin differs.")
+        else:
+            t2.markdown(
+                f"**Position sizing** — risking **{risk_unit:g}%** of account: "
+                f"suggested **{lev:g}× leverage** on a margin allocation of "
+                f"**≈{pos:.0f}%** of account. Leverage scales with signal "
+                f"confidence and is capped on volatile (wide-stop) coins, so "
+                f"each coin gets its own size — never a copy-paste.")
         st.caption(plan["regime_fit"])
         st.progress(int(confidence), text=f"Signal confidence · {confidence}%")
 
@@ -1246,6 +1289,11 @@ timeframe = st.sidebar.selectbox(
     "Timeframe", config.TIMEFRAMES,
     index=config.TIMEFRAMES.index(config.DEFAULT_TIMEFRAME),
 )
+trade_mode = st.sidebar.radio(
+    "Trade mode", ["Futures", "Spot"], horizontal=True,
+    help="Futures — trades both long & short, sizes leverage from "
+         "conviction. Spot — long-only (no shorting), no leverage, "
+         "wider swing-horizon targets and stops.").lower()
 top_n = st.sidebar.slider("Coins to track", 10, config.TOP_N, config.TOP_N, 5)
 
 if st.sidebar.button("🔄 Refresh data", use_container_width=True):
@@ -1369,7 +1417,7 @@ with tab_scan:
         st.stop()
 
     with st.spinner(f"Analysing {len(tickers)} coins on {timeframe}…"):
-        scan_df = scan_market(tuple(tickers["symbol"]), timeframe)
+        scan_df = scan_market(tuple(tickers["symbol"]), timeframe, trade_mode)
 
     if scan_df.empty:
         st.warning("No analysis results — try refreshing.")
@@ -1461,12 +1509,16 @@ with tab_scan:
             sig_table = pd.DataFrame([{
                 "Coin": r["symbol"].replace("USDT", ""),
                 "Direction": r["trade_plan"]["side"],
+                "Move": (r["trade_plan"].get("maturity") or {}).get(
+                    "stage", "—"),
                 "Entry zone": f"{fmt_price(r['trade_plan']['entry_low'])} – "
                               f"{fmt_price(r['trade_plan']['entry_high'])}",
                 "Stop loss": fmt_price(r["trade_plan"]["stop_loss"]),
                 "Target 1": fmt_price(r["trade_plan"]["take_profit"]),
                 "Target 2": fmt_price(r["trade_plan"]["take_profit_2"]),
-                "R : R": f"{r['trade_plan']['risk_reward']:.1f} : 1",
+                "Target 3": fmt_price(r["trade_plan"]["take_profit_3"]),
+                "R : R": f"{r['trade_plan']['risk_reward']:.1f}–"
+                         f"{r['trade_plan']['risk_reward_3']:.1f}R",
                 "Confidence": r["confidence"],
             } for _, r in sig.head(20).iterrows()])
             st.dataframe(
@@ -1750,7 +1802,8 @@ with tab_coin:
                 deriv = load_derivatives(symbol, tf)
             except Exception:
                 deriv = None
-            per_tf[tf] = signals.analyze(enriched, deriv, lc_metrics)
+            per_tf[tf] = signals.analyze(
+                enriched, deriv, lc_metrics, trade_mode)
         except Exception:
             continue
 
@@ -1831,11 +1884,19 @@ with tab_coin:
                             symbol, agg, nearest_sup, nearest_res)
     else:
         with st.container(border=True):
-            st.markdown("#### 📋 Action Plan — STAND ASIDE")
-            st.info(
-                f"No high-conviction setup on the {detail_tf} timeframe — the "
-                f"composite signal is NEUTRAL. Wait for directional bias and "
-                f"entry timing to align before committing risk.")
+            if trade_mode == "spot" and "SHORT" in detail["label"]:
+                st.markdown("#### 📋 Action Plan — NO SPOT TRADE")
+                st.info(
+                    f"The {detail_tf} bias is bearish ({detail['label']}). "
+                    f"Spot is long-only — there is no trade to take here. "
+                    f"Switch to Futures mode to see the short setup, or wait "
+                    f"for the bias to turn bullish for a spot buy.")
+            else:
+                st.markdown("#### 📋 Action Plan — STAND ASIDE")
+                st.info(
+                    f"No high-conviction setup on the {detail_tf} timeframe — "
+                    f"the composite signal is NEUTRAL. Wait for directional "
+                    f"bias and entry timing to align before committing risk.")
 
     # ---- Live order flow + price history ---------------------------------
     oc1, oc2 = st.columns(2)
@@ -2127,7 +2188,7 @@ with tab_decision:
 
     try:
         d_tickers = load_top_symbols(top_n)
-        d_scan = scan_market(tuple(d_tickers["symbol"]), timeframe)
+        d_scan = scan_market(tuple(d_tickers["symbol"]), timeframe, trade_mode)
     except Exception as exc:
         st.error(f"Could not load market data: {exc}")
         d_scan = pd.DataFrame()
