@@ -3861,7 +3861,19 @@ if active_section == "🧪 Paper Trader":
                 base -= 8
             _scored.append((min(99.0, base), fc_label, trend, align, s))
         _scored.sort(key=lambda t: t[0], reverse=True)
-        _bot_picks = _scored[:5]
+        # Widened from 5 to 8 — more coverage for fast movers the bot would
+        # otherwise drop off the bottom of the list, with no loss of pick
+        # quality since the combined score still ranks the strongest first.
+        _bot_picks = _scored[:8]
+
+        # Re-entry detection — if a coin you JUST closed (within 60 min) is
+        # back in the setups list, the scanner thinks it qualifies again
+        # (pullback into the entry zone, or a fresh continuation setup).
+        # We flag these so you don't miss the re-entry opportunity.
+        _recent_close_syms = {
+            c["symbol"] for c in pb_state.get("closed", [])[-30:]
+            if (now_ts - (c.get("exit_at") or 0)) < 3600
+        }
 
         if not _bot_picks:
             st.info("No high-confidence setups for the agent to recommend "
@@ -3908,6 +3920,16 @@ if active_section == "🧪 Paper Trader":
                 # above (+5 aligned / -8 counter); no visual chip — the
                 # ranking does the work without cluttering the card.
 
+                # Re-entry badge — flag setups that re-qualified after a
+                # recent close so the user can take the second leg.
+                reentry_chip = ""
+                if s["symbol"] in _recent_close_syms:
+                    reentry_chip = (
+                        f"<span style='background:#e0a92b33;color:#e0a92b;"
+                        f"padding:2px 8px;border-radius:5px;font-size:"
+                        f"0.7rem;font-weight:700;margin-left:4px'>"
+                        f"↻ Re-entry available</span>")
+
                 # Forecast per-horizon line
                 fc_line = ""
                 if fc.get("horizons"):
@@ -3945,7 +3967,7 @@ if active_section == "🧪 Paper Trader":
                         f"color:{str_color};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:700'>"
                         f"{str_label} · {int(combined)}</span>"
-                        f"{fc_chip}"
+                        f"{fc_chip}{reentry_chip}"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
                         f"scanner {conf}% · R:R {rr:.1f} · "
                         f"{alive_txt}</span></div>"
@@ -3975,6 +3997,55 @@ if active_section == "🧪 Paper Trader":
                                 f"{fmt_price(_opened['entry'])}",
                                 icon="🧪")
                             st.rerun()
+
+        # ---- Movers right now — coins already running with volume --------
+        # Top picks only show "setups at entry" (conf>=70 + valid plan).
+        # Coins already up 5-10 percent on a volume surge often don't pass
+        # that filter even though they are tradable. Surface them here so
+        # the user does not miss INJ-style movers — clearly labelled as
+        # chase candidates with momentum, NOT pristine entries.
+        _pick_syms = {pk[4]["symbol"] for pk in _bot_picks}
+        _surges_all = auto_ad.get("surges") or []
+        _movers = [m for m in _surges_all
+                   if m["symbol"] not in _open_syms
+                   and m["symbol"] not in _pick_syms][:5]
+        if _movers:
+            st.markdown("#### 🔥 Movers right now")
+            st.caption("Coins already running on a volume surge "
+                       "(≥ 2× average). These don't have a fresh entry "
+                       "zone like the top picks — they're chase candidates "
+                       "with momentum, so use a tighter stop and don't "
+                       "commit full risk.")
+            for m in _movers:
+                vr = float(m.get("vol_ratio") or 0)
+                ch = float(m.get("change_24h") or 0)
+                lbl = str(m.get("label") or "NEUTRAL")
+                bias = ("LONG" if "LONG" in lbl
+                        else "SHORT" if "SHORT" in lbl
+                        else "—")
+                bias_col = ("#2ed47a" if bias == "LONG"
+                            else "#ff5c5c" if bias == "SHORT"
+                            else "#8b8d98")
+                ch_col = ("#2ed47a" if ch >= 0 else "#ff5c5c")
+                mconf = int(m.get("confidence") or 0)
+                with st.container(border=True):
+                    st.markdown(
+                        f"<div style='display:flex;align-items:center;"
+                        f"gap:8px;flex-wrap:wrap'>"
+                        f"<span style='font-weight:800;font-size:1rem'>"
+                        f"{m['base']}</span>"
+                        f"<span style='background:{bias_col};color:#06121f;"
+                        f"padding:2px 10px;border-radius:5px;font-size:"
+                        f"0.72rem;font-weight:800'>{bias}</span>"
+                        f"<span style='background:#e0a92b33;color:#e0a92b;"
+                        f"padding:2px 8px;border-radius:5px;font-size:"
+                        f"0.7rem;font-weight:700'>"
+                        f"🔥 {vr:.1f}× volume</span>"
+                        f"<span style='color:{ch_col};font-weight:700;"
+                        f"font-size:0.82rem'>{ch:+.2f}% 24h</span>"
+                        f"<span style='color:#8b8d98;font-size:0.78rem'>"
+                        f"· scanner conf {mconf}%</span></div>",
+                        unsafe_allow_html=True)
 
         st.divider()
         # Open positions — LIVE fragment (updates in place every 10s).
@@ -4571,7 +4642,7 @@ plus funding rate every 8 hours on open positions.
             st.info("No live-eligible setups right now. The agent is "
                     "watching; come back when something strong fires.")
         else:
-            for _lev, _lt_align, s in _live_eligible[:4]:
+            for _lev, _lt_align, s in _live_eligible[:6]:
                 side = s["side"]
                 side_col = "#2ed47a" if side == "LONG" else "#ff5c5c"
                 conf = int(s.get("confidence", 0) or 0)
