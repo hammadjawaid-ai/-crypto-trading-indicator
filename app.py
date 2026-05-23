@@ -3219,55 +3219,194 @@ if active_section == "🧪 Paper Trader":
                         if not _row_match.empty else None)
                 _cur = (float(_row["price"])
                         if _row is not None else 0.0)
+                _chg = (float(_row.get("priceChangePercent") or 0.0)
+                        if _row is not None else 0.0)
                 _plan = (_row.get("trade_plan")
                          if _row is not None
                          and isinstance(_row.get("trade_plan"), dict)
                          else None)
 
-                # Engine-suggested trade plan for this coin + side.
-                if _plan and _plan.get("side") == _side:
+                # ---- Live price card --------------------------------------
+                _ch_color = "#2ed47a" if _chg >= 0 else "#ff5c5c"
+                st.markdown(
+                    f"<div style='background:#11141c;padding:10px 14px;"
+                    f"border-radius:6px;margin:6px 0 10px 0;"
+                    f"border:1px solid #1f2330'>"
+                    f"<div style='font-size:0.7rem;color:#8b8d98;"
+                    f"letter-spacing:0.08em;font-weight:700'>LIVE PRICE · "
+                    f"{_sel.replace('USDT','')}/USDT</div>"
+                    f"<div style='display:flex;align-items:baseline;"
+                    f"gap:10px;flex-wrap:wrap'>"
+                    f"<span style='font-size:1.4rem;font-weight:800;"
+                    f"color:#fff'>{fmt_price(_cur)}</span>"
+                    f"<span style='color:{_ch_color};font-size:0.85rem;"
+                    f"font-weight:700'>{_chg:+.2f}% (24h)</span>"
+                    f"</div></div>", unsafe_allow_html=True)
+
+                # ---- Order type + entry -----------------------------------
+                _order_type = st.radio(
+                    "Order type", ["Market", "Limit"],
+                    horizontal=True, key="pb_open_order_type")
+                _combo = f"{_sel}_{_side}_{_order_type}"
+                _step = (_cur * 0.001) if _cur > 0 else 0.01
+                if _order_type == "Market":
                     _entry = _cur
-                    _stop = float(_plan["stop_loss"])
-                    _target = float(_plan["take_profit"])
+                    st.caption(
+                        f"Entry: **{fmt_price(_entry)}** (market price)")
                 else:
-                    _entry = _cur or 1.0
-                    if _side == "LONG":
-                        _stop = _entry * 0.98
-                        _target = _entry * 1.04
-                    else:
-                        _stop = _entry * 1.02
-                        _target = _entry * 0.96
-                _rr = (abs(_target - _entry) / abs(_entry - _stop)
-                       if _entry != _stop else 0.0)
-                _stop_pct = (abs((_entry - _stop) / _entry * 100)
-                             if _entry else 0.0)
-                _risk_dollars = (pb_state["balance"]
-                                 * pb_state["risk_per_trade_pct"] / 100)
-                _qty = (_risk_dollars / abs(_entry - _stop)
-                        if _entry != _stop else 0.0)
+                    _entry = st.number_input(
+                        "Limit entry price", value=float(_cur),
+                        format="%.8f", step=_step,
+                        key=f"pb_entry_{_combo}")
 
-                st.markdown(
-                    f"**Suggested {_side} trade on {_sel.replace('USDT','')}**"
-                )
-                _color = "#2ed47a" if _side == "LONG" else "#ff5c5c"
-                st.markdown(
-                    f"<div style='background:{_color}14;border-left:3px solid "
-                    f"{_color};padding:8px 12px;border-radius:5px;"
-                    f"margin:4px 0 10px 0;font-size:0.86rem'>"
-                    f"Entry (market): <b>{fmt_price(_entry)}</b><br>"
-                    f"Stop: <b>{fmt_price(_stop)}</b> "
-                    f"({_stop_pct:.2f}% away)<br>"
-                    f"Target: <b>{fmt_price(_target)}</b> "
-                    f"({_rr:.2f}R)<br>"
-                    f"Position size: ~<b>{_qty:.6f} "
-                    f"{_sel.replace('USDT','')}</b> "
-                    f"(risk ${_risk_dollars:.2f})<br>"
-                    f"Suggested hold: <b>{_hold_horizon(timeframe)}</b> "
-                    f"(based on {timeframe} timeframe)</div>",
-                    unsafe_allow_html=True)
+                # ---- Stop & take-profit (editable) ------------------------
+                if _plan and _plan.get("side") == _side:
+                    _def_stop = float(_plan["stop_loss"])
+                    _def_target = float(_plan["take_profit"])
+                else:
+                    _def_stop = _entry * (0.98 if _side == "LONG" else 1.02)
+                    _def_target = _entry * (1.04 if _side == "LONG" else 0.96)
+                _sc1, _sc2 = st.columns(2)
+                _stop = _sc1.number_input(
+                    "Stop loss", value=float(_def_stop), format="%.8f",
+                    step=_step, key=f"pb_stop_{_combo}")
+                _target = _sc2.number_input(
+                    "Take profit", value=float(_def_target), format="%.8f",
+                    step=_step, key=f"pb_target_{_combo}")
 
-                if st.button("📥 Open trade", use_container_width=True,
-                             type="primary", key="pb_open_btn"):
+                if _entry > 0 and _stop != _entry:
+                    _stop_pct = abs((_entry - _stop) / _entry * 100)
+                    _target_pct = abs((_target - _entry) / _entry * 100)
+                    _rr = abs(_target - _entry) / abs(_entry - _stop)
+                else:
+                    _stop_pct = _target_pct = _rr = 0.0
+                st.caption(
+                    f"Stop **{_stop_pct:.2f}%** away · Target "
+                    f"**{_target_pct:.2f}%** away · R:R **{_rr:.2f}**")
+
+                # ---- Leverage (futures only) ------------------------------
+                if trade_mode == "futures":
+                    _leverage = st.slider(
+                        "Leverage", 1, 10, 1, key="pb_open_leverage")
+                else:
+                    _leverage = 1
+                    st.caption("Spot mode — no leverage (1×)")
+
+                # ---- Sizing method ----------------------------------------
+                _sizing = st.radio(
+                    "How to size", ["Risk-based", "Dollar amount",
+                                    "Quantity", "% of balance"],
+                    key="pb_sizing")
+                _balance = float(pb_state["balance"])
+
+                if _sizing == "Risk-based":
+                    _risk_pct_in = st.slider(
+                        "Account risk per trade (%)", 0.25, 5.0,
+                        float(pb_state.get("risk_per_trade_pct", 1.0)), 0.25,
+                        key="pb_risk_pct_slider")
+                    _risk_dollars = _balance * _risk_pct_in / 100
+                    _risk_pu = (abs(_entry - _stop)
+                                if _entry != _stop else 0.0)
+                    _qty = (_risk_dollars / _risk_pu
+                            if _risk_pu > 0 else 0.0)
+                elif _sizing == "Dollar amount":
+                    _max_notional = max(_balance * _leverage, _balance)
+                    _notional_in = st.number_input(
+                        "Notional ($) to deploy",
+                        min_value=10.0, max_value=float(_max_notional),
+                        value=float(min(1000.0, _balance)),
+                        step=100.0, key="pb_notional_in")
+                    _qty = _notional_in / _entry if _entry > 0 else 0.0
+                elif _sizing == "Quantity":
+                    _qty = st.number_input(
+                        f"Quantity ({_sel.replace('USDT','')})",
+                        min_value=0.0, value=1.0, step=0.001,
+                        format="%.6f", key="pb_qty_in")
+                else:                       # % of balance
+                    _pct = st.slider(
+                        "% of balance to allocate", 1, 100, 10,
+                        key="pb_pct_alloc")
+                    _qty = ((_balance * _pct / 100 * _leverage) / _entry
+                            if _entry > 0 else 0.0)
+
+                _qty = float(_qty)
+                _notional_val = _qty * _entry
+                _margin = (_notional_val / _leverage
+                           if _leverage > 0 else _notional_val)
+                _risk_dollars_final = _qty * abs(_entry - _stop)
+                _risk_pct_final = (_risk_dollars_final / _balance * 100
+                                   if _balance > 0 else 0.0)
+                _potential_profit = _qty * abs(_target - _entry)
+                _profit_pct = (_potential_profit / _balance * 100
+                               if _balance > 0 else 0.0)
+
+                # ---- Live order summary -----------------------------------
+                _summary_lines = [
+                    f"Position size: <b>{_qty:.6f} "
+                    f"{_sel.replace('USDT','')}</b>",
+                    f"Notional value: <b>${_notional_val:,.2f}</b>",
+                ]
+                if trade_mode == "futures" and _leverage > 1:
+                    _summary_lines.append(
+                        f"Margin required: <b>${_margin:,.2f}</b> "
+                        f"(at {_leverage}× leverage)")
+                _summary_lines.extend([
+                    f"Risk if stopped: <b style='color:#ff5c5c'>"
+                    f"${_risk_dollars_final:,.2f}</b> "
+                    f"({_risk_pct_final:.2f}% of balance)",
+                    f"Reward if target: <b style='color:#2ed47a'>"
+                    f"${_potential_profit:,.2f}</b> "
+                    f"({_profit_pct:.2f}% of balance)",
+                    f"R:R = <b>{_rr:.2f}R</b> · Suggested hold: "
+                    f"<b>{_hold_horizon(timeframe)}</b>",
+                ])
+                st.markdown(
+                    f"<div style='background:#0e1118;border-left:3px solid "
+                    f"#6e8bff;padding:10px 14px;border-radius:5px;"
+                    f"margin:8px 0'>"
+                    f"<div style='font-size:0.7rem;color:#6e8bff;"
+                    f"letter-spacing:0.08em;font-weight:800;"
+                    f"margin-bottom:6px'>📊 LIVE ORDER SUMMARY</div>"
+                    f"<div style='color:#d5d7e0;font-size:0.85rem;"
+                    f"line-height:1.6'>" + "<br>".join(_summary_lines)
+                    + "</div></div>", unsafe_allow_html=True)
+
+                # ---- Validation warnings ----------------------------------
+                _warnings = []
+                if _side == "LONG" and _stop >= _entry:
+                    _warnings.append(
+                        "Stop must be BELOW entry for a LONG trade.")
+                if _side == "SHORT" and _stop <= _entry:
+                    _warnings.append(
+                        "Stop must be ABOVE entry for a SHORT trade.")
+                if _side == "LONG" and _target <= _entry:
+                    _warnings.append(
+                        "Take profit must be ABOVE entry for a LONG trade.")
+                if _side == "SHORT" and _target >= _entry:
+                    _warnings.append(
+                        "Take profit must be BELOW entry for a SHORT trade.")
+                if _qty <= 0:
+                    _warnings.append(
+                        "Position size is zero — adjust sizing inputs.")
+                if _margin > _balance:
+                    _warnings.append(
+                        f"Margin required (${_margin:,.0f}) exceeds your "
+                        f"balance (${_balance:,.0f}).")
+                if _risk_pct_final > 10:
+                    _warnings.append(
+                        f"Risking {_risk_pct_final:.1f}% of balance — that "
+                        "is aggressive; size down.")
+                for _w in _warnings:
+                    st.warning(f"⚠️ {_w}")
+
+                # ---- Open button ------------------------------------------
+                _can_open = (not _warnings) and _qty > 0
+                _btn_label = (
+                    f"📥 Open {_side} {_sel.replace('USDT','')} "
+                    f"@ {fmt_price(_entry)}")
+                if st.button(_btn_label, use_container_width=True,
+                             type="primary", key="pb_open_btn",
+                             disabled=not _can_open):
                     _manual_alert = {
                         "symbol": _sel,
                         "base": _sel.replace("USDT", ""),
@@ -3281,19 +3420,25 @@ if active_section == "🧪 Paper Trader":
                     _opened = paper_bot.open_position(
                         pb_state, _manual_alert, _entry)
                     if _opened:
+                        # Override the engine's risk-based qty with the
+                        # user's chosen sizing.
+                        _opened["qty"] = float(_qty)
+                        _opened["notional"] = float(_notional_val)
+                        _opened["leverage"] = int(_leverage)
+                        _opened["margin"] = float(_margin)
+                        _opened["order_type"] = _order_type
                         _enrich_position(_opened, 0, timeframe,
                                          label_override="Manual")
                         paper_bot.save_state(PAPER_BOT_FILE, pb_state)
                         st.toast(
-                            f"📥 Opened {_side} "
-                            f"{_opened['base']} @ "
-                            f"{fmt_price(_opened['entry'])}",
-                            icon="🧪")
+                            f"📥 Opened {_side} {_opened['base']} @ "
+                            f"{fmt_price(_opened['entry'])} · qty "
+                            f"{_qty:.6f}", icon="🧪")
                         st.rerun()
                     else:
                         st.error(
-                            "Could not open — stop is on the wrong side "
-                            "of entry, or position already exists.")
+                            "Could not open — already have a position in "
+                            "this coin.")
 
     with right_col:
         # ---- 🤖 Bot's top picks — what the agent would open right now ---
