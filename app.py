@@ -3904,20 +3904,9 @@ if active_section == "🧪 Paper Trader":
                         f"font-weight:700;margin-left:4px'>"
                         f"⚠ Forecast disagrees</span>")
 
-                # Higher-TF (weekly) trend chip — independent of forecast.
-                trend_chip = ""
-                if align == "aligned":
-                    trend_chip = (
-                        f"<span style='background:#2ed47a33;color:#2ed47a;"
-                        f"padding:2px 8px;border-radius:5px;font-size:0.7rem;"
-                        f"font-weight:700;margin-left:4px'>"
-                        f"✓ With 1w trend</span>")
-                elif align == "counter":
-                    trend_chip = (
-                        f"<span style='background:#ff5c5c33;color:#ff5c5c;"
-                        f"padding:2px 8px;border-radius:5px;font-size:0.7rem;"
-                        f"font-weight:700;margin-left:4px'>"
-                        f"⚠ Counter-trend (1w {trend.lower()})</span>")
+                # Higher-TF weekly trend is folded silently into the score
+                # above (+5 aligned / -8 counter); no visual chip — the
+                # ranking does the work without cluttering the card.
 
                 # Forecast per-horizon line
                 fc_line = ""
@@ -3956,7 +3945,7 @@ if active_section == "🧪 Paper Trader":
                         f"color:{str_color};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:700'>"
                         f"{str_label} · {int(combined)}</span>"
-                        f"{fc_chip}{trend_chip}"
+                        f"{fc_chip}"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
                         f"scanner {conf}% · R:R {rr:.1f} · "
                         f"{alive_txt}</span></div>"
@@ -4587,22 +4576,9 @@ plus funding rate every 8 hours on open positions.
                 side_col = "#2ed47a" if side == "LONG" else "#ff5c5c"
                 conf = int(s.get("confidence", 0) or 0)
                 str_label, str_col = _live_strength_label(conf)
-                # Trend alignment chip (real money never opens counter
-                # without conf >= 88, so 'counter' only reaches here when
-                # the signal is exceptionally strong).
-                if _lt_align == "aligned":
-                    _trend_chip = (
-                        f"<span style='background:#2ed47a33;color:#2ed47a;"
-                        f"padding:2px 8px;border-radius:5px;font-size:"
-                        f"0.7rem;font-weight:700'>✓ With 1w trend</span>")
-                elif _lt_align == "counter":
-                    _trend_chip = (
-                        f"<span style='background:#ff5c5c33;color:#ff5c5c;"
-                        f"padding:2px 8px;border-radius:5px;font-size:"
-                        f"0.7rem;font-weight:700'>"
-                        f"⚠ Counter-trend (high-conf)</span>")
-                else:
-                    _trend_chip = ""
+                # Weekly-trend alignment is enforced silently in the
+                # eligibility filter above (counter-trend rejected unless
+                # conf >= 88) — no visual chip needed on the card.
                 with st.container(border=True):
                     aa, bb = st.columns([6, 1])
                     aa.markdown(
@@ -4617,7 +4593,6 @@ plus funding rate every 8 hours on open positions.
                         f"color:{str_col};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:700'>"
                         f"{str_label}</span>"
-                        f"{_trend_chip}"
                         f"<span style='color:#6e8bff;font-weight:700;"
                         f"font-size:0.78rem'>{_lev}× lev</span>"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"

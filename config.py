@@ -85,7 +85,11 @@ KLINE_LIMIT = 300             # candles fetched per symbol/timeframe
 EXCLUDE_SUBSTRINGS = ("UP", "DOWN", "BULL", "BEAR")
 EXCLUDE_BASES = ("USDC", "FDUSD", "TUSD", "BUSD", "DAI", "USDP", "EUR", "GBP",
                  "USD1", "USDE", "USDD", "AEUR", "XUSD", "EURI", "RLUSD",
-                 "USDG", "GUSD", "PYUSD")
+                 "USDG", "GUSD", "PYUSD",
+                 # USD-pegged synthetics that slip through with single-char or
+                 # non-obvious tickers. Always trade at ~$1.00 so they produce
+                 # zero directional signal and just clog the scanner.
+                 "U")
 
 # --- Timeframes ------------------------------------------------------------
 TIMEFRAMES = ["15m", "1h", "4h", "1d"]
