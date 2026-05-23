@@ -65,19 +65,21 @@ def _notify_phone(title: str, message: str,
     Only fires if NTFY_TOPIC is set in .env / Streamlit secrets. Failures
     never kill the loop. Priority is one of: min, low, default, high,
     urgent — PREMIUM setups use 'high' so they ring through Do Not Disturb
-    on most phones."""
+    on most phones. Uses ntfy's JSON publishing endpoint so the title and
+    body handle emoji / unicode cleanly (HTTP headers are latin-1 only)."""
     topic = (config.NTFY_TOPIC or "").strip()
     if not topic or requests is None:
         return
     try:
-        url = f"https://ntfy.sh/{topic}"
-        headers = {
-            "Title": title.encode("utf-8"),
-            "Priority": priority,
-            "Tags": "chart_with_upwards_trend",
+        payload = {
+            "topic": topic,
+            "title": title,
+            "message": message,
+            "priority": {"min": 1, "low": 2, "default": 3,
+                         "high": 4, "urgent": 5}.get(priority, 3),
+            "tags": ["chart_with_upwards_trend"],
         }
-        requests.post(url, data=message.encode("utf-8"),
-                      headers=headers, timeout=5)
+        requests.post("https://ntfy.sh/", json=payload, timeout=5)
     except Exception as exc:
         print(f"  (phone push failed: {exc})")
 
