@@ -3075,7 +3075,7 @@ if active_section == "🧪 Paper Trader":
         c1, c2, c3, c4, c5 = st.columns([1.2, 1.2, 1.3, 1.1, 1.1])
         new_balance = c1.number_input(
             "Starting balance ($)", min_value=100.0, max_value=1_000_000.0,
-            value=float(pb_state.get("starting_balance") or 20000.0),
+            value=float(pb_state.get("starting_balance") or 10000.0),
             step=500.0, key="pb_start_balance")
         new_risk = c2.slider(
             "Risk per trade (%)", 0.25, 5.0,
@@ -3215,20 +3215,76 @@ if active_section == "🧪 Paper Trader":
         if _sid not in current_setup_ids:
             del sp[_sid]
 
+    # ---- Weekly auto-reset to the starting balance -----------------------
+    _reset_info = paper_bot.check_weekly_reset(pb_state, prices)
+    if _reset_info["reset"]:
+        st.success(
+            f"⏰ Weekly reset! Balance restored to "
+            f"${pb_state['starting_balance']:,.0f}. "
+            f"{len(_reset_info['closed_at_reset'])} open position(s) "
+            f"were closed at market — the closed-trades history is "
+            f"preserved so you can review the previous period.")
+
     paper_bot.save_state(PAPER_BOT_FILE, pb_state)
 
-    # ---- Stats summary ---------------------------------------------------
+    # ---- Bank-account stats: balance / available / unrealized / equity --
+    _bal = float(pb_state["balance"])
+    _start_bal = float(pb_state.get("starting_balance") or _bal)
+    _margin_used = paper_bot.open_margin_used(pb_state)
+    _unreal = paper_bot.unrealized_pnl(pb_state, prices)
+    _available = _bal - _margin_used
+    _equity = _bal + _unreal
+    _realized = _bal - _start_bal
+    _realized_pct = (_realized / _start_bal * 100) if _start_bal else 0.0
+
+    bc = st.columns(5)
+    bc[0].metric(
+        "💰 Bank balance", f"${_bal:,.2f}",
+        f"{_realized_pct:+.2f}% since start",
+        help="Your realised cash. Updates only when a trade closes — wins "
+             "add to it, losses subtract.")
+    bc[1].metric(
+        "Available", f"${_available:,.2f}",
+        f"-${_margin_used:,.0f} in trades" if _margin_used > 0 else "all free",
+        help="Cash free to open new trades — bank balance minus the margin "
+             "locked in current positions.")
+    _unr_color_arrow = "↑" if _unreal >= 0 else "↓"
+    bc[2].metric(
+        "Unrealised P&L", f"${_unreal:+,.2f}",
+        f"{_unr_color_arrow} from open positions",
+        help="Live mark-to-market profit/loss across every open position "
+             "right now — what you would realise if you closed everything.")
+    bc[3].metric(
+        "📊 Equity", f"${_equity:,.2f}",
+        f"${_realized:+,.0f} realised",
+        help="Total account value — bank balance plus unrealised P&L.")
+    bc[4].metric(
+        "Realised P&L", f"${_realized:+,.2f}",
+        f"{_realized_pct:+.2f}% of start",
+        help="Total realised profit/loss since the period started.")
+
+    # ---- Trade stats + weekly-reset countdown ----------------------------
     s = paper_bot.stats(pb_state)
+    _elapsed = max(0.0, time.time() - float(
+        pb_state.get("started_at") or time.time()))
+    _days_left = paper_bot.WEEKLY_RESET_DAYS - _elapsed / 86400.0
+    _reset_txt = (f"{_days_left:.1f} days"
+                  if _days_left > 0 else "next refresh")
     sc = st.columns(5)
-    sc[0].metric("Balance", f"${s['balance']:,.2f}",
-                 f"{s['total_pnl_pct']:+.2f}%")
-    sc[1].metric("Trades closed", s["trades"])
-    sc[2].metric("Win rate",
+    sc[0].metric("Trades closed", s["trades"])
+    sc[1].metric("Win rate",
                  f"{s['win_rate']:.0f}%" if s["trades"] else "—")
-    sc[3].metric("Best trade",
+    sc[2].metric("Best trade",
                  f"{s['best_trade']:+.2f}%" if s["trades"] else "—")
-    sc[4].metric("Worst trade",
+    sc[3].metric("Worst trade",
                  f"{s['worst_trade']:+.2f}%" if s["trades"] else "—")
+    sc[4].metric("⏰ Resets in", _reset_txt,
+                 f"to ${_start_bal:,.0f}",
+                 help=(f"The paper account auto-restores to "
+                       f"${_start_bal:,.0f} every "
+                       f"{paper_bot.WEEKLY_RESET_DAYS} days. Anything still "
+                       "open is closed at market first; closed-trades "
+                       "history is kept."))
 
     st.divider()
 
@@ -3428,10 +3484,11 @@ if active_section == "🧪 Paper Trader":
                 if _qty <= 0:
                     _warnings.append(
                         "Position size is zero — adjust sizing inputs.")
-                if _margin > _balance:
+                if _margin > _available:
                     _warnings.append(
                         f"Margin required (${_margin:,.0f}) exceeds your "
-                        f"balance (${_balance:,.0f}).")
+                        f"AVAILABLE cash (${_available:,.0f}). Close a "
+                        f"trade or size down.")
                 if _risk_pct_final > 10:
                     _warnings.append(
                         f"Risking {_risk_pct_final:.1f}% of balance — that "

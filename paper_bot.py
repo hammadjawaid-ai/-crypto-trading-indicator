@@ -23,14 +23,20 @@ import time
 from pathlib import Path
 
 DEFAULT_STATE = {
-    "balance": 20000.0,
-    "starting_balance": 20000.0,
+    "balance": 10000.0,
+    "starting_balance": 10000.0,
     "risk_per_trade_pct": 1.0,
     "open": [],
     "closed": [],
     "suggestion_persistence": {},   # {setup_id: first_seen_ts}
-    "version": 2,
+    "started_at": None,             # period start — set on first save
+    "version": 3,
 }
+
+
+# How long a paper-trading period runs before balance auto-resets back to
+# the starting amount. Anything still open is closed at market first.
+WEEKLY_RESET_DAYS = 7
 
 
 def load_state(path: Path) -> dict:
@@ -59,8 +65,77 @@ def reset(path: Path, starting_balance: float, risk_pct: float) -> dict:
     s["balance"] = float(starting_balance)
     s["starting_balance"] = float(starting_balance)
     s["risk_per_trade_pct"] = float(risk_pct)
+    s["started_at"] = time.time()
     save_state(path, s)
     return s
+
+
+def open_margin_used(state: dict) -> float:
+    """Total margin locked across every open position right now.
+
+    For a spot trade, this is the full notional (notional = qty * entry).
+    For a futures trade, it is notional / leverage. The number represents
+    capital that is currently TIED UP in positions and therefore not
+    available to deploy in a new trade."""
+    total = 0.0
+    for p in state.get("open") or []:
+        qty = float(p.get("qty") or 0.0)
+        entry = float(p.get("entry") or 0.0)
+        notional = float(p.get("notional") or (qty * entry))
+        leverage = float(p.get("leverage") or 1.0)
+        margin = (notional / leverage) if leverage > 0 else notional
+        total += margin
+    return total
+
+
+def unrealized_pnl(state: dict, prices: dict[str, float]) -> float:
+    """Mark-to-market sum of P&L across every open position, using the
+    latest price map. Negative numbers mean the open book is currently in
+    the red, positive in the green."""
+    total = 0.0
+    for p in state.get("open") or []:
+        price = prices.get(p["symbol"])
+        if price is None:
+            continue
+        long = (p["side"] == "LONG")
+        entry = float(p["entry"])
+        qty = float(p["qty"])
+        total += (((price - entry) if long else (entry - price)) * qty)
+    return total
+
+
+def check_weekly_reset(state: dict,
+                       prices: dict[str, float],
+                       period_days: int = WEEKLY_RESET_DAYS) -> dict:
+    """If `period_days` have elapsed since the period started, force-close
+    every open position at the latest market price, then reset the balance
+    back to the starting amount and start a new period.
+
+    Closed-trades history is PRESERVED so the user keeps the audit of
+    every paper trade across periods. Returns
+    {reset: bool, closed_at_reset: list[dict]}."""
+    now = time.time()
+    started_at = state.get("started_at")
+    if not started_at:
+        # First-ever paper run — anchor the period clock here.
+        state["started_at"] = now
+        return {"reset": False, "closed_at_reset": []}
+    elapsed = now - float(started_at)
+    if elapsed < period_days * 24 * 3600:
+        return {"reset": False, "closed_at_reset": []}
+    # Period over — force-close every open position at the latest price.
+    just_closed: list[dict] = []
+    for p in list(state.get("open") or []):
+        price = prices.get(p["symbol"], p["entry"])
+        closed = close_position_at(state, p["symbol"], price,
+                                   reason="weekly reset")
+        if closed:
+            just_closed.append(closed)
+    # Restart the balance and the period clock.
+    start = float(state.get("starting_balance") or 10000.0)
+    state["balance"] = start
+    state["started_at"] = now
+    return {"reset": True, "closed_at_reset": just_closed}
 
 
 def _qty_for(balance: float, risk_pct: float,
