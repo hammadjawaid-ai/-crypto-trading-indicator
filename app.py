@@ -3176,6 +3176,206 @@ if active_section == "🧪 Paper Trader":
             fig, use_container_width=True,
             config={"displayModeBar": False})
 
+    # ------------------------------------------------------------------
+    # Live-updating fragments — these refresh IN PLACE every 10 seconds
+    # without reloading the whole page. They each re-read paper-bot state
+    # from disk so a Close action or weekly reset is reflected immediately.
+    # ------------------------------------------------------------------
+    @st.fragment(run_every=10)
+    def _live_paper_stats():
+        """Bank + trade stats row, live-updating."""
+        state = paper_bot.load_state(PAPER_BOT_FILE)
+        live_p: dict[str, float] = {}
+        for _p in state["open"]:
+            _lp = live_price(_p["symbol"])
+            live_p[_p["symbol"]] = (
+                float(_lp) if _lp is not None and _lp > 0
+                else float(_p["entry"]))
+
+        bal = float(state["balance"])
+        start_bal = float(state.get("starting_balance") or bal)
+        margin_used = paper_bot.open_margin_used(state)
+        unreal = paper_bot.unrealized_pnl(state, live_p)
+        available = bal - margin_used
+        equity = bal + unreal
+        realized = bal - start_bal
+        realized_pct = ((realized / start_bal * 100)
+                        if start_bal else 0.0)
+
+        bc = st.columns(5)
+        bc[0].metric(
+            "💰 Bank balance", f"${bal:,.2f}",
+            f"{realized_pct:+.2f}% since start",
+            help="Realised cash. Updates only when a trade closes.")
+        bc[1].metric(
+            "Available", f"${available:,.2f}",
+            f"-${margin_used:,.0f} in trades" if margin_used > 0
+            else "all free",
+            help="Free to deploy — bank balance minus locked margin.")
+        unr_arrow = "↑" if unreal >= 0 else "↓"
+        bc[2].metric(
+            "Unrealised P&L", f"${unreal:+,.2f}",
+            f"{unr_arrow} from open positions",
+            help="Live mark-to-market across open positions.")
+        bc[3].metric(
+            "📊 Equity", f"${equity:,.2f}",
+            f"${realized:+,.0f} realised",
+            help="Bank balance + unrealised P&L.")
+        bc[4].metric(
+            "Realised P&L", f"${realized:+,.2f}",
+            f"{realized_pct:+.2f}% of start",
+            help="Total realised since the period started.")
+
+        st_stats = paper_bot.stats(state)
+        _elapsed = max(0.0, time.time() - float(
+            state.get("started_at") or time.time()))
+        _days_left = (paper_bot.WEEKLY_RESET_DAYS
+                      - _elapsed / 86400.0)
+        _reset_txt = (f"{_days_left:.1f} days"
+                      if _days_left > 0 else "next refresh")
+        sc = st.columns(5)
+        sc[0].metric("Trades closed", st_stats["trades"])
+        sc[1].metric("Win rate",
+                     f"{st_stats['win_rate']:.0f}%"
+                     if st_stats["trades"] else "—")
+        sc[2].metric("Best trade",
+                     f"{st_stats['best_trade']:+.2f}%"
+                     if st_stats["trades"] else "—")
+        sc[3].metric("Worst trade",
+                     f"{st_stats['worst_trade']:+.2f}%"
+                     if st_stats["trades"] else "—")
+        sc[4].metric("⏰ Resets in", _reset_txt,
+                     f"to ${start_bal:,.0f}",
+                     help=(f"Auto-restores to ${start_bal:,.0f} every "
+                           f"{paper_bot.WEEKLY_RESET_DAYS} days."))
+
+    @st.fragment(run_every=10)
+    def _live_paper_positions():
+        """Open-position cards, live-updating. Also re-runs the stop/target
+        evaluator on every tick so a hit fires in seconds, not minutes."""
+        state = paper_bot.load_state(PAPER_BOT_FILE)
+        live_p: dict[str, float] = {}
+        for _p in state["open"]:
+            _lp = live_price(_p["symbol"])
+            live_p[_p["symbol"]] = (
+                float(_lp) if _lp is not None and _lp > 0
+                else float(_p["entry"]))
+
+        # Evaluate stops/targets on every fragment tick with live prices.
+        closed_now = paper_bot.evaluate(state, live_p)
+        for c in closed_now:
+            emoji = "✅" if c["pnl_usd"] > 0 else "❌"
+            st.toast(
+                f"{emoji} {c['base']} closed at {c['exit_reason']} · "
+                f"{c['pnl_pct']:+.2f}%", icon="🧪")
+        if closed_now:
+            paper_bot.save_state(PAPER_BOT_FILE, state)
+
+        st.markdown(f"### 📂 Open positions ({len(state['open'])})")
+        if not state["open"]:
+            st.info(
+                "No open positions. Use the panel on the left to open a "
+                "trade, or toggle **Auto-trade** in Settings to let the "
+                "bot trade alerts automatically.")
+            return
+
+        for p in state["open"]:
+            cur = live_p.get(p["symbol"], p["entry"])
+            long = (p["side"] == "LONG")
+            entry_v = float(p["entry"])
+            stop_v = float(p["stop"])
+            target_v = float(p["target"])
+            qty_v = float(p["qty"])
+            notional_v = float(p.get("notional") or (qty_v * entry_v))
+            lev_v = int(p.get("leverage") or 1)
+            unreal_pos = (((cur - entry_v) if long
+                           else (entry_v - cur)) * qty_v)
+            unreal_pct_pos = (unreal_pos / state["balance"] * 100
+                              if state["balance"] else 0.0)
+            if entry_v > 0:
+                pct_from_entry = ((cur - entry_v) / entry_v * 100)
+                if not long:
+                    pct_from_entry = -pct_from_entry
+            else:
+                pct_from_entry = 0.0
+            color = "#2ed47a" if unreal_pos >= 0 else "#ff5c5c"
+            side_color = "#2ed47a" if long else "#ff5c5c"
+            if long:
+                if cur >= entry_v:
+                    prog = (((cur - entry_v) / (target_v - entry_v)
+                             * 50 + 50)
+                            if target_v != entry_v else 50)
+                else:
+                    prog = ((50 - (entry_v - cur) / (entry_v - stop_v)
+                             * 50)
+                            if entry_v != stop_v else 50)
+            else:
+                if cur <= entry_v:
+                    prog = (((entry_v - cur) / (entry_v - target_v)
+                             * 50 + 50)
+                            if entry_v != target_v else 50)
+                else:
+                    prog = ((50 - (cur - entry_v) / (stop_v - entry_v)
+                             * 50)
+                            if stop_v != entry_v else 50)
+            health = int(max(0, min(100, prog)))
+            hold_txt = p.get("hold_horizon") or "—"
+            str_label = p.get("strength_label", "")
+            be_badge = (" · ✓ break-even"
+                        if p.get("break_even_set") else "")
+            lev_txt = f" · {lev_v}× lev" if lev_v > 1 else ""
+
+            with st.container(border=True):
+                info_col, pnl_col, btn_col = st.columns([2.4, 1.8, 0.8])
+                info_col.markdown(
+                    f"<div style='font-size:1.05rem;font-weight:800;"
+                    f"margin-bottom:2px'>{p['base']} "
+                    f"<span style='background:{side_color};color:#06121f;"
+                    f"padding:2px 10px;border-radius:5px;font-size:"
+                    f"0.72rem;font-weight:800;margin-left:6px'>"
+                    f"{p['side']}</span></div>"
+                    f"<div style='color:#d5d7e0;font-size:0.84rem;"
+                    f"margin:3px 0'>"
+                    f"<b>{qty_v:.6f} {p['base']}</b> · "
+                    f"notional <b>${notional_v:,.2f}</b>{lev_txt}</div>"
+                    f"<div style='color:#8b8d98;font-size:0.78rem'>"
+                    f"Entry {fmt_price(entry_v)} · Stop "
+                    f"{fmt_price(stop_v)} · Target {fmt_price(target_v)}"
+                    f" · hold: {hold_txt}"
+                    + (f" · {str_label}" if str_label else "")
+                    + be_badge + "</div>",
+                    unsafe_allow_html=True)
+                pnl_col.markdown(
+                    f"<div style='text-align:right;font-size:1.15rem;"
+                    f"font-weight:800;color:#fff'>{fmt_price(cur)}</div>"
+                    f"<div style='text-align:right;color:{color};"
+                    f"font-size:1.1rem;font-weight:800;margin-top:2px'>"
+                    f"${unreal_pos:+,.2f}</div>"
+                    f"<div style='text-align:right;color:{color};"
+                    f"font-size:0.78rem;font-weight:700;margin-top:1px'>"
+                    f"{pct_from_entry:+.2f}% from entry · "
+                    f"{unreal_pct_pos:+.2f}% balance</div>",
+                    unsafe_allow_html=True)
+                if btn_col.button(
+                        "Close", key=f"pb_close_{p['symbol']}",
+                        use_container_width=True):
+                    cl = paper_bot.close_position_at(
+                        state, p["symbol"], cur, reason="manual")
+                    if cl:
+                        paper_bot.save_state(PAPER_BOT_FILE, state)
+                        emoji = "✅" if cl["pnl_usd"] > 0 else "❌"
+                        st.toast(
+                            f"{emoji} Closed {cl['base']} · "
+                            f"{cl['pnl_pct']:+.2f}%", icon="🧪")
+                        st.rerun(scope="fragment")
+                st.progress(health, text=(
+                    f"🎯 {health}% toward target"
+                    if health >= 50
+                    else f"⚠️ {100 - health}% toward stop"))
+                _render_position_chart(
+                    p["symbol"], p["side"],
+                    entry_v, stop_v, target_v, cur)
+
     # Apply latest settings — only adopt new balance on a fresh book.
     pb_state["risk_per_trade_pct"] = float(new_risk)
     if not pb_state.get("closed") and not pb_state.get("open"):
@@ -3246,64 +3446,8 @@ if active_section == "🧪 Paper Trader":
 
     paper_bot.save_state(PAPER_BOT_FILE, pb_state)
 
-    # ---- Bank-account stats: balance / available / unrealized / equity --
-    _bal = float(pb_state["balance"])
-    _start_bal = float(pb_state.get("starting_balance") or _bal)
-    _margin_used = paper_bot.open_margin_used(pb_state)
-    _unreal = paper_bot.unrealized_pnl(pb_state, prices)
-    _available = _bal - _margin_used
-    _equity = _bal + _unreal
-    _realized = _bal - _start_bal
-    _realized_pct = (_realized / _start_bal * 100) if _start_bal else 0.0
-
-    bc = st.columns(5)
-    bc[0].metric(
-        "💰 Bank balance", f"${_bal:,.2f}",
-        f"{_realized_pct:+.2f}% since start",
-        help="Your realised cash. Updates only when a trade closes — wins "
-             "add to it, losses subtract.")
-    bc[1].metric(
-        "Available", f"${_available:,.2f}",
-        f"-${_margin_used:,.0f} in trades" if _margin_used > 0 else "all free",
-        help="Cash free to open new trades — bank balance minus the margin "
-             "locked in current positions.")
-    _unr_color_arrow = "↑" if _unreal >= 0 else "↓"
-    bc[2].metric(
-        "Unrealised P&L", f"${_unreal:+,.2f}",
-        f"{_unr_color_arrow} from open positions",
-        help="Live mark-to-market profit/loss across every open position "
-             "right now — what you would realise if you closed everything.")
-    bc[3].metric(
-        "📊 Equity", f"${_equity:,.2f}",
-        f"${_realized:+,.0f} realised",
-        help="Total account value — bank balance plus unrealised P&L.")
-    bc[4].metric(
-        "Realised P&L", f"${_realized:+,.2f}",
-        f"{_realized_pct:+.2f}% of start",
-        help="Total realised profit/loss since the period started.")
-
-    # ---- Trade stats + weekly-reset countdown ----------------------------
-    s = paper_bot.stats(pb_state)
-    _elapsed = max(0.0, time.time() - float(
-        pb_state.get("started_at") or time.time()))
-    _days_left = paper_bot.WEEKLY_RESET_DAYS - _elapsed / 86400.0
-    _reset_txt = (f"{_days_left:.1f} days"
-                  if _days_left > 0 else "next refresh")
-    sc = st.columns(5)
-    sc[0].metric("Trades closed", s["trades"])
-    sc[1].metric("Win rate",
-                 f"{s['win_rate']:.0f}%" if s["trades"] else "—")
-    sc[2].metric("Best trade",
-                 f"{s['best_trade']:+.2f}%" if s["trades"] else "—")
-    sc[3].metric("Worst trade",
-                 f"{s['worst_trade']:+.2f}%" if s["trades"] else "—")
-    sc[4].metric("⏰ Resets in", _reset_txt,
-                 f"to ${_start_bal:,.0f}",
-                 help=(f"The paper account auto-restores to "
-                       f"${_start_bal:,.0f} every "
-                       f"{paper_bot.WEEKLY_RESET_DAYS} days. Anything still "
-                       "open is closed at market first; closed-trades "
-                       "history is kept."))
+    # ---- Bank + trade stats — LIVE fragment (updates in place every 10s)
+    _live_paper_stats()
 
     st.divider()
 
@@ -3730,116 +3874,8 @@ if active_section == "🧪 Paper Trader":
                             st.rerun()
 
         st.divider()
-        st.markdown(f"### 📂 Open positions ({len(pb_state['open'])})")
-        if not pb_state["open"]:
-            st.info("No open positions. Use the panel on the left to open "
-                    "a trade, or toggle **Auto-trade** in Settings to let "
-                    "the bot trade alerts automatically.")
-        else:
-            for p in pb_state["open"]:
-                cur = prices.get(p["symbol"], p["entry"])
-                long = (p["side"] == "LONG")
-                entry_v = float(p["entry"])
-                stop_v = float(p["stop"])
-                target_v = float(p["target"])
-                qty_v = float(p["qty"])
-                notional_v = float(p.get("notional")
-                                   or (qty_v * entry_v))
-                lev_v = int(p.get("leverage") or 1)
-                unreal = (((cur - entry_v) if long
-                           else (entry_v - cur)) * qty_v)
-                unreal_pct = (unreal / pb_state["balance"] * 100
-                              if pb_state["balance"] else 0.0)
-                # % move from entry (sign-aware for shorts).
-                if entry_v > 0:
-                    pct_from_entry = ((cur - entry_v) / entry_v * 100)
-                    if not long:
-                        pct_from_entry = -pct_from_entry
-                else:
-                    pct_from_entry = 0.0
-                color = "#2ed47a" if unreal >= 0 else "#ff5c5c"
-                side_color = "#2ed47a" if long else "#ff5c5c"
-                # Health: 0 = stop, 50 = entry, 100 = target.
-                if long:
-                    if cur >= entry_v:
-                        prog = (((cur - entry_v) / (target_v - entry_v)
-                                 * 50 + 50)
-                                if target_v != entry_v else 50)
-                    else:
-                        prog = ((50 - (entry_v - cur) / (entry_v - stop_v)
-                                 * 50)
-                                if entry_v != stop_v else 50)
-                else:
-                    if cur <= entry_v:
-                        prog = (((entry_v - cur) / (entry_v - target_v)
-                                 * 50 + 50)
-                                if entry_v != target_v else 50)
-                    else:
-                        prog = ((50 - (cur - entry_v) / (stop_v - entry_v)
-                                 * 50)
-                                if stop_v != entry_v else 50)
-                health = int(max(0, min(100, prog)))
-                hold_txt = p.get("hold_horizon") or "—"
-                str_label = p.get("strength_label", "")
-                be_badge = (" · ✓ break-even"
-                            if p.get("break_even_set") else "")
-                lev_txt = f" · {lev_v}× lev" if lev_v > 1 else ""
-
-                with st.container(border=True):
-                    info_col, pnl_col, btn_col = st.columns([2.4, 1.8, 0.8])
-                    # --- Left: coin / side / qty / notional / levels -----
-                    info_col.markdown(
-                        f"<div style='font-size:1.05rem;font-weight:800;"
-                        f"margin-bottom:2px'>{p['base']} "
-                        f"<span style='background:{side_color};color:#06121f;"
-                        f"padding:2px 10px;border-radius:5px;font-size:"
-                        f"0.72rem;font-weight:800;margin-left:6px'>"
-                        f"{p['side']}</span></div>"
-                        f"<div style='color:#d5d7e0;font-size:0.84rem;"
-                        f"margin:3px 0'>"
-                        f"<b>{qty_v:.6f} {p['base']}</b> · "
-                        f"notional <b>${notional_v:,.2f}</b>{lev_txt}</div>"
-                        f"<div style='color:#8b8d98;font-size:0.78rem'>"
-                        f"Entry {fmt_price(entry_v)} · Stop "
-                        f"{fmt_price(stop_v)} · Target {fmt_price(target_v)}"
-                        f" · hold: {hold_txt}"
-                        + (f" · {str_label}" if str_label else "")
-                        + be_badge + "</div>",
-                        unsafe_allow_html=True)
-                    # --- Middle: live price + P&L $ + P&L %  -------------
-                    pnl_col.markdown(
-                        f"<div style='text-align:right;font-size:1.15rem;"
-                        f"font-weight:800;color:#fff'>{fmt_price(cur)}</div>"
-                        f"<div style='text-align:right;color:{color};"
-                        f"font-size:1.1rem;font-weight:800;margin-top:2px'>"
-                        f"${unreal:+,.2f}</div>"
-                        f"<div style='text-align:right;color:{color};"
-                        f"font-size:0.78rem;font-weight:700;margin-top:1px'>"
-                        f"{pct_from_entry:+.2f}% from entry · "
-                        f"{unreal_pct:+.2f}% balance</div>",
-                        unsafe_allow_html=True)
-                    # --- Right: Close ------------------------------------
-                    if btn_col.button(
-                            "Close", key=f"pb_close_{p['symbol']}",
-                            use_container_width=True):
-                        closed = paper_bot.close_position_at(
-                            pb_state, p["symbol"], cur, reason="manual")
-                        if closed:
-                            paper_bot.save_state(PAPER_BOT_FILE, pb_state)
-                            emoji = "✅" if closed["pnl_usd"] > 0 else "❌"
-                            st.toast(
-                                f"{emoji} Closed {closed['base']} · "
-                                f"{closed['pnl_pct']:+.2f}%", icon="🧪")
-                            st.rerun()
-                    # --- Progress bar ------------------------------------
-                    st.progress(health, text=(
-                        f"🎯 {health}% toward target"
-                        if health >= 50
-                        else f"⚠️ {100 - health}% toward stop"))
-                    # --- Mini chart with Entry / Stop / Target levels ----
-                    _render_position_chart(
-                        p["symbol"], p["side"],
-                        entry_v, stop_v, target_v, cur)
+        # Open positions — LIVE fragment (updates in place every 10s).
+        _live_paper_positions()
 
     st.divider()
 
@@ -3898,15 +3934,10 @@ if active_section == "🧪 Paper Trader":
                "win in the current regime; real-money results will be a "
                "little worse. Educational only, not financial advice.")
 
-    # ---- Live mode — keep the bot actively managing positions ------------
-    # Paper Trader refreshes every 15s when Live is on so the live P&L,
-    # health bars and mini charts update as close to real time as a
-    # Streamlit app can. The price itself is fetched via a 5-second
-    # live_price cache so the dot on each chart and the unrealised P&L
-    # move between refreshes too, not just on the full reload.
+    # ---- Live mode — only the 10-min hard refresh now -------------------
+    # The Bank stats and Open positions sections already update in place
+    # every 10s via st.fragment — no full page reload needed for live P&L.
+    # Live mode still triggers a hard 10-minute refresh to clear caches
+    # (scanner, news, forecast) so fresh signals can land.
     if live_mode:
-        _inject_autorefresh(15)
-    elif pb_state["open"]:
-        st.info(
-            "💡 Tip — turn on **🔴 Live** in Settings to get live, "
-            "auto-updating P&L on your open positions (refreshes every 15s).")
+        _inject_autorefresh(600)
