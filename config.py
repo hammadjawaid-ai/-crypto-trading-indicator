@@ -140,6 +140,8 @@ NEWS_FEEDS = {
         ("Cointelegraph", "https://cointelegraph.com/rss"),
         ("Decrypt", "https://decrypt.co/feed"),
         ("Bitcoin Magazine", "https://bitcoinmagazine.com/feed"),
+        ("The Block", "https://www.theblock.co/rss.xml"),
+        ("CryptoSlate", "https://cryptoslate.com/feed/"),
     ],
     "Stocks / Markets": [
         ("CNBC Markets", "https://www.cnbc.com/id/20910258/device/rss/rss.html"),
@@ -153,6 +155,11 @@ NEWS_FEEDS = {
         ("NYT Economy", "https://rss.nytimes.com/services/xml/rss/nyt/Economy.xml"),
         ("Guardian Business", "https://www.theguardian.com/business/rss"),
         ("CNBC Finance", "https://www.cnbc.com/id/10000664/device/rss/rss.html"),
+        # Trump Truth Social posts via the trumpstruth.org public archive.
+        # High-noise but occasionally market-moving when he mentions Fed,
+        # tariffs, regulation or crypto. The tier-2 impact filter (requires
+        # crypto / market context) keeps the noise out of the impact panel.
+        ("Trump (Truth Social)", "https://trumpstruth.org/feed"),
     ],
     "Geopolitics": [
         ("BBC World", "https://feeds.bbci.co.uk/news/world/rss.xml"),

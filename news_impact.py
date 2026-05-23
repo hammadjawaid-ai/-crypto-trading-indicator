@@ -133,21 +133,24 @@ def _impact_score(title: str, sentiment: float,
 
 
 def detect_impactful(news_df: pd.DataFrame, *,
-                     max_count: int = 10,
-                     min_score: float = 0.55) -> list[dict]:
+                     max_count: int = 8,
+                     min_score: float = 0.62) -> list[dict]:
     """Pick the most impactful headlines from a freshly fetched news DataFrame.
 
     Returns a list of dicts the UI can render directly:
-      {title, source, link, sentiment, direction, score, keywords, category}.
+      {title, source, link, sentiment, direction, score, keywords, category,
+       published}.
 
     Direction is taken from each headline's existing sentiment (never
     invented). Headlines are walked freshest-first; results are sorted
-    strongest-first and trimmed to `max_count`.
+    strongest-first and trimmed to `max_count`. The higher default
+    `min_score` keeps only genuinely market-moving stories — no flooding
+    the impact panel with marginal mentions.
     """
     if news_df is None or len(news_df) == 0:
         return []
     items: list[dict] = []
-    for _, row in news_df.head(100).iterrows():
+    for _, row in news_df.head(120).iterrows():
         title = str(row.get("title") or "").strip()
         if not title:
             continue
@@ -167,6 +170,7 @@ def detect_impactful(news_df: pd.DataFrame, *,
             "score": round(score, 2),
             "keywords": kws[:4],
             "direction": direction,
+            "published": row.get("published"),   # datetime for time-ago UI
         })
         if len(items) >= max_count * 2:   # collect extra so the sort has range
             break

@@ -1771,6 +1771,33 @@ def render_forecast(fc_df: pd.DataFrame) -> None:
         "not guarantees. Educational only, not financial advice.")
 
 
+def _relative_time(dt) -> str:
+    """Return a short 'X min ago' / 'X h ago' / 'X d ago' string from a
+    datetime — used by the news-impact panel to show how fresh each
+    headline is. Falls back to '' when the input is missing/invalid."""
+    if dt is None:
+        return ""
+    try:
+        # Coerce strings / pandas timestamps to a tz-aware UTC datetime.
+        if hasattr(dt, "to_pydatetime"):
+            dt = dt.to_pydatetime()
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
+        secs = (now - dt).total_seconds()
+    except Exception:
+        return ""
+    if secs < 0:
+        return "just now"
+    if secs < 60:
+        return f"{int(secs)}s ago"
+    if secs < 3600:
+        return f"{int(secs // 60)} min ago"
+    if secs < 86400:
+        return f"{int(secs // 3600)}h ago"
+    return f"{int(secs // 86400)}d ago"
+
+
 def _inject_autorefresh(seconds: int) -> None:
     """Reload the whole app after `seconds` — used for the live forecast."""
     components.html(
@@ -1868,7 +1895,9 @@ def render_btc_outlook(o: dict,
                          f"{it['title'][:90]}", icon=icon)
 
             items_html = ""
-            for it in impactful_news[:6]:
+            # Cap to 5 — keep the panel focused on the highest-impact news,
+            # not flooded with marginal mentions.
+            for it in impactful_news[:5]:
                 dir_color = {"Bullish": "#2ed47a",
                              "Bearish": "#ff5c5c"}.get(
                                  it["direction"], "#e0a92b")
@@ -1880,6 +1909,19 @@ def render_btc_outlook(o: dict,
                                f"color:#aab;padding:1px 6px;border-radius:4px;"
                                f"font-size:0.7rem;margin-left:6px'>"
                                f"{it['keywords'][0]}</span>")
+                time_ago = _relative_time(it.get("published"))
+                time_chip = (f" · <span style='color:#6e8bff'>{time_ago}</span>"
+                             if time_ago else "")
+                link = it.get("link") or ""
+                if link:
+                    title_html = (
+                        f"<a href='{link}' target='_blank' rel='noopener' "
+                        f"style='color:#d5d7e0;text-decoration:none;"
+                        f"border-bottom:1px dotted #4a4f60'>"
+                        f"{md_safe(it['title'])}</a>")
+                else:
+                    title_html = (f"<span style='color:#d5d7e0'>"
+                                  f"{md_safe(it['title'])}</span>")
                 items_html += (
                     f"<div style='border-left:3px solid {dir_color};"
                     f"padding:6px 12px;margin:5px 0;background:{dir_color}10;"
@@ -1888,9 +1930,8 @@ def render_btc_outlook(o: dict,
                     f"{it['direction'].upper()}</span>{kw_chip} "
                     f"<span style='color:#9aa0b4;font-size:0.76rem'>"
                     f"· {md_safe(it.get('source', ''))} "
-                    f"· impact {it['score']:.2f}</span>{fresh_tag}<br>"
-                    f"<span style='color:#d5d7e0'>"
-                    f"{md_safe(it['title'])}</span></div>")
+                    f"· impact {it['score']:.2f}{time_chip}</span>"
+                    f"{fresh_tag}<br>{title_html}</div>")
             st.markdown(
                 f"<div style='background:#0e1118;border-left:3px solid "
                 f"#e0a92b;padding:10px 14px;margin:6px 0 10px 0;"
