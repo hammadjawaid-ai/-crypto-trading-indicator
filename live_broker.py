@@ -56,6 +56,14 @@ DEFAULT_STATE = {
 # Confidence ladder for the leverage scaler. (min_confidence, leverage)
 DEFAULT_LEV_MAP = [(70, 3), (80, 8), (90, 15)]
 
+# Trade-management thresholds (multiples of original risk, "R"). Same
+# semantics as paper_bot.py — at +1R move the exchange stop to entry
+# (free option); at +1.5R close a 50% chunk on the exchange and let the
+# rest ride to the full target.
+BREAK_EVEN_R = 1.0
+PARTIAL_TAKE_R = 1.5
+PARTIAL_FRACTION = 0.5
+
 
 # ---------------------------------------------------------------------------
 # State persistence
@@ -453,6 +461,7 @@ def open_position(state: dict, alert: dict, price_now: float,
         "stop": float(preview["stop"]),
         "target": float(preview["target"]),
         "qty": float(qty),
+        "original_qty": float(qty),          # for partial-close math
         "notional": float(preview["notional"]),
         "leverage": int(lev),
         "margin": float(preview["margin"]),
@@ -523,15 +532,105 @@ def close_position_at(state: dict, symbol: str, price: float,
     return closed
 
 
+def _manage_position(state: dict, pos: dict, price: float) -> dict | None:
+    """Run trade-management triggers (break-even, partial profit-take) on
+    an open Bybit position. Returns a closed-trade dict if a partial fill
+    fired (so the UI can toast it), None otherwise. Stop/target full
+    closes are NOT handled here — `evaluate()` handles those."""
+    long = (pos["side"] == "LONG")
+    risk_per_unit = abs(pos["entry"] - pos["original_stop"]) \
+        if pos.get("original_stop") is not None else abs(
+            pos["entry"] - pos["stop"])
+    if risk_per_unit <= 0:
+        return None
+    gain_per_unit = ((price - pos["entry"]) if long
+                     else (pos["entry"] - price))
+
+    # +1R → move exchange-side stop to entry (free option).
+    if (not pos.get("break_even_set")
+            and gain_per_unit >= BREAK_EVEN_R * risk_per_unit):
+        try:
+            c = client()
+            c.set_trading_stop(
+                category="linear", symbol=pos["symbol"],
+                stopLoss=str(pos["entry"]),
+                takeProfit=str(pos["target"]),
+                tpslMode="Full", positionIdx=0)
+        except Exception:
+            pass    # local stop still tracked below
+        pos.setdefault("original_stop", pos["stop"])
+        pos["stop"] = float(pos["entry"])
+        pos["break_even_set"] = True
+
+    # +1.5R → close PARTIAL_FRACTION on the exchange (reduceOnly market),
+    # let the remainder ride to the full target. Fires ONCE.
+    if (not pos.get("partial_taken")
+            and gain_per_unit >= PARTIAL_TAKE_R * risk_per_unit):
+        close_qty = pos["qty"] * PARTIAL_FRACTION
+        side = "Sell" if long else "Buy"
+        partial_link = f"ti-part-{uuid.uuid4().hex[:12]}"
+        fill_price = float(price)
+        try:
+            c = client()
+            c.place_order(category="linear", symbol=pos["symbol"],
+                          side=side, orderType="Market",
+                          qty=str(close_qty), timeInForce="IOC",
+                          reduceOnly=True, positionIdx=0,
+                          orderLinkId=partial_link)
+            # Poll briefly for the fill price.
+            for _ in range(10):
+                time.sleep(0.5)
+                try:
+                    hist = c.get_order_history(
+                        category="linear",
+                        orderLinkId=partial_link, limit=1)
+                    rows = (hist.get("result") or {}).get("list") or []
+                    if rows and (rows[0].get("orderStatus") == "Filled"):
+                        fill_price = float(rows[0].get("avgPrice")
+                                           or fill_price)
+                        break
+                except Exception:
+                    continue
+        except Exception:
+            return None    # partial failed — leave position untouched
+
+        pnl_per_unit = ((fill_price - pos["entry"]) if long
+                        else (pos["entry"] - fill_price))
+        partial_pnl = pnl_per_unit * close_qty
+        partial = dict(pos)
+        partial.update({
+            "qty": float(close_qty),
+            "exit": float(fill_price),
+            "exit_at": time.time(),
+            "exit_reason": f"partial +{PARTIAL_TAKE_R:.1f}R",
+            "partial": True,
+            "pnl_usd": round(partial_pnl, 2),
+            "pnl_pct": round(partial_pnl / state["balance"] * 100, 2)
+                       if state["balance"] else 0.0,
+        })
+        state["closed"].append(partial)
+        state["balance"] = round(state["balance"] + partial_pnl, 2)
+        pos["qty"] = float(pos["qty"] - close_qty)
+        pos["partial_taken"] = True
+        pos["partial_at"] = float(fill_price)
+        return partial
+    return None
+
+
 def evaluate(state: dict, prices: dict[str, float]) -> list[dict]:
     """Local stop/target check — runs as a backup. Bybit's exchange-side
     SL/TP fires primarily; this catches any case where our price feed
-    sees a hit before Bybit ticks."""
+    sees a hit before Bybit ticks. Also runs trade-management triggers
+    (break-even at +1R, partial-take at +1.5R) on every tick."""
     just_closed: list[dict] = []
     for p in list(state.get("open") or []):
         price = prices.get(p["symbol"])
         if price is None:
             continue
+        # Trade management — fires break-even / partial-take when due.
+        partial = _manage_position(state, p, price)
+        if partial:
+            just_closed.append(partial)
         long = (p["side"] == "LONG")
         hit_stop = (price <= p["stop"]) if long else (price >= p["stop"])
         hit_target = ((price >= p["target"]) if long

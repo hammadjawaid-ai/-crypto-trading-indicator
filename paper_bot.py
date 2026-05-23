@@ -38,6 +38,15 @@ DEFAULT_STATE = {
 # the starting amount. Anything still open is closed at market first.
 WEEKLY_RESET_DAYS = 7
 
+# Trade-management levels (multiples of original risk-per-unit, "R").
+#   +1.0R → move stop to entry (break-even)
+#   +1.5R → close PARTIAL_FRACTION of the position; let the rest ride
+# The combination locks in a guaranteed profit on every winner that
+# reaches +1.5R while leaving runners free to hit the full target.
+BREAK_EVEN_R = 1.0
+PARTIAL_TAKE_R = 1.5
+PARTIAL_FRACTION = 0.5
+
 
 def load_state(path: Path) -> dict:
     """Read paper-bot state from disk; return defaults if absent / corrupt."""
@@ -187,6 +196,7 @@ def open_position(state: dict, alert: dict,
         "stop": float(stop),
         "target": float(target),
         "qty": float(qty),
+        "original_qty": float(qty),   # for partial-close tracking
         "opened_at": time.time(),
         "confidence": int(alert.get("confidence", 0) or 0),
         "rr": float(alert.get("rr", 0.0) or 0.0),
@@ -210,21 +220,53 @@ def evaluate(state: dict, prices: dict[str, float]) -> list[dict]:
             continue
         long = (pos["side"] == "LONG")
 
+        # Risk-per-unit is the same for both the BE move and the partial
+        # take — compute once.
+        risk_per_unit = abs(pos["entry"] - pos["original_stop"]) \
+            if pos.get("original_stop") is not None else abs(
+                pos["entry"] - pos["stop"])
+        gain_per_unit = ((price - pos["entry"]) if long
+                         else (pos["entry"] - price))
+
         # Break-even auto-move: once the position is up by 1R (an amount
         # equal to the original risk), push the stop to entry. From that
         # point on the trade is a "free option" — it can target run with no
         # downside. Move it ONCE and never widen.
-        if not pos.get("break_even_set"):
-            risk_per_unit = abs(pos["entry"] - pos["original_stop"]) \
-                if pos.get("original_stop") is not None else abs(
-                    pos["entry"] - pos["stop"])
-            gain_per_unit = ((price - pos["entry"]) if long
-                             else (pos["entry"] - price))
-            if risk_per_unit > 0 and gain_per_unit >= risk_per_unit:
-                # remember the original stop for analytics, then move to BE
-                pos.setdefault("original_stop", pos["stop"])
-                pos["stop"] = pos["entry"]
-                pos["break_even_set"] = True
+        if (not pos.get("break_even_set")
+                and risk_per_unit > 0
+                and gain_per_unit >= BREAK_EVEN_R * risk_per_unit):
+            # remember the original stop for analytics, then move to BE
+            pos.setdefault("original_stop", pos["stop"])
+            pos["stop"] = pos["entry"]
+            pos["break_even_set"] = True
+
+        # Partial profit-take: at +1.5R close half the position to lock in
+        # a guaranteed win on the closed half. The remaining half stays
+        # open with the break-even stop, so worst-case is now a +0.75R
+        # winner if it stops out, best-case is the full target. Fires ONCE.
+        if (not pos.get("partial_taken")
+                and risk_per_unit > 0
+                and gain_per_unit >= PARTIAL_TAKE_R * risk_per_unit):
+            close_qty = pos["qty"] * PARTIAL_FRACTION
+            pnl_per_unit = ((price - pos["entry"]) if long
+                            else (pos["entry"] - price))
+            partial_pnl = pnl_per_unit * close_qty
+            partial = dict(pos)
+            partial.update({
+                "qty": float(close_qty),
+                "exit": float(price),
+                "exit_at": time.time(),
+                "exit_reason": f"partial +{PARTIAL_TAKE_R:.1f}R",
+                "partial": True,
+                "pnl_usd": round(partial_pnl, 2),
+                "pnl_pct": round(partial_pnl / state["balance"] * 100, 2)
+                           if state["balance"] else 0.0,
+            })
+            state["closed"].append(partial)
+            state["balance"] = round(state["balance"] + partial_pnl, 2)
+            pos["qty"] = float(pos["qty"] - close_qty)
+            pos["partial_taken"] = True
+            pos["partial_at"] = float(price)
 
         hit_stop = (price <= pos["stop"]) if long else (price >= pos["stop"])
         hit_target = ((price >= pos["target"]) if long
