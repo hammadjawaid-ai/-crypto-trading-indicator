@@ -3171,8 +3171,8 @@ if active_section == "🧪 Paper Trader":
         auto_trade = c3.checkbox(
             "🟢 Auto-trade from alerts", value=False, key="pb_auto",
             help="When on, each scan the agent opens new positions for "
-                 "every high-confidence trade alert (>= 70% confidence), "
-                 "long and short.")
+                 "every high-confidence trade alert (>= 72% confidence, "
+                 "counter-trend setups require >= 85), long and short.")
         live_mode = c4.checkbox(
             "🔴 Live", value=False, key="pb_live",
             help="Auto-refresh every 5 min so the bot actively manages "
