@@ -385,7 +385,10 @@ def _trade_plan(label: str, df: pd.DataFrame, regime: str,
     # at the NEAREST level that truly invalidates the idea (the closest swing
     # the trade leans on), not beyond every level with a loose buffer. It is
     # still floored at 0.6 ATR: any tighter and normal candle noise wicks it
-    # out, turning trades that would have worked into losses.
+    # out, turning trades that would have worked into losses. A HARD %-cap is
+    # then applied on top: no matter how wide the structure or how volatile
+    # the coin, the stop never sits more than MAX_STOP_PCT % of entry away.
+    MAX_STOP_PCT = 4.0
     buf = 0.20 * atr                              # minimal cushion past a level
     atr_stop_mult = 1.5 if mode == "spot" else 1.1
     noise_floor = 0.6 * atr                       # tightest a stop may sit
@@ -411,6 +414,15 @@ def _trade_plan(label: str, df: pd.DataFrame, regime: str,
         else:
             stop, stop_basis = atr_stop, "volatility"
         stop = max(min(stop, entry + max_stop), entry + noise_floor)
+
+    # Hard %-cap on stop distance — never risks more than MAX_STOP_PCT of
+    # entry per trade, even when ATR or structure would put the stop wider.
+    if entry > 0:
+        max_abs = entry * MAX_STOP_PCT / 100.0
+        if long:
+            stop = max(stop, entry - max_abs)
+        else:
+            stop = min(stop, entry + max_abs)
     risk = abs(entry - stop)
 
     # --- Targets: the next swing levels price must clear, then projections ---
