@@ -3799,9 +3799,11 @@ if active_section == "🧪 Paper Trader":
         st.caption(
             "Strongest long & short setups the agent sees right now, "
             "ranked by a COMBINED signal that fuses the Market Scanner "
-            "alert with the Forecast tab's multi-horizon read. A setup "
-            "where the Scanner AND the Forecast agree across all three "
-            "horizons scores highest. Click 📥 to open one.")
+            "alert with the Forecast tab's multi-horizon read. **Only "
+            "Strong+ tier shown** — Moderate-strength setups (combined "
+            "score < 70 after forecast / trend penalties) are hidden so "
+            "you only see picks the bot can confidently back. Click 📥 "
+            "to open one.")
 
         # Pull the live forecast data (cached so it is cheap) — used to
         # confirm or contradict each scanner setup.
@@ -3865,6 +3867,13 @@ if active_section == "🧪 Paper Trader":
                 base -= 8
             _scored.append((min(99.0, base), fc_label, trend, align, s))
         _scored.sort(key=lambda t: t[0], reverse=True)
+        # Strong+ filter — hide any setup whose combined score drops to
+        # Moderate (60-69) after the forecast / weekly-trend penalties.
+        # Per user empirical feedback: moderate-strength picks weren't
+        # converting reliably, so the bot only shows setups it can
+        # confidently back. Strong starts at 70 (same threshold the
+        # _strength_label badge uses).
+        _scored = [t for t in _scored if t[0] >= 70]
         # Widened from 5 to 8 — more coverage for fast movers the bot would
         # otherwise drop off the bottom of the list, with no loss of pick
         # quality since the combined score still ranks the strongest first.
@@ -3880,9 +3889,11 @@ if active_section == "🧪 Paper Trader":
         }
 
         if not _bot_picks:
-            st.info("No high-confidence setups for the agent to recommend "
-                    "right now. Watch the alerts strip or switch the "
-                    "timeframe.")
+            st.info("No Strong+ setups for the agent to recommend right "
+                    "now. The scanner may have Moderate-tier signals, but "
+                    "they're hidden by design — chop produces noise that "
+                    "doesn't convert. Watch the alerts strip, the Movers "
+                    "board below, or switch the timeframe.")
         else:
             for combined, fc_label, trend, align, s in _bot_picks:
                 side = s["side"]
