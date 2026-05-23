@@ -3183,6 +3183,18 @@ if active_section == "🧪 Paper Trader":
             paper_bot.reset(PAPER_BOT_FILE, new_balance, new_risk)
             st.rerun()
 
+        # Second row — quality / filter controls.
+        cf1, cf2, cf3 = st.columns([1.8, 1.6, 1.6])
+        include_moderate = cf1.checkbox(
+            "🟡 Include Moderate-tier picks",
+            value=False, key="pb_include_moderate",
+            help="OFF (default): only Strong+ setups (combined score "
+                 ">= 70) appear in the bot's top picks. ON: Moderate "
+                 "setups (60-69) appear too — these have a flag "
+                 "against them (forecast disagrees, weekly counter, "
+                 "or borderline conf) so they convert less reliably, "
+                 "but occasionally produce contrarian winners.")
+
     # ---- Helpers used in this section ------------------------------------
     def _hold_horizon(tf):
         """Suggested holding period — capped at 1-2 days per user preference.
@@ -3796,14 +3808,15 @@ if active_section == "🧪 Paper Trader":
     with right_col:
         # ---- 🤖 Bot's top picks — what the agent would open right now ---
         st.markdown("### 🤖 Bot's top picks")
+        _tier_note = ("Strong+ only" if not include_moderate
+                      else "Strong+ AND Moderate")
         st.caption(
             "Strongest long & short setups the agent sees right now, "
             "ranked by a COMBINED signal that fuses the Market Scanner "
-            "alert with the Forecast tab's multi-horizon read. **Only "
-            "Strong+ tier shown** — Moderate-strength setups (combined "
-            "score < 70 after forecast / trend penalties) are hidden so "
-            "you only see picks the bot can confidently back. Click 📥 "
-            "to open one.")
+            "alert with the Forecast tab's multi-horizon read. **Tier "
+            f"shown: {_tier_note}** "
+            "(flip the toggle in Settings to switch). Click 📥 to "
+            "open one.")
 
         # Pull the live forecast data (cached so it is cheap) — used to
         # confirm or contradict each scanner setup.
@@ -3872,8 +3885,10 @@ if active_section == "🧪 Paper Trader":
         # Per user empirical feedback: moderate-strength picks weren't
         # converting reliably, so the bot only shows setups it can
         # confidently back. Strong starts at 70 (same threshold the
-        # _strength_label badge uses).
-        _scored = [t for t in _scored if t[0] >= 70]
+        # _strength_label badge uses). The toggle in settings flips
+        # this off when the user wants to see the wider view.
+        if not include_moderate:
+            _scored = [t for t in _scored if t[0] >= 70]
         # Widened from 5 to 8 — more coverage for fast movers the bot would
         # otherwise drop off the bottom of the list, with no loss of pick
         # quality since the combined score still ranks the strongest first.
