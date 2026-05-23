@@ -11,10 +11,12 @@ from __future__ import annotations
 import pandas as pd
 
 # A call must clear these bars before it is allowed to raise an alert.
-# CONF_ALERT lifted from 70 to 75 — empirical: 70-74 setups produced too
-# many flickery picks while the 75+ setups (especially forecast-confirmed)
-# converted reliably in real trading. Quality over quantity on purpose.
-CONF_ALERT = 75        # signal confidence (%) for a high-conviction setup
+# CONF_ALERT tuned to 72 — a middle ground. 70 admitted too much noise
+# in chop, 75 dropped legitimate setups in the 72-74 band. 72 keeps the
+# picks board curated while letting marginal-but-valid setups through.
+# Real money safety isn't affected: Live Trading's auto-trade gate sits
+# at 85 (configurable), and counter-trend rejected unless conf >= 88.
+CONF_ALERT = 72        # signal confidence (%) for a high-conviction setup
 VOL_SURGE = 2.0        # last-candle volume vs its 20-candle average
 FORECAST_CONF = 62     # confidence (%) for a high-conviction aligned forecast
 

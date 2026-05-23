@@ -3488,11 +3488,11 @@ if active_section == "🧪 Paper Trader":
     if auto_trade:
         for setup in auto_ad["setups"]:
             _setup_conf = int(setup.get("confidence", 0) or 0)
-            # Auto-trade floor matches CONF_ALERT (75) — anything weaker
+            # Auto-trade floor matches CONF_ALERT (72) — anything weaker
             # never makes the setups list anyway, but keep the explicit
             # gate so a future CONF_ALERT change doesn't silently let
             # weak setups auto-fire.
-            if _setup_conf < 75:
+            if _setup_conf < 72:
                 continue
             # Higher-TF trend filter — skip counter-trend setups unless the
             # signal is very strong (>=85). Trading against the weekly
