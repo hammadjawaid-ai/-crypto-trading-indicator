@@ -32,6 +32,7 @@ import alerts
 import binance_client
 import config
 import derivatives
+import forecast as fc_mod
 import signals
 
 try:
@@ -41,6 +42,11 @@ except ImportError:
           "Install it once with:\n"
           "    .venv\\Scripts\\python.exe -m pip install winotify")
     sys.exit(1)
+
+try:
+    import requests
+except ImportError:
+    requests = None    # phone push disabled if requests isn't installed
 
 APP_ID = "Crypto Trading Indicator"
 STATE_FILE = Path(__file__).with_name(".notifier_seen.json")
@@ -52,8 +58,38 @@ TOP_N = config.TOP_N
 MODE = "futures"
 
 
-def _notify(title: str, message: str) -> None:
-    """Fire one Windows desktop notification — never let it kill the loop."""
+def _notify_phone(title: str, message: str,
+                  priority: str = "default") -> None:
+    """Push one alert to the user's phone via ntfy.sh — free, no signup.
+
+    Only fires if NTFY_TOPIC is set in .env / Streamlit secrets. Failures
+    never kill the loop. Priority is one of: min, low, default, high,
+    urgent — PREMIUM setups use 'high' so they ring through Do Not Disturb
+    on most phones."""
+    topic = (config.NTFY_TOPIC or "").strip()
+    if not topic or requests is None:
+        return
+    try:
+        url = f"https://ntfy.sh/{topic}"
+        headers = {
+            "Title": title.encode("utf-8"),
+            "Priority": priority,
+            "Tags": "chart_with_upwards_trend",
+        }
+        requests.post(url, data=message.encode("utf-8"),
+                      headers=headers, timeout=5)
+    except Exception as exc:
+        print(f"  (phone push failed: {exc})")
+
+
+def _notify(title: str, message: str, *, premium: bool = False) -> None:
+    """Fire one Windows desktop notification AND a phone push if configured.
+
+    `premium` flips both channels into high-priority mode and prefixes the
+    title with the 🏆 trophy so PREMIUM-tier setups stand out at a glance.
+    """
+    if premium:
+        title = f"🏆 PREMIUM — {title}"
     try:
         toast = Notification(app_id=APP_ID, title=title, msg=message)
         try:
@@ -63,6 +99,43 @@ def _notify(title: str, message: str) -> None:
         toast.show()
     except Exception as exc:
         print(f"  (notification failed: {exc})")
+    _notify_phone(title, message,
+                  priority="high" if premium else "default")
+
+
+# --- PREMIUM-tier detection ------------------------------------------------
+# Cache the per-coin per-tf analyze results within a single scan so the
+# 15m + 1h + 4h forecast runs at most once per symbol per loop iteration.
+_PREMIUM_TFS = ("15m", "1h", "4h")
+
+
+def _is_premium(symbol: str, side: str, scanner_conf: int,
+                cache: dict) -> bool:
+    """A setup is PREMIUM when scanner conf >= 80 AND the multi-horizon
+    forecast aligns 3/3 in the same direction as the setup. Same
+    definition the Paper Trader dashboard uses for the 🏆 PREMIUM badge."""
+    if scanner_conf < 80:
+        return False
+    if symbol in cache:
+        fc = cache[symbol]
+    else:
+        per_tf: dict[str, dict] = {}
+        for tf in _PREMIUM_TFS:
+            try:
+                df = binance_client.get_klines(symbol, tf)
+                per_tf[tf] = signals.analyze(df, None, None, MODE)
+            except Exception:
+                return False
+        try:
+            fc = fc_mod.predict_one(per_tf, None, None)
+        except Exception:
+            return False
+        cache[symbol] = fc
+    if not fc.get("aligned"):
+        return False
+    word = fc.get("outlook_word")
+    return ((side == "LONG" and word == "Bullish")
+            or (side == "SHORT" and word == "Bearish"))
 
 
 def _scan(symbols: list[str]) -> pd.DataFrame:
@@ -120,6 +193,14 @@ def run() -> None:
     print("  Crypto Indicator - desktop alert notifier")
     print(f"  Timeframe {TIMEFRAME} - scanning every {INTERVAL_MIN} min - "
           f"top {TOP_N} coins")
+    if (config.NTFY_TOPIC or "").strip():
+        print(f"  Phone push: ntfy.sh topic = "
+              f"{config.NTFY_TOPIC[:3]}...{config.NTFY_TOPIC[-3:]} "
+              f"(install ntfy app, subscribe to the full topic)")
+    else:
+        print("  Phone push: DISABLED (set NTFY_TOPIC in .env to enable)")
+    print("  PREMIUM tier (conf>=80 + forecast 3/3) marked with trophy + "
+          "high-priority phone push.")
     print("  Leave this window open. Stop with Ctrl+C.")
     print("=" * 64)
 
@@ -151,15 +232,22 @@ def run() -> None:
                     f"You'll be alerted when a new one appears.")
                 first_run = False
             else:
+                # Premium-forecast cache scoped to this iteration only.
+                _fc_cache: dict = {}
                 for alert_id in new_ids:
                     item = current[alert_id]
                     a = item["a"]
                     if item["kind"] == "setup":
                         word = "BULLISH" if a["side"] == "LONG" else "BEARISH"
+                        # Check the PREMIUM tier (conf >= 80 + forecast 3/3).
+                        premium = _is_premium(
+                            a["symbol"], a["side"],
+                            int(a.get("confidence") or 0), _fc_cache)
                         _notify(
                             f"{a['base']} — {word} setup",
                             f"{a['confidence']}% confidence · R:R "
-                            f"{a['rr']:.1f} · {TIMEFRAME} timeframe")
+                            f"{a['rr']:.1f} · {TIMEFRAME} timeframe",
+                            premium=premium)
                     else:
                         _notify(
                             f"{a['base']} — volume surge",

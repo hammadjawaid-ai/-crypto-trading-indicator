@@ -49,6 +49,16 @@ def _secret(key: str) -> str:
         return ""
 
 
+# --- ntfy.sh push notifications (phone alerts via the standalone notifier) -
+# Free, no account, no API key — just a unique topic name (treat it as a
+# secret password since anyone with the topic can read your alerts).
+# Set in .env or Streamlit Cloud secrets:
+#   NTFY_TOPIC=your-private-topic-name-here
+# Then install the ntfy.sh app on your phone, subscribe to that exact topic.
+# Leave NTFY_TOPIC empty to disable phone push (Windows toasts still fire).
+NTFY_TOPIC = _secret("NTFY_TOPIC")
+
+
 # --- Bybit live-trading credentials & settings -----------------------------
 # Set in .env (gitignored) or Streamlit Cloud secrets:
 #   BYBIT_API_KEY=...

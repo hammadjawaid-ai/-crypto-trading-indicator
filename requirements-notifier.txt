@@ -1,4 +1,5 @@
-# Extra dependency for the LOCAL desktop notifier (notifier.py) only.
+# Extra dependencies for the LOCAL desktop notifier (notifier.py) only.
 # Not needed by the Streamlit dashboard or the cloud deploy.
 #   .venv\Scripts\python.exe -m pip install -r requirements-notifier.txt
 winotify
+requests   # ntfy.sh phone push (skipped at runtime if missing)
