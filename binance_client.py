@@ -84,6 +84,20 @@ def get_top_symbols(n: int = config.TOP_N) -> pd.DataFrame:
     return df.reset_index(drop=True)
 
 
+def get_ticker_price(symbol: str) -> float | None:
+    """Latest spot price for one symbol — the cheapest live-price endpoint.
+
+    Used by the Paper Trader to refresh open-position prices every few
+    seconds without paying for a 100-row klines fetch. Returns None if the
+    symbol has no public price.
+    """
+    try:
+        data = _get("/api/v3/ticker/price", {"symbol": symbol})
+        return float(data["price"])
+    except (BinanceError, KeyError, TypeError, ValueError):
+        return None
+
+
 def get_klines(symbol: str, interval: str,
                limit: int = config.KLINE_LIMIT) -> pd.DataFrame:
     """Return OHLCV candles for a symbol/interval as a DataFrame.

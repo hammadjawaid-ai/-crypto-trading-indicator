@@ -377,6 +377,14 @@ def load_derivatives(symbol: str, interval: str) -> dict | None:
     return derivatives.get_derivatives(symbol, interval)
 
 
+@st.cache_data(ttl=5, show_spinner=False)
+def live_price(symbol: str) -> float | None:
+    """Fast 5-second-cached live price for one symbol — used by the Paper
+    Trader so open-position cards reflect near-real-time price between
+    full scanner refreshes. Falls back to None if the endpoint fails."""
+    return binance_client.get_ticker_price(symbol)
+
+
 @st.cache_data(ttl=config.MARKET_CACHE_TTL, show_spinner=False)
 def load_tv_ratings(symbols: tuple[str, ...], interval: str) -> dict:
     return tv_analysis.get_ratings(list(symbols), interval)
@@ -3175,11 +3183,19 @@ if active_section == "🧪 Paper Trader":
         pb_state["balance"] = float(new_balance)
 
     # ---- Live price map for every open position ---------------------------
+    # Start with the cached scanner prices, then OVERRIDE each open
+    # position's price with a fresh live fetch (5-second cache). That way
+    # the position cards, P&L and chart dot reflect a near-real-time price
+    # even when the 120-second scanner cache is still warm.
     prices: dict[str, float] = {}
     if not _alert_merged.empty:
         prices = dict(zip(_alert_merged["symbol"], _alert_merged["price"]))
+    for _p in pb_state["open"]:
+        _lp = live_price(_p["symbol"])
+        if _lp is not None and _lp > 0:
+            prices[_p["symbol"]] = float(_lp)
 
-    # ---- ALWAYS evaluate stops/targets first -----------------------------
+    # ---- ALWAYS evaluate stops/targets first (with live prices) ----------
     just_closed = paper_bot.evaluate(pb_state, prices)
     for c in just_closed:
         emoji = "✅" if c["pnl_usd"] > 0 else "❌"
@@ -3883,8 +3899,14 @@ if active_section == "🧪 Paper Trader":
                "little worse. Educational only, not financial advice.")
 
     # ---- Live mode — keep the bot actively managing positions ------------
-    # Paper Trader refreshes every 30s when Live is on so the live P&L,
+    # Paper Trader refreshes every 15s when Live is on so the live P&L,
     # health bars and mini charts update as close to real time as a
-    # Streamlit app can. (Faster than the 5-min global auto-refresh.)
+    # Streamlit app can. The price itself is fetched via a 5-second
+    # live_price cache so the dot on each chart and the unrealised P&L
+    # move between refreshes too, not just on the full reload.
     if live_mode:
-        _inject_autorefresh(30)
+        _inject_autorefresh(15)
+    elif pb_state["open"]:
+        st.info(
+            "💡 Tip — turn on **🔴 Live** in Settings to get live, "
+            "auto-updating P&L on your open positions (refreshes every 15s).")
