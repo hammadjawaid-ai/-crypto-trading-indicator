@@ -2,11 +2,12 @@
 Trading Indicator.
 
 Leave this running in its own console window and it fires REAL Windows
-desktop notifications whenever a new high-confidence setup or volume surge
-appears — no browser, no dashboard tab needed.
+desktop notifications + phone push (ntfy.sh) whenever a new high-confidence
+setup or volume surge appears — no browser, no dashboard tab needed.
 
-    .venv\\Scripts\\python.exe notifier.py            # 4h, every 5 minutes
-    .venv\\Scripts\\python.exe notifier.py 1h 3       # 1h, every 3 minutes
+    .venv\\Scripts\\python.exe notifier.py                 # 1h + 15m, every 5 min
+    .venv\\Scripts\\python.exe notifier.py 4h 10           # just 4h, every 10 min
+    .venv\\Scripts\\python.exe notifier.py 1h,15m,4h 5     # three timeframes
 
 or just double-click  notifier.bat.
 
@@ -51,8 +52,11 @@ except ImportError:
 APP_ID = "Crypto Trading Indicator"
 STATE_FILE = Path(__file__).with_name(".notifier_seen.json")
 
-# Defaults — overridable on the command line:  notifier.py [timeframe] [minutes]
-TIMEFRAME = "4h"
+# Defaults — overridable on the command line.
+#   notifier.py                 -> defaults: 1h + 15m, every 5 min
+#   notifier.py 4h 10           -> just 4h, every 10 min
+#   notifier.py 1h,15m,4h 5     -> three timeframes, every 5 min
+TIMEFRAMES = ["1h", "15m"]    # both swing (1h) AND scalp (15m) by default
 INTERVAL_MIN = 5
 TOP_N = config.TOP_N
 MODE = "futures"
@@ -140,7 +144,7 @@ def _is_premium(symbol: str, side: str, scanner_conf: int,
             or (side == "SHORT" and word == "Bearish"))
 
 
-def _scan(symbols: list[str]) -> pd.DataFrame:
+def _scan(symbols: list[str], timeframe: str) -> pd.DataFrame:
     """Scan symbols with the dashboard's signal engine — no Streamlit."""
     try:
         funding = derivatives.all_funding_rates()
@@ -149,7 +153,7 @@ def _scan(symbols: list[str]) -> pd.DataFrame:
 
     def one(sym: str):
         try:
-            df = binance_client.get_klines(sym, TIMEFRAME)
+            df = binance_client.get_klines(sym, timeframe)
             rate = funding.get(sym)
             deriv = {"funding": rate} if rate is not None else None
             res = signals.analyze(df, deriv, None, MODE)
@@ -166,16 +170,28 @@ def _scan(symbols: list[str]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def _load_seen() -> set[str]:
+def _load_seen() -> dict[str, set[str]]:
+    """Load the per-timeframe seen-alert dedup state.
+
+    Schema: {timeframe: set[alert_id]}. Backwards-compatible with the
+    pre-multi-timeframe format (a flat list of ids), which gets folded
+    into a single-tf bucket so the user does not get re-spammed after
+    an upgrade."""
     try:
-        return set(json.loads(STATE_FILE.read_text()))
+        raw = json.loads(STATE_FILE.read_text())
     except Exception:
-        return set()
+        return {}
+    if isinstance(raw, list):       # legacy single-tf format
+        return {TIMEFRAMES[0]: set(raw)}
+    if isinstance(raw, dict):
+        return {tf: set(ids) for tf, ids in raw.items()}
+    return {}
 
 
-def _save_seen(seen: set[str]) -> None:
+def _save_seen(seen: dict[str, set[str]]) -> None:
     try:
-        STATE_FILE.write_text(json.dumps(sorted(seen)))
+        STATE_FILE.write_text(json.dumps(
+            {tf: sorted(ids) for tf, ids in seen.items()}))
     except Exception:
         pass
 
@@ -193,8 +209,8 @@ def _current_alerts(data: dict) -> dict[str, dict]:
 def run() -> None:
     print("=" * 64)
     print("  Crypto Indicator - desktop alert notifier")
-    print(f"  Timeframe {TIMEFRAME} - scanning every {INTERVAL_MIN} min - "
-          f"top {TOP_N} coins")
+    print(f"  Timeframes: {' + '.join(TIMEFRAMES)} - scanning every "
+          f"{INTERVAL_MIN} min - top {TOP_N} coins")
     if (config.NTFY_TOPIC or "").strip():
         print(f"  Phone push: ntfy.sh topic = "
               f"{config.NTFY_TOPIC[:3]}...{config.NTFY_TOPIC[-3:]} "
@@ -207,59 +223,79 @@ def run() -> None:
     print("=" * 64)
 
     seen = _load_seen()
-    first_run = (not STATE_FILE.exists()) or (not seen)
+    first_run = not any(seen.get(tf) for tf in TIMEFRAMES)
 
     while True:
         stamp = datetime.now().strftime("%H:%M:%S")
         try:
+            # One ticker fetch shared across all timeframes (it is the same
+            # universe, only the candle resolution changes per tf).
             tickers = binance_client.get_top_symbols(TOP_N)
-            scan = _scan(list(tickers["symbol"]))
-            if not scan.empty:
-                merged = scan.merge(
-                    tickers[["symbol", "priceChangePercent", "quoteVolume"]],
-                    on="symbol", how="left")
-            else:
-                merged = scan
-            data = alerts.build_alerts(merged, TIMEFRAME)
-            current = _current_alerts(data)
-            new_ids = [i for i in current if i not in seen]
-            print(f"[{stamp}] {len(data['setups'])} setup(s), "
-                  f"{len(data['surges'])} surge(s) - {len(new_ids)} new")
+            total_setups = 0
+            total_surges = 0
+            total_new = 0
+            # Premium-forecast cache scoped to this iteration so the same
+            # coin firing on both 1h and 15m only forecasts once.
+            _fc_cache: dict = {}
 
-            if first_run:
-                _notify(
-                    "Crypto Indicator — watching the market",
-                    f"{len(data['setups'])} setup(s) and "
-                    f"{len(data['surges'])} surge(s) live on {TIMEFRAME}. "
-                    f"You'll be alerted when a new one appears.")
-                first_run = False
-            else:
-                # Premium-forecast cache scoped to this iteration only.
-                _fc_cache: dict = {}
+            for tf in TIMEFRAMES:
+                scan = _scan(list(tickers["symbol"]), tf)
+                if not scan.empty:
+                    merged = scan.merge(
+                        tickers[["symbol", "priceChangePercent",
+                                 "quoteVolume"]],
+                        on="symbol", how="left")
+                else:
+                    merged = scan
+                data = alerts.build_alerts(merged, tf)
+                current = _current_alerts(data)
+                tf_seen = seen.get(tf, set())
+                new_ids = [i for i in current if i not in tf_seen]
+                total_setups += len(data["setups"])
+                total_surges += len(data["surges"])
+                total_new += len(new_ids)
+                print(f"[{stamp}] {tf:>3}: {len(data['setups'])} setup(s),"
+                      f" {len(data['surges'])} surge(s) - "
+                      f"{len(new_ids)} new")
+
+                if first_run:
+                    # Only the FIRST timeframe scanned fires the boot ping;
+                    # the rest update silently so the user does not get
+                    # spammed with "watching the market" on startup.
+                    continue
+
                 for alert_id in new_ids:
                     item = current[alert_id]
                     a = item["a"]
                     if item["kind"] == "setup":
                         word = "BULLISH" if a["side"] == "LONG" else "BEARISH"
-                        # Check the PREMIUM tier (conf >= 80 + forecast 3/3).
                         premium = _is_premium(
                             a["symbol"], a["side"],
                             int(a.get("confidence") or 0), _fc_cache)
                         _notify(
                             f"{a['base']} — {word} setup",
                             f"{a['confidence']}% confidence · R:R "
-                            f"{a['rr']:.1f} · {TIMEFRAME} timeframe",
+                            f"{a['rr']:.1f} · {tf} timeframe",
                             premium=premium)
                     else:
                         _notify(
                             f"{a['base']} — volume surge",
                             f"Volume {a['vol_ratio']:.1f}x its average · "
-                            f"{TIMEFRAME} timeframe")
-                    print(f"           -> alerted: {alert_id}")
+                            f"{tf} timeframe")
+                    print(f"           -> alerted: {alert_id} ({tf})")
 
-            # Store exactly the current set, so a coin that drops off and
-            # later returns will alert again.
-            seen = set(current)
+                # Store the current set per-tf so a coin that drops off and
+                # later returns will alert again.
+                seen[tf] = set(current)
+
+            if first_run:
+                _notify(
+                    "Crypto Indicator — watching the market",
+                    f"{total_setups} setup(s) and "
+                    f"{total_surges} surge(s) live across "
+                    f"{' + '.join(TIMEFRAMES)}. "
+                    f"You'll be alerted when a new one appears.")
+                first_run = False
             _save_seen(seen)
         except KeyboardInterrupt:
             raise
@@ -271,7 +307,10 @@ def run() -> None:
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        TIMEFRAME = sys.argv[1]
+        # Accept comma-separated timeframes, e.g. "1h,15m,4h", or a single
+        # timeframe like "4h" — split on commas and strip whitespace.
+        TIMEFRAMES = [t.strip() for t in sys.argv[1].split(",")
+                      if t.strip()]
     if len(sys.argv) > 2:
         try:
             INTERVAL_MIN = max(1, int(sys.argv[2]))
