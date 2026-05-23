@@ -3485,6 +3485,49 @@ if active_section == "🧪 Paper Trader":
     # ---- Auto-trade from alerts ------------------------------------------
     auto_ad = (alerts.build_alerts(_alert_merged, timeframe)
                if not _alert_merged.empty else {"setups": []})
+
+    # ---- Forecast lookup (used by PREMIUM HUNT + picks board) -----------
+    # Built once here, used by both the auto-trade loop and the picks
+    # rendering below so we never pay for the forecast call twice.
+    _fc_by_sym: dict[str, dict] = {}
+    try:
+        _fc_tickers_bot = load_top_symbols(top_n)
+        _fc_syms_bot = tuple(_fc_tickers_bot["symbol"].head(40))
+        _fc_df_bot = forecast_market(_fc_syms_bot)
+        if _fc_df_bot is not None and not _fc_df_bot.empty:
+            _fc_by_sym = {r["symbol"]: r.to_dict()
+                          for _, r in _fc_df_bot.iterrows()}
+    except Exception:
+        pass
+
+    def _apply_premium_hunt(setup: dict) -> dict:
+        """PREMIUM HUNT — when a setup hits the elite tier (conf >= 80
+        AND multi-horizon forecast aligned 3/3 AND direction matches
+        the setup side), promote it to TP2 (2.5R, ~7.5-10%) instead of
+        the default TP1 (1.5R, ~5-7%). Strong setups statistically run
+        further before reversing so the deeper target is the correct
+        expected-value choice on these specifically. Non-premium setups
+        are returned unchanged so the default TP1 still applies."""
+        conf = int(setup.get("confidence", 0) or 0)
+        tgt2 = setup.get("target_2")
+        if conf < 80 or not tgt2:
+            return setup
+        fc = _fc_by_sym.get(setup.get("symbol")) or {}
+        if not fc.get("aligned"):
+            return setup
+        side = setup.get("side")
+        word = fc.get("outlook_word")
+        confirms = ((side == "LONG" and word == "Bullish")
+                    or (side == "SHORT" and word == "Bearish"))
+        if not confirms:
+            return setup
+        # All criteria met — promote to TP2.
+        promoted = dict(setup)
+        promoted["target"] = float(tgt2)
+        promoted["rr"] = float(setup.get("rr_2") or setup.get("rr") or 0)
+        promoted["premium_hunt"] = True
+        return promoted
+
     if auto_trade:
         for setup in auto_ad["setups"]:
             _setup_conf = int(setup.get("confidence", 0) or 0)
@@ -3501,15 +3544,18 @@ if active_section == "🧪 Paper Trader":
             _setup_align = htf_alignment(setup["side"], _setup_trend)
             if _setup_align == "counter" and _setup_conf < 85:
                 continue
+            # PREMIUM HUNT — strong setups get TP2.
+            _open_setup = _apply_premium_hunt(setup)
             opened = paper_bot.open_position(
-                pb_state, setup,
+                pb_state, _open_setup,
                 prices.get(setup["symbol"]) or setup.get("entry_low"))
             if opened:
                 _enrich_position(opened,
                                  setup.get("confidence", 0), timeframe)
+                _icon = "🏆" if _open_setup.get("premium_hunt") else "🧪"
                 st.toast(
                     f"📥 Auto-opened {opened['side']} {opened['base']} "
-                    f"@ {fmt_price(opened['entry'])}", icon="🧪")
+                    f"@ {fmt_price(opened['entry'])}", icon=_icon)
 
     # ---- Track persistence of bot suggestions ----------------------------
     # An alert that stays on the board for many minutes is more trustworthy
@@ -3805,21 +3851,14 @@ if active_section == "🧪 Paper Trader":
             "reward you would get if you opened RIGHT NOW. A green "
             "✓ chip means you're AT the entry zone (math intact). A "
             "red ⚠ chip means the entry zone has passed — you'd be "
-            "chasing. Click 📥 to open one.")
+            "chasing. 🏆 **PREMIUM HUNT active** — elite setups (conf "
+            "≥ 80 + forecast 3/3) now aim for TP2 (~7.5-10%) instead "
+            "of TP1, marked with `TP2` after the PREMIUM chip. Click "
+            "📥 to open one.")
 
-        # Pull the live forecast data (cached so it is cheap) — used to
-        # confirm or contradict each scanner setup.
-        _fc_by_sym: dict[str, dict] = {}
-        try:
-            _fc_tickers_bot = load_top_symbols(top_n)
-            _fc_syms_bot = tuple(
-                _fc_tickers_bot["symbol"].head(40))
-            _fc_df_bot = forecast_market(_fc_syms_bot)
-            if _fc_df_bot is not None and not _fc_df_bot.empty:
-                _fc_by_sym = {r["symbol"]: r.to_dict()
-                              for _, r in _fc_df_bot.iterrows()}
-        except Exception:
-            pass
+        # _fc_by_sym was built earlier (right after auto_ad) and is shared
+        # with the auto-trade loop, so no additional forecast call here.
+
 
         def _combined_score(setup, fc):
             """Combined strength score: scanner confidence + forecast bonus
@@ -3856,7 +3895,9 @@ if active_section == "🧪 Paper Trader":
             return score, label    # uncapped — caller decides what to do
 
         _open_syms = {p["symbol"] for p in pb_state["open"]}
-        _all_picks = [s for s in auto_ad["setups"]
+        # Apply PREMIUM HUNT to each setup BEFORE ranking so the deeper
+        # TP2 target shows on the card and is what gets opened on click.
+        _all_picks = [_apply_premium_hunt(s) for s in auto_ad["setups"]
                       if s["symbol"] not in _open_syms]
         # Score every candidate then re-rank by the combined score, with a
         # weekly-trend bonus or penalty (with-trend = +5, counter = -8 — a
@@ -3962,17 +4003,20 @@ if active_section == "🧪 Paper Trader":
                 # 🏆 PREMIUM tier — scanner conf >= 80 AND forecast aligned
                 # 3/3. Empirically the most reliable setups; the badge
                 # exists so the user can spot them at a glance without
-                # reading the scores.
+                # reading the scores. When PREMIUM HUNT has promoted the
+                # target to TP2 (~2.5R), append a small "TP2" marker so
+                # the user knows the deeper target is now in effect.
                 premium_chip = ""
                 if (conf >= 80
                         and fc_label == "forecast confirms · aligned 3/3"):
+                    _hunt_tag = (" · TP2" if s.get("premium_hunt") else "")
                     premium_chip = (
                         f"<span style='background:linear-gradient(90deg,"
                         f"#e0a92b,#ffd700);color:#1a1a1a;"
                         f"padding:2px 10px;border-radius:5px;font-size:"
                         f"0.72rem;font-weight:800;margin-left:4px;"
                         f"box-shadow:0 0 8px #e0a92b66'>"
-                        f"🏆 PREMIUM</span>")
+                        f"🏆 PREMIUM{_hunt_tag}</span>")
 
                 # Forecast confirmation chip
                 fc_chip = ""

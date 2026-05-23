@@ -68,6 +68,11 @@ def build_alerts(merged: pd.DataFrame, timeframe: str) -> dict:
                 "stop": plan.get("stop_loss"),
                 "target": plan.get("take_profit"),
                 "rr": plan.get("risk_reward", 0.0) or 0.0,
+                # PREMIUM HUNT — deeper target for strong setups.
+                "target_2": plan.get("take_profit_2"),
+                "rr_2": plan.get("risk_reward_2", 0.0) or 0.0,
+                "target_3": plan.get("take_profit_3"),
+                "rr_3": plan.get("risk_reward_3", 0.0) or 0.0,
                 "regime": row.get("regime", ""),
             })
 
