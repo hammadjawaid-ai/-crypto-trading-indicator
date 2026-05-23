@@ -979,9 +979,11 @@ def _analyze(symbol: str, d15: pd.DataFrame, d1h: pd.DataFrame,
                     "the trend itself to turn before trusting it.")
     idea = _trade_idea(stage, dir_word, price, atr, win_h, win_l, ema_fast,
                        hz["candle"])
-    # Cap stop at max 4% of the trade's entry — same hard limit as the main
-    # signal engine. Targets stay where they are, so the R:R automatically
-    # improves whenever this cap bites a wide structural stop.
+    # Clamp stop into [MIN, MAX] % of entry — same hard band as the main
+    # signal engine. The min keeps the stop out of noise on tight coins,
+    # the max caps per-trade risk on volatile ones. Targets stay where
+    # they are, so R:R auto-adjusts.
+    MIN_STOP_PCT_BREAKOUT = 3.0
     MAX_STOP_PCT_BREAKOUT = 4.0
     _side = idea.get("side")
     if (_side in ("LONG", "SHORT") and idea.get("stop") is not None
@@ -990,11 +992,13 @@ def _analyze(symbol: str, d15: pd.DataFrame, d1h: pd.DataFrame,
         _ref = (float(idea["entry_low"])
                 + float(idea["entry_high"])) / 2.0
         if _ref > 0:
+            _min_abs = _ref * MIN_STOP_PCT_BREAKOUT / 100.0
             _max_abs = _ref * MAX_STOP_PCT_BREAKOUT / 100.0
+            _s = float(idea["stop"])
             if _side == "LONG":
-                idea["stop"] = max(float(idea["stop"]), _ref - _max_abs)
+                idea["stop"] = max(min(_s, _ref - _min_abs), _ref - _max_abs)
             else:
-                idea["stop"] = min(float(idea["stop"]), _ref + _max_abs)
+                idea["stop"] = min(max(_s, _ref + _min_abs), _ref + _max_abs)
     window = _window(stage, hz)
 
     return {

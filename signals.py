@@ -383,11 +383,12 @@ def _trade_plan(label: str, df: pd.DataFrame, regime: str,
     # --- Stop: the CLOSEST genuine invalidation level, kept tight ----------
     # A tight stop lifts reward:risk and lets you size up — so the stop sits
     # at the NEAREST level that truly invalidates the idea (the closest swing
-    # the trade leans on), not beyond every level with a loose buffer. It is
-    # still floored at 0.6 ATR: any tighter and normal candle noise wicks it
-    # out, turning trades that would have worked into losses. A HARD %-cap is
-    # then applied on top: no matter how wide the structure or how volatile
-    # the coin, the stop never sits more than MAX_STOP_PCT % of entry away.
+    # the trade leans on), not beyond every level with a loose buffer. A
+    # HARD %-band is then applied on top: regardless of structure or ATR,
+    # the stop ALWAYS sits in [MIN_STOP_PCT, MAX_STOP_PCT] of entry away.
+    # The minimum protects against noise-wicks on low-volatility coins,
+    # the maximum caps per-trade risk on high-volatility coins.
+    MIN_STOP_PCT = 3.0
     MAX_STOP_PCT = 4.0
     buf = 0.20 * atr                              # minimal cushion past a level
     atr_stop_mult = 1.5 if mode == "spot" else 1.1
@@ -415,14 +416,21 @@ def _trade_plan(label: str, df: pd.DataFrame, regime: str,
             stop, stop_basis = atr_stop, "volatility"
         stop = max(min(stop, entry + max_stop), entry + noise_floor)
 
-    # Hard %-cap on stop distance — never risks more than MAX_STOP_PCT of
-    # entry per trade, even when ATR or structure would put the stop wider.
+    # Hard %-band on stop distance — stop sits in [MIN, MAX] % of entry
+    # away, regardless of ATR or structure. The min keeps it out of normal
+    # candle noise on tight coins; the max caps per-trade risk on volatile
+    # ones. Targets stay structure-based, so R:R auto-improves whenever
+    # the max bites, and remains realistic when the min nudges the stop
+    # slightly wider than the literal structural level.
     if entry > 0:
+        min_abs = entry * MIN_STOP_PCT / 100.0
         max_abs = entry * MAX_STOP_PCT / 100.0
         if long:
-            stop = max(stop, entry - max_abs)
+            # stop in [entry - max_abs, entry - min_abs]
+            stop = max(min(stop, entry - min_abs), entry - max_abs)
         else:
-            stop = min(stop, entry + max_abs)
+            # stop in [entry + min_abs, entry + max_abs]
+            stop = min(max(stop, entry + min_abs), entry + max_abs)
     risk = abs(entry - stop)
 
     # --- Targets: the next swing levels price must clear, then projections ---

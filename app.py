@@ -3098,11 +3098,14 @@ if active_section == "🧪 Paper Trader":
 
     # ---- Helpers used in this section ------------------------------------
     def _hold_horizon(tf):
-        """Suggested holding period for a setup opened on this timeframe."""
-        return {"15m": "a few hours (intraday)",
-                "1h": "1-3 days",
-                "4h": "3-7 days",
-                "1d": "1-3 weeks"}.get(tf, "a few days")
+        """Suggested holding period — capped at 1-2 days per user preference.
+
+        The agent is a short-term swing/intraday trader; positions are not
+        intended to be held longer than ~2 days regardless of timeframe."""
+        return {"15m": "a few hours",
+                "1h": "1 day",
+                "4h": "1-2 days",
+                "1d": "1-2 days"}.get(tf, "1-2 days")
 
     def _strength_label(conf):
         """Confidence → (label, colour) for a signal-strength badge."""
@@ -3541,26 +3544,76 @@ if active_section == "🧪 Paper Trader":
         # ---- 🤖 Bot's top picks — what the agent would open right now ---
         st.markdown("### 🤖 Bot's top picks")
         st.caption(
-            "Top long & short setups the agent sees right now — ranked by "
-            "confidence and how long they've been alive on the alerts "
-            "board (persistent setups are more trustworthy). Click 📥 to "
-            "open one with the same entry / stop / target the dashboard "
-            "shows.")
+            "Strongest long & short setups the agent sees right now, "
+            "ranked by a COMBINED signal that fuses the Market Scanner "
+            "alert with the Forecast tab's multi-horizon read. A setup "
+            "where the Scanner AND the Forecast agree across all three "
+            "horizons scores highest. Click 📥 to open one.")
+
+        # Pull the live forecast data (cached so it is cheap) — used to
+        # confirm or contradict each scanner setup.
+        _fc_by_sym: dict[str, dict] = {}
+        try:
+            _fc_tickers_bot = load_top_symbols(top_n)
+            _fc_syms_bot = tuple(
+                _fc_tickers_bot["symbol"].head(40))
+            _fc_df_bot = forecast_market(_fc_syms_bot)
+            if _fc_df_bot is not None and not _fc_df_bot.empty:
+                _fc_by_sym = {r["symbol"]: r.to_dict()
+                              for _, r in _fc_df_bot.iterrows()}
+        except Exception:
+            pass
+
+        def _combined_score(setup, fc):
+            """Combined strength score: scanner confidence + forecast bonus
+            when the forecast confirms, minus a penalty when it disagrees."""
+            score = float(setup.get("confidence") or 0)
+            if not fc:
+                return score, "no forecast"
+            fc_word = fc.get("outlook_word")
+            fc_conf = float(fc.get("confidence") or 0)
+            aligned = bool(fc.get("aligned"))
+            side = setup["side"]
+            confirms = ((side == "LONG" and fc_word == "Bullish")
+                        or (side == "SHORT" and fc_word == "Bearish"))
+            disagrees = ((side == "LONG" and fc_word == "Bearish")
+                         or (side == "SHORT" and fc_word == "Bullish"))
+            if confirms:
+                score += 10
+                if aligned:
+                    score += 8        # all three horizons agree
+                if fc_conf >= 70:
+                    score += 5        # high-confidence forecast
+                label = (f"forecast confirms · aligned 3/3"
+                         if aligned else f"forecast confirms")
+            elif disagrees:
+                score -= 8
+                label = "forecast disagrees"
+            else:
+                label = "forecast neutral"
+            return min(99.0, score), label
 
         _open_syms = {p["symbol"] for p in pb_state["open"]}
-        _bot_picks = [s for s in auto_ad["setups"]
-                      if s["symbol"] not in _open_syms][:5]
+        _all_picks = [s for s in auto_ad["setups"]
+                      if s["symbol"] not in _open_syms]
+        # Score every candidate then re-rank by the combined score.
+        _scored = [
+            (*_combined_score(s, _fc_by_sym.get(s["symbol"])), s)
+            for s in _all_picks
+        ]
+        _scored.sort(key=lambda t: t[0], reverse=True)
+        _bot_picks = _scored[:5]
 
         if not _bot_picks:
             st.info("No high-confidence setups for the agent to recommend "
                     "right now. Watch the alerts strip or switch the "
                     "timeframe.")
         else:
-            for s in _bot_picks:
+            for combined, fc_label, s in _bot_picks:
                 side = s["side"]
                 side_color = "#2ed47a" if side == "LONG" else "#ff5c5c"
                 conf = int(s.get("confidence", 0) or 0)
-                str_label, str_color = _strength_label(conf)
+                str_label, str_color = _strength_label(int(combined))
                 sid = f"{s['symbol']}:{side}"
                 alive_min = (now_ts - sp.get(sid, now_ts)) / 60.0
                 alive_txt = (f"alive {alive_min:.0f} min"
@@ -3569,6 +3622,52 @@ if active_section == "🧪 Paper Trader":
                 proof = (" · ".join(s.get("proof", [])[:2])
                          if s.get("proof") else "multiple signals align")
                 rr = float(s.get("rr") or 0.0)
+                fc = _fc_by_sym.get(s["symbol"]) or {}
+
+                # Forecast confirmation chip
+                fc_chip = ""
+                if fc_label == "forecast confirms · aligned 3/3":
+                    fc_chip = (
+                        f"<span style='background:#2ed47a33;color:#2ed47a;"
+                        f"padding:2px 8px;border-radius:5px;font-size:0.7rem;"
+                        f"font-weight:700;margin-left:4px'>"
+                        f"✓ Forecast aligned 3/3</span>")
+                elif fc_label == "forecast confirms":
+                    fc_chip = (
+                        f"<span style='background:#6e8bff33;color:#6e8bff;"
+                        f"padding:2px 8px;border-radius:5px;font-size:0.7rem;"
+                        f"font-weight:700;margin-left:4px'>"
+                        f"✓ Forecast confirms</span>")
+                elif fc_label == "forecast disagrees":
+                    fc_chip = (
+                        f"<span style='background:#e0a92b33;color:#e0a92b;"
+                        f"padding:2px 8px;border-radius:5px;font-size:0.7rem;"
+                        f"font-weight:700;margin-left:4px'>"
+                        f"⚠ Forecast disagrees</span>")
+
+                # Forecast per-horizon line
+                fc_line = ""
+                if fc.get("horizons"):
+                    horizon_bits = []
+                    arrow = {"Up": "▲", "Down": "▼", "Sideways": "▬"}
+                    for _tf in ("15m", "1h", "4h"):
+                        h = fc["horizons"].get(_tf)
+                        if not h:
+                            continue
+                        ac = ("#2ed47a" if h["direction"] == "Up"
+                              else "#ff5c5c" if h["direction"] == "Down"
+                              else "#8b8d98")
+                        horizon_bits.append(
+                            f"<span style='color:#aab'>{_tf}</span> "
+                            f"<span style='color:{ac};font-weight:700'>"
+                            f"{arrow.get(h['direction'], '·')} "
+                            f"{h['move_pct']:+.2f}%</span>")
+                    if horizon_bits:
+                        fc_line = (
+                            f"<div style='color:#9aa0b4;font-size:0.76rem;"
+                            f"margin-top:2px'>📈 forecast — "
+                            + " · ".join(horizon_bits) + "</div>")
+
                 with st.container(border=True):
                     pa, pb = st.columns([6, 1])
                     pa.markdown(
@@ -3582,9 +3681,10 @@ if active_section == "🧪 Paper Trader":
                         f"<span style='background:{str_color}33;"
                         f"color:{str_color};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:700'>"
-                        f"{str_label}</span>"
+                        f"{str_label} · {int(combined)}</span>"
+                        f"{fc_chip}"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
-                        f"{conf}% confidence · R:R {rr:.1f} · "
+                        f"scanner {conf}% · R:R {rr:.1f} · "
                         f"{alive_txt}</span></div>"
                         f"<div style='color:#aab;font-size:0.78rem;"
                         f"margin-top:4px'>"
@@ -3593,7 +3693,8 @@ if active_section == "🧪 Paper Trader":
                         f"{fmt_price(s.get('stop', 0))} · target "
                         f"{fmt_price(s.get('target', 0))}</div>"
                         f"<div style='color:#9aa0b4;font-size:0.78rem;"
-                        f"margin-top:2px'>proof — {md_safe(proof)}</div>",
+                        f"margin-top:2px'>proof — {md_safe(proof)}</div>"
+                        f"{fc_line}",
                         unsafe_allow_html=True)
                     if pb.button("📥", key=f"pb_pick_{sid}",
                                  help=f"Open this {side} {s['base']} trade",
@@ -3603,7 +3704,8 @@ if active_section == "🧪 Paper Trader":
                             prices.get(s["symbol"])
                             or s.get("entry_low"))
                         if _opened:
-                            _enrich_position(_opened, conf, timeframe)
+                            _enrich_position(_opened, int(combined),
+                                             timeframe)
                             paper_bot.save_state(PAPER_BOT_FILE, pb_state)
                             st.toast(
                                 f"📥 Opened {side} {_opened['base']} @ "
