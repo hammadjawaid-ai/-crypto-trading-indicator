@@ -30,6 +30,7 @@ import news as news_mod
 import news_impact
 import oracle
 import orderflow
+import live_broker as lb
 import paper_bot
 import sentiment as sentiment_mod
 import signals
@@ -2012,7 +2013,7 @@ if _qp_mode not in ("Futures", "Spot"):
 SECTIONS = [
     "🔍 Market Scanner", "🔮 Forecast", "🚀 Breakout Radar",
     "🤖 Ask the Oracle", "🪙 Coin Analysis", "📰 News & Sentiment",
-    "🧭 Decision Mode", "🧪 Paper Trader",
+    "🧭 Decision Mode", "🧪 Paper Trader", "💸 Live Trading",
 ]
 _qp_section = _qp.get("section", SECTIONS[0])
 if _qp_section not in SECTIONS:
@@ -3983,3 +3984,615 @@ if active_section == "🧪 Paper Trader":
     # (scanner, news, forecast) so fresh signals can land.
     if live_mode:
         _inject_autorefresh(600)
+
+
+# ===========================================================================
+# Tab 9 — Live Trading (real money on Bybit)
+# ===========================================================================
+if active_section == "💸 Live Trading":
+    st.subheader("💸 Live Trading — Bybit USDT-Perp")
+
+    # --- Big red REAL MONEY banner + testnet mode notice ------------------
+    if config.BYBIT_TESTNET:
+        st.warning(
+            "🟡 **TESTNET MODE** — orders route to Bybit's demo server. "
+            "No real money is at stake. Flip `BYBIT_TESTNET=false` in "
+            "your `.env` (and reboot) to switch to real-money live.")
+    else:
+        st.error(
+            "⚠️ **REAL MONEY MODE** — every trade you open here uses real "
+            "USDT on your Bybit account. The bot suggests; YOU confirm.")
+
+    _live_ready, _live_info = lb.is_ready()
+
+    # --- Missing-keys / dependency gate -----------------------------------
+    if not _live_ready:
+        st.info(
+            "**Live Trading isn't connected yet.** This tab needs Bybit "
+            "API credentials before it can place any orders.")
+        with st.expander("📖 Setup steps (one-time)", expanded=True):
+            st.markdown("""
+1. **Sign up at [bybit.com](https://www.bybit.com)** (or
+   [testnet.bybit.com](https://testnet.bybit.com) for paper-money plumbing
+   tests). Complete KYC — required for derivatives.
+2. **Deposit ≥ $100 USDT** to your Unified Trading Account (or claim
+   demo funds from the testnet faucet).
+3. **Account → API Management → Create New Key** — System-generated:
+   - Permissions: **Contract → Orders + Positions ON**
+   - **Wallet → Transfers OFF, Withdrawals OFF** (critical safety)
+   - **IP whitelist** your home IP (or a VPS IP if dynamic).
+4. **Paste into `.env`** (gitignored) at the project root:
+   ```
+   BYBIT_API_KEY=...
+   BYBIT_API_SECRET=...
+   BYBIT_TESTNET=true       # start on testnet, set to false later
+   ```
+5. **Reinstall deps** so `pybit` is available:
+   `pip install -r requirements.txt`.
+6. **Restart Streamlit** — the gate clears once keys are detected.
+
+**Cost** — the Bybit API itself is **free** (no subscription). The only
+real cost is trading fees: ~0.055% taker / 0.02% maker on USDT-perp,
+plus funding rate every 8 hours on open positions.
+""")
+        st.caption(f"Status: **{_live_info}** — fix the above and reload.")
+        st.stop()
+
+    # --- Helpers used by this section (mirror paper-bot patterns) ---------
+    def _live_hold_horizon(tf):
+        return {"15m": "a few hours",
+                "1h": "1 day",
+                "4h": "1-2 days",
+                "1d": "1-2 days"}.get(tf, "1-2 days")
+
+    def _live_strength_label(conf):
+        if conf >= 80:
+            return ("Very Strong", "#0b8a3e")
+        if conf >= 70:
+            return ("Strong", "#2ed47a")
+        if conf >= 60:
+            return ("Moderate", "#e0a92b")
+        return ("Weak", "#8b8d98")
+
+    # --- Load state + settings --------------------------------------------
+    lb_state = lb.load_state(config.LIVE_BOT_STATE_PATH)
+    _settings = lb_state.setdefault("settings", dict(config.LIVE_DEFAULTS))
+
+    # --- Settings expander ------------------------------------------------
+    with st.expander("⚙️ Settings — guardrails, leverage cap, auto-trade"):
+        sc1, sc2, sc3 = st.columns(3)
+        _new_lev_cap = sc1.slider(
+            "Leverage cap (max)", 1, 25,
+            int(_settings.get("leverage_cap", 20)),
+            key="lb_lev_cap",
+            help="Hard ceiling. The scaler ladder always stays at or below "
+                 "this. Recommend 5x for Phase-3 live launch.")
+        _new_notional_cap = sc2.slider(
+            "Per-trade margin cap (% of balance)", 5, 50,
+            int(_settings.get("notional_cap_pct", 30)),
+            key="lb_notional_cap")
+        _new_daily_loss = sc3.slider(
+            "Daily loss limit (%) — halts auto", 5, 25,
+            int(_settings.get("daily_loss_pct", 10)),
+            key="lb_daily_loss")
+
+        sc4, sc5, sc6 = st.columns(3)
+        _new_max_conc = sc4.slider(
+            "Max concurrent positions", 1, 5,
+            int(_settings.get("max_concurrent", 3)),
+            key="lb_max_conc")
+        _new_slip = sc5.slider(
+            "Slippage tolerance (%)", 0.1, 2.0,
+            float(_settings.get("slippage_tol_pct", 0.5)), 0.1,
+            key="lb_slip")
+        _new_confirm_n = sc6.slider(
+            "Confirm-first-N trades", 0, 30,
+            int(_settings.get("confirm_first_n", 10)),
+            key="lb_confirm_n",
+            help="Even with auto-trade ON, the first N live trades still "
+                 "require a manual click. Sets to 0 once you trust it.")
+
+        sc7, sc8, sc9 = st.columns(3)
+        _live_auto_trade = sc7.checkbox(
+            "🤖 Auto-trade ON", value=False, key="lb_auto",
+            help="When on AND past confirm-first-N, the bot auto-opens "
+                 "very-strong signals (>= auto threshold). Keep OFF until "
+                 "you've watched it work for ≥10 trades.")
+        _new_auto_thresh = sc8.slider(
+            "Auto-trade confidence threshold", 70, 99,
+            int(_settings.get("auto_threshold", 85)),
+            key="lb_auto_thresh")
+        if sc9.button("🔄 Reset live state",
+                      type="secondary", use_container_width=True):
+            lb.reset(config.LIVE_BOT_STATE_PATH,
+                     starting_balance=100.0, risk_pct=1.0,
+                     settings=_settings)
+            st.rerun()
+
+        # Persist settings tweaks back to state.
+        _settings.update({
+            "leverage_cap": _new_lev_cap,
+            "notional_cap_pct": _new_notional_cap,
+            "daily_loss_pct": _new_daily_loss,
+            "max_concurrent": _new_max_conc,
+            "slippage_tol_pct": _new_slip,
+            "confirm_first_n": _new_confirm_n,
+            "auto_threshold": _new_auto_thresh,
+        })
+
+        st.markdown(
+            "<div style='background:#3a1818;border:1px solid #ff5c5c;"
+            "padding:8px 12px;border-radius:5px;margin:8px 0'>"
+            "<b style='color:#ff5c5c'>🛑 EMERGENCY STOP</b><br>"
+            "<span style='color:#d5d7e0;font-size:0.85rem'>Closes EVERY "
+            "open Bybit position at market and cancels all open orders. "
+            "Two-click confirm.</span></div>", unsafe_allow_html=True)
+        ec1, ec2 = st.columns([1, 1])
+        _emerg_armed = st.session_state.get("lb_emerg_armed", False)
+        if not _emerg_armed:
+            if ec1.button("🛑 Arm emergency stop", type="secondary",
+                          use_container_width=True):
+                st.session_state["lb_emerg_armed"] = True
+                st.rerun()
+        else:
+            if ec1.button("🛑 CONFIRM CLOSE ALL", type="primary",
+                          use_container_width=True):
+                try:
+                    res = lb.emergency_stop_all(lb_state)
+                    lb.save_state(config.LIVE_BOT_STATE_PATH, lb_state)
+                    st.session_state["lb_emerg_armed"] = False
+                    st.success(
+                        f"🛑 Emergency stop fired — closed {res['n']} "
+                        "position(s) at market.")
+                except Exception as _exc:
+                    st.error(f"Emergency stop failed: {_exc}")
+            if ec2.button("Cancel", use_container_width=True):
+                st.session_state["lb_emerg_armed"] = False
+                st.rerun()
+
+    # Persist settings every render so user tweaks survive.
+    lb.save_state(config.LIVE_BOT_STATE_PATH, lb_state)
+
+    # --- Live fragments — update in place every 10s -----------------------
+    @st.fragment(run_every=10)
+    def _live_live_stats():
+        """Bank + trade stats, queried live from Bybit on each tick."""
+        state = lb.load_state(config.LIVE_BOT_STATE_PATH)
+        # Live prices for open positions
+        live_p: dict[str, float] = {}
+        for _p in state["open"]:
+            _lp = live_price(_p["symbol"])
+            live_p[_p["symbol"]] = (
+                float(_lp) if _lp is not None and _lp > 0
+                else float(_p["entry"]))
+
+        # Live Bybit equity snapshot — authoritative source.
+        acct = lb.account_balance()
+        ex_equity = float(acct.get("equity") or 0.0)
+        ex_avail = float(acct.get("available") or 0.0)
+        ex_used = float(acct.get("used_margin") or 0.0)
+
+        local_bal = float(state.get("balance") or 0.0)
+        unreal = lb.unrealized_pnl(state, live_p)
+        local_equity = local_bal + unreal
+        realised_24h = lb.daily_realised_pnl(state)
+
+        bc = st.columns(5)
+        bc[0].metric(
+            "💼 Bybit equity", f"${ex_equity:,.2f}",
+            f"avail ${ex_avail:,.2f}",
+            help="Live wallet equity from Bybit (authoritative).")
+        bc[1].metric(
+            "Available", f"${ex_avail:,.2f}",
+            f"${ex_used:,.0f} used margin" if ex_used > 0 else "all free",
+            help="Cash free to deploy on Bybit.")
+        bc[2].metric(
+            "Unrealised P&L", f"${unreal:+,.2f}",
+            help="Mark-to-market across local open positions.")
+        bc[3].metric(
+            "Local equity (estimate)", f"${local_equity:,.2f}",
+            f"${realised_24h:+,.2f} realised 24h",
+            help="Local snapshot. The Bybit equity above is the truth.")
+        sync_state = lb.sync_positions(state)
+        sync_icon = "✓" if sync_state["drift"] == 0 else "⚠"
+        bc[4].metric(
+            f"{sync_icon} Sync", f"{sync_state['exchange_count']} on Bybit",
+            (f"drift {sync_state['drift']}"
+             if sync_state["drift"] else "in sync"))
+        lb.save_state(config.LIVE_BOT_STATE_PATH, state)
+
+        st_stats = lb.stats(state)
+        sc = st.columns(5)
+        sc[0].metric("Trades closed", st_stats["trades"])
+        sc[1].metric("Win rate",
+                     f"{st_stats['win_rate']:.0f}%"
+                     if st_stats["trades"] else "—")
+        sc[2].metric("Best trade",
+                     f"{st_stats['best_trade']:+.2f}%"
+                     if st_stats["trades"] else "—")
+        sc[3].metric("Worst trade",
+                     f"{st_stats['worst_trade']:+.2f}%"
+                     if st_stats["trades"] else "—")
+        sc[4].metric(
+            "Trades opened total",
+            int(state.get("trades_opened_total") or 0),
+            help=("First-N rule: until trades_opened_total ≥ confirm_first_n "
+                  "every open requires a manual confirm even in auto mode."))
+
+
+    @st.fragment(run_every=10)
+    def _live_live_positions():
+        """Open Bybit positions, live-updating every 10s."""
+        state = lb.load_state(config.LIVE_BOT_STATE_PATH)
+        live_p: dict[str, float] = {}
+        for _p in state["open"]:
+            _lp = live_price(_p["symbol"])
+            live_p[_p["symbol"]] = (
+                float(_lp) if _lp is not None and _lp > 0
+                else float(_p["entry"]))
+
+        # Local evaluate is a backup; Bybit's exchange-side SL/TP fires
+        # primarily.
+        closed_now = lb.evaluate(state, live_p)
+        for c in closed_now:
+            emoji = "✅" if c["pnl_usd"] > 0 else "❌"
+            st.toast(
+                f"{emoji} {c['base']} closed @ {c['exit_reason']} · "
+                f"{c['pnl_pct']:+.2f}%", icon="💸")
+        if closed_now:
+            lb.save_state(config.LIVE_BOT_STATE_PATH, state)
+
+        st.markdown(f"### 📂 Live positions on Bybit ({len(state['open'])})")
+        if not state["open"]:
+            st.info(
+                "No live positions. Use the panel on the left to open one, "
+                "or click 📥 on a Bot's-top-picks card.")
+            return
+
+        for p in state["open"]:
+            cur = live_p.get(p["symbol"], p["entry"])
+            long = (p["side"] == "LONG")
+            entry_v = float(p["entry"])
+            stop_v = float(p["stop"])
+            target_v = float(p["target"])
+            qty_v = float(p["qty"])
+            notional_v = float(p.get("notional") or (qty_v * entry_v))
+            lev_v = int(p.get("leverage") or 1)
+            unreal_pos = (((cur - entry_v) if long
+                           else (entry_v - cur)) * qty_v)
+            if entry_v > 0:
+                pct_from_entry = ((cur - entry_v) / entry_v * 100)
+                if not long:
+                    pct_from_entry = -pct_from_entry
+            else:
+                pct_from_entry = 0.0
+            color = "#2ed47a" if unreal_pos >= 0 else "#ff5c5c"
+            side_color = "#2ed47a" if long else "#ff5c5c"
+
+            with st.container(border=True):
+                info_col, pnl_col, btn_col = st.columns([2.4, 1.8, 0.8])
+                info_col.markdown(
+                    f"<div style='font-size:1.05rem;font-weight:800'>"
+                    f"{p['base']} "
+                    f"<span style='background:{side_color};color:#06121f;"
+                    f"padding:2px 10px;border-radius:5px;font-size:"
+                    f"0.72rem;font-weight:800;margin-left:6px'>"
+                    f"{p['side']}</span></div>"
+                    f"<div style='color:#d5d7e0;font-size:0.84rem;"
+                    f"margin:3px 0'>"
+                    f"<b>{qty_v:.6f} {p['base']}</b> · "
+                    f"notional <b>${notional_v:,.2f}</b> · "
+                    f"<b>{lev_v}× lev</b></div>"
+                    f"<div style='color:#8b8d98;font-size:0.78rem'>"
+                    f"Entry {fmt_price(entry_v)} · Stop "
+                    f"{fmt_price(stop_v)} · Target {fmt_price(target_v)}"
+                    f"</div>",
+                    unsafe_allow_html=True)
+                pnl_col.markdown(
+                    f"<div style='text-align:right;font-size:1.15rem;"
+                    f"font-weight:800;color:#fff'>{fmt_price(cur)}</div>"
+                    f"<div style='text-align:right;color:{color};"
+                    f"font-size:1.1rem;font-weight:800'>"
+                    f"${unreal_pos:+,.2f}</div>"
+                    f"<div style='text-align:right;color:{color};"
+                    f"font-size:0.78rem;font-weight:700'>"
+                    f"{pct_from_entry:+.2f}% from entry</div>",
+                    unsafe_allow_html=True)
+                if btn_col.button("Close",
+                                  key=f"lb_close_{p['symbol']}",
+                                  use_container_width=True):
+                    try:
+                        closed = lb.close_position_at(
+                            state, p["symbol"], cur, reason="manual")
+                        if closed:
+                            lb.save_state(config.LIVE_BOT_STATE_PATH,
+                                          state)
+                            emoji = ("✅" if closed["pnl_usd"] > 0
+                                     else "❌")
+                            st.toast(
+                                f"{emoji} Closed {closed['base']} · "
+                                f"{closed['pnl_pct']:+.2f}%", icon="💸")
+                            st.rerun(scope="fragment")
+                    except Exception as _exc:
+                        st.error(f"Close failed: {_exc}")
+
+    _live_live_stats()
+
+    st.divider()
+
+    # --- Two-column body: open-a-trade + bot picks + live positions -------
+    lt_left, lt_right = st.columns([1, 2])
+
+    with lt_left:
+        st.markdown("### 📥 Open a live trade")
+        if _alert_merged.empty:
+            st.info("Scanner data not ready — refresh and try again.")
+        else:
+            _syms = sorted(_alert_merged["symbol"].unique().tolist())
+            _open_syms_lt = {p["symbol"] for p in lb_state["open"]}
+            _avail_lt = [s for s in _syms if s not in _open_syms_lt]
+            if not _avail_lt:
+                st.warning(
+                    "You already have a live position in every tracked "
+                    "coin — close one before opening another.")
+            else:
+                _sel_lt = st.selectbox(
+                    "Coin", _avail_lt,
+                    format_func=lambda s: s.replace("USDT", ""),
+                    key="lb_sym")
+                _side_lt = st.radio(
+                    "Side", ["LONG", "SHORT"], horizontal=True,
+                    key="lb_side")
+                _row_lt = _alert_merged[
+                    _alert_merged["symbol"] == _sel_lt].iloc[0]
+                _cur_lt = float(_row_lt["price"])
+                _plan_lt = (_row_lt.get("trade_plan")
+                            if isinstance(_row_lt.get("trade_plan"), dict)
+                            else None)
+                _live_lp = live_price(_sel_lt)
+                if _live_lp:
+                    _cur_lt = float(_live_lp)
+
+                # Live price card
+                _chg_lt = (float(_row_lt.get("priceChangePercent") or 0.0))
+                _chc = "#2ed47a" if _chg_lt >= 0 else "#ff5c5c"
+                st.markdown(
+                    f"<div style='background:#11141c;padding:10px 14px;"
+                    f"border-radius:6px;margin:6px 0;"
+                    f"border:1px solid #1f2330'>"
+                    f"<div style='font-size:0.7rem;color:#8b8d98;"
+                    f"letter-spacing:0.08em;font-weight:700'>"
+                    f"LIVE PRICE · {_sel_lt}</div>"
+                    f"<div style='font-size:1.4rem;font-weight:800;"
+                    f"color:#fff'>{fmt_price(_cur_lt)} "
+                    f"<span style='color:{_chc};font-size:0.85rem;"
+                    f"font-weight:700'>{_chg_lt:+.2f}% 24h</span></div>"
+                    f"</div>", unsafe_allow_html=True)
+
+                # Engine-suggested stop / target (capped to 3-4%)
+                if _plan_lt and _plan_lt.get("side") == _side_lt:
+                    _stop_lt = float(_plan_lt["stop_loss"])
+                    _target_lt = float(_plan_lt["take_profit"])
+                else:
+                    _stop_lt = _cur_lt * (0.97 if _side_lt == "LONG" else 1.03)
+                    _target_lt = _cur_lt * (
+                        1.04 if _side_lt == "LONG" else 0.96)
+
+                _conf_lt = int(_row_lt.get("confidence") or 0)
+                _rr_lt = (abs(_target_lt - _cur_lt) / abs(_cur_lt - _stop_lt)
+                          if _cur_lt != _stop_lt else 0.0)
+
+                _alert_lt = {
+                    "symbol": _sel_lt, "base": _sel_lt.replace("USDT", ""),
+                    "side": _side_lt, "stop": _stop_lt, "target": _target_lt,
+                    "entry_low": _cur_lt, "confidence": _conf_lt,
+                    "rr": _rr_lt,
+                    "forecast_aligned": False,
+                    "forecast_disagrees": False,
+                }
+                ok, reason, preview = lb.preflight(
+                    lb_state, _alert_lt, _cur_lt)
+                if not ok:
+                    st.warning(f"⚠️ {reason}")
+                else:
+                    _lev = preview["leverage"]
+                    _qty = preview["qty"]
+                    _notional = preview["notional"]
+                    _margin = preview["margin"]
+                    _est_fee = preview["est_fee_round_trip"]
+                    _sl_pct = abs((_cur_lt - _stop_lt) / _cur_lt * 100)
+                    _tp_pct = abs((_target_lt - _cur_lt) / _cur_lt * 100)
+                    _color = ("#2ed47a" if _side_lt == "LONG"
+                              else "#ff5c5c")
+                    st.markdown(
+                        f"<div style='background:{_color}14;"
+                        f"border-left:3px solid {_color};padding:8px 12px;"
+                        f"border-radius:5px;margin:4px 0 10px 0;"
+                        f"font-size:0.86rem'>"
+                        f"Entry (market): <b>{fmt_price(_cur_lt)}</b><br>"
+                        f"Stop: <b>{fmt_price(_stop_lt)}</b> "
+                        f"({_sl_pct:.2f}% away)<br>"
+                        f"Target: <b>{fmt_price(_target_lt)}</b> "
+                        f"({_rr_lt:.2f}R, {_tp_pct:.2f}% away)<br>"
+                        f"Leverage: <b>{_lev}×</b> "
+                        f"(scaled from conf {_conf_lt})<br>"
+                        f"Quantity: <b>{_qty:.6f} "
+                        f"{_sel_lt.replace('USDT','')}</b><br>"
+                        f"Notional: <b>${_notional:,.2f}</b> · "
+                        f"Margin: <b>${_margin:,.2f}</b><br>"
+                        f"Est. round-trip fees: ~${_est_fee:.2f}</div>",
+                        unsafe_allow_html=True)
+
+                    # Preview → Confirm two-step
+                    _armed_key = f"lb_armed_{_sel_lt}_{_side_lt}"
+                    armed = st.session_state.get(_armed_key, False)
+                    if not armed:
+                        if st.button(
+                                f"📋 Preview {_side_lt} "
+                                f"{_sel_lt.replace('USDT','')} order",
+                                use_container_width=True,
+                                key=f"lb_preview_btn_{_sel_lt}_{_side_lt}"):
+                            st.session_state[_armed_key] = True
+                            st.rerun()
+                    else:
+                        st.markdown(
+                            f"<div style='background:#3a2a18;"
+                            f"border:1px solid #e0a92b;padding:8px 12px;"
+                            f"border-radius:5px;margin:4px 0;"
+                            f"font-size:0.84rem;color:#e0a92b;"
+                            f"font-weight:700'>"
+                            f"⚠️ Click CONFIRM to send this order to "
+                            f"Bybit. This is real money "
+                            f"{'(testnet)' if config.BYBIT_TESTNET else ''}."
+                            f"</div>", unsafe_allow_html=True)
+                        bc1, bc2 = st.columns(2)
+                        if bc1.button(
+                                f"✅ CONFIRM open {_lev}×",
+                                type="primary",
+                                use_container_width=True,
+                                key=f"lb_confirm_btn_{_sel_lt}_{_side_lt}"):
+                            try:
+                                opened = lb.open_position(
+                                    lb_state, _alert_lt, _cur_lt,
+                                    confirmed=True)
+                                if opened:
+                                    lb.save_state(
+                                        config.LIVE_BOT_STATE_PATH, lb_state)
+                                    st.session_state[_armed_key] = False
+                                    st.toast(
+                                        f"📥 OPENED {_side_lt} "
+                                        f"{opened['base']} @ "
+                                        f"{fmt_price(opened['entry'])} · "
+                                        f"{_lev}×", icon="💸")
+                                    st.rerun()
+                            except lb.ConfigError as _exc:
+                                st.error(str(_exc))
+                                st.session_state[_armed_key] = False
+                            except Exception as _exc:
+                                st.error(f"Order failed: {_exc}")
+                                st.session_state[_armed_key] = False
+                        if bc2.button("Cancel",
+                                      use_container_width=True,
+                                      key=f"lb_cancel_btn_{_sel_lt}_{_side_lt}"):
+                            st.session_state[_armed_key] = False
+                            st.rerun()
+
+    with lt_right:
+        st.markdown("### 🤖 Bot's top picks (live-eligible)")
+        st.caption(
+            "Same signals as the Paper Trader, filtered to only the "
+            "very-strong setups suitable for real money. The Preview→"
+            "Confirm flow applies even when auto-trade is ON for the "
+            "first N trades.")
+        _open_syms_lt = {p["symbol"] for p in lb_state["open"]}
+        _live_eligible = []
+        for s in auto_ad["setups"]:
+            if s["symbol"] in _open_syms_lt:
+                continue
+            ok_pf, _, _prev = lb.preflight(lb_state, s,
+                                            prices.get(s["symbol"])
+                                            or s.get("entry_low"))
+            if not ok_pf:
+                continue
+            _live_eligible.append((_prev["leverage"], s))
+        _live_eligible.sort(
+            key=lambda t: float(t[1].get("confidence") or 0),
+            reverse=True)
+
+        if not _live_eligible:
+            st.info("No live-eligible setups right now. The agent is "
+                    "watching; come back when something strong fires.")
+        else:
+            for _lev, s in _live_eligible[:4]:
+                side = s["side"]
+                side_col = "#2ed47a" if side == "LONG" else "#ff5c5c"
+                conf = int(s.get("confidence", 0) or 0)
+                str_label, str_col = _live_strength_label(conf)
+                with st.container(border=True):
+                    aa, bb = st.columns([6, 1])
+                    aa.markdown(
+                        f"<div style='display:flex;align-items:center;"
+                        f"gap:8px;flex-wrap:wrap'>"
+                        f"<span style='font-weight:800;font-size:1rem'>"
+                        f"{s['base']}</span>"
+                        f"<span style='background:{side_col};color:#06121f;"
+                        f"padding:2px 10px;border-radius:5px;font-size:"
+                        f"0.72rem;font-weight:800'>{side}</span>"
+                        f"<span style='background:{str_col}33;"
+                        f"color:{str_col};padding:2px 8px;border-radius:"
+                        f"5px;font-size:0.72rem;font-weight:700'>"
+                        f"{str_label}</span>"
+                        f"<span style='color:#6e8bff;font-weight:700;"
+                        f"font-size:0.78rem'>{_lev}× lev</span>"
+                        f"<span style='color:#8b8d98;font-size:0.78rem'>"
+                        f"· conf {conf} · R:R "
+                        f"{float(s.get('rr', 0)):.1f}</span></div>"
+                        f"<div style='color:#aab;font-size:0.78rem;"
+                        f"margin-top:4px'>"
+                        f"entry {fmt_price(s.get('entry_low', 0))} · "
+                        f"stop {fmt_price(s.get('stop', 0))} · "
+                        f"target {fmt_price(s.get('target', 0))}</div>",
+                        unsafe_allow_html=True)
+                    _pk = f"lb_pick_{s['symbol']}:{side}"
+                    if bb.button("📥", key=_pk,
+                                 help=f"Live {side} {s['base']}",
+                                 use_container_width=True):
+                        try:
+                            opened = lb.open_position(
+                                lb_state, s,
+                                prices.get(s["symbol"])
+                                or s.get("entry_low"),
+                                confirmed=True)
+                            if opened:
+                                lb.save_state(
+                                    config.LIVE_BOT_STATE_PATH, lb_state)
+                                st.toast(
+                                    f"📥 LIVE {side} {opened['base']} @ "
+                                    f"{fmt_price(opened['entry'])} · "
+                                    f"{_lev}×", icon="💸")
+                                st.rerun()
+                        except lb.ConfigError as _exc:
+                            st.error(str(_exc))
+                        except Exception as _exc:
+                            st.error(f"Open failed: {_exc}")
+
+        st.divider()
+        _live_live_positions()
+
+    st.divider()
+
+    # --- Closed-trades history --------------------------------------------
+    st.markdown(
+        f"#### 📜 Closed live trades ({len(lb_state['closed'])})")
+    if lb_state["closed"]:
+        _cs = sorted(lb_state["closed"],
+                     key=lambda c: c.get("exit_at", 0),
+                     reverse=True)[:80]
+        _rows = [{
+            "Coin": c.get("base", ""),
+            "Side": c.get("side", ""),
+            "Entry": fmt_price(c.get("entry", 0)),
+            "Exit": fmt_price(c.get("exit", 0)),
+            "Qty": round(c.get("qty", 0) or 0, 6),
+            "Notional $": round(
+                (c.get("notional")
+                 or (c.get("qty", 0) or 0) * (c.get("entry", 0) or 0)), 2),
+            "Lev": int(c.get("leverage") or 1),
+            "Reason": c.get("exit_reason", ""),
+            "PnL $": c.get("pnl_usd", 0.0),
+            "PnL %": c.get("pnl_pct", 0.0),
+            "Closed (UTC)": datetime.fromtimestamp(
+                c.get("exit_at", 0), tz=timezone.utc).strftime(
+                    "%Y-%m-%d %H:%M"),
+        } for c in _cs]
+        st.dataframe(pd.DataFrame(_rows),
+                     use_container_width=True, hide_index=True)
+    else:
+        st.caption("No closed live trades yet.")
+
+    st.caption(
+        "Real-money trading involves real loss. Bybit charges ~0.055% "
+        "taker / 0.02% maker on USDT-perp plus funding every 8 hours. "
+        "Slippage on market orders is real. Stops and take-profits are "
+        "set on the exchange so they fire even if this app crashes. "
+        "Educational use — not financial advice.")

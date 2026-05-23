@@ -48,6 +48,33 @@ def _secret(key: str) -> str:
     except Exception:
         return ""
 
+
+# --- Bybit live-trading credentials & settings -----------------------------
+# Set in .env (gitignored) or Streamlit Cloud secrets:
+#   BYBIT_API_KEY=...
+#   BYBIT_API_SECRET=...
+#   BYBIT_TESTNET=true        # start on testnet, flip to false to go live
+# The Live Trading tab gates itself when these are missing — no orders fire.
+BYBIT_API_KEY = _secret("BYBIT_API_KEY")
+BYBIT_API_SECRET = _secret("BYBIT_API_SECRET")
+BYBIT_TESTNET = _secret("BYBIT_TESTNET").lower() in ("1", "true", "yes", "y")
+
+# Live bot state file (created at runtime, gitignored).
+LIVE_BOT_STATE_PATH = Path(__file__).with_name(".live_bot.json")
+
+# Safety guardrails — every value enforced in live_broker.preflight()
+# / auto_trade_gate() before any real order is placed.
+LIVE_DEFAULTS = {
+    "leverage_cap":      20,    # user-settable hard ceiling on leverage
+    "daily_loss_pct":    10,    # halts auto-trade if equity drops X% in 24h
+    "notional_cap_pct":  30,    # max % of balance deployable on one trade
+    "max_concurrent":    3,     # max simultaneously open positions
+    "slippage_tol_pct":  0.5,   # reject fills more than X% off expected
+    "confirm_first_n":   10,    # first N live trades require manual confirm
+    "auto_threshold":    85,    # combined-strength needed for auto-trade
+}
+
+
 # --- Market universe -------------------------------------------------------
 QUOTE_ASSET = "USDT"          # only analyse pairs quoted in this asset
 TOP_N = 100                   # number of top coins (by 24h volume) to track
