@@ -3801,7 +3801,11 @@ if active_section == "🧪 Paper Trader":
             "ranked by a COMBINED signal that fuses the Market Scanner "
             "alert with the Forecast tab's multi-horizon read. A setup "
             "where the Scanner AND the Forecast agree across all three "
-            "horizons scores highest. Click 📥 to open one.")
+            "horizons scores highest. Each card shows the LIVE risk/"
+            "reward you would get if you opened RIGHT NOW (vs the "
+            "plan's R:R, which assumes a pullback to entry zone). A "
+            "red ⚠ chip means the entry zone has passed — you'd be "
+            "chasing. Click 📥 to open one.")
 
         # Pull the live forecast data (cached so it is cheap) — used to
         # confirm or contradict each scanner setup.
@@ -3901,6 +3905,38 @@ if active_section == "🧪 Paper Trader":
                 # chip text just keeps the UI within 0-99.
                 combined_display = int(min(99, max(0, combined)))
                 str_label, str_color = _strength_label(combined_display)
+                # --- Live R:R from CURRENT price ------------------------
+                # The plan's R:R assumes a fill at entry_low. If price
+                # has drifted past the entry zone, the actual R:R when
+                # opening at current price is degraded. Compute and
+                # display the LIVE numbers so the user sees what they
+                # will actually get, not the idealised plan.
+                _cur = prices.get(s["symbol"]) or float(
+                    s.get("entry_low") or 0)
+                _stop = float(s.get("stop") or 0)
+                _tgt = float(s.get("target") or 0)
+                _live_risk_pct = 0.0
+                _live_reward_pct = 0.0
+                _live_rr = 0.0
+                if _cur and _stop and _tgt:
+                    if side == "LONG":
+                        _live_risk_pct = (_cur - _stop) / _cur * 100
+                        _live_reward_pct = (_tgt - _cur) / _cur * 100
+                    else:  # SHORT
+                        _live_risk_pct = (_stop - _cur) / _cur * 100
+                        _live_reward_pct = (_cur - _tgt) / _cur * 100
+                    if _live_risk_pct > 0:
+                        _live_rr = _live_reward_pct / _live_risk_pct
+                # Warning chip when the entry zone has been passed and
+                # R:R has degraded below 1.2 — opening here is chasing.
+                _drift_chip = ""
+                if 0 < _live_rr < 1.2:
+                    _drift_chip = (
+                        f"<span style='background:#ff5c5c33;color:#ff5c5c;"
+                        f"padding:2px 8px;border-radius:5px;font-size:"
+                        f"0.7rem;font-weight:700;margin-left:4px'>"
+                        f"⚠ Entry zone passed · live R:R {_live_rr:.2f}"
+                        f"</span>")
                 sid = f"{s['symbol']}:{side}"
                 alive_min = (now_ts - sp.get(sid, now_ts)) / 60.0
                 alive_txt = (f"alive {alive_min:.0f} min"
@@ -3998,16 +4034,22 @@ if active_section == "🧪 Paper Trader":
                         f"color:{str_color};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:700'>"
                         f"{str_label} · {combined_display}</span>"
-                        f"{premium_chip}{fc_chip}{reentry_chip}"
+                        f"{premium_chip}{fc_chip}{reentry_chip}{_drift_chip}"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
                         f"scanner {conf}% · R:R {rr:.1f} · "
                         f"{alive_txt}</span></div>"
                         f"<div style='color:#aab;font-size:0.78rem;"
                         f"margin-top:4px'>"
-                        f"hold: <b>{hold}</b> · entry "
-                        f"{fmt_price(s.get('entry_low', 0))} · stop "
-                        f"{fmt_price(s.get('stop', 0))} · target "
-                        f"{fmt_price(s.get('target', 0))}</div>"
+                        f"hold: <b>{hold}</b> · now "
+                        f"<b>{fmt_price(_cur)}</b> · entry zone "
+                        f"{fmt_price(s.get('entry_low', 0))} · "
+                        f"stop {fmt_price(_stop)} "
+                        f"<span style='color:#ff5c5c'>"
+                        f"(−{_live_risk_pct:.1f}%)</span> · "
+                        f"target {fmt_price(_tgt)} "
+                        f"<span style='color:#2ed47a'>"
+                        f"(+{_live_reward_pct:.1f}%)</span> · "
+                        f"live R:R <b>{_live_rr:.2f}</b></div>"
                         f"<div style='color:#9aa0b4;font-size:0.78rem;"
                         f"margin-top:2px'>proof — {md_safe(proof)}</div>"
                         f"{fc_line}",
