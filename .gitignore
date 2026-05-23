@@ -24,3 +24,6 @@ screenshot*.png
 
 # Notifier state — local, machine-specific
 .notifier_seen.json
+
+# Paper trading bot state — your virtual trades, machine-specific
+.paper_bot.json

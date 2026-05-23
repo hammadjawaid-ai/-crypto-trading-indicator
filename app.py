@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -17,6 +18,7 @@ from plotly.subplots import make_subplots
 import alerts
 import binance_client
 import breakout
+import btc_outlook
 import config
 import derivatives
 import forecast
@@ -26,6 +28,7 @@ import market_context
 import news as news_mod
 import oracle
 import orderflow
+import paper_bot
 import sentiment as sentiment_mod
 import signals
 import social as social_mod
@@ -150,6 +153,10 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# --- Paper trading bot state file (lives next to app.py, gitignored) ------
+PAPER_BOT_FILE = Path(__file__).resolve().parent / ".paper_bot.json"
+
+
 # --- Colour palette for signal labels --------------------------------------
 LABEL_COLORS = {
     "STRONG LONG": "#0b8a3e", "LONG": "#34c759",
@@ -243,6 +250,62 @@ def forecast_market(symbols: tuple[str, ...]) -> pd.DataFrame:
             if res:
                 rows.append(res)
     return pd.DataFrame(rows)
+
+
+@st.cache_data(ttl=config.MARKET_CACHE_TTL, show_spinner=False)
+def btc_outlook_now(btc_change_24h: float, alt_median_24h: float) -> dict:
+    """Build the BTC 24h Outlook (see btc_outlook.py). The caller supplies
+    BTC's own 24h % change and the median alt 24h % so the divergence
+    detector has the latest tape; everything else is fetched fresh here."""
+    try:
+        btc_4h = signals.analyze(load_klines("BTCUSDT", "4h"))
+    except Exception:
+        btc_4h = None
+    try:
+        btc_1d = signals.analyze(load_klines("BTCUSDT", "1d"))
+    except Exception:
+        btc_1d = None
+    try:
+        btc_1w = signals.analyze(load_klines("BTCUSDT", "1w"))
+    except Exception:
+        btc_1w = None
+    try:
+        deriv = load_derivatives("BTCUSDT", "4h")
+    except Exception:
+        deriv = None
+    try:
+        fg = load_fear_greed().get("value")
+    except Exception:
+        fg = None
+    try:
+        mcap_change = load_global_market().get("market_cap_change_24h")
+    except Exception:
+        mcap_change = None
+
+    # News fusion — BTC-specific + macro/political + general crypto mood.
+    news_payload = None
+    try:
+        nd = load_news()
+        if nd is not None and not nd.empty:
+            btc_mask = nd["title"].str.contains(
+                r"\b(?:bitcoin|btc)\b", case=False, na=False, regex=True)
+            btc_news = nd[btc_mask]
+            news_payload = {
+                "btc": {
+                    "count": int(len(btc_news)),
+                    "sentiment": (float(btc_news["sentiment"].mean())
+                                  if not btc_news.empty else 0.0),
+                },
+                "macro": news_mod.category_mood(nd, "Macro / Politics"),
+                "crypto": news_mod.category_mood(nd, "Crypto"),
+            }
+    except Exception:
+        news_payload = None
+
+    return btc_outlook.compute(
+        btc_4h, btc_1d, deriv, fg, mcap_change,
+        btc_change_24h, alt_median_24h,
+        btc_1w=btc_1w, news=news_payload)
 
 
 @st.cache_data(ttl=config.MARKET_CACHE_TTL, show_spinner=False)
@@ -1697,6 +1760,74 @@ def _inject_autorefresh(seconds: int) -> None:
         + ");}})();</script>", height=0)
 
 
+def render_btc_outlook(o: dict) -> None:
+    """Prominent BTC 24h Outlook banner — shown above every tab. BTC leads the
+    market; the banner tells the user which way it leans, with the evidence
+    and the caution flags surfaced so they can size accordingly."""
+    if not o:
+        return
+    direction = o.get("direction", "Neutral")
+    color = {"Up": "#2ed47a", "Down": "#ff5c5c",
+             "Neutral": "#e0a92b"}.get(direction, "#8b8d98")
+    label = {"Up": "LEANING UP", "Down": "LEANING DOWN",
+             "Neutral": "NEUTRAL"}.get(direction, direction.upper())
+    with st.container(border=True):
+        st.markdown(
+            f"<div style='display:flex;justify-content:space-between;"
+            f"align-items:center;flex-wrap:wrap;gap:8px'>"
+            f"<div><span style='font-size:1.08rem;font-weight:800'>"
+            f"₿ BTC — Next 24 Hours</span> &nbsp;"
+            f"<span style='background:{color};color:#06121f;padding:4px 13px;"
+            f"border-radius:7px;font-size:0.78rem;font-weight:800;"
+            f"letter-spacing:0.04em'>{label}</span></div>"
+            f"<div style='color:#8b8d98;font-size:0.85rem;font-weight:600'>"
+            f"{o.get('confidence', 0)}% confidence · "
+            f"{o.get('aligned_categories', 0)}/"
+            f"{o.get('total_categories', 0)} categories agree · "
+            f"expected range ±{o.get('expected_range_pct', 0):.1f}%"
+            f"</div></div>"
+            f"<div style='color:{color};font-size:0.94rem;font-weight:700;"
+            f"margin:6px 0 4px 0'>{md_safe(o.get('takeaway', ''))}</div>",
+            unsafe_allow_html=True)
+        for flag in o.get("flags", []):
+            st.markdown(
+                f"<div style='background:#e0a92b1f;border-left:3px solid "
+                f"#e0a92b;padding:5px 11px;margin:4px 0;border-radius:4px;"
+                f"font-size:0.85rem'>⚠️ {md_safe(flag)}</div>",
+                unsafe_allow_html=True)
+        if o.get("strategies"):
+            with st.expander("🎯 Trading strategies currently firing on BTC"):
+                st.caption(
+                    "Classic technical patterns the engine sees right now. "
+                    "Confirming patterns add a small confidence bonus; "
+                    "contradicting ones flag uncertainty.")
+                for s in o["strategies"]:
+                    direction = s.get("direction", "")
+                    sc = ("#2ed47a" if direction == "Bullish"
+                          else "#ff5c5c" if direction == "Bearish"
+                          else "#8b8d98")
+                    st.markdown(
+                        f"- **{md_safe(s.get('name', ''))}** on "
+                        f"<span style='color:#bbb'>"
+                        f"{md_safe(s.get('tf', ''))}</span> — "
+                        f"<span style='color:{sc};font-weight:700'>"
+                        f"{direction}</span>", unsafe_allow_html=True)
+        if o.get("drivers"):
+            with st.expander("Full drivers — what's pulling BTC each way"):
+                for d in o["drivers"]:
+                    lean = float(d.get("lean", 0))
+                    lc = ("#2ed47a" if lean > 0.05
+                          else "#ff5c5c" if lean < -0.05
+                          else "#8b8d98")
+                    st.markdown(
+                        f"- **{d.get('force', '')}** "
+                        f"<span style='color:{lc}'>(category "
+                        f"{d.get('category', '—')}, lean {lean:+.2f}, "
+                        f"weight {d.get('weight', 0)})</span> — "
+                        f"{md_safe(d.get('note', ''))}",
+                        unsafe_allow_html=True)
+
+
 # ===========================================================================
 # Sidebar
 # ===========================================================================
@@ -1833,8 +1964,23 @@ if glob:
         f"BTC {glob['btc_dominance']:.1f}%{_eth_txt} dominance · "
         f"via {glob.get('source', '—')}")
 
+# --- BTC 24h Outlook — the headline directional read above every tab --------
+try:
+    _bo_tickers = load_top_symbols(top_n)
+    _btc_row = _bo_tickers[_bo_tickers["symbol"] == "BTCUSDT"]
+    _btc_change = (float(_btc_row["priceChangePercent"].iloc[0])
+                   if not _btc_row.empty else 0.0)
+    _alts = _bo_tickers[~_bo_tickers["symbol"].isin(
+        ["BTCUSDT", "ETHUSDT"])]
+    _alt_median = (float(_alts["priceChangePercent"].head(30).median())
+                   if not _alts.empty else 0.0)
+    render_btc_outlook(btc_outlook_now(_btc_change, _alt_median))
+except Exception:
+    pass  # never let the BTC banner block the rest of the dashboard
+
 # --- Global Trade Alerts strip — high-confidence setups & volume surges,
 # computed for the selected timeframe and shown above every tab. -------------
+_alert_merged = pd.DataFrame()    # so later tabs can rely on it being defined
 try:
     _alert_tickers = load_top_symbols(top_n)
     with st.spinner(f"Scanning {len(_alert_tickers)} coins for alerts…"):
@@ -1848,10 +1994,10 @@ except Exception:
     pass  # never let the alerts strip block the rest of the dashboard
 
 (tab_scan, tab_forecast, tab_breakout, tab_oracle, tab_coin, tab_news,
- tab_decision) = st.tabs(
+ tab_decision, tab_bot) = st.tabs(
     ["🔍 Market Scanner", "🔮 Forecast", "🚀 Breakout Radar",
      "🤖 Ask the Oracle", "🪙 Coin Analysis", "📰 News & Sentiment",
-     "🧭 Decision Mode"])
+     "🧭 Decision Mode", "🧪 Paper Trader"])
 
 
 # ===========================================================================
@@ -2758,3 +2904,169 @@ with tab_decision:
         st.caption("Decisions are algorithmic — derived from technicals, "
                    "derivatives, live order flow and social data. "
                    "Educational only, not financial advice.")
+
+
+# ===========================================================================
+# Tab 8 — Paper Trader (bot that tests the signals with virtual money)
+# ===========================================================================
+with tab_bot:
+    st.subheader("🧪 Paper Trading Bot")
+    st.caption(
+        "Test the indicator's signals with virtual money on live prices. The "
+        "bot opens and manages simulated positions from the Trade Alerts "
+        "using the same entry / stop / target the dashboard shows, and "
+        "tracks every trade. State persists to `.paper_bot.json` so a run "
+        "survives page refreshes and even full app restarts.")
+
+    # ---- Controls --------------------------------------------------------
+    pb_state = paper_bot.load_state(PAPER_BOT_FILE)
+    c1, c2, c3, c4 = st.columns([1.2, 1.2, 1.4, 1.2])
+    new_balance = c1.number_input(
+        "Starting balance ($)", min_value=100.0, max_value=1_000_000.0,
+        value=float(pb_state.get("starting_balance") or 10000.0),
+        step=500.0, key="pb_start_balance")
+    new_risk = c2.slider(
+        "Risk per trade (%)", 0.25, 5.0,
+        float(pb_state.get("risk_per_trade_pct") or 1.0), 0.25,
+        key="pb_risk")
+    auto_trade = c3.checkbox(
+        "🟢 Auto-trade from alerts", value=False, key="pb_auto",
+        help="When on, each scan the bot opens new positions for "
+             "high-confidence trade alerts (>= 70% confidence) using "
+             "their entry / stop / target.")
+    if c4.button("🔄 Reset paper account", type="secondary",
+                 use_container_width=True):
+        paper_bot.reset(PAPER_BOT_FILE, new_balance, new_risk)
+        st.rerun()
+
+    # ---- Apply latest settings -------------------------------------------
+    pb_state["risk_per_trade_pct"] = float(new_risk)
+    # Don't move starting_balance once trades have run (it would distort
+    # return % retroactively). Only adopt the new number on a fresh book.
+    if not pb_state.get("closed") and not pb_state.get("open"):
+        pb_state["starting_balance"] = float(new_balance)
+        pb_state["balance"] = float(new_balance)
+
+    # ---- Build the live price map from the alerts scan -------------------
+    prices: dict[str, float] = {}
+    if not _alert_merged.empty:
+        prices = dict(zip(_alert_merged["symbol"], _alert_merged["price"]))
+
+    # ---- ALWAYS evaluate open positions (stops/targets must trigger) -----
+    just_closed = paper_bot.evaluate(pb_state, prices)
+    for c in just_closed:
+        emoji = "✅" if c["pnl_usd"] > 0 else "❌"
+        st.toast(
+            f"{emoji} {c['base']} closed at {c['exit_reason']} · "
+            f"{c['pnl_pct']:+.2f}%", icon="🧪")
+
+    # ---- Auto-trade: open new positions from qualifying alerts -----------
+    just_opened: list[dict] = []
+    if auto_trade and not _alert_merged.empty:
+        ad = alerts.build_alerts(_alert_merged, timeframe)
+        for setup in ad["setups"]:
+            if setup.get("confidence", 0) >= 70:
+                opened = paper_bot.open_position(
+                    pb_state, setup,
+                    prices.get(setup["symbol"]) or setup.get("entry_low"))
+                if opened:
+                    just_opened.append(opened)
+        for o in just_opened:
+            st.toast(f"📥 Opened {o['side']} {o['base']} "
+                     f"@ {fmt_price(o['entry'])}", icon="🧪")
+
+    paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+
+    # ---- Stats summary ---------------------------------------------------
+    s = paper_bot.stats(pb_state)
+    sc = st.columns(5)
+    sc[0].metric("Balance", f"${s['balance']:,.2f}",
+                 f"{s['total_pnl_pct']:+.2f}%")
+    sc[1].metric("Trades closed", s["trades"])
+    sc[2].metric("Win rate",
+                 f"{s['win_rate']:.0f}%" if s["trades"] else "—")
+    sc[3].metric("Best trade",
+                 f"{s['best_trade']:+.2f}%" if s["trades"] else "—")
+    sc[4].metric("Worst trade",
+                 f"{s['worst_trade']:+.2f}%" if s["trades"] else "—")
+
+    # ---- Equity curve ----------------------------------------------------
+    if pb_state["closed"]:
+        cs_sorted = sorted(pb_state["closed"],
+                           key=lambda c: c.get("exit_at", 0))
+        bal = float(pb_state["starting_balance"])
+        eq_rows = [{"Time": datetime.fromtimestamp(
+                        cs_sorted[0].get("exit_at", 0),
+                        tz=timezone.utc),
+                    "Equity": bal}]
+        for c in cs_sorted:
+            bal += float(c.get("pnl_usd") or 0.0)
+            eq_rows.append({
+                "Time": datetime.fromtimestamp(
+                    c.get("exit_at", 0), tz=timezone.utc),
+                "Equity": round(bal, 2),
+            })
+        st.markdown("#### Equity curve")
+        st.line_chart(pd.DataFrame(eq_rows).set_index("Time"),
+                      use_container_width=True, height=240)
+
+    # ---- Open positions table --------------------------------------------
+    st.markdown(f"#### Open positions ({len(pb_state['open'])})")
+    if pb_state["open"]:
+        open_rows = []
+        for p in pb_state["open"]:
+            cur = prices.get(p["symbol"], p["entry"])
+            long = (p["side"] == "LONG")
+            unrealised = ((cur - p["entry"]) if long
+                          else (p["entry"] - cur)) * p["qty"]
+            open_rows.append({
+                "Coin": p["base"], "Side": p["side"],
+                "Entry": fmt_price(p["entry"]),
+                "Current": fmt_price(cur),
+                "Stop": fmt_price(p["stop"]),
+                "Target": fmt_price(p["target"]),
+                "Conf": p.get("confidence", 0),
+                "Unrealised $": round(unrealised, 2),
+                "Unrealised %": round(
+                    unrealised / pb_state["balance"] * 100, 2)
+                    if pb_state["balance"] else 0.0,
+            })
+        st.dataframe(pd.DataFrame(open_rows),
+                     use_container_width=True, hide_index=True)
+    else:
+        msg = ("Auto-trade is ON — new high-confidence alerts will open "
+               "positions automatically on the next refresh."
+               if auto_trade
+               else "Toggle **Auto-trade from alerts** above to start the "
+                    "bot, or come back when there is an alert to trade.")
+        st.info(msg)
+
+    # ---- Closed trades history -------------------------------------------
+    st.markdown(f"#### Closed trades ({len(pb_state['closed'])})")
+    if pb_state["closed"]:
+        cs_recent = sorted(pb_state["closed"],
+                           key=lambda c: c.get("exit_at", 0),
+                           reverse=True)[:80]
+        closed_rows = [{
+            "Coin": c.get("base", ""),
+            "Side": c.get("side", ""),
+            "Entry": fmt_price(c.get("entry", 0)),
+            "Exit": fmt_price(c.get("exit", 0)),
+            "Reason": c.get("exit_reason", ""),
+            "PnL $": c.get("pnl_usd", 0.0),
+            "PnL %": c.get("pnl_pct", 0.0),
+            "Conf": c.get("confidence", 0),
+            "Closed (UTC)": datetime.fromtimestamp(
+                c.get("exit_at", 0), tz=timezone.utc).strftime(
+                    "%Y-%m-%d %H:%M"),
+        } for c in cs_recent]
+        st.dataframe(pd.DataFrame(closed_rows),
+                     use_container_width=True, hide_index=True)
+    else:
+        st.caption("No closed trades yet — they will appear here once "
+                   "open positions hit a stop or a target.")
+
+    st.caption("Paper trading idealises execution — no slippage, fees or "
+               "partial fills. Use it to gauge whether the signals tend to "
+               "win in the current regime; real-money results will be a "
+               "little worse. Educational only, not financial advice.")
