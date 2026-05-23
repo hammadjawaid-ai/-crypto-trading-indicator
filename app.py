@@ -3125,6 +3125,46 @@ if active_section == "🧪 Paper Trader":
         pos["timeframe"] = tf
         return pos
 
+    def _render_position_chart(symbol, side, entry, stop, target, cur_price):
+        """Mini chart for one open position — recent 1h price line with
+        Entry / Stop / Target levels and a live-price dot."""
+        try:
+            kdf = load_klines(symbol, "1h").tail(72)
+        except Exception:
+            return
+        if kdf is None or kdf.empty:
+            return
+        line_color = "#2ed47a" if side == "LONG" else "#ff5c5c"
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=kdf.index, y=kdf["close"], mode="lines",
+            line=dict(color=line_color, width=2),
+            showlegend=False, name="Price"))
+        # Live price dot at the right edge.
+        fig.add_trace(go.Scatter(
+            x=[kdf.index[-1]], y=[cur_price], mode="markers",
+            marker=dict(color="#fff", size=9,
+                        line=dict(color=line_color, width=2)),
+            showlegend=False, name="Now"))
+        for level, lcol, name in (
+                (entry,  "#6e8bff", f"Entry {fmt_price(entry)}"),
+                (stop,   "#ff5c5c", f"Stop {fmt_price(stop)}"),
+                (target, "#2ed47a", f"Target {fmt_price(target)}")):
+            fig.add_hline(
+                y=level, line_color=lcol,
+                line_dash="dot" if name.startswith("Entry") else "dash",
+                annotation_text=name, annotation_position="right",
+                annotation=dict(font=dict(size=10, color=lcol)))
+        fig.update_layout(
+            height=180, margin=dict(l=0, r=90, t=10, b=10),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            xaxis=dict(showgrid=False, color="#888"),
+            yaxis=dict(showgrid=False, color="#888"))
+        st.plotly_chart(
+            fig, use_container_width=True,
+            config={"displayModeBar": False})
+
     # Apply latest settings — only adopt new balance on a fresh book.
     pb_state["risk_per_trade_pct"] = float(new_risk)
     if not pb_state.get("closed") and not pb_state.get("open"):
@@ -3527,12 +3567,24 @@ if active_section == "🧪 Paper Trader":
                 entry_v = float(p["entry"])
                 stop_v = float(p["stop"])
                 target_v = float(p["target"])
-                unreal = ((cur - entry_v) if long
-                          else (entry_v - cur)) * p["qty"]
+                qty_v = float(p["qty"])
+                notional_v = float(p.get("notional")
+                                   or (qty_v * entry_v))
+                lev_v = int(p.get("leverage") or 1)
+                unreal = (((cur - entry_v) if long
+                           else (entry_v - cur)) * qty_v)
                 unreal_pct = (unreal / pb_state["balance"] * 100
                               if pb_state["balance"] else 0.0)
+                # % move from entry (sign-aware for shorts).
+                if entry_v > 0:
+                    pct_from_entry = ((cur - entry_v) / entry_v * 100)
+                    if not long:
+                        pct_from_entry = -pct_from_entry
+                else:
+                    pct_from_entry = 0.0
                 color = "#2ed47a" if unreal >= 0 else "#ff5c5c"
-                # Health bar — 0 = stop hit, 50 = entry, 100 = target hit.
+                side_color = "#2ed47a" if long else "#ff5c5c"
+                # Health: 0 = stop, 50 = entry, 100 = target.
                 if long:
                     if cur >= entry_v:
                         prog = (((cur - entry_v) / (target_v - entry_v)
@@ -3556,29 +3608,45 @@ if active_section == "🧪 Paper Trader":
                 str_label = p.get("strength_label", "")
                 be_badge = (" · ✓ break-even"
                             if p.get("break_even_set") else "")
+                lev_txt = f" · {lev_v}× lev" if lev_v > 1 else ""
 
                 with st.container(border=True):
-                    aa, bb, cc = st.columns([2.4, 1.6, 1])
-                    aa.markdown(
-                        f"**{p['base']}** "
-                        f"<span style='color:{'#2ed47a' if long else '#ff5c5c'};"
-                        f"font-weight:800'>{p['side']}</span>",
-                        unsafe_allow_html=True)
-                    aa.caption(
+                    info_col, pnl_col, btn_col = st.columns([2.4, 1.8, 0.8])
+                    # --- Left: coin / side / qty / notional / levels -----
+                    info_col.markdown(
+                        f"<div style='font-size:1.05rem;font-weight:800;"
+                        f"margin-bottom:2px'>{p['base']} "
+                        f"<span style='background:{side_color};color:#06121f;"
+                        f"padding:2px 10px;border-radius:5px;font-size:"
+                        f"0.72rem;font-weight:800;margin-left:6px'>"
+                        f"{p['side']}</span></div>"
+                        f"<div style='color:#d5d7e0;font-size:0.84rem;"
+                        f"margin:3px 0'>"
+                        f"<b>{qty_v:.6f} {p['base']}</b> · "
+                        f"notional <b>${notional_v:,.2f}</b>{lev_txt}</div>"
+                        f"<div style='color:#8b8d98;font-size:0.78rem'>"
                         f"Entry {fmt_price(entry_v)} · Stop "
-                        f"{fmt_price(stop_v)} · Target "
-                        f"{fmt_price(target_v)} · hold: {hold_txt}"
+                        f"{fmt_price(stop_v)} · Target {fmt_price(target_v)}"
+                        f" · hold: {hold_txt}"
                         + (f" · {str_label}" if str_label else "")
-                        + be_badge)
-                    bb.markdown(
-                        f"**{fmt_price(cur)}**  "
-                        f"<span style='color:{color};font-weight:800'>"
-                        f"({unreal_pct:+.2f}%)</span>",
+                        + be_badge + "</div>",
                         unsafe_allow_html=True)
-                    bb.caption(f"P&L ${unreal:+.2f}")
-                    if cc.button("Close",
-                                 key=f"pb_close_{p['symbol']}",
-                                 use_container_width=True):
+                    # --- Middle: live price + P&L $ + P&L %  -------------
+                    pnl_col.markdown(
+                        f"<div style='text-align:right;font-size:1.15rem;"
+                        f"font-weight:800;color:#fff'>{fmt_price(cur)}</div>"
+                        f"<div style='text-align:right;color:{color};"
+                        f"font-size:1.1rem;font-weight:800;margin-top:2px'>"
+                        f"${unreal:+,.2f}</div>"
+                        f"<div style='text-align:right;color:{color};"
+                        f"font-size:0.78rem;font-weight:700;margin-top:1px'>"
+                        f"{pct_from_entry:+.2f}% from entry · "
+                        f"{unreal_pct:+.2f}% balance</div>",
+                        unsafe_allow_html=True)
+                    # --- Right: Close ------------------------------------
+                    if btn_col.button(
+                            "Close", key=f"pb_close_{p['symbol']}",
+                            use_container_width=True):
                         closed = paper_bot.close_position_at(
                             pb_state, p["symbol"], cur, reason="manual")
                         if closed:
@@ -3588,10 +3656,15 @@ if active_section == "🧪 Paper Trader":
                                 f"{emoji} Closed {closed['base']} · "
                                 f"{closed['pnl_pct']:+.2f}%", icon="🧪")
                             st.rerun()
+                    # --- Progress bar ------------------------------------
                     st.progress(health, text=(
                         f"🎯 {health}% toward target"
                         if health >= 50
                         else f"⚠️ {100 - health}% toward stop"))
+                    # --- Mini chart with Entry / Stop / Target levels ----
+                    _render_position_chart(
+                        p["symbol"], p["side"],
+                        entry_v, stop_v, target_v, cur)
 
     st.divider()
 
@@ -3626,6 +3699,11 @@ if active_section == "🧪 Paper Trader":
             "Side": c.get("side", ""),
             "Entry": fmt_price(c.get("entry", 0)),
             "Exit": fmt_price(c.get("exit", 0)),
+            "Qty": round(c.get("qty", 0) or 0, 6),
+            "Notional $": round(
+                (c.get("notional")
+                 or (c.get("qty", 0) or 0) * (c.get("entry", 0) or 0)),
+                2),
             "Reason": c.get("exit_reason", ""),
             "PnL $": c.get("pnl_usd", 0.0),
             "PnL %": c.get("pnl_pct", 0.0),
@@ -3646,5 +3724,8 @@ if active_section == "🧪 Paper Trader":
                "little worse. Educational only, not financial advice.")
 
     # ---- Live mode — keep the bot actively managing positions ------------
+    # Paper Trader refreshes every 30s when Live is on so the live P&L,
+    # health bars and mini charts update as close to real time as a
+    # Streamlit app can. (Faster than the 5-min global auto-refresh.)
     if live_mode:
-        _inject_autorefresh(300)
+        _inject_autorefresh(30)
