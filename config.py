@@ -148,6 +148,9 @@ NEWS_FEEDS = {
         ("MarketWatch", "https://feeds.marketwatch.com/marketwatch/topstories/"),
         ("Yahoo Finance", "https://finance.yahoo.com/news/rssindex"),
         ("Investing.com", "https://www.investing.com/rss/news.rss"),
+        ("ZeroHedge", "https://feeds.feedburner.com/zerohedge/feed"),
+        ("Reuters Business",
+         "https://www.reutersagency.com/feed/?best-topics=business-finance"),
     ],
     "Macro / Politics": [
         ("Federal Reserve", "https://www.federalreserve.gov/feeds/press_all.xml"),

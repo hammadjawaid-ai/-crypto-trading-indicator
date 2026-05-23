@@ -3598,6 +3598,7 @@ if active_section == "🧪 Paper Trader":
                                     "Quantity", "% of balance"],
                     key="pb_sizing")
                 _balance = float(pb_state["balance"])
+                _available = _balance - paper_bot.open_margin_used(pb_state)
 
                 if _sizing == "Risk-based":
                     _risk_pct_in = st.slider(

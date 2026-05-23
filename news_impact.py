@@ -134,7 +134,8 @@ def _impact_score(title: str, sentiment: float,
 
 def detect_impactful(news_df: pd.DataFrame, *,
                      max_count: int = 8,
-                     min_score: float = 0.62) -> list[dict]:
+                     min_score: float = 0.62,
+                     max_per_source: int = 2) -> list[dict]:
     """Pick the most impactful headlines from a freshly fetched news DataFrame.
 
     Returns a list of dicts the UI can render directly:
@@ -143,14 +144,15 @@ def detect_impactful(news_df: pd.DataFrame, *,
 
     Direction is taken from each headline's existing sentiment (never
     invented). Headlines are walked freshest-first; results are sorted
-    strongest-first and trimmed to `max_count`. The higher default
-    `min_score` keeps only genuinely market-moving stories — no flooding
-    the impact panel with marginal mentions.
+    strongest-first. A PER-SOURCE cap (`max_per_source`) keeps any one
+    outlet from dominating the panel — even if Cointelegraph publishes
+    five SEC headlines, only the top two land here. Final list is trimmed
+    to `max_count`.
     """
     if news_df is None or len(news_df) == 0:
         return []
-    items: list[dict] = []
-    for _, row in news_df.head(120).iterrows():
+    candidates: list[dict] = []
+    for _, row in news_df.head(150).iterrows():
         title = str(row.get("title") or "").strip()
         if not title:
             continue
@@ -161,7 +163,7 @@ def detect_impactful(news_df: pd.DataFrame, *,
             continue
         direction = ("Bullish" if sent > 0.15
                      else "Bearish" if sent < -0.15 else "Neutral")
-        items.append({
+        candidates.append({
             "title": title,
             "source": str(row.get("source") or ""),
             "link": str(row.get("link") or ""),
@@ -170,9 +172,20 @@ def detect_impactful(news_df: pd.DataFrame, *,
             "score": round(score, 2),
             "keywords": kws[:4],
             "direction": direction,
-            "published": row.get("published"),   # datetime for time-ago UI
+            "published": row.get("published"),
         })
-        if len(items) >= max_count * 2:   # collect extra so the sort has range
+
+    # Sort strongest-first then walk applying the per-source cap so the
+    # final panel always shows a diverse set of outlets.
+    candidates.sort(key=lambda i: i["score"], reverse=True)
+    per_source: dict[str, int] = {}
+    out: list[dict] = []
+    for it in candidates:
+        src = it.get("source") or ""
+        if per_source.get(src, 0) >= max_per_source:
+            continue
+        per_source[src] = per_source.get(src, 0) + 1
+        out.append(it)
+        if len(out) >= max_count:
             break
-    items.sort(key=lambda i: i["score"], reverse=True)
-    return items[:max_count]
+    return out
