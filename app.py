@@ -5,6 +5,7 @@ Run with:  streamlit run app.py
 from __future__ import annotations
 
 import json
+import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
@@ -26,6 +27,7 @@ import indicators
 import lunarcrush
 import market_context
 import news as news_mod
+import news_impact
 import oracle
 import orderflow
 import paper_bot
@@ -343,6 +345,16 @@ def scan_breakouts(symbols: tuple[str, ...],
 @st.cache_data(ttl=config.NEWS_CACHE_TTL, show_spinner=False)
 def load_news() -> pd.DataFrame:
     return news_mod.fetch_news()
+
+
+@st.cache_data(ttl=config.NEWS_CACHE_TTL, show_spinner=False)
+def load_impactful_news() -> list[dict]:
+    """The headlines that are MOVING the tape right now — used by the BTC
+    banner's 'Why this is happening' panel and the live news notifications."""
+    try:
+        return news_impact.detect_impactful(load_news())
+    except Exception:
+        return []
 
 
 @st.cache_data(ttl=config.NEWS_CACHE_TTL, show_spinner=False)
@@ -1760,10 +1772,14 @@ def _inject_autorefresh(seconds: int) -> None:
         + ");}})();</script>", height=0)
 
 
-def render_btc_outlook(o: dict) -> None:
+def render_btc_outlook(o: dict,
+                       impactful_news: list[dict] | None = None) -> None:
     """Prominent BTC 24h Outlook banner — shown above every tab. BTC leads the
     market; the banner tells the user which way it leans, with the evidence
-    and the caution flags surfaced so they can size accordingly."""
+    and the caution flags surfaced so they can size accordingly. When
+    `impactful_news` is supplied, a 'Why this is happening' panel shows the
+    headlines moving the tape — and new ones fire toasts and desktop
+    notifications when Desktop alerts is enabled."""
     if not o:
         return
     direction = o.get("direction", "Neutral")
@@ -1789,6 +1805,106 @@ def render_btc_outlook(o: dict) -> None:
             f"<div style='color:{color};font-size:0.94rem;font-weight:700;"
             f"margin:6px 0 4px 0'>{md_safe(o.get('takeaway', ''))}</div>",
             unsafe_allow_html=True)
+
+        # --- Trading-desk briefing: synthesis + concrete next steps -------
+        briefing = o.get("briefing") or {}
+        if briefing.get("summary"):
+            st.markdown(
+                f"<div style='background:#11141c;border-radius:6px;"
+                f"padding:11px 14px;margin:10px 0 6px 0;"
+                f"border:1px solid #1f2330'>"
+                f"<div style='font-size:0.74rem;letter-spacing:0.10em;"
+                f"color:#8b8d98;font-weight:800;margin-bottom:5px'>"
+                f"🧭 WHAT THIS MEANS</div>"
+                f"<div style='color:#d8dae3;font-size:0.9rem;"
+                f"line-height:1.55'>{md_safe(briefing['summary'])}</div>"
+                + (f"<div style='font-size:0.78rem;color:#9aa0b4;"
+                   f"margin-top:7px;font-style:italic'>"
+                   f"{md_safe(briefing.get('conviction_note', ''))}</div>"
+                   if briefing.get("conviction_note") else "")
+                + "</div>",
+                unsafe_allow_html=True)
+        if briefing.get("next_steps"):
+            steps_html = "".join(
+                f"<div style='color:#cfd2dc;font-size:0.86rem;"
+                f"margin:5px 0;padding-left:18px;text-indent:-18px;"
+                f"line-height:1.5'>"
+                f"<span style='color:#6e8bff;font-weight:800'>→</span> "
+                f"{md_safe(step)}</div>"
+                for step in briefing["next_steps"])
+            st.markdown(
+                f"<div style='background:#0e1118;border-left:3px solid "
+                f"#6e8bff;padding:9px 14px;margin:6px 0 10px 0;"
+                f"border-radius:5px'>"
+                f"<div style='font-size:0.74rem;letter-spacing:0.10em;"
+                f"color:#6e8bff;font-weight:800;margin-bottom:6px'>"
+                f"📋 NEXT STEPS — HOW TO TRADE IT</div>"
+                f"{steps_html}</div>",
+                unsafe_allow_html=True)
+
+        # --- WHY THIS IS HAPPENING — high-impact headlines moving the tape
+        if impactful_news:
+            # Toast + browser-notification dedup tracking.
+            prev_titles = st.session_state.get("impactful_seen")
+            first_visit = prev_titles is None
+            current_titles = {it["title"] for it in impactful_news}
+            new_items = ([it for it in impactful_news
+                          if it["title"] not in prev_titles]
+                         if not first_visit else [])
+            st.session_state["impactful_seen"] = current_titles
+            for it in new_items[:3]:
+                icon = ("📈" if it["direction"] == "Bullish"
+                        else "📉" if it["direction"] == "Bearish"
+                        else "📰")
+                st.toast(f"{it['direction'].upper()} impact news — "
+                         f"{it['title'][:90]}", icon=icon)
+
+            items_html = ""
+            for it in impactful_news[:6]:
+                dir_color = {"Bullish": "#2ed47a",
+                             "Bearish": "#ff5c5c"}.get(
+                                 it["direction"], "#e0a92b")
+                fresh_tag = (" 🆕" if it["title"] in
+                             {x["title"] for x in new_items} else "")
+                kw_chip = ""
+                if it.get("keywords"):
+                    kw_chip = (f"<span style='background:#1a1c24;"
+                               f"color:#aab;padding:1px 6px;border-radius:4px;"
+                               f"font-size:0.7rem;margin-left:6px'>"
+                               f"{it['keywords'][0]}</span>")
+                items_html += (
+                    f"<div style='border-left:3px solid {dir_color};"
+                    f"padding:6px 12px;margin:5px 0;background:{dir_color}10;"
+                    f"border-radius:4px;font-size:0.86rem'>"
+                    f"<span style='color:{dir_color};font-weight:800'>"
+                    f"{it['direction'].upper()}</span>{kw_chip} "
+                    f"<span style='color:#9aa0b4;font-size:0.76rem'>"
+                    f"· {md_safe(it.get('source', ''))} "
+                    f"· impact {it['score']:.2f}</span>{fresh_tag}<br>"
+                    f"<span style='color:#d5d7e0'>"
+                    f"{md_safe(it['title'])}</span></div>")
+            st.markdown(
+                f"<div style='background:#0e1118;border-left:3px solid "
+                f"#e0a92b;padding:10px 14px;margin:6px 0 10px 0;"
+                f"border-radius:5px'>"
+                f"<div style='font-size:0.74rem;letter-spacing:0.10em;"
+                f"color:#e0a92b;font-weight:800;margin-bottom:6px'>"
+                f"📰 WHY THIS IS HAPPENING — high-impact news right now</div>"
+                f"{items_html}</div>",
+                unsafe_allow_html=True)
+
+            # Live browser notifications for impactful news (only when the
+            # user has Desktop alerts switched on). Own localStorage key so
+            # it never duplicates with the trade-alert stream.
+            if alerts_on:
+                _inject_browser_alerts(
+                    [{"id": f"news:{it['title'][:80]}",
+                      "title": f"📰 {it['direction']} impact news",
+                      "body": (f"{it['title']} — "
+                               f"{it.get('source', '')}")}
+                     for it in impactful_news[:8]],
+                    0, key="ti_notified_news")
+
         for flag in o.get("flags", []):
             st.markdown(
                 f"<div style='background:#e0a92b1f;border-left:3px solid "
@@ -1834,15 +1950,48 @@ def render_btc_outlook(o: dict) -> None:
 st.sidebar.title("📈 Crypto Indicator")
 st.sidebar.caption("Live technical analysis & sentiment — Binance USDT pairs")
 
+# --- Persistent state — survives full page refresh via URL query params --
+_qp = st.query_params
+_qp_tf = _qp.get("tf", config.DEFAULT_TIMEFRAME)
+if _qp_tf not in config.TIMEFRAMES:
+    _qp_tf = config.DEFAULT_TIMEFRAME
+_qp_mode = _qp.get("mode", "Futures")
+if _qp_mode not in ("Futures", "Spot"):
+    _qp_mode = "Futures"
+
+# Section navigation lives on the LEFT side as the user requested.
+SECTIONS = [
+    "🔍 Market Scanner", "🔮 Forecast", "🚀 Breakout Radar",
+    "🤖 Ask the Oracle", "🪙 Coin Analysis", "📰 News & Sentiment",
+    "🧭 Decision Mode", "🧪 Paper Trader",
+]
+_qp_section = _qp.get("section", SECTIONS[0])
+if _qp_section not in SECTIONS:
+    _qp_section = SECTIONS[0]
+active_section = st.sidebar.radio(
+    "📂 Section", SECTIONS, index=SECTIONS.index(_qp_section),
+    help="Switch between the dashboard's sections. Your choice persists "
+         "across page refreshes.")
+
+st.sidebar.divider()
+
 timeframe = st.sidebar.selectbox(
     "Timeframe", config.TIMEFRAMES,
-    index=config.TIMEFRAMES.index(config.DEFAULT_TIMEFRAME),
+    index=config.TIMEFRAMES.index(_qp_tf),
 )
-trade_mode = st.sidebar.radio(
+trade_mode_label = st.sidebar.radio(
     "Trade mode", ["Futures", "Spot"], horizontal=True,
+    index=["Futures", "Spot"].index(_qp_mode),
     help="Futures — trades both long & short, sizes leverage from "
          "conviction. Spot — long-only (no shorting), no leverage, "
-         "wider swing-horizon targets and stops.").lower()
+         "wider swing-horizon targets and stops.")
+trade_mode = trade_mode_label.lower()
+
+# Persist current choices back to the URL so they survive a refresh.
+st.query_params["tf"] = timeframe
+st.query_params["mode"] = trade_mode_label
+st.query_params["section"] = active_section
+
 top_n = st.sidebar.slider("Coins to track", 10, config.TOP_N, config.TOP_N, 5)
 
 alerts_on = st.sidebar.checkbox(
@@ -1974,7 +2123,12 @@ try:
         ["BTCUSDT", "ETHUSDT"])]
     _alt_median = (float(_alts["priceChangePercent"].head(30).median())
                    if not _alts.empty else 0.0)
-    render_btc_outlook(btc_outlook_now(_btc_change, _alt_median))
+    try:
+        _impactful_news = load_impactful_news()
+    except Exception:
+        _impactful_news = []
+    render_btc_outlook(btc_outlook_now(_btc_change, _alt_median),
+                       impactful_news=_impactful_news)
 except Exception:
     pass  # never let the BTC banner block the rest of the dashboard
 
@@ -1993,17 +2147,13 @@ try:
 except Exception:
     pass  # never let the alerts strip block the rest of the dashboard
 
-(tab_scan, tab_forecast, tab_breakout, tab_oracle, tab_coin, tab_news,
- tab_decision, tab_bot) = st.tabs(
-    ["🔍 Market Scanner", "🔮 Forecast", "🚀 Breakout Radar",
-     "🤖 Ask the Oracle", "🪙 Coin Analysis", "📰 News & Sentiment",
-     "🧭 Decision Mode", "🧪 Paper Trader"])
+# Section is selected from the sidebar radio above — no horizontal tab bar.
 
 
 # ===========================================================================
 # Tab 1 — Market Scanner
 # ===========================================================================
-with tab_scan:
+if active_section == "🔍 Market Scanner":
     st.subheader(f"Market Scanner · {timeframe} timeframe")
     st.caption(f"Top {top_n} USDT pairs by 24h volume, ranked by signal score.")
 
@@ -2142,7 +2292,7 @@ with tab_scan:
 # ===========================================================================
 # Tab 2 — Forecast
 # ===========================================================================
-with tab_forecast:
+if active_section == "🔮 Forecast":
     _fc_live = st.checkbox(
         "🔴 Live forecast — keep it auto-refreshing every 5 min",
         value=False, key="forecast_live",
@@ -2164,7 +2314,7 @@ with tab_forecast:
 # ===========================================================================
 # Tab 3 — Breakout Radar
 # ===========================================================================
-with tab_breakout:
+if active_section == "🚀 Breakout Radar":
     st.subheader("🚀 Breakout Radar — predict the next coins to blow out")
     st.caption(
         "A self-contained intelligence engine. It scans every coin across "
@@ -2322,7 +2472,7 @@ with tab_breakout:
 # ===========================================================================
 # Tab 4 — Ask the Oracle
 # ===========================================================================
-with tab_oracle:
+if active_section == "🤖 Ask the Oracle":
     st.subheader("🤖 Ask the Oracle — your trading-desk analyst")
     st.caption(
         "Ask in plain English which coin is next to blow out — up or down — "
@@ -2389,7 +2539,7 @@ with tab_oracle:
 # ===========================================================================
 # Tab 5 — Coin Analysis
 # ===========================================================================
-with tab_coin:
+if active_section == "🪙 Coin Analysis":
     try:
         tickers = load_top_symbols(top_n)
     except Exception as exc:
@@ -2665,7 +2815,7 @@ with tab_coin:
 # ===========================================================================
 # Tab 6 — News & Sentiment
 # ===========================================================================
-with tab_news:
+if active_section == "📰 News & Sentiment":
     st.subheader("Market Sentiment & Live News")
 
     sleft, sright = st.columns([1, 2])
@@ -2797,7 +2947,7 @@ with tab_news:
 # ===========================================================================
 # Tab 7 — Decision Mode
 # ===========================================================================
-with tab_decision:
+if active_section == "🧭 Decision Mode":
     st.subheader("🧭 Decision Mode — Top 30 Coins")
     st.caption(f"Buy / hold / sell calls for the 30 strongest opportunities "
                f"right now — ranked on a blend of signal strength, social "
@@ -2909,50 +3059,84 @@ with tab_decision:
 # ===========================================================================
 # Tab 8 — Paper Trader (bot that tests the signals with virtual money)
 # ===========================================================================
-with tab_bot:
+if active_section == "🧪 Paper Trader":
     st.subheader("🧪 Paper Trading Bot")
     st.caption(
-        "Test the indicator's signals with virtual money on live prices. The "
-        "bot opens and manages simulated positions from the Trade Alerts "
-        "using the same entry / stop / target the dashboard shows, and "
-        "tracks every trade. State persists to `.paper_bot.json` so a run "
-        "survives page refreshes and even full app restarts.")
+        "Open trades on any coin from the left panel, or let the bot "
+        "auto-trade from high-confidence alerts. The bot manages stops "
+        "and targets every scan and tracks every trade. State persists "
+        "to `.paper_bot.json` so a run survives refreshes and full app "
+        "restarts.")
 
-    # ---- Controls --------------------------------------------------------
     pb_state = paper_bot.load_state(PAPER_BOT_FILE)
-    c1, c2, c3, c4 = st.columns([1.2, 1.2, 1.4, 1.2])
-    new_balance = c1.number_input(
-        "Starting balance ($)", min_value=100.0, max_value=1_000_000.0,
-        value=float(pb_state.get("starting_balance") or 10000.0),
-        step=500.0, key="pb_start_balance")
-    new_risk = c2.slider(
-        "Risk per trade (%)", 0.25, 5.0,
-        float(pb_state.get("risk_per_trade_pct") or 1.0), 0.25,
-        key="pb_risk")
-    auto_trade = c3.checkbox(
-        "🟢 Auto-trade from alerts", value=False, key="pb_auto",
-        help="When on, each scan the bot opens new positions for "
-             "high-confidence trade alerts (>= 70% confidence) using "
-             "their entry / stop / target.")
-    if c4.button("🔄 Reset paper account", type="secondary",
-                 use_container_width=True):
-        paper_bot.reset(PAPER_BOT_FILE, new_balance, new_risk)
-        st.rerun()
 
-    # ---- Apply latest settings -------------------------------------------
+    # ---- Settings (collapsed so the trade UI is the focus) ---------------
+    with st.expander("⚙️ Settings — balance, risk, auto-trade, live, reset"):
+        c1, c2, c3, c4, c5 = st.columns([1.2, 1.2, 1.3, 1.1, 1.1])
+        new_balance = c1.number_input(
+            "Starting balance ($)", min_value=100.0, max_value=1_000_000.0,
+            value=float(pb_state.get("starting_balance") or 20000.0),
+            step=500.0, key="pb_start_balance")
+        new_risk = c2.slider(
+            "Risk per trade (%)", 0.25, 5.0,
+            float(pb_state.get("risk_per_trade_pct") or 1.0), 0.25,
+            key="pb_risk")
+        auto_trade = c3.checkbox(
+            "🟢 Auto-trade from alerts", value=False, key="pb_auto",
+            help="When on, each scan the agent opens new positions for "
+                 "every high-confidence trade alert (>= 70% confidence), "
+                 "long and short.")
+        live_mode = c4.checkbox(
+            "🔴 Live", value=False, key="pb_live",
+            help="Auto-refresh every 5 min so the bot actively manages "
+                 "positions and watches for new alerts without you "
+                 "reloading the page.")
+        if c5.button("🔄 Reset", type="secondary",
+                     use_container_width=True):
+            paper_bot.reset(PAPER_BOT_FILE, new_balance, new_risk)
+            st.rerun()
+
+    # ---- Helpers used in this section ------------------------------------
+    def _hold_horizon(tf):
+        """Suggested holding period for a setup opened on this timeframe."""
+        return {"15m": "a few hours (intraday)",
+                "1h": "1-3 days",
+                "4h": "3-7 days",
+                "1d": "1-3 weeks"}.get(tf, "a few days")
+
+    def _strength_label(conf):
+        """Confidence → (label, colour) for a signal-strength badge."""
+        if conf >= 80:
+            return ("Very Strong", "#0b8a3e")
+        if conf >= 70:
+            return ("Strong", "#2ed47a")
+        if conf >= 60:
+            return ("Moderate", "#e0a92b")
+        return ("Weak", "#8b8d98")
+
+    def _enrich_position(pos, conf, tf, label_override=None):
+        """Stamp a position with the metadata the UI shows back."""
+        if pos is None:
+            return None
+        pos["hold_horizon"] = _hold_horizon(tf)
+        pos["strength_label"] = (label_override
+                                 if label_override is not None
+                                 else _strength_label(conf)[0])
+        pos["timeframe"] = tf
+        return pos
+
+    # Apply latest settings — only adopt new balance on a fresh book.
     pb_state["risk_per_trade_pct"] = float(new_risk)
-    # Don't move starting_balance once trades have run (it would distort
-    # return % retroactively). Only adopt the new number on a fresh book.
     if not pb_state.get("closed") and not pb_state.get("open"):
         pb_state["starting_balance"] = float(new_balance)
         pb_state["balance"] = float(new_balance)
 
-    # ---- Build the live price map from the alerts scan -------------------
+    # ---- Live price map for every open position ---------------------------
     prices: dict[str, float] = {}
     if not _alert_merged.empty:
         prices = dict(zip(_alert_merged["symbol"], _alert_merged["price"]))
 
-    # ---- ALWAYS evaluate open positions (stops/targets must trigger) -----
+    # ---- ALWAYS evaluate stops/targets first -----------------------------
     just_closed = paper_bot.evaluate(pb_state, prices)
     for c in just_closed:
         emoji = "✅" if c["pnl_usd"] > 0 else "❌"
@@ -2960,20 +3144,36 @@ with tab_bot:
             f"{emoji} {c['base']} closed at {c['exit_reason']} · "
             f"{c['pnl_pct']:+.2f}%", icon="🧪")
 
-    # ---- Auto-trade: open new positions from qualifying alerts -----------
-    just_opened: list[dict] = []
-    if auto_trade and not _alert_merged.empty:
-        ad = alerts.build_alerts(_alert_merged, timeframe)
-        for setup in ad["setups"]:
+    # ---- Auto-trade from alerts ------------------------------------------
+    auto_ad = (alerts.build_alerts(_alert_merged, timeframe)
+               if not _alert_merged.empty else {"setups": []})
+    if auto_trade:
+        for setup in auto_ad["setups"]:
             if setup.get("confidence", 0) >= 70:
                 opened = paper_bot.open_position(
                     pb_state, setup,
                     prices.get(setup["symbol"]) or setup.get("entry_low"))
                 if opened:
-                    just_opened.append(opened)
-        for o in just_opened:
-            st.toast(f"📥 Opened {o['side']} {o['base']} "
-                     f"@ {fmt_price(o['entry'])}", icon="🧪")
+                    _enrich_position(opened,
+                                     setup.get("confidence", 0), timeframe)
+                    st.toast(
+                        f"📥 Auto-opened {opened['side']} {opened['base']} "
+                        f"@ {fmt_price(opened['entry'])}", icon="🧪")
+
+    # ---- Track persistence of bot suggestions ----------------------------
+    # An alert that stays on the board for many minutes is more trustworthy
+    # than one that just flickered in; show 'alive for X min' on each pick.
+    now_ts = time.time()
+    sp = pb_state.setdefault("suggestion_persistence", {})
+    current_setup_ids: set[str] = set()
+    for _s in auto_ad["setups"]:
+        _sid = f"{_s['symbol']}:{_s['side']}"
+        current_setup_ids.add(_sid)
+        if _sid not in sp:
+            sp[_sid] = now_ts
+    for _sid in list(sp.keys()):
+        if _sid not in current_setup_ids:
+            del sp[_sid]
 
     paper_bot.save_state(PAPER_BOT_FILE, pb_state)
 
@@ -2989,6 +3189,266 @@ with tab_bot:
                  f"{s['best_trade']:+.2f}%" if s["trades"] else "—")
     sc[4].metric("Worst trade",
                  f"{s['worst_trade']:+.2f}%" if s["trades"] else "—")
+
+    st.divider()
+
+    # ---- Main two-column layout: LEFT = open new trade, RIGHT = positions
+    left_col, right_col = st.columns([1, 2])
+
+    with left_col:
+        st.markdown("### 📥 Open a trade")
+        if _alert_merged.empty:
+            st.info("Scan data not ready — refresh and try again.")
+        else:
+            _syms = sorted(_alert_merged["symbol"].unique().tolist())
+            _open_syms = {p["symbol"] for p in pb_state["open"]}
+            _avail = [s for s in _syms if s not in _open_syms]
+            if not _avail:
+                st.warning("You already have a position in every tracked "
+                           "coin — close one before opening another.")
+            else:
+                _sel = st.selectbox(
+                    "Coin", _avail,
+                    format_func=lambda s: s.replace("USDT", ""),
+                    key="pb_open_sym")
+                _side = st.radio(
+                    "Side", ["LONG", "SHORT"], horizontal=True,
+                    key="pb_open_side")
+                _row_match = _alert_merged[_alert_merged["symbol"] == _sel]
+                _row = (_row_match.iloc[0]
+                        if not _row_match.empty else None)
+                _cur = (float(_row["price"])
+                        if _row is not None else 0.0)
+                _plan = (_row.get("trade_plan")
+                         if _row is not None
+                         and isinstance(_row.get("trade_plan"), dict)
+                         else None)
+
+                # Engine-suggested trade plan for this coin + side.
+                if _plan and _plan.get("side") == _side:
+                    _entry = _cur
+                    _stop = float(_plan["stop_loss"])
+                    _target = float(_plan["take_profit"])
+                else:
+                    _entry = _cur or 1.0
+                    if _side == "LONG":
+                        _stop = _entry * 0.98
+                        _target = _entry * 1.04
+                    else:
+                        _stop = _entry * 1.02
+                        _target = _entry * 0.96
+                _rr = (abs(_target - _entry) / abs(_entry - _stop)
+                       if _entry != _stop else 0.0)
+                _stop_pct = (abs((_entry - _stop) / _entry * 100)
+                             if _entry else 0.0)
+                _risk_dollars = (pb_state["balance"]
+                                 * pb_state["risk_per_trade_pct"] / 100)
+                _qty = (_risk_dollars / abs(_entry - _stop)
+                        if _entry != _stop else 0.0)
+
+                st.markdown(
+                    f"**Suggested {_side} trade on {_sel.replace('USDT','')}**"
+                )
+                _color = "#2ed47a" if _side == "LONG" else "#ff5c5c"
+                st.markdown(
+                    f"<div style='background:{_color}14;border-left:3px solid "
+                    f"{_color};padding:8px 12px;border-radius:5px;"
+                    f"margin:4px 0 10px 0;font-size:0.86rem'>"
+                    f"Entry (market): <b>{fmt_price(_entry)}</b><br>"
+                    f"Stop: <b>{fmt_price(_stop)}</b> "
+                    f"({_stop_pct:.2f}% away)<br>"
+                    f"Target: <b>{fmt_price(_target)}</b> "
+                    f"({_rr:.2f}R)<br>"
+                    f"Position size: ~<b>{_qty:.6f} "
+                    f"{_sel.replace('USDT','')}</b> "
+                    f"(risk ${_risk_dollars:.2f})<br>"
+                    f"Suggested hold: <b>{_hold_horizon(timeframe)}</b> "
+                    f"(based on {timeframe} timeframe)</div>",
+                    unsafe_allow_html=True)
+
+                if st.button("📥 Open trade", use_container_width=True,
+                             type="primary", key="pb_open_btn"):
+                    _manual_alert = {
+                        "symbol": _sel,
+                        "base": _sel.replace("USDT", ""),
+                        "side": _side,
+                        "stop": _stop,
+                        "target": _target,
+                        "entry_low": _entry,
+                        "confidence": 0,
+                        "rr": _rr,
+                    }
+                    _opened = paper_bot.open_position(
+                        pb_state, _manual_alert, _entry)
+                    if _opened:
+                        _enrich_position(_opened, 0, timeframe,
+                                         label_override="Manual")
+                        paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                        st.toast(
+                            f"📥 Opened {_side} "
+                            f"{_opened['base']} @ "
+                            f"{fmt_price(_opened['entry'])}",
+                            icon="🧪")
+                        st.rerun()
+                    else:
+                        st.error(
+                            "Could not open — stop is on the wrong side "
+                            "of entry, or position already exists.")
+
+    with right_col:
+        # ---- 🤖 Bot's top picks — what the agent would open right now ---
+        st.markdown("### 🤖 Bot's top picks")
+        st.caption(
+            "Top long & short setups the agent sees right now — ranked by "
+            "confidence and how long they've been alive on the alerts "
+            "board (persistent setups are more trustworthy). Click 📥 to "
+            "open one with the same entry / stop / target the dashboard "
+            "shows.")
+
+        _open_syms = {p["symbol"] for p in pb_state["open"]}
+        _bot_picks = [s for s in auto_ad["setups"]
+                      if s["symbol"] not in _open_syms][:5]
+
+        if not _bot_picks:
+            st.info("No high-confidence setups for the agent to recommend "
+                    "right now. Watch the alerts strip or switch the "
+                    "timeframe.")
+        else:
+            for s in _bot_picks:
+                side = s["side"]
+                side_color = "#2ed47a" if side == "LONG" else "#ff5c5c"
+                conf = int(s.get("confidence", 0) or 0)
+                str_label, str_color = _strength_label(conf)
+                sid = f"{s['symbol']}:{side}"
+                alive_min = (now_ts - sp.get(sid, now_ts)) / 60.0
+                alive_txt = (f"alive {alive_min:.0f} min"
+                             if alive_min >= 1 else "just appeared")
+                hold = _hold_horizon(timeframe)
+                proof = (" · ".join(s.get("proof", [])[:2])
+                         if s.get("proof") else "multiple signals align")
+                rr = float(s.get("rr") or 0.0)
+                with st.container(border=True):
+                    pa, pb = st.columns([6, 1])
+                    pa.markdown(
+                        f"<div style='display:flex;align-items:center;"
+                        f"gap:8px;flex-wrap:wrap'>"
+                        f"<span style='font-weight:800;font-size:1rem'>"
+                        f"{s['base']}</span>"
+                        f"<span style='background:{side_color};color:#06121f;"
+                        f"padding:2px 10px;border-radius:5px;font-size:"
+                        f"0.72rem;font-weight:800'>{side}</span>"
+                        f"<span style='background:{str_color}33;"
+                        f"color:{str_color};padding:2px 8px;border-radius:"
+                        f"5px;font-size:0.72rem;font-weight:700'>"
+                        f"{str_label}</span>"
+                        f"<span style='color:#8b8d98;font-size:0.78rem'>"
+                        f"{conf}% confidence · R:R {rr:.1f} · "
+                        f"{alive_txt}</span></div>"
+                        f"<div style='color:#aab;font-size:0.78rem;"
+                        f"margin-top:4px'>"
+                        f"hold: <b>{hold}</b> · entry "
+                        f"{fmt_price(s.get('entry_low', 0))} · stop "
+                        f"{fmt_price(s.get('stop', 0))} · target "
+                        f"{fmt_price(s.get('target', 0))}</div>"
+                        f"<div style='color:#9aa0b4;font-size:0.78rem;"
+                        f"margin-top:2px'>proof — {md_safe(proof)}</div>",
+                        unsafe_allow_html=True)
+                    if pb.button("📥", key=f"pb_pick_{sid}",
+                                 help=f"Open this {side} {s['base']} trade",
+                                 use_container_width=True):
+                        _opened = paper_bot.open_position(
+                            pb_state, s,
+                            prices.get(s["symbol"])
+                            or s.get("entry_low"))
+                        if _opened:
+                            _enrich_position(_opened, conf, timeframe)
+                            paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                            st.toast(
+                                f"📥 Opened {side} {_opened['base']} @ "
+                                f"{fmt_price(_opened['entry'])}",
+                                icon="🧪")
+                            st.rerun()
+
+        st.divider()
+        st.markdown(f"### 📂 Open positions ({len(pb_state['open'])})")
+        if not pb_state["open"]:
+            st.info("No open positions. Use the panel on the left to open "
+                    "a trade, or toggle **Auto-trade** in Settings to let "
+                    "the bot trade alerts automatically.")
+        else:
+            for p in pb_state["open"]:
+                cur = prices.get(p["symbol"], p["entry"])
+                long = (p["side"] == "LONG")
+                entry_v = float(p["entry"])
+                stop_v = float(p["stop"])
+                target_v = float(p["target"])
+                unreal = ((cur - entry_v) if long
+                          else (entry_v - cur)) * p["qty"]
+                unreal_pct = (unreal / pb_state["balance"] * 100
+                              if pb_state["balance"] else 0.0)
+                color = "#2ed47a" if unreal >= 0 else "#ff5c5c"
+                # Health bar — 0 = stop hit, 50 = entry, 100 = target hit.
+                if long:
+                    if cur >= entry_v:
+                        prog = (((cur - entry_v) / (target_v - entry_v)
+                                 * 50 + 50)
+                                if target_v != entry_v else 50)
+                    else:
+                        prog = ((50 - (entry_v - cur) / (entry_v - stop_v)
+                                 * 50)
+                                if entry_v != stop_v else 50)
+                else:
+                    if cur <= entry_v:
+                        prog = (((entry_v - cur) / (entry_v - target_v)
+                                 * 50 + 50)
+                                if entry_v != target_v else 50)
+                    else:
+                        prog = ((50 - (cur - entry_v) / (stop_v - entry_v)
+                                 * 50)
+                                if stop_v != entry_v else 50)
+                health = int(max(0, min(100, prog)))
+                hold_txt = p.get("hold_horizon") or "—"
+                str_label = p.get("strength_label", "")
+                be_badge = (" · ✓ break-even"
+                            if p.get("break_even_set") else "")
+
+                with st.container(border=True):
+                    aa, bb, cc = st.columns([2.4, 1.6, 1])
+                    aa.markdown(
+                        f"**{p['base']}** "
+                        f"<span style='color:{'#2ed47a' if long else '#ff5c5c'};"
+                        f"font-weight:800'>{p['side']}</span>",
+                        unsafe_allow_html=True)
+                    aa.caption(
+                        f"Entry {fmt_price(entry_v)} · Stop "
+                        f"{fmt_price(stop_v)} · Target "
+                        f"{fmt_price(target_v)} · hold: {hold_txt}"
+                        + (f" · {str_label}" if str_label else "")
+                        + be_badge)
+                    bb.markdown(
+                        f"**{fmt_price(cur)}**  "
+                        f"<span style='color:{color};font-weight:800'>"
+                        f"({unreal_pct:+.2f}%)</span>",
+                        unsafe_allow_html=True)
+                    bb.caption(f"P&L ${unreal:+.2f}")
+                    if cc.button("Close",
+                                 key=f"pb_close_{p['symbol']}",
+                                 use_container_width=True):
+                        closed = paper_bot.close_position_at(
+                            pb_state, p["symbol"], cur, reason="manual")
+                        if closed:
+                            paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                            emoji = "✅" if closed["pnl_usd"] > 0 else "❌"
+                            st.toast(
+                                f"{emoji} Closed {closed['base']} · "
+                                f"{closed['pnl_pct']:+.2f}%", icon="🧪")
+                            st.rerun()
+                    st.progress(health, text=(
+                        f"🎯 {health}% toward target"
+                        if health >= 50
+                        else f"⚠️ {100 - health}% toward stop"))
+
+    st.divider()
 
     # ---- Equity curve ----------------------------------------------------
     if pb_state["closed"]:
@@ -3006,43 +3466,12 @@ with tab_bot:
                     c.get("exit_at", 0), tz=timezone.utc),
                 "Equity": round(bal, 2),
             })
-        st.markdown("#### Equity curve")
+        st.markdown("#### 📈 Equity curve")
         st.line_chart(pd.DataFrame(eq_rows).set_index("Time"),
                       use_container_width=True, height=240)
 
-    # ---- Open positions table --------------------------------------------
-    st.markdown(f"#### Open positions ({len(pb_state['open'])})")
-    if pb_state["open"]:
-        open_rows = []
-        for p in pb_state["open"]:
-            cur = prices.get(p["symbol"], p["entry"])
-            long = (p["side"] == "LONG")
-            unrealised = ((cur - p["entry"]) if long
-                          else (p["entry"] - cur)) * p["qty"]
-            open_rows.append({
-                "Coin": p["base"], "Side": p["side"],
-                "Entry": fmt_price(p["entry"]),
-                "Current": fmt_price(cur),
-                "Stop": fmt_price(p["stop"]),
-                "Target": fmt_price(p["target"]),
-                "Conf": p.get("confidence", 0),
-                "Unrealised $": round(unrealised, 2),
-                "Unrealised %": round(
-                    unrealised / pb_state["balance"] * 100, 2)
-                    if pb_state["balance"] else 0.0,
-            })
-        st.dataframe(pd.DataFrame(open_rows),
-                     use_container_width=True, hide_index=True)
-    else:
-        msg = ("Auto-trade is ON — new high-confidence alerts will open "
-               "positions automatically on the next refresh."
-               if auto_trade
-               else "Toggle **Auto-trade from alerts** above to start the "
-                    "bot, or come back when there is an alert to trade.")
-        st.info(msg)
-
     # ---- Closed trades history -------------------------------------------
-    st.markdown(f"#### Closed trades ({len(pb_state['closed'])})")
+    st.markdown(f"#### 📜 Closed trades ({len(pb_state['closed'])})")
     if pb_state["closed"]:
         cs_recent = sorted(pb_state["closed"],
                            key=lambda c: c.get("exit_at", 0),
@@ -3063,10 +3492,14 @@ with tab_bot:
         st.dataframe(pd.DataFrame(closed_rows),
                      use_container_width=True, hide_index=True)
     else:
-        st.caption("No closed trades yet — they will appear here once "
-                   "open positions hit a stop or a target.")
+        st.caption("No closed trades yet — they appear here once a position "
+                   "hits a stop, target, or you close it manually.")
 
     st.caption("Paper trading idealises execution — no slippage, fees or "
                "partial fills. Use it to gauge whether the signals tend to "
                "win in the current regime; real-money results will be a "
                "little worse. Educational only, not financial advice.")
+
+    # ---- Live mode — keep the bot actively managing positions ------------
+    if live_mode:
+        _inject_autorefresh(300)

@@ -43,6 +43,165 @@ def _band(score: float) -> str:
     return "Neutral"
 
 
+def _briefing(direction: str, confidence: int, drivers: list[dict],
+              flags: list[str], strategies: list[dict],
+              aligned_categories: int, total_categories: int,
+              btc_change_24h: float,
+              alt_change_24h_median: float) -> dict:
+    """Synthesise every input into a plain-English conclusion and concrete
+    next-step bullets — a desk briefing the user can read once and act on.
+
+    Returns {summary, conviction_note, next_steps}.
+    """
+    # ---- Picture of the market right now ---------------------------------
+    bulls = sorted((d for d in drivers if d["lean"] > 0.1),
+                   key=lambda d: -d["weight"])
+    bears = sorted((d for d in drivers if d["lean"] < -0.1),
+                   key=lambda d: -d["weight"])
+    bull_names = [d["force"] for d in bulls[:3]]
+    bear_names = [d["force"] for d in bears[:3]]
+
+    parts: list[str] = []
+
+    # Opening — the tape state, grounded in BTC vs alts numbers.
+    if btc_change_24h <= -3 and alt_change_24h_median <= -5:
+        parts.append("The market is bleeding red after a hard BTC drop, "
+                     "with alts down even more — the classic 'alts catch "
+                     "down to BTC' resolution playing out in real time.")
+    elif btc_change_24h >= 3 and alt_change_24h_median >= 1:
+        parts.append("BTC and the broader market are running higher "
+                     "together — risk-on tape with breadth across the board.")
+    elif btc_change_24h >= 2 and alt_change_24h_median < 0:
+        parts.append("BTC is leading the tape while alts lag — capital "
+                     "rotating INTO BTC, dominance rising.")
+    elif abs(btc_change_24h) < 1.5 and alt_change_24h_median >= 3:
+        parts.append("Alts are running while BTC consolidates — alt-season "
+                     "tone, but watch for BTC to move and drag the tape.")
+    elif btc_change_24h <= -1.5 and alt_change_24h_median > 0:
+        parts.append("BTC is dripping lower while alts hold up — fragile "
+                     "outperformance that usually does not last; alts "
+                     "tend to catch down.")
+
+    # Bull / bear case
+    if bull_names and bear_names:
+        parts.append(f"The bullish case rests on "
+                     f"{', '.join(bull_names).lower()}; the bearish case on "
+                     f"{', '.join(bear_names).lower()}.")
+    elif bull_names:
+        parts.append(f"Support is coming from "
+                     f"{', '.join(bull_names).lower()}, with no major "
+                     "bearish counter-driver.")
+    elif bear_names:
+        parts.append(f"Pressure is coming from "
+                     f"{', '.join(bear_names).lower()}, with little to "
+                     "push back.")
+
+    # Strategies firing
+    if strategies:
+        chart = ", ".join(
+            f"{s['name'].lower()} {s['direction'].lower()} on {s['tf']}"
+            for s in strategies[:3])
+        parts.append(f"On the chart: {chart}.")
+
+    if not parts:
+        parts.append("No major drivers are firing strongly in either "
+                     "direction right now.")
+
+    summary = " ".join(parts)
+
+    # ---- Conviction note -------------------------------------------------
+    if confidence >= 75:
+        conv = (f"Strong conviction — {aligned_categories}/"
+                f"{total_categories} categories agree across uncorrelated "
+                "lenses. Trust it.")
+    elif confidence >= 60:
+        conv = (f"Moderate conviction — {aligned_categories}/"
+                f"{total_categories} categories agree. Tradable, but size "
+                "normal or slightly smaller.")
+    elif confidence >= 40:
+        conv = (f"Modest conviction — only {aligned_categories}/"
+                f"{total_categories} categories agree. The tape is "
+                "conflicted; reduce size.")
+    else:
+        conv = (f"Low conviction — only {aligned_categories}/"
+                f"{total_categories} categories agree. Stand aside or "
+                "trade tiny.")
+
+    # ---- Next steps — actionable bullets ---------------------------------
+    steps: list[str] = []
+    if direction == "Up" and confidence >= 65:
+        steps.append("Lean LONG — buy strength on a shallow pullback (a "
+                     "retest of support or of a broken level); stop "
+                     "BELOW the nearest swing low; scale out into the "
+                     "targets.")
+        steps.append("Risk 1% per trade. Futures: moderate leverage "
+                     "(2-3x) on liquid majors. Spot: size by stop "
+                     "distance so a stop-out costs that 1%.")
+    elif direction == "Down" and confidence >= 65:
+        steps.append("Lean SHORT (futures) or DEFEND spot longs — short "
+                     "rallies into resistance, do not chase the lows; "
+                     "stop ABOVE the nearest swing high.")
+        steps.append("Trim alt exposure — alts amplify BTC moves on the "
+                     "way down. Spot: rotate to stables until the tape "
+                     "stabilises.")
+    elif direction == "Up":
+        steps.append("The upside has a slight edge but the read is "
+                     "mixed — trade SMALL (half-normal size) or wait "
+                     "for confluence to improve before sizing up.")
+    elif direction == "Down":
+        steps.append("The downside has a slight edge but the read is "
+                     "mixed — do NOT chase shorts; wait for a clean "
+                     "lower-high to fade, or trade SMALL.")
+    else:
+        steps.append("No clear directional edge — stand aside on "
+                     "directional trades. Range setups (buy support, "
+                     "sell resistance with tight stops) are the only "
+                     "play until the conflict resolves with a clean "
+                     "candle close in one direction.")
+
+    # Specific cautions derived from active flags.
+    flag_actions: list[str] = []
+    for f in flags:
+        fl = f.lower()
+        if "squeeze-down" in fl or "crowded longs" in fl:
+            flag_actions.append("Funding hot on longs — REDUCE LEVERAGE; "
+                                "squeeze-downs rip stops violently.")
+        elif "squeeze-up" in fl or "crowded shorts" in fl:
+            flag_actions.append("Crowded shorts — beware of a SQUEEZE-UP; "
+                                "tight stops on shorts, do not pyramid.")
+        elif "catch down" in fl:
+            flag_actions.append("Alt-vs-BTC divergence — TRIM alt size or "
+                                "HEDGE; alts usually follow BTC down.")
+        elif "extreme greed" in fl or "euphoria" in fl:
+            flag_actions.append("Extreme greed — take profit on existing "
+                                "longs; euphoria does not last.")
+        elif "extreme fear" in fl or "capitulation" in fl:
+            flag_actions.append("Extreme fear — start scaling IN at "
+                                "structure levels with TINY initial size; "
+                                "bottoms form during max fear.")
+        elif "overbought" in fl:
+            flag_actions.append("Daily overbought — wait for a pullback "
+                                "to the fast EMA before adding longs.")
+        elif "oversold" in fl:
+            flag_actions.append("Daily oversold — short here is late; "
+                                "the tape can bounce on any spark.")
+        elif "catalyst" in fl:
+            flag_actions.append("News catalyst flagged — expect volatile, "
+                                "two-way candles; size DOWN until the "
+                                "headline-driven move settles.")
+        elif "macro news" in fl:
+            flag_actions.append("Macro news is dragging risk one way — "
+                                "respect it even if charts disagree; "
+                                "size with the macro tape, not against it.")
+    # Dedupe while preserving order.
+    seen: set[str] = set()
+    flag_actions = [a for a in flag_actions
+                    if not (a in seen or seen.add(a))]
+    steps.extend(flag_actions[:3])
+
+    return {"summary": summary, "conviction_note": conv, "next_steps": steps}
+
+
 def _takeaway(direction: str, confidence: int, flags: list[str]) -> str:
     if direction == "Up":
         base = ("BTC LEANS UP over the next 24h — strong conviction."
@@ -407,6 +566,10 @@ def compute(btc_4h: dict | None, btc_1d: dict | None,
 
     expected_range_pct = float((btc_1d or {}).get("atr_pct") or 3.0)
 
+    briefing = _briefing(direction, int(confidence), drivers, flags,
+                         strategies, aligned_categories, len(cat_lean),
+                         btc_change_24h, alt_change_24h_median)
+
     return {
         "direction": direction,
         "bias_score": round(bias_score, 1),
@@ -418,4 +581,5 @@ def compute(btc_4h: dict | None, btc_1d: dict | None,
         "aligned_categories": aligned_categories,
         "total_categories": len(cat_lean),
         "strategies": strategies,
+        "briefing": briefing,
     }

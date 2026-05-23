@@ -23,12 +23,13 @@ import time
 from pathlib import Path
 
 DEFAULT_STATE = {
-    "balance": 10000.0,
-    "starting_balance": 10000.0,
+    "balance": 20000.0,
+    "starting_balance": 20000.0,
     "risk_per_trade_pct": 1.0,
     "open": [],
     "closed": [],
-    "version": 1,
+    "suggestion_persistence": {},   # {setup_id: first_seen_ts}
+    "version": 2,
 }
 
 
@@ -133,6 +134,23 @@ def evaluate(state: dict, prices: dict[str, float]) -> list[dict]:
             keep.append(pos)
             continue
         long = (pos["side"] == "LONG")
+
+        # Break-even auto-move: once the position is up by 1R (an amount
+        # equal to the original risk), push the stop to entry. From that
+        # point on the trade is a "free option" — it can target run with no
+        # downside. Move it ONCE and never widen.
+        if not pos.get("break_even_set"):
+            risk_per_unit = abs(pos["entry"] - pos["original_stop"]) \
+                if pos.get("original_stop") is not None else abs(
+                    pos["entry"] - pos["stop"])
+            gain_per_unit = ((price - pos["entry"]) if long
+                             else (pos["entry"] - price))
+            if risk_per_unit > 0 and gain_per_unit >= risk_per_unit:
+                # remember the original stop for analytics, then move to BE
+                pos.setdefault("original_stop", pos["stop"])
+                pos["stop"] = pos["entry"]
+                pos["break_even_set"] = True
+
         hit_stop = (price <= pos["stop"]) if long else (price >= pos["stop"])
         hit_target = ((price >= pos["target"]) if long
                       else (price <= pos["target"]))
@@ -159,6 +177,34 @@ def evaluate(state: dict, prices: dict[str, float]) -> list[dict]:
         just_closed.append(closed)
     state["open"] = keep
     return just_closed
+
+
+def close_position_at(state: dict, symbol: str, price: float,
+                      reason: str = "manual") -> dict | None:
+    """Close one specific open position at the given price (used for the
+    'Close' button in the Paper Trader UI). Returns the closed dict, or
+    None if the symbol has no matching open position."""
+    for i, p in enumerate(state["open"]):
+        if p["symbol"] != symbol:
+            continue
+        long = (p["side"] == "LONG")
+        pnl_per_unit = ((price - p["entry"]) if long
+                        else (p["entry"] - price))
+        pnl_usd = pnl_per_unit * p["qty"]
+        closed = dict(p)
+        closed.update({
+            "exit": float(price),
+            "exit_at": time.time(),
+            "exit_reason": reason,
+            "pnl_usd": round(pnl_usd, 2),
+            "pnl_pct": round(pnl_usd / state["balance"] * 100, 2)
+                       if state["balance"] else 0.0,
+        })
+        state["closed"].append(closed)
+        state["balance"] = round(state["balance"] + pnl_usd, 2)
+        state["open"].pop(i)
+        return closed
+    return None
 
 
 def stats(state: dict) -> dict:
