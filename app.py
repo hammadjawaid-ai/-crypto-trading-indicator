@@ -378,6 +378,43 @@ def load_derivatives(symbol: str, interval: str) -> dict | None:
     return derivatives.get_derivatives(symbol, interval)
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def htf_trend(symbol: str) -> str:
+    """Higher-timeframe (weekly) trend filter for a coin — 'Up' / 'Down'
+    / 'Sideways'. Genuinely INDEPENDENT of the per-TF scoring the
+    scanner and forecast already weight (those look at 15m / 1h / 4h,
+    never 1w). Trading WITH the weekly trend has materially better
+    statistics than fighting it, so the bot uses this to deprioritise
+    counter-trend setups and to refuse them in auto-mode.
+    """
+    try:
+        df = binance_client.get_klines(symbol, "1w")
+    except Exception:
+        return "Sideways"
+    if df is None or len(df) < 12:
+        return "Sideways"
+    close = df["close"]
+    ema_f = close.ewm(span=8,  adjust=False).mean()
+    ema_s = close.ewm(span=21, adjust=False).mean()
+    p, ef, es = float(close.iloc[-1]), float(ema_f.iloc[-1]), float(ema_s.iloc[-1])
+    ef_prev = float(ema_f.iloc[-2])
+    if p > ef > es and ef > ef_prev:
+        return "Up"
+    if p < ef < es and ef < ef_prev:
+        return "Down"
+    return "Sideways"
+
+
+def htf_alignment(side: str, trend: str) -> str:
+    """How the trade's side aligns with the weekly trend.
+    'aligned' / 'counter' / 'neutral'."""
+    if trend == "Up"   and side == "LONG":  return "aligned"
+    if trend == "Down" and side == "SHORT": return "aligned"
+    if trend == "Up"   and side == "SHORT": return "counter"
+    if trend == "Down" and side == "LONG":  return "counter"
+    return "neutral"
+
+
 @st.cache_data(ttl=5, show_spinner=False)
 def live_price(symbol: str) -> float | None:
     """Fast 5-second-cached live price for one symbol — used by the Paper
@@ -3450,16 +3487,25 @@ if active_section == "🧪 Paper Trader":
                if not _alert_merged.empty else {"setups": []})
     if auto_trade:
         for setup in auto_ad["setups"]:
-            if setup.get("confidence", 0) >= 70:
-                opened = paper_bot.open_position(
-                    pb_state, setup,
-                    prices.get(setup["symbol"]) or setup.get("entry_low"))
-                if opened:
-                    _enrich_position(opened,
-                                     setup.get("confidence", 0), timeframe)
-                    st.toast(
-                        f"📥 Auto-opened {opened['side']} {opened['base']} "
-                        f"@ {fmt_price(opened['entry'])}", icon="🧪")
+            _setup_conf = int(setup.get("confidence", 0) or 0)
+            if _setup_conf < 70:
+                continue
+            # Higher-TF trend filter — skip counter-trend setups unless the
+            # signal is very strong (>=85). Trading against the weekly
+            # trend has worse statistics than going with it.
+            _setup_trend = htf_trend(setup["symbol"])
+            _setup_align = htf_alignment(setup["side"], _setup_trend)
+            if _setup_align == "counter" and _setup_conf < 85:
+                continue
+            opened = paper_bot.open_position(
+                pb_state, setup,
+                prices.get(setup["symbol"]) or setup.get("entry_low"))
+            if opened:
+                _enrich_position(opened,
+                                 setup.get("confidence", 0), timeframe)
+                st.toast(
+                    f"📥 Auto-opened {opened['side']} {opened['base']} "
+                    f"@ {fmt_price(opened['entry'])}", icon="🧪")
 
     # ---- Track persistence of bot suggestions ----------------------------
     # An alert that stays on the board for many minutes is more trustworthy
@@ -3800,10 +3846,20 @@ if active_section == "🧪 Paper Trader":
         _all_picks = [s for s in auto_ad["setups"]
                       if s["symbol"] not in _open_syms]
         # Score every candidate then re-rank by the combined score.
-        _scored = [
-            (*_combined_score(s, _fc_by_sym.get(s["symbol"])), s)
-            for s in _all_picks
-        ]
+        # Score every candidate then re-rank by the combined score, with a
+        # weekly-trend bonus or penalty (with-trend = +5, counter = -8 — a
+        # small, honest tilt, not a confidence-inflating multiplier).
+        _scored = []
+        for s in _all_picks:
+            base, fc_label = _combined_score(
+                s, _fc_by_sym.get(s["symbol"]))
+            trend = htf_trend(s["symbol"])
+            align = htf_alignment(s["side"], trend)
+            if align == "aligned":
+                base += 5
+            elif align == "counter":
+                base -= 8
+            _scored.append((min(99.0, base), fc_label, trend, align, s))
         _scored.sort(key=lambda t: t[0], reverse=True)
         _bot_picks = _scored[:5]
 
@@ -3812,7 +3868,7 @@ if active_section == "🧪 Paper Trader":
                     "right now. Watch the alerts strip or switch the "
                     "timeframe.")
         else:
-            for combined, fc_label, s in _bot_picks:
+            for combined, fc_label, trend, align, s in _bot_picks:
                 side = s["side"]
                 side_color = "#2ed47a" if side == "LONG" else "#ff5c5c"
                 conf = int(s.get("confidence", 0) or 0)
@@ -3847,6 +3903,21 @@ if active_section == "🧪 Paper Trader":
                         f"padding:2px 8px;border-radius:5px;font-size:0.7rem;"
                         f"font-weight:700;margin-left:4px'>"
                         f"⚠ Forecast disagrees</span>")
+
+                # Higher-TF (weekly) trend chip — independent of forecast.
+                trend_chip = ""
+                if align == "aligned":
+                    trend_chip = (
+                        f"<span style='background:#2ed47a33;color:#2ed47a;"
+                        f"padding:2px 8px;border-radius:5px;font-size:0.7rem;"
+                        f"font-weight:700;margin-left:4px'>"
+                        f"✓ With 1w trend</span>")
+                elif align == "counter":
+                    trend_chip = (
+                        f"<span style='background:#ff5c5c33;color:#ff5c5c;"
+                        f"padding:2px 8px;border-radius:5px;font-size:0.7rem;"
+                        f"font-weight:700;margin-left:4px'>"
+                        f"⚠ Counter-trend (1w {trend.lower()})</span>")
 
                 # Forecast per-horizon line
                 fc_line = ""
@@ -3885,7 +3956,7 @@ if active_section == "🧪 Paper Trader":
                         f"color:{str_color};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:700'>"
                         f"{str_label} · {int(combined)}</span>"
-                        f"{fc_chip}"
+                        f"{fc_chip}{trend_chip}"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
                         f"scanner {conf}% · R:R {rr:.1f} · "
                         f"{alive_txt}</span></div>"
@@ -4489,25 +4560,49 @@ plus funding rate every 8 hours on open positions.
         for s in auto_ad["setups"]:
             if s["symbol"] in _open_syms_lt:
                 continue
+            # Higher-TF trend filter — real money is stricter than paper.
+            # Counter-trend setups are dropped entirely unless they pack a
+            # very high (>= 88) scanner confidence.
+            _lt_trend = htf_trend(s["symbol"])
+            _lt_align = htf_alignment(s["side"], _lt_trend)
+            if (_lt_align == "counter"
+                    and int(s.get("confidence", 0) or 0) < 88):
+                continue
             ok_pf, _, _prev = lb.preflight(lb_state, s,
                                             prices.get(s["symbol"])
                                             or s.get("entry_low"))
             if not ok_pf:
                 continue
-            _live_eligible.append((_prev["leverage"], s))
+            _live_eligible.append((_prev["leverage"], _lt_align, s))
         _live_eligible.sort(
-            key=lambda t: float(t[1].get("confidence") or 0),
+            key=lambda t: float(t[2].get("confidence") or 0),
             reverse=True)
 
         if not _live_eligible:
             st.info("No live-eligible setups right now. The agent is "
                     "watching; come back when something strong fires.")
         else:
-            for _lev, s in _live_eligible[:4]:
+            for _lev, _lt_align, s in _live_eligible[:4]:
                 side = s["side"]
                 side_col = "#2ed47a" if side == "LONG" else "#ff5c5c"
                 conf = int(s.get("confidence", 0) or 0)
                 str_label, str_col = _live_strength_label(conf)
+                # Trend alignment chip (real money never opens counter
+                # without conf >= 88, so 'counter' only reaches here when
+                # the signal is exceptionally strong).
+                if _lt_align == "aligned":
+                    _trend_chip = (
+                        f"<span style='background:#2ed47a33;color:#2ed47a;"
+                        f"padding:2px 8px;border-radius:5px;font-size:"
+                        f"0.7rem;font-weight:700'>✓ With 1w trend</span>")
+                elif _lt_align == "counter":
+                    _trend_chip = (
+                        f"<span style='background:#ff5c5c33;color:#ff5c5c;"
+                        f"padding:2px 8px;border-radius:5px;font-size:"
+                        f"0.7rem;font-weight:700'>"
+                        f"⚠ Counter-trend (high-conf)</span>")
+                else:
+                    _trend_chip = ""
                 with st.container(border=True):
                     aa, bb = st.columns([6, 1])
                     aa.markdown(
@@ -4522,6 +4617,7 @@ plus funding rate every 8 hours on open positions.
                         f"color:{str_col};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:700'>"
                         f"{str_label}</span>"
+                        f"{_trend_chip}"
                         f"<span style='color:#6e8bff;font-weight:700;"
                         f"font-size:0.78rem'>{_lev}× lev</span>"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
