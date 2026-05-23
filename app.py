@@ -3523,6 +3523,11 @@ if active_section == "🧪 Paper Trader":
             return setup
         # All criteria met — promote to TP2.
         promoted = dict(setup)
+        # Preserve the original TP1 so the card can display BOTH the
+        # milestone (TP1, the "ordinary" target) and the actual exit
+        # (TP2, the promoted target). Paper trader still closes at TP2.
+        promoted["first_target"] = float(setup["target"])
+        promoted["first_rr"] = float(setup.get("rr") or 0)
         promoted["target"] = float(tgt2)
         promoted["rr"] = float(setup.get("rr_2") or setup.get("rr") or 0)
         promoted["premium_hunt"] = True
@@ -3956,18 +3961,31 @@ if active_section == "🧪 Paper Trader":
                     s.get("entry_low") or 0)
                 _stop = float(s.get("stop") or 0)
                 _tgt = float(s.get("target") or 0)
+                # For PREMIUM HUNT picks, also compute live numbers for
+                # the TP1 milestone (the "first_target" preserved by
+                # _apply_premium_hunt) so the card can show BOTH targets
+                # — TP1 as the milestone, TP2 as the actual exit.
+                _tgt_1 = float(s.get("first_target") or 0)
                 _live_risk_pct = 0.0
                 _live_reward_pct = 0.0
                 _live_rr = 0.0
+                _live_reward_pct_1 = 0.0
+                _live_rr_1 = 0.0
                 if _cur and _stop and _tgt:
                     if side == "LONG":
                         _live_risk_pct = (_cur - _stop) / _cur * 100
                         _live_reward_pct = (_tgt - _cur) / _cur * 100
+                        if _tgt_1:
+                            _live_reward_pct_1 = (_tgt_1 - _cur) / _cur * 100
                     else:  # SHORT
                         _live_risk_pct = (_stop - _cur) / _cur * 100
                         _live_reward_pct = (_cur - _tgt) / _cur * 100
+                        if _tgt_1:
+                            _live_reward_pct_1 = (_cur - _tgt_1) / _cur * 100
                     if _live_risk_pct > 0:
                         _live_rr = _live_reward_pct / _live_risk_pct
+                        if _tgt_1:
+                            _live_rr_1 = _live_reward_pct_1 / _live_risk_pct
                 # Entry-zone chip — symmetric signal:
                 #   green "At entry zone" when live R:R >= 1.3 (you're
                 #     opening AT or near the planned pullback level, so
@@ -4102,10 +4120,26 @@ if active_section == "🧪 Paper Trader":
                         f"stop {fmt_price(_stop)} "
                         f"<span style='color:#ff5c5c'>"
                         f"(−{_live_risk_pct:.1f}%)</span> · "
-                        f"target {fmt_price(_tgt)} "
-                        f"<span style='color:#2ed47a'>"
-                        f"(+{_live_reward_pct:.1f}%)</span> · "
-                        f"live R:R <b>{_live_rr:.2f}</b></div>"
+                        # PREMIUM HUNT picks show BOTH TP1 (milestone)
+                        # and TP2 (active exit). Non-premium picks just
+                        # show the single target.
+                        + (
+                            f"target 1 {fmt_price(_tgt_1)} "
+                            f"<span style='color:#9aa0b4'>"
+                            f"(+{_live_reward_pct_1:.1f}%)</span> · "
+                            f"target 2 {fmt_price(_tgt)} "
+                            f"<span style='color:#2ed47a'>"
+                            f"(+{_live_reward_pct:.1f}%)</span> · "
+                            f"R:R "
+                            f"<b>{_live_rr_1:.2f}</b> "
+                            f"/ <b>{_live_rr:.2f}</b>"
+                            if s.get("premium_hunt") and _tgt_1 else
+                            f"target {fmt_price(_tgt)} "
+                            f"<span style='color:#2ed47a'>"
+                            f"(+{_live_reward_pct:.1f}%)</span> · "
+                            f"live R:R <b>{_live_rr:.2f}</b>"
+                        )
+                        + f"</div>"
                         f"<div style='color:#9aa0b4;font-size:0.78rem;"
                         f"margin-top:2px'>proof — {md_safe(proof)}</div>"
                         f"{fc_line}",
