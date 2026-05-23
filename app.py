@@ -3488,7 +3488,11 @@ if active_section == "🧪 Paper Trader":
     if auto_trade:
         for setup in auto_ad["setups"]:
             _setup_conf = int(setup.get("confidence", 0) or 0)
-            if _setup_conf < 70:
+            # Auto-trade floor matches CONF_ALERT (75) — anything weaker
+            # never makes the setups list anyway, but keep the explicit
+            # gate so a future CONF_ALERT change doesn't silently let
+            # weak setups auto-fire.
+            if _setup_conf < 75:
                 continue
             # Higher-TF trend filter — skip counter-trend setups unless the
             # signal is very strong (>=85). Trading against the weekly
@@ -3895,6 +3899,21 @@ if active_section == "🧪 Paper Trader":
                 rr = float(s.get("rr") or 0.0)
                 fc = _fc_by_sym.get(s["symbol"]) or {}
 
+                # 🏆 PREMIUM tier — scanner conf >= 80 AND forecast aligned
+                # 3/3. Empirically the most reliable setups; the badge
+                # exists so the user can spot them at a glance without
+                # reading the scores.
+                premium_chip = ""
+                if (conf >= 80
+                        and fc_label == "forecast confirms · aligned 3/3"):
+                    premium_chip = (
+                        f"<span style='background:linear-gradient(90deg,"
+                        f"#e0a92b,#ffd700);color:#1a1a1a;"
+                        f"padding:2px 10px;border-radius:5px;font-size:"
+                        f"0.72rem;font-weight:800;margin-left:4px;"
+                        f"box-shadow:0 0 8px #e0a92b66'>"
+                        f"🏆 PREMIUM</span>")
+
                 # Forecast confirmation chip
                 fc_chip = ""
                 if fc_label == "forecast confirms · aligned 3/3":
@@ -3967,7 +3986,7 @@ if active_section == "🧪 Paper Trader":
                         f"color:{str_color};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:700'>"
                         f"{str_label} · {int(combined)}</span>"
-                        f"{fc_chip}{reentry_chip}"
+                        f"{premium_chip}{fc_chip}{reentry_chip}"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
                         f"scanner {conf}% · R:R {rr:.1f} · "
                         f"{alive_txt}</span></div>"
@@ -4615,6 +4634,20 @@ plus funding rate every 8 hours on open positions.
             "very-strong setups suitable for real money. The Preview→"
             "Confirm flow applies even when auto-trade is ON for the "
             "first N trades.")
+        # Pull forecast info (cached) so the Premium badge can fire on
+        # setups where conf >= 80 AND forecast aligned 3/3 — empirically
+        # the most reliable tier for real money.
+        _fc_by_sym_lt: dict[str, dict] = {}
+        try:
+            _fc_tickers_lt = load_top_symbols(top_n)
+            _fc_syms_lt = tuple(_fc_tickers_lt["symbol"].head(40))
+            _fc_df_lt = forecast_market(_fc_syms_lt)
+            if _fc_df_lt is not None and not _fc_df_lt.empty:
+                _fc_by_sym_lt = {r["symbol"]: r.to_dict()
+                                 for _, r in _fc_df_lt.iterrows()}
+        except Exception:
+            pass
+
         _open_syms_lt = {p["symbol"] for p in lb_state["open"]}
         _live_eligible = []
         for s in auto_ad["setups"]:
@@ -4650,6 +4683,26 @@ plus funding rate every 8 hours on open positions.
                 # Weekly-trend alignment is enforced silently in the
                 # eligibility filter above (counter-trend rejected unless
                 # conf >= 88) — no visual chip needed on the card.
+
+                # 🏆 PREMIUM tier — conf >= 80 AND forecast aligned 3/3.
+                # Same definition as the Paper Trader so the elite tag
+                # means the same thing in both places.
+                _fc_lt = _fc_by_sym_lt.get(s["symbol"]) or {}
+                _fc_word_lt = _fc_lt.get("outlook_word")
+                _is_premium = (
+                    conf >= 80
+                    and bool(_fc_lt.get("aligned"))
+                    and ((side == "LONG" and _fc_word_lt == "Bullish")
+                         or (side == "SHORT" and _fc_word_lt == "Bearish")))
+                _premium_chip_lt = ""
+                if _is_premium:
+                    _premium_chip_lt = (
+                        f"<span style='background:linear-gradient(90deg,"
+                        f"#e0a92b,#ffd700);color:#1a1a1a;"
+                        f"padding:2px 10px;border-radius:5px;font-size:"
+                        f"0.72rem;font-weight:800;margin-left:4px;"
+                        f"box-shadow:0 0 8px #e0a92b66'>"
+                        f"🏆 PREMIUM</span>")
                 with st.container(border=True):
                     aa, bb = st.columns([6, 1])
                     aa.markdown(
@@ -4664,6 +4717,7 @@ plus funding rate every 8 hours on open positions.
                         f"color:{str_col};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:700'>"
                         f"{str_label}</span>"
+                        f"{_premium_chip_lt}"
                         f"<span style='color:#6e8bff;font-weight:700;"
                         f"font-size:0.78rem'>{_lev}× lev</span>"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
