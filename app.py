@@ -3819,7 +3819,12 @@ if active_section == "🧪 Paper Trader":
 
         def _combined_score(setup, fc):
             """Combined strength score: scanner confidence + forecast bonus
-            when the forecast confirms, minus a penalty when it disagrees."""
+            when the forecast confirms, minus a penalty when it disagrees.
+
+            Returns the RAW (uncapped) score — the caller caps to 99 for
+            display but uses the raw value for ranking, so a conf-85 setup
+            with full forecast boost (raw 113) ranks above a conf-72 setup
+            with the same boost (raw 100) instead of tying at 99."""
             score = float(setup.get("confidence") or 0)
             if not fc:
                 return score, "no forecast"
@@ -3844,15 +3849,17 @@ if active_section == "🧪 Paper Trader":
                 label = "forecast disagrees"
             else:
                 label = "forecast neutral"
-            return min(99.0, score), label
+            return score, label    # uncapped — caller decides what to do
 
         _open_syms = {p["symbol"] for p in pb_state["open"]}
         _all_picks = [s for s in auto_ad["setups"]
                       if s["symbol"] not in _open_syms]
-        # Score every candidate then re-rank by the combined score.
         # Score every candidate then re-rank by the combined score, with a
         # weekly-trend bonus or penalty (with-trend = +5, counter = -8 — a
         # small, honest tilt, not a confidence-inflating multiplier).
+        # IMPORTANT: store the RAW score (uncapped) so an excellent setup
+        # truly ranks above a merely good one when both would otherwise
+        # cap at 99. Display caps to 99 separately for the chip text.
         _scored = []
         for s in _all_picks:
             base, fc_label = _combined_score(
@@ -3863,7 +3870,7 @@ if active_section == "🧪 Paper Trader":
                 base += 5
             elif align == "counter":
                 base -= 8
-            _scored.append((min(99.0, base), fc_label, trend, align, s))
+            _scored.append((base, fc_label, trend, align, s))
         _scored.sort(key=lambda t: t[0], reverse=True)
         # Widened from 5 to 8 — more coverage for fast movers the bot would
         # otherwise drop off the bottom of the list, with no loss of pick
@@ -3888,7 +3895,12 @@ if active_section == "🧪 Paper Trader":
                 side = s["side"]
                 side_color = "#2ed47a" if side == "LONG" else "#ff5c5c"
                 conf = int(s.get("confidence", 0) or 0)
-                str_label, str_color = _strength_label(int(combined))
+                # Cap to 99 for the visible chip — the raw (uncapped)
+                # value above already did its job in the sort, so the
+                # truly excellent setup is at the top of the list. The
+                # chip text just keeps the UI within 0-99.
+                combined_display = int(min(99, max(0, combined)))
+                str_label, str_color = _strength_label(combined_display)
                 sid = f"{s['symbol']}:{side}"
                 alive_min = (now_ts - sp.get(sid, now_ts)) / 60.0
                 alive_txt = (f"alive {alive_min:.0f} min"
@@ -3985,7 +3997,7 @@ if active_section == "🧪 Paper Trader":
                         f"<span style='background:{str_color}33;"
                         f"color:{str_color};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:700'>"
-                        f"{str_label} · {int(combined)}</span>"
+                        f"{str_label} · {combined_display}</span>"
                         f"{premium_chip}{fc_chip}{reentry_chip}"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
                         f"scanner {conf}% · R:R {rr:.1f} · "
@@ -4008,7 +4020,7 @@ if active_section == "🧪 Paper Trader":
                             prices.get(s["symbol"])
                             or s.get("entry_low"))
                         if _opened:
-                            _enrich_position(_opened, int(combined),
+                            _enrich_position(_opened, combined_display,
                                              timeframe)
                             paper_bot.save_state(PAPER_BOT_FILE, pb_state)
                             st.toast(
