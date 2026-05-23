@@ -3802,8 +3802,8 @@ if active_section == "🧪 Paper Trader":
             "alert with the Forecast tab's multi-horizon read. A setup "
             "where the Scanner AND the Forecast agree across all three "
             "horizons scores highest. Each card shows the LIVE risk/"
-            "reward you would get if you opened RIGHT NOW (vs the "
-            "plan's R:R, which assumes a pullback to entry zone). A "
+            "reward you would get if you opened RIGHT NOW. A green "
+            "✓ chip means you're AT the entry zone (math intact). A "
             "red ⚠ chip means the entry zone has passed — you'd be "
             "chasing. Click 📥 to open one.")
 
@@ -3927,10 +3927,22 @@ if active_section == "🧪 Paper Trader":
                         _live_reward_pct = (_cur - _tgt) / _cur * 100
                     if _live_risk_pct > 0:
                         _live_rr = _live_reward_pct / _live_risk_pct
-                # Warning chip when the entry zone has been passed and
-                # R:R has degraded below 1.2 — opening here is chasing.
+                # Entry-zone chip — symmetric signal:
+                #   green "At entry zone" when live R:R >= 1.3 (you're
+                #     opening AT or near the planned pullback level, so
+                #     the math from the plan is intact),
+                #   red "Entry zone passed" when live R:R < 1.2 (price
+                #     has drifted, you'd be chasing),
+                #   nothing in the grey 1.2-1.3 band (borderline).
                 _drift_chip = ""
-                if 0 < _live_rr < 1.2:
+                if _live_rr >= 1.3:
+                    _drift_chip = (
+                        f"<span style='background:#2ed47a33;color:#2ed47a;"
+                        f"padding:2px 8px;border-radius:5px;font-size:"
+                        f"0.7rem;font-weight:700;margin-left:4px'>"
+                        f"✓ At entry zone · live R:R {_live_rr:.2f}"
+                        f"</span>")
+                elif 0 < _live_rr < 1.2:
                     _drift_chip = (
                         f"<span style='background:#ff5c5c33;color:#ff5c5c;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
