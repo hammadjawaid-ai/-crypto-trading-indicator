@@ -3543,17 +3543,31 @@ if active_section == "🧪 Paper Trader":
             _setup_align = htf_alignment(setup["side"], _setup_trend)
             if _setup_align == "counter" and _setup_conf < 85:
                 continue
-            # Default to TP1 for ALL setups (PREMIUM picks now opt-in to
-            # TP2 only via the explicit button on the card, not auto).
+            # Default to TP1 for all setups. PREMIUM-eligible setups
+            # ADDITIONALLY get the chase-TP2 trailing — if price hits
+            # TP1, the stop moves up to TP1 (locking in the win) and
+            # the target extends to TP2 so the trade can ride further
+            # when the trend is still strong. Strictly better than
+            # fixed TP1 — never worse, sometimes +1R better.
+            _setup_for_open = _mark_premium(setup)
+            if _setup_for_open.get("premium_eligible"):
+                _setup_for_open = dict(_setup_for_open)
+                _setup_for_open["chase_tp2_eligible"] = True
             opened = paper_bot.open_position(
-                pb_state, setup,
+                pb_state, _setup_for_open,
                 prices.get(setup["symbol"]) or setup.get("entry_low"))
             if opened:
                 _enrich_position(opened,
                                  setup.get("confidence", 0), timeframe)
+                _icon = ("🏆" if _setup_for_open.get("chase_tp2_eligible")
+                         else "🧪")
                 st.toast(
                     f"📥 Auto-opened {opened['side']} {opened['base']} "
-                    f"@ {fmt_price(opened['entry'])}", icon="🧪")
+                    f"@ {fmt_price(opened['entry'])}"
+                    + (" → TP1 (chase TP2 active)"
+                       if _setup_for_open.get("chase_tp2_eligible")
+                       else ""),
+                    icon=_icon)
 
     # ---- Track persistence of bot suggestions ----------------------------
     # An alert that stays on the board for many minutes is more trustworthy
@@ -3843,19 +3857,19 @@ if active_section == "🧪 Paper Trader":
         st.caption(
             "Strongest long & short setups the agent sees right now, "
             "ranked by a COMBINED signal that fuses the Market Scanner "
-            "alert with the Forecast tab's multi-horizon read. Floor "
-            "is combined ≥ 72. Counter-trend, forecast-disagree, and "
-            "re-run setups stay visible — a clean setup can still hit "
-            "target even when one engine flags against, so the user "
-            "judges per pick. Each card shows the LIVE risk/reward "
-            "from current price; green ✓ chip means you're at the "
-            "entry zone (math from the plan intact). No chip just "
-            "means the setup is past the entry — still tradeable, "
-            "just check the live R:R number in the details line. "
-            "📥 opens at **TP1 (~5-7%)** — the default for every "
-            "setup. 🏆 PREMIUM-eligible cards (conf ≥ 80 + forecast "
-            "3/3) get a second 🏆 TP2 button for the deeper ~7.5-10% "
-            "target on truly elite setups.")
+            "alert + Forecast multi-horizon read + Weekly trend + BTC "
+            "24h Outlook + Move maturity. Floor is combined ≥ 72. "
+            "Each card shows the LIVE risk/reward from current price. "
+            "📥 opens at **TP1 (~5-7%)** — the default exit. "
+            "**On 🏆 PREMIUM cards** (conf ≥ 80 + forecast 3/3) the "
+            "📥 button also activates **chase-TP2**: if price hits "
+            "TP1 the stop trails up to TP1 (locking in the win) and "
+            "the target extends to TP2 (~7.5-10%) so the trade rides "
+            "remaining momentum. If the trend dies after TP1 you "
+            "still bank TP1 — never worse than the plain plan, "
+            "sometimes +1R better. The optional 🏆 TP2 button skips "
+            "TP1 entirely and aims for TP2 with the original stop "
+            "(higher reward, higher risk).")
 
         # _fc_by_sym was built earlier (right after auto_ad) and is shared
         # with the auto-trade loop, so no additional forecast call here.
@@ -4189,22 +4203,37 @@ if active_section == "🧪 Paper Trader":
                         f"{fc_line}",
                         unsafe_allow_html=True)
                     # Default button — opens at TP1 (the standard target).
+                    # On PREMIUM-eligible setups it also activates the
+                    # chase-TP2 trailing: if price hits TP1 the stop
+                    # trails up to lock in the win and the target
+                    # extends to TP2 so the trade rides momentum.
+                    _btn_help = (f"Open {side} {s['base']} at TP1 "
+                                 f"(~5-7%, chase TP2 if trend holds)"
+                                 if s.get("premium_eligible") else
+                                 f"Open {side} {s['base']} at TP1 (~5-7%)")
                     if pb.button("📥", key=f"pb_pick_{sid}",
-                                 help=f"Open {side} {s['base']} at TP1 "
-                                      f"(~5-7%)",
+                                 help=_btn_help,
                                  use_container_width=True):
+                        _open_setup = dict(s)
+                        if s.get("premium_eligible"):
+                            _open_setup["chase_tp2_eligible"] = True
                         _opened = paper_bot.open_position(
-                            pb_state, s,
+                            pb_state, _open_setup,
                             prices.get(s["symbol"])
                             or s.get("entry_low"))
                         if _opened:
                             _enrich_position(_opened, combined_display,
                                              timeframe)
                             paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                            _msg_suffix = (
+                                " → TP1 · chases TP2"
+                                if s.get("premium_eligible") else
+                                " → TP1")
                             st.toast(
                                 f"📥 Opened {side} {_opened['base']} @ "
-                                f"{fmt_price(_opened['entry'])} → TP1",
-                                icon="🧪")
+                                f"{fmt_price(_opened['entry'])}{_msg_suffix}",
+                                icon="🏆" if s.get("premium_eligible")
+                                     else "🧪")
                             st.rerun()
                     # Optional TP2 button — only on PREMIUM-eligible cards.
                     # Opens the same setup but with the target swapped to

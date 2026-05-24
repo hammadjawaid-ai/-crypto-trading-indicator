@@ -179,6 +179,14 @@ def open_position(state: dict, alert: dict,
                    entry, float(stop))
     if qty <= 0:
         return None
+    # Chase-TP2 fields — only populated when the alert flags the position
+    # as eligible (PREMIUM tier on the dashboard). When set, the trade
+    # opens aiming for TP1 (`target`) but if price hits TP1 the
+    # `evaluate()` step will move the stop to TP1 (locking in the win)
+    # and extend the target to TP2 — riding the remaining momentum
+    # without ever giving back the TP1 capture.
+    target_2 = alert.get("target_2")
+    chase_eligible = bool(alert.get("chase_tp2_eligible"))
     pos = {
         "symbol": sym,
         "base": alert.get("base") or sym.replace("USDT", ""),
@@ -186,6 +194,8 @@ def open_position(state: dict, alert: dict,
         "entry": float(entry),
         "stop": float(stop),
         "target": float(target),
+        "target_2": float(target_2) if target_2 else 0.0,
+        "chase_tp2_eligible": chase_eligible,
         "qty": float(qty),
         "opened_at": time.time(),
         "confidence": int(alert.get("confidence", 0) or 0),
@@ -225,6 +235,39 @@ def evaluate(state: dict, prices: dict[str, float]) -> list[dict]:
                 pos.setdefault("original_stop", pos["stop"])
                 pos["stop"] = pos["entry"]
                 pos["break_even_set"] = True
+
+        # Chase-TP2 trailing logic — fires once when price reaches TP1 on
+        # a PREMIUM-eligible position. Locks in the TP1 win by moving the
+        # stop UP to TP1, then extends the target to TP2 so price can
+        # keep running. If trend continues, position closes at TP2
+        # (+1R extra). If trend dies, price retraces to the new stop and
+        # position closes at TP1 (same as the plain TP1 plan). Strictly
+        # better than fixed TP1 — zero downside scenario.
+        _chase_just_fired = False
+        if (pos.get("chase_tp2_eligible")
+                and not pos.get("chasing_tp2")
+                and pos.get("target_2")):
+            tp1_value = pos.get("original_target") or pos["target"]
+            hit_tp1 = ((price >= tp1_value) if long
+                       else (price <= tp1_value))
+            if hit_tp1:
+                # Remember the original TP1 for the closed-trade log.
+                pos.setdefault("original_target", float(tp1_value))
+                # Move stop to TP1 (lock in the +1.5R win) and extend
+                # target to TP2. If price retraces from here, we exit
+                # at TP1 instead of break-even — strictly better.
+                pos["stop"] = float(tp1_value)
+                pos["target"] = float(pos["target_2"])
+                pos["chasing_tp2"] = True
+                _chase_just_fired = True
+
+        # When chase upgrade just fired, the new stop equals current price
+        # so the stop check below would immediately close. Skip this
+        # tick's close evaluation — the position transitions cleanly
+        # into chase mode and the next tick decides the exit.
+        if _chase_just_fired:
+            keep.append(pos)
+            continue
 
         hit_stop = (price <= pos["stop"]) if long else (price >= pos["stop"])
         hit_target = ((price >= pos["target"]) if long
