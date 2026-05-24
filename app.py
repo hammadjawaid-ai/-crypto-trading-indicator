@@ -3843,17 +3843,19 @@ if active_section == "🧪 Paper Trader":
         st.caption(
             "Strongest long & short setups the agent sees right now, "
             "ranked by a COMBINED signal that fuses the Market Scanner "
-            "alert with the Forecast tab's multi-horizon read. **Only "
-            "Strong+ (combined ≥ 75) shown** — Moderate-tier picks "
-            "hidden to reduce reversal noise. Counter-trend and "
-            "forecast-disagree setups still appear when they clear the "
-            "score floor (the scoring naturally pushes them lower). "
-            "Each card shows the LIVE risk/reward from current price. "
-            "Green ✓ chip = at entry zone; red ⚠ chip = entry passed. "
+            "alert with the Forecast tab's multi-horizon read. Floor "
+            "is combined ≥ 72. Counter-trend, forecast-disagree, and "
+            "re-run setups stay visible — a clean setup can still hit "
+            "target even when one engine flags against, so the user "
+            "judges per pick. Each card shows the LIVE risk/reward "
+            "from current price; green ✓ chip means you're at the "
+            "entry zone (math from the plan intact). No chip just "
+            "means the setup is past the entry — still tradeable, "
+            "just check the live R:R number in the details line. "
             "📥 opens at **TP1 (~5-7%)** — the default for every "
             "setup. 🏆 PREMIUM-eligible cards (conf ≥ 80 + forecast "
-            "3/3) get a second 🏆 TP2 button — opt-in for the deeper "
-            "~7.5-10% target if you want to ride strong setups further.")
+            "3/3) get a second 🏆 TP2 button for the deeper ~7.5-10% "
+            "target on truly elite setups.")
 
         # _fc_by_sym was built earlier (right after auto_ad) and is shared
         # with the auto-trade loop, so no additional forecast call here.
@@ -3916,14 +3918,14 @@ if active_section == "🧪 Paper Trader":
                 base -= 8
             _scored.append((base, fc_label, trend, align, s))
         _scored.sort(key=lambda t: t[0], reverse=True)
-        # Quality floor (added 2026-05-25 per user feedback): combined
-        # score must be >= 75 (Strong+ tier, removes Moderate and weak
-        # Strong picks that were causing reversal noise). Counter-trend
-        # and forecast-disagree setups STAY VISIBLE — the existing
-        # scoring (-8 counter, -8 disagree) already pushes them down
-        # the list naturally, so the user still sees them but they
-        # rarely take the top slots.
-        _scored = [t for t in _scored if t[0] >= 75]
+        # Quality floor: combined score >= 72 (matches the alert floor
+        # CONF_ALERT=72). Counter-trend, forecast-disagree, and re-run
+        # setups stay visible — the existing scoring (-8 counter, -8
+        # disagree) already pushes them down the list naturally, and
+        # the user has explicitly said they want to see them since a
+        # clean setup can still hit target even when one engine flags
+        # against. Trust the ranking; cleaner picks rise to the top.
+        _scored = [t for t in _scored if t[0] >= 72]
         _bot_picks = _scored[:8]
 
         # Re-entry detection — if a coin you JUST closed (within 60 min) is
@@ -3985,13 +3987,15 @@ if active_section == "🧪 Paper Trader":
                         _live_rr = _live_reward_pct / _live_risk_pct
                         if _show_tp2:
                             _live_rr_2 = _live_reward_pct_2 / _live_risk_pct
-                # Entry-zone chip — symmetric signal:
-                #   green "At entry zone" when live R:R >= 1.3 (you're
-                #     opening AT or near the planned pullback level, so
-                #     the math from the plan is intact),
-                #   red "Entry zone passed" when live R:R < 1.2 (price
-                #     has drifted, you'd be chasing),
-                #   nothing in the grey 1.2-1.3 band (borderline).
+                # Entry-zone chip — positive signal only.
+                # Green "At entry zone" when live R:R >= 1.3 confirms the
+                # math from the plan is intact. We no longer mark
+                # "entry zone passed" with a red chip — per user
+                # feedback (2026-05-25), a setup that has moved past
+                # the entry zone can still hit target if the rest of
+                # the data is clean. The user judges per pick using
+                # the live R:R number shown in the details line, not a
+                # binary chip. No chip = no opinion; user decides.
                 _drift_chip = ""
                 if _live_rr >= 1.3:
                     _drift_chip = (
@@ -3999,13 +4003,6 @@ if active_section == "🧪 Paper Trader":
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
                         f"✓ At entry zone · live R:R {_live_rr:.2f}"
-                        f"</span>")
-                elif 0 < _live_rr < 1.2:
-                    _drift_chip = (
-                        f"<span style='background:#ff5c5c33;color:#ff5c5c;"
-                        f"padding:2px 8px;border-radius:5px;font-size:"
-                        f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"⚠ Entry zone passed · live R:R {_live_rr:.2f}"
                         f"</span>")
                 sid = f"{s['symbol']}:{side}"
                 alive_min = (now_ts - sp.get(sid, now_ts)) / 60.0
