@@ -74,6 +74,10 @@ def build_alerts(merged: pd.DataFrame, timeframe: str) -> dict:
                 "target_3": plan.get("take_profit_3"),
                 "rr_3": plan.get("risk_reward_3", 0.0) or 0.0,
                 "regime": row.get("regime", ""),
+                # Move maturity (EARLY / RE-RUN / EXTENDED) — used by
+                # the picks board to boost early setups and penalise
+                # extended ones (price has already run too far).
+                "maturity": plan.get("maturity") or {},
             })
 
         vr = row.get("vol_ratio")

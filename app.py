@@ -3900,6 +3900,25 @@ if active_section == "🧪 Paper Trader":
         # button). Target is NOT promoted here — TP1 stays the default.
         _all_picks = [_mark_premium(s) for s in auto_ad["setups"]
                       if s["symbol"] not in _open_syms]
+
+        # Pull the BTC 24h outlook once for the macro-context tilt.
+        # Calls hit the underlying caches so this is near-free even
+        # though the function isn't memoised itself. When BTC's read
+        # is strongly directional, alt longs/shorts that align with it
+        # have a measurably higher win rate (real edge — the macro tide
+        # matters more for alts than any single coin's technicals).
+        _picks_btc: dict = {}
+        try:
+            _picks_btc = btc_outlook_now(_btc_change, _alt_median)
+        except Exception:
+            _picks_btc = {}
+        _btc_dir = (_picks_btc.get("direction") or "").lower()
+        _btc_conf = float(_picks_btc.get("confidence") or 0)
+        # Only apply the tilt when BTC outlook has real conviction
+        # (confidence >= 60). A weak / neutral outlook stays neutral.
+        _btc_tilt_active = _btc_conf >= 60 and _btc_dir in (
+            "bullish", "bearish")
+
         # Score every candidate then re-rank by the combined score, with a
         # weekly-trend bonus or penalty (with-trend = +5, counter = -8 — a
         # small, honest tilt, not a confidence-inflating multiplier).
@@ -3916,6 +3935,37 @@ if active_section == "🧪 Paper Trader":
                 base += 5
             elif align == "counter":
                 base -= 8
+
+            # --- BTC 24h Outlook tilt (macro context, independent edge) -
+            # When BTC has a high-conviction directional view, alt
+            # setups aligning with it are more reliable. Tilt is small
+            # and capped: +4 aligned, -4 against, 0 neutral.
+            if _btc_tilt_active:
+                side = s.get("side")
+                btc_aligned = (
+                    (_btc_dir == "bullish" and side == "LONG")
+                    or (_btc_dir == "bearish" and side == "SHORT"))
+                btc_opposed = (
+                    (_btc_dir == "bullish" and side == "SHORT")
+                    or (_btc_dir == "bearish" and side == "LONG"))
+                if btc_aligned:
+                    base += 4
+                elif btc_opposed:
+                    base -= 4
+
+            # --- Move maturity tilt (room-to-run, independent edge) ----
+            # EARLY  = +6 (move just started, full room to target)
+            # RE-RUN = 0  (continuation setup, partial room)
+            # EXTENDED = -10 (move already extended, less room to run,
+            #                more likely to reverse — what the user is
+            #                experiencing on the trades that reverse).
+            _mat = (s.get("maturity") or {})
+            _mat_label = str(_mat.get("label") or "").upper()
+            if _mat_label == "EARLY":
+                base += 6
+            elif _mat_label == "EXTENDED":
+                base -= 10
+
             _scored.append((base, fc_label, trend, align, s))
         _scored.sort(key=lambda t: t[0], reverse=True)
         # Quality floor: combined score >= 72 (matches the alert floor
