@@ -3860,16 +3860,18 @@ if active_section == "🧪 Paper Trader":
             "alert + Forecast multi-horizon read + Weekly trend + BTC "
             "24h Outlook + Move maturity. Floor is combined ≥ 72. "
             "Each card shows the LIVE risk/reward from current price. "
+            "Green ✓ chip = price is at the entry zone (math intact). "
+            "Red ⚠ chip = price has drifted past the entry zone (live "
+            "R:R degraded — still tradeable on clean setups, just "
+            "check the live R:R number before clicking). "
             "📥 opens at **TP1 (~5-7%)** — the default exit. "
             "**On 🏆 PREMIUM cards** (conf ≥ 80 + forecast 3/3) the "
             "📥 button also activates **chase-TP2**: if price hits "
             "TP1 the stop trails up to TP1 (locking in the win) and "
             "the target extends to TP2 (~7.5-10%) so the trade rides "
-            "remaining momentum. If the trend dies after TP1 you "
-            "still bank TP1 — never worse than the plain plan, "
-            "sometimes +1R better. The optional 🏆 TP2 button skips "
-            "TP1 entirely and aims for TP2 with the original stop "
-            "(higher reward, higher risk).")
+            "remaining momentum. If trend dies after TP1 you still "
+            "bank TP1 — never worse than the plain plan, sometimes "
+            "+1R better.")
 
         # _fc_by_sym was built earlier (right after auto_ad) and is shared
         # with the auto-trade loop, so no additional forecast call here.
@@ -4051,15 +4053,18 @@ if active_section == "🧪 Paper Trader":
                         _live_rr = _live_reward_pct / _live_risk_pct
                         if _show_tp2:
                             _live_rr_2 = _live_reward_pct_2 / _live_risk_pct
-                # Entry-zone chip — positive signal only.
-                # Green "At entry zone" when live R:R >= 1.3 confirms the
-                # math from the plan is intact. We no longer mark
-                # "entry zone passed" with a red chip — per user
-                # feedback (2026-05-25), a setup that has moved past
-                # the entry zone can still hit target if the rest of
-                # the data is clean. The user judges per pick using
-                # the live R:R number shown in the details line, not a
-                # binary chip. No chip = no opinion; user decides.
+                # Entry-zone chip — symmetric signal (user asked for the
+                # red marker back, 2026-05-25 second pass — makes the
+                # state immediately scannable on a card).
+                #   Green "At entry zone" when live R:R >= 1.3 means the
+                #     math from the plan is intact: open here = the R:R
+                #     you see on the card.
+                #   Red "Entry zone passed" when live R:R < 1.2 means
+                #     price has drifted past the planned entry and the
+                #     live R:R is degraded. NOT a "don't trade" — the
+                #     setup can still profit if the rest of the data is
+                #     clean — just a heads-up to check the live R:R
+                #     number before clicking.
                 _drift_chip = ""
                 if _live_rr >= 1.3:
                     _drift_chip = (
@@ -4067,6 +4072,13 @@ if active_section == "🧪 Paper Trader":
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
                         f"✓ At entry zone · live R:R {_live_rr:.2f}"
+                        f"</span>")
+                elif 0 < _live_rr < 1.2:
+                    _drift_chip = (
+                        f"<span style='background:#ff5c5c33;color:#ff5c5c;"
+                        f"padding:2px 8px;border-radius:5px;font-size:"
+                        f"0.7rem;font-weight:700;margin-left:4px'>"
+                        f"⚠ Entry zone passed · live R:R {_live_rr:.2f}"
                         f"</span>")
                 sid = f"{s['symbol']}:{side}"
                 alive_min = (now_ts - sp.get(sid, now_ts)) / 60.0
