@@ -3500,14 +3500,16 @@ if active_section == "🧪 Paper Trader":
     except Exception:
         pass
 
-    def _apply_premium_hunt(setup: dict) -> dict:
-        """PREMIUM HUNT — when a setup hits the elite tier (conf >= 80
-        AND multi-horizon forecast aligned 3/3 AND direction matches
-        the setup side), promote it to TP2 (2.5R, ~7.5-10%) instead of
-        the default TP1 (1.5R, ~5-7%). Strong setups statistically run
-        further before reversing so the deeper target is the correct
-        expected-value choice on these specifically. Non-premium setups
-        are returned unchanged so the default TP1 still applies."""
+    def _mark_premium(setup: dict) -> dict:
+        """Mark setups that QUALIFY for PREMIUM (conf >= 80 + forecast
+        aligned 3/3 + direction matches). Does NOT change the target —
+        paper trader defaults to TP1 for ALL setups. The mark just lets
+        the card render a second "🏆 TP2" button as an OPT-IN deeper
+        target the user can click when they explicitly want it.
+
+        Per user feedback 2026-05-25: auto-promoting to TP2 caused too
+        many reversals before exit. TP1 stays the default; TP2 becomes
+        an explicit choice on the card."""
         conf = int(setup.get("confidence", 0) or 0)
         tgt2 = setup.get("target_2")
         if conf < 80 or not tgt2:
@@ -3521,17 +3523,9 @@ if active_section == "🧪 Paper Trader":
                     or (side == "SHORT" and word == "Bearish"))
         if not confirms:
             return setup
-        # All criteria met — promote to TP2.
-        promoted = dict(setup)
-        # Preserve the original TP1 so the card can display BOTH the
-        # milestone (TP1, the "ordinary" target) and the actual exit
-        # (TP2, the promoted target). Paper trader still closes at TP2.
-        promoted["first_target"] = float(setup["target"])
-        promoted["first_rr"] = float(setup.get("rr") or 0)
-        promoted["target"] = float(tgt2)
-        promoted["rr"] = float(setup.get("rr_2") or setup.get("rr") or 0)
-        promoted["premium_hunt"] = True
-        return promoted
+        marked = dict(setup)
+        marked["premium_eligible"] = True   # for the 🏆 TP2 button + chip
+        return marked
 
     if auto_trade:
         for setup in auto_ad["setups"]:
@@ -3549,18 +3543,17 @@ if active_section == "🧪 Paper Trader":
             _setup_align = htf_alignment(setup["side"], _setup_trend)
             if _setup_align == "counter" and _setup_conf < 85:
                 continue
-            # PREMIUM HUNT — strong setups get TP2.
-            _open_setup = _apply_premium_hunt(setup)
+            # Default to TP1 for ALL setups (PREMIUM picks now opt-in to
+            # TP2 only via the explicit button on the card, not auto).
             opened = paper_bot.open_position(
-                pb_state, _open_setup,
+                pb_state, setup,
                 prices.get(setup["symbol"]) or setup.get("entry_low"))
             if opened:
                 _enrich_position(opened,
                                  setup.get("confidence", 0), timeframe)
-                _icon = "🏆" if _open_setup.get("premium_hunt") else "🧪"
                 st.toast(
                     f"📥 Auto-opened {opened['side']} {opened['base']} "
-                    f"@ {fmt_price(opened['entry'])}", icon=_icon)
+                    f"@ {fmt_price(opened['entry'])}", icon="🧪")
 
     # ---- Track persistence of bot suggestions ----------------------------
     # An alert that stays on the board for many minutes is more trustworthy
@@ -3850,16 +3843,17 @@ if active_section == "🧪 Paper Trader":
         st.caption(
             "Strongest long & short setups the agent sees right now, "
             "ranked by a COMBINED signal that fuses the Market Scanner "
-            "alert with the Forecast tab's multi-horizon read. A setup "
-            "where the Scanner AND the Forecast agree across all three "
-            "horizons scores highest. Each card shows the LIVE risk/"
-            "reward you would get if you opened RIGHT NOW. A green "
-            "✓ chip means you're AT the entry zone (math intact). A "
-            "red ⚠ chip means the entry zone has passed — you'd be "
-            "chasing. 🏆 **PREMIUM HUNT active** — elite setups (conf "
-            "≥ 80 + forecast 3/3) now aim for TP2 (~7.5-10%) instead "
-            "of TP1, marked with `TP2` after the PREMIUM chip. Click "
-            "📥 to open one.")
+            "alert with the Forecast tab's multi-horizon read. **Only "
+            "Strong+ (combined ≥ 75) shown** — Moderate-tier picks "
+            "hidden to reduce reversal noise. Counter-trend and "
+            "forecast-disagree setups still appear when they clear the "
+            "score floor (the scoring naturally pushes them lower). "
+            "Each card shows the LIVE risk/reward from current price. "
+            "Green ✓ chip = at entry zone; red ⚠ chip = entry passed. "
+            "📥 opens at **TP1 (~5-7%)** — the default for every "
+            "setup. 🏆 PREMIUM-eligible cards (conf ≥ 80 + forecast "
+            "3/3) get a second 🏆 TP2 button — opt-in for the deeper "
+            "~7.5-10% target if you want to ride strong setups further.")
 
         # _fc_by_sym was built earlier (right after auto_ad) and is shared
         # with the auto-trade loop, so no additional forecast call here.
@@ -3900,9 +3894,9 @@ if active_section == "🧪 Paper Trader":
             return score, label    # uncapped — caller decides what to do
 
         _open_syms = {p["symbol"] for p in pb_state["open"]}
-        # Apply PREMIUM HUNT to each setup BEFORE ranking so the deeper
-        # TP2 target shows on the card and is what gets opened on click.
-        _all_picks = [_apply_premium_hunt(s) for s in auto_ad["setups"]
+        # Mark PREMIUM-eligible setups (for the chip and the optional TP2
+        # button). Target is NOT promoted here — TP1 stays the default.
+        _all_picks = [_mark_premium(s) for s in auto_ad["setups"]
                       if s["symbol"] not in _open_syms]
         # Score every candidate then re-rank by the combined score, with a
         # weekly-trend bonus or penalty (with-trend = +5, counter = -8 — a
@@ -3922,9 +3916,14 @@ if active_section == "🧪 Paper Trader":
                 base -= 8
             _scored.append((base, fc_label, trend, align, s))
         _scored.sort(key=lambda t: t[0], reverse=True)
-        # Widened from 5 to 8 — more coverage for fast movers the bot would
-        # otherwise drop off the bottom of the list, with no loss of pick
-        # quality since the combined score still ranks the strongest first.
+        # Quality floor (added 2026-05-25 per user feedback): combined
+        # score must be >= 75 (Strong+ tier, removes Moderate and weak
+        # Strong picks that were causing reversal noise). Counter-trend
+        # and forecast-disagree setups STAY VISIBLE — the existing
+        # scoring (-8 counter, -8 disagree) already pushes them down
+        # the list naturally, so the user still sees them but they
+        # rarely take the top slots.
+        _scored = [t for t in _scored if t[0] >= 75]
         _bot_picks = _scored[:8]
 
         # Re-entry detection — if a coin you JUST closed (within 60 min) is
@@ -3960,32 +3959,32 @@ if active_section == "🧪 Paper Trader":
                 _cur = prices.get(s["symbol"]) or float(
                     s.get("entry_low") or 0)
                 _stop = float(s.get("stop") or 0)
+                # target = TP1 (default exit for ALL setups now)
+                # target_2 = TP2 (deeper, shown on PREMIUM cards as an
+                #            opt-in via the second button)
                 _tgt = float(s.get("target") or 0)
-                # For PREMIUM HUNT picks, also compute live numbers for
-                # the TP1 milestone (the "first_target" preserved by
-                # _apply_premium_hunt) so the card can show BOTH targets
-                # — TP1 as the milestone, TP2 as the actual exit.
-                _tgt_1 = float(s.get("first_target") or 0)
+                _tgt_2 = float(s.get("target_2") or 0)
+                _show_tp2 = bool(s.get("premium_eligible")) and _tgt_2 > 0
                 _live_risk_pct = 0.0
                 _live_reward_pct = 0.0
                 _live_rr = 0.0
-                _live_reward_pct_1 = 0.0
-                _live_rr_1 = 0.0
+                _live_reward_pct_2 = 0.0
+                _live_rr_2 = 0.0
                 if _cur and _stop and _tgt:
                     if side == "LONG":
                         _live_risk_pct = (_cur - _stop) / _cur * 100
                         _live_reward_pct = (_tgt - _cur) / _cur * 100
-                        if _tgt_1:
-                            _live_reward_pct_1 = (_tgt_1 - _cur) / _cur * 100
+                        if _show_tp2:
+                            _live_reward_pct_2 = (_tgt_2 - _cur) / _cur * 100
                     else:  # SHORT
                         _live_risk_pct = (_stop - _cur) / _cur * 100
                         _live_reward_pct = (_cur - _tgt) / _cur * 100
-                        if _tgt_1:
-                            _live_reward_pct_1 = (_cur - _tgt_1) / _cur * 100
+                        if _show_tp2:
+                            _live_reward_pct_2 = (_cur - _tgt_2) / _cur * 100
                     if _live_risk_pct > 0:
                         _live_rr = _live_reward_pct / _live_risk_pct
-                        if _tgt_1:
-                            _live_rr_1 = _live_reward_pct_1 / _live_risk_pct
+                        if _show_tp2:
+                            _live_rr_2 = _live_reward_pct_2 / _live_risk_pct
                 # Entry-zone chip — symmetric signal:
                 #   green "At entry zone" when live R:R >= 1.3 (you're
                 #     opening AT or near the planned pullback level, so
@@ -4021,20 +4020,18 @@ if active_section == "🧪 Paper Trader":
                 # 🏆 PREMIUM tier — scanner conf >= 80 AND forecast aligned
                 # 3/3. Empirically the most reliable setups; the badge
                 # exists so the user can spot them at a glance without
-                # reading the scores. When PREMIUM HUNT has promoted the
-                # target to TP2 (~2.5R), append a small "TP2" marker so
-                # the user knows the deeper target is now in effect.
+                # reading the scores. PREMIUM cards also get a second
+                # button to open at the deeper TP2 target (optional).
                 premium_chip = ""
                 if (conf >= 80
                         and fc_label == "forecast confirms · aligned 3/3"):
-                    _hunt_tag = (" · TP2" if s.get("premium_hunt") else "")
                     premium_chip = (
                         f"<span style='background:linear-gradient(90deg,"
                         f"#e0a92b,#ffd700);color:#1a1a1a;"
                         f"padding:2px 10px;border-radius:5px;font-size:"
                         f"0.72rem;font-weight:800;margin-left:4px;"
                         f"box-shadow:0 0 8px #e0a92b66'>"
-                        f"🏆 PREMIUM{_hunt_tag}</span>")
+                        f"🏆 PREMIUM</span>")
 
                 # Forecast confirmation chip
                 fc_chip = ""
@@ -4120,20 +4117,20 @@ if active_section == "🧪 Paper Trader":
                         f"stop {fmt_price(_stop)} "
                         f"<span style='color:#ff5c5c'>"
                         f"(−{_live_risk_pct:.1f}%)</span> · "
-                        # PREMIUM HUNT picks show BOTH TP1 (milestone)
-                        # and TP2 (active exit). Non-premium picks just
-                        # show the single target.
+                        # PREMIUM cards show TP1 (default exit, green)
+                        # and TP2 (optional deeper target, gold).
+                        # Non-PREMIUM cards show just TP1.
                         + (
-                            f"target 1 {fmt_price(_tgt_1)} "
-                            f"<span style='color:#9aa0b4'>"
-                            f"(+{_live_reward_pct_1:.1f}%)</span> · "
-                            f"target 2 {fmt_price(_tgt)} "
+                            f"target 1 {fmt_price(_tgt)} "
                             f"<span style='color:#2ed47a'>"
                             f"(+{_live_reward_pct:.1f}%)</span> · "
+                            f"target 2 {fmt_price(_tgt_2)} "
+                            f"<span style='color:#e0a92b'>"
+                            f"(+{_live_reward_pct_2:.1f}%)</span> · "
                             f"R:R "
-                            f"<b>{_live_rr_1:.2f}</b> "
-                            f"/ <b>{_live_rr:.2f}</b>"
-                            if s.get("premium_hunt") and _tgt_1 else
+                            f"<b>{_live_rr:.2f}</b> "
+                            f"/ <b>{_live_rr_2:.2f}</b>"
+                            if _show_tp2 else
                             f"target {fmt_price(_tgt)} "
                             f"<span style='color:#2ed47a'>"
                             f"(+{_live_reward_pct:.1f}%)</span> · "
@@ -4144,8 +4141,10 @@ if active_section == "🧪 Paper Trader":
                         f"margin-top:2px'>proof — {md_safe(proof)}</div>"
                         f"{fc_line}",
                         unsafe_allow_html=True)
+                    # Default button — opens at TP1 (the standard target).
                     if pb.button("📥", key=f"pb_pick_{sid}",
-                                 help=f"Open this {side} {s['base']} trade",
+                                 help=f"Open {side} {s['base']} at TP1 "
+                                      f"(~5-7%)",
                                  use_container_width=True):
                         _opened = paper_bot.open_position(
                             pb_state, s,
@@ -4157,9 +4156,37 @@ if active_section == "🧪 Paper Trader":
                             paper_bot.save_state(PAPER_BOT_FILE, pb_state)
                             st.toast(
                                 f"📥 Opened {side} {_opened['base']} @ "
-                                f"{fmt_price(_opened['entry'])}",
+                                f"{fmt_price(_opened['entry'])} → TP1",
                                 icon="🧪")
                             st.rerun()
+                    # Optional TP2 button — only on PREMIUM-eligible cards.
+                    # Opens the same setup but with the target swapped to
+                    # TP2 (~7.5-10%), for users who want to ride the
+                    # deeper target on strong setups.
+                    if _show_tp2:
+                        if pb.button("🏆 TP2", key=f"pb_tp2_{sid}",
+                                     help=f"Open {side} {s['base']} aiming "
+                                          f"for TP2 (~7.5-10%) instead of "
+                                          f"TP1. Strong setups only.",
+                                     use_container_width=True):
+                            _setup_tp2 = dict(s)
+                            _setup_tp2["target"] = float(_tgt_2)
+                            _setup_tp2["rr"] = float(
+                                s.get("rr_2") or s.get("rr") or 0)
+                            _opened = paper_bot.open_position(
+                                pb_state, _setup_tp2,
+                                prices.get(s["symbol"])
+                                or s.get("entry_low"))
+                            if _opened:
+                                _enrich_position(_opened, combined_display,
+                                                 timeframe)
+                                paper_bot.save_state(
+                                    PAPER_BOT_FILE, pb_state)
+                                st.toast(
+                                    f"🏆 Opened {side} {_opened['base']} @ "
+                                    f"{fmt_price(_opened['entry'])} → TP2",
+                                    icon="🏆")
+                                st.rerun()
 
         # ---- Movers right now — coins already running with volume --------
         # Top picks only show "setups at entry" (conf>=70 + valid plan).
