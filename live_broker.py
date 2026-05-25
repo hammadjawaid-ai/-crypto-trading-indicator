@@ -110,12 +110,21 @@ def reset(path: Path, starting_balance: float,
 # Bybit client
 # ---------------------------------------------------------------------------
 
-_client_cache: dict[bool, object] = {}
-
-
 def client(testnet: bool | None = None):
-    """Return a cached pybit HTTP client. Raises ConfigError when keys are
-    missing or the pybit dependency is not installed."""
+    """Return a FRESH pybit HTTP client per call (not cached).
+
+    Originally this was module-level cached for performance, but pybit's
+    HTTP client carries per-request internal state — request signing
+    timestamp, retry counter, response handler — that gets corrupted
+    when Streamlit fragments and main-script reruns hit the same client
+    instance concurrently. Symptom: random `FailedRequestError: Bad
+    request. retries exceeded maximum (ErrCode: 400)` on otherwise-fine
+    calls. Creating a fresh client per call eliminates the race; the
+    overhead is negligible (just attribute assignment — actual TCP
+    connection pooling lives in `requests` underneath).
+
+    Raises ConfigError when keys are missing or pybit is not installed.
+    """
     if _BybitHTTP is None:
         raise ConfigError(
             "pybit is not installed — run "
@@ -125,13 +134,11 @@ def client(testnet: bool | None = None):
             "BYBIT_API_KEY / BYBIT_API_SECRET are missing. Add them to "
             "your .env (or Streamlit Cloud secrets) and reboot.")
     testnet = bool(testnet) if testnet is not None else config.BYBIT_TESTNET
-    if testnet not in _client_cache:
-        _client_cache[testnet] = _BybitHTTP(
-            testnet=testnet,
-            api_key=config.BYBIT_API_KEY,
-            api_secret=config.BYBIT_API_SECRET,
-        )
-    return _client_cache[testnet]
+    return _BybitHTTP(
+        testnet=testnet,
+        api_key=config.BYBIT_API_KEY,
+        api_secret=config.BYBIT_API_SECRET,
+    )
 
 
 class ConfigError(RuntimeError):
