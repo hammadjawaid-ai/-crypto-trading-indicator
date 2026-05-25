@@ -3513,6 +3513,7 @@ if active_section == "🧪 Paper Trader":
     # Built once here, used by both the auto-trade loop and the picks
     # rendering below so we never pay for the forecast call twice.
     _fc_by_sym: dict[str, dict] = {}
+    _radar_by_sym: dict[str, dict] = {}
     try:
         _fc_tickers_bot = load_top_symbols(top_n)
         _fc_syms_bot = tuple(_fc_tickers_bot["symbol"].head(40))
@@ -3520,6 +3521,25 @@ if active_section == "🧪 Paper Trader":
         if _fc_df_bot is not None and not _fc_df_bot.empty:
             _fc_by_sym = {r["symbol"]: r.to_dict()
                           for _, r in _fc_df_bot.iterrows()}
+    except Exception:
+        pass
+
+    # ---- Breakout Radar lookup (catches COILED pre-explosion setups) ----
+    # Independent signal engine: looks at volume ignition, coil/expansion,
+    # taker order flow, OBV accumulation, multi-TF trend, news/social
+    # catalyst — and grades each coin by STAGE:
+    #   COILED   — loaded but NOT fired yet (predictive low-risk entry)
+    #   FRESH    — early breakout, room left to run
+    #   EXTENDED — move spent, chase risk
+    # This is the closest honest tool for "early signals on coins about
+    # to explode" — wired into the picks score so COILED setups rise.
+    try:
+        _radar_syms = tuple(_fc_tickers_bot["symbol"].head(40))
+        _radar_df, _radar_backdrop = scan_breakouts(
+            _radar_syms, "imminent")
+        if _radar_df is not None and not _radar_df.empty:
+            _radar_by_sym = {r["symbol"]: r.to_dict()
+                             for _, r in _radar_df.iterrows()}
     except Exception:
         pass
 
@@ -3891,7 +3911,11 @@ if active_section == "🧪 Paper Trader":
             "Strongest long & short setups the agent sees right now, "
             "ranked by a COMBINED signal that fuses the Market Scanner "
             "alert + Forecast multi-horizon read + Weekly trend + BTC "
-            "24h Outlook + Move maturity. Floor is combined ≥ 72. "
+            "24h Outlook + Move maturity + Breakout Radar stage. The "
+            "🌀 COILED chip means the radar found a loaded-but-not-fired "
+            "setup (pre-explosion candidate); ⚡ FRESH means just broke "
+            "out with room left; 📉 EXTENDED means the move is spent. "
+            "Floor is combined ≥ 72. "
             "Each card shows the LIVE risk/reward from current price. "
             "Green ✓ chip = price is at the entry zone (math intact). "
             "Red ⚠ chip = price has drifted past the entry zone (live "
@@ -4014,6 +4038,41 @@ if active_section == "🧪 Paper Trader":
                 base += 6
             elif _mat_label == "EXTENDED":
                 base -= 10
+
+            # --- Breakout Radar STAGE tilt (catches COILED pre-explosion)
+            # Independent of all other inputs — the radar fuses 11 forces
+            # (volume ignition, coil compression, taker flow, OBV, news,
+            # social heat, etc.) and produces a stage label. COILED
+            # means "loaded but not fired yet" — the best predictive
+            # entry. EXTENDED means "move already happened" — chase.
+            # Also checks direction alignment: a COILED bullish radar
+            # read + LONG setup is doubly confirmed.
+            _radar = _radar_by_sym.get(s.get("symbol")) or {}
+            _stage = str(_radar.get("stage") or "").upper()
+            _radar_dir = float(_radar.get("direction") or 0)
+            _radar_aligned = (
+                (_radar_dir > 20 and s.get("side") == "LONG")
+                or (_radar_dir < -20 and s.get("side") == "SHORT"))
+            _radar_opposed = (
+                (_radar_dir > 20 and s.get("side") == "SHORT")
+                or (_radar_dir < -20 and s.get("side") == "LONG"))
+            if _stage == "COILED":
+                # Loaded but not fired — the predictive entry.
+                base += 8 if _radar_aligned else 5
+            elif _stage == "FRESH":
+                # Early breakout — still room left to run.
+                base += 4 if _radar_aligned else 2
+            elif _stage == "EXTENDED":
+                # Move already spent — heavy penalty. Even worse if
+                # the radar's directional read disagrees with the
+                # setup side (radar bullish but setup is SHORT etc).
+                base -= 12 if _radar_opposed else 8
+            elif _radar_aligned:
+                # No stage data but radar direction agrees — small +.
+                base += 2
+            elif _radar_opposed:
+                # No stage data, radar direction disagrees — small -.
+                base -= 3
 
             _scored.append((base, fc_label, trend, align, s))
         _scored.sort(key=lambda t: t[0], reverse=True)
@@ -4174,6 +4233,32 @@ if active_section == "🧪 Paper Trader":
                         f"0.7rem;font-weight:700;margin-left:4px'>"
                         f"↻ Re-entry available</span>")
 
+                # 🌀 COILED chip — Breakout Radar says this setup is
+                # "loaded but not fired yet". The closest honest signal
+                # for "about to explode". Showing this visually so the
+                # user can spot the pre-breakout candidates instantly.
+                coiled_chip = ""
+                _pick_radar = _radar_by_sym.get(s["symbol"]) or {}
+                _pick_stage = str(_pick_radar.get("stage") or "").upper()
+                if _pick_stage == "COILED":
+                    coiled_chip = (
+                        f"<span style='background:#6e8bff33;color:#6e8bff;"
+                        f"padding:2px 8px;border-radius:5px;font-size:"
+                        f"0.7rem;font-weight:800;margin-left:4px'>"
+                        f"🌀 COILED · loaded</span>")
+                elif _pick_stage == "FRESH":
+                    coiled_chip = (
+                        f"<span style='background:#2ed47a22;color:#2ed47a;"
+                        f"padding:2px 8px;border-radius:5px;font-size:"
+                        f"0.7rem;font-weight:700;margin-left:4px'>"
+                        f"⚡ FRESH · breaking out</span>")
+                elif _pick_stage == "EXTENDED":
+                    coiled_chip = (
+                        f"<span style='background:#8b8d9833;color:#8b8d98;"
+                        f"padding:2px 8px;border-radius:5px;font-size:"
+                        f"0.7rem;font-weight:700;margin-left:4px'>"
+                        f"📉 EXTENDED · move spent</span>")
+
                 # Forecast per-horizon line
                 fc_line = ""
                 if fc.get("horizons"):
@@ -4211,7 +4296,8 @@ if active_section == "🧪 Paper Trader":
                         f"color:{str_color};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:700'>"
                         f"{str_label} · {combined_display}</span>"
-                        f"{premium_chip}{fc_chip}{reentry_chip}{_drift_chip}"
+                        f"{premium_chip}{coiled_chip}{fc_chip}"
+                        f"{reentry_chip}{_drift_chip}"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
                         f"scanner {conf}% · R:R {rr:.1f} · "
                         f"{alive_txt}</span></div>"
