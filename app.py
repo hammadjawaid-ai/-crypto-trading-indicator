@@ -5094,6 +5094,15 @@ plus funding rate every 8 hours on open positions.
             return score
 
         _open_syms_lt = {p["symbol"] for p in lb_state["open"]}
+        # Re-entry detection — coins that closed within the last 60 min
+        # AND re-qualify as setups now (price pulled back into entry
+        # zone, or a fresh continuation). Same definition as paper.
+        _now_ts_lt = time.time()
+        _recent_close_syms_lt = {
+            c["symbol"]
+            for c in (lb_state.get("closed") or [])[-30:]
+            if (_now_ts_lt - (c.get("exit_at") or 0)) < 3600
+        }
         _live_eligible = []
         for s in auto_ad["setups"]:
             if s["symbol"] in _open_syms_lt:
@@ -5173,6 +5182,16 @@ plus funding rate every 8 hours on open positions.
                         f"0.7rem;font-weight:700;margin-left:4px'>"
                         f"📉 EXTENDED · move spent</span>")
 
+                # ↻ Re-entry chip — coin closed within the last 60 min
+                # and re-qualifies as a setup (second-leg opportunity).
+                _reentry_chip_lt = ""
+                if s["symbol"] in _recent_close_syms_lt:
+                    _reentry_chip_lt = (
+                        f"<span style='background:#e0a92b33;color:#e0a92b;"
+                        f"padding:2px 8px;border-radius:5px;font-size:"
+                        f"0.7rem;font-weight:700;margin-left:4px'>"
+                        f"↻ Re-entry available</span>")
+
                 # Live R:R from current price (mirror of paper logic).
                 _cur_lt = (prices.get(s["symbol"])
                            or float(s.get("entry_low") or 0))
@@ -5219,7 +5238,7 @@ plus funding rate every 8 hours on open positions.
                         f"5px;font-size:0.72rem;font-weight:700'>"
                         f"{str_label} · {_combined_disp}</span>"
                         f"{_premium_chip_lt}{_coiled_chip_lt}"
-                        f"{_drift_chip_lt}"
+                        f"{_reentry_chip_lt}{_drift_chip_lt}"
                         f"<span style='color:#6e8bff;font-weight:700;"
                         f"font-size:0.78rem'>{_lev}× lev</span>"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
@@ -5238,7 +5257,8 @@ plus funding rate every 8 hours on open positions.
                         unsafe_allow_html=True)
                     _pk = f"lb_pick_{s['symbol']}:{side}"
                     if bb.button("📥", key=_pk,
-                                 help=f"Live {side} {s['base']}",
+                                 help=f"LIVE {side} {s['base']} → TP1 "
+                                      f"(~5-7%)",
                                  use_container_width=True):
                         try:
                             opened = lb.open_position(
@@ -5251,13 +5271,50 @@ plus funding rate every 8 hours on open positions.
                                     config.LIVE_BOT_STATE_PATH, lb_state)
                                 st.toast(
                                     f"📥 LIVE {side} {opened['base']} @ "
-                                    f"{fmt_price(opened['entry'])} · "
+                                    f"{fmt_price(opened['entry'])} → TP1 · "
                                     f"{_lev}×", icon="💸")
                                 st.rerun()
                         except lb.ConfigError as _exc:
                             st.error(str(_exc))
                         except Exception as _exc:
                             st.error(f"Open failed: {_exc}")
+                    # 🏆 TP2 button — only on PREMIUM-eligible cards.
+                    # Opens the same setup but with target swapped to
+                    # TP2 (~7.5-10%). Real money use this when you
+                    # want to ride a strong setup further; live broker
+                    # also has partial-take at +1.5R for protection.
+                    _tgt2_lt = float(s.get("target_2") or 0)
+                    if _is_premium and _tgt2_lt > 0:
+                        if bb.button(
+                                "🏆 TP2", key=f"lb_tp2_{s['symbol']}:{side}",
+                                help=f"LIVE {side} {s['base']} → TP2 "
+                                     f"(~7.5-10%). Original stop. Real "
+                                     f"money — strong setups only.",
+                                use_container_width=True):
+                            try:
+                                _s_tp2 = dict(s)
+                                _s_tp2["target"] = _tgt2_lt
+                                _s_tp2["rr"] = float(
+                                    s.get("rr_2") or s.get("rr") or 0)
+                                opened = lb.open_position(
+                                    lb_state, _s_tp2,
+                                    prices.get(s["symbol"])
+                                    or s.get("entry_low"),
+                                    confirmed=True)
+                                if opened:
+                                    lb.save_state(
+                                        config.LIVE_BOT_STATE_PATH,
+                                        lb_state)
+                                    st.toast(
+                                        f"🏆 LIVE {side} "
+                                        f"{opened['base']} @ "
+                                        f"{fmt_price(opened['entry'])} "
+                                        f"→ TP2 · {_lev}×", icon="🏆")
+                                    st.rerun()
+                            except lb.ConfigError as _exc:
+                                st.error(str(_exc))
+                            except Exception as _exc:
+                                st.error(f"Open failed: {_exc}")
 
         st.divider()
         _live_live_positions()
