@@ -5008,10 +5008,12 @@ plus funding rate every 8 hours on open positions.
             "very-strong setups suitable for real money. The Preview→"
             "Confirm flow applies even when auto-trade is ON for the "
             "first N trades.")
-        # Pull forecast info (cached) so the Premium badge can fire on
-        # setups where conf >= 80 AND forecast aligned 3/3 — empirically
-        # the most reliable tier for real money.
+        # Pull forecast + radar lookups (cached) so the live picks use the
+        # SAME intelligence stack as the paper trader picks board:
+        # Scanner + Forecast + Weekly trend + BTC outlook + Maturity +
+        # Radar stage. Real money deserves the full picture.
         _fc_by_sym_lt: dict[str, dict] = {}
+        _radar_by_sym_lt: dict[str, dict] = {}
         try:
             _fc_tickers_lt = load_top_symbols(top_n)
             _fc_syms_lt = tuple(_fc_tickers_lt["symbol"].head(40))
@@ -5019,8 +5021,77 @@ plus funding rate every 8 hours on open positions.
             if _fc_df_lt is not None and not _fc_df_lt.empty:
                 _fc_by_sym_lt = {r["symbol"]: r.to_dict()
                                  for _, r in _fc_df_lt.iterrows()}
+            _radar_df_lt, _ = scan_breakouts(_fc_syms_lt, "imminent")
+            if _radar_df_lt is not None and not _radar_df_lt.empty:
+                _radar_by_sym_lt = {r["symbol"]: r.to_dict()
+                                    for _, r in _radar_df_lt.iterrows()}
         except Exception:
             pass
+
+        # BTC outlook for the macro-context tilt (same as paper).
+        _lt_btc: dict = {}
+        try:
+            _lt_btc = btc_outlook_now(_btc_change, _alt_median)
+        except Exception:
+            pass
+        _lt_btc_dir = (_lt_btc.get("direction") or "").lower()
+        _lt_btc_conf = float(_lt_btc.get("confidence") or 0)
+        _lt_btc_tilt = _lt_btc_conf >= 60 and _lt_btc_dir in (
+            "bullish", "bearish")
+
+        def _live_combined_score(setup: dict, lt_align: str) -> float:
+            """Mirror of the paper picks combined score so live testnet
+            uses identical intelligence: scanner + forecast + weekly
+            trend + BTC outlook + maturity + radar stage."""
+            score = float(setup.get("confidence") or 0)
+            # Forecast tilt
+            fc = _fc_by_sym_lt.get(setup.get("symbol")) or {}
+            fc_word = fc.get("outlook_word")
+            fc_conf = float(fc.get("confidence") or 0)
+            aligned = bool(fc.get("aligned"))
+            side = setup["side"]
+            confirms = ((side == "LONG" and fc_word == "Bullish")
+                        or (side == "SHORT" and fc_word == "Bearish"))
+            disagrees = ((side == "LONG" and fc_word == "Bearish")
+                         or (side == "SHORT" and fc_word == "Bullish"))
+            if confirms:
+                score += 10
+                if aligned:
+                    score += 8
+                if fc_conf >= 70:
+                    score += 5
+            elif disagrees:
+                score -= 8
+            # Weekly trend (already computed as lt_align)
+            if lt_align == "aligned":
+                score += 5
+            elif lt_align == "counter":
+                score -= 8
+            # BTC outlook
+            if _lt_btc_tilt:
+                if ((_lt_btc_dir == "bullish" and side == "LONG")
+                        or (_lt_btc_dir == "bearish" and side == "SHORT")):
+                    score += 4
+                elif ((_lt_btc_dir == "bullish" and side == "SHORT")
+                      or (_lt_btc_dir == "bearish" and side == "LONG")):
+                    score -= 4
+            # Maturity
+            _mat = (setup.get("maturity") or {})
+            _mat_label = str(_mat.get("label") or "").upper()
+            if _mat_label == "EARLY":
+                score += 6
+            elif _mat_label == "EXTENDED":
+                score -= 10
+            # Radar stage (flat, no direction overlap with forecast)
+            _r = _radar_by_sym_lt.get(setup.get("symbol")) or {}
+            _stg = str(_r.get("stage") or "").upper()
+            if _stg == "COILED":
+                score += 6
+            elif _stg == "FRESH":
+                score += 3
+            elif _stg == "EXTENDED":
+                score -= 8
+            return score
 
         _open_syms_lt = {p["symbol"] for p in lb_state["open"]}
         _live_eligible = []
@@ -5040,27 +5111,28 @@ plus funding rate every 8 hours on open positions.
                                             or s.get("entry_low"))
             if not ok_pf:
                 continue
-            _live_eligible.append((_prev["leverage"], _lt_align, s))
-        _live_eligible.sort(
-            key=lambda t: float(t[2].get("confidence") or 0),
-            reverse=True)
+            _combined_lt = _live_combined_score(s, _lt_align)
+            _live_eligible.append(
+                (_prev["leverage"], _lt_align, s, _combined_lt))
+        # Sort by combined score (uncapped) so the strongest fused
+        # signal rises to the top — same ranking as paper picks.
+        _live_eligible.sort(key=lambda t: t[3], reverse=True)
 
         if not _live_eligible:
             st.info("No live-eligible setups right now. The agent is "
                     "watching; come back when something strong fires.")
         else:
-            for _lev, _lt_align, s in _live_eligible[:6]:
+            for _lev, _lt_align, s, _combined_lt in _live_eligible[:6]:
                 side = s["side"]
                 side_col = "#2ed47a" if side == "LONG" else "#ff5c5c"
                 conf = int(s.get("confidence", 0) or 0)
-                str_label, str_col = _live_strength_label(conf)
-                # Weekly-trend alignment is enforced silently in the
-                # eligibility filter above (counter-trend rejected unless
-                # conf >= 88) — no visual chip needed on the card.
+                # Strength label uses the COMBINED score now (same as
+                # paper) so cards reflect the full fused intelligence,
+                # not just raw scanner conf. Display caps to 99.
+                _combined_disp = int(min(99, max(0, _combined_lt)))
+                str_label, str_col = _live_strength_label(_combined_disp)
 
                 # 🏆 PREMIUM tier — conf >= 80 AND forecast aligned 3/3.
-                # Same definition as the Paper Trader so the elite tag
-                # means the same thing in both places.
                 _fc_lt = _fc_by_sym_lt.get(s["symbol"]) or {}
                 _fc_word_lt = _fc_lt.get("outlook_word")
                 _is_premium = (
@@ -5077,6 +5149,61 @@ plus funding rate every 8 hours on open positions.
                         f"0.72rem;font-weight:800;margin-left:4px;"
                         f"box-shadow:0 0 8px #e0a92b66'>"
                         f"🏆 PREMIUM</span>")
+
+                # Radar STAGE chip (same definition as paper).
+                _r_lt = _radar_by_sym_lt.get(s["symbol"]) or {}
+                _stg_lt = str(_r_lt.get("stage") or "").upper()
+                _coiled_chip_lt = ""
+                if _stg_lt == "COILED":
+                    _coiled_chip_lt = (
+                        f"<span style='background:#6e8bff33;color:#6e8bff;"
+                        f"padding:2px 8px;border-radius:5px;font-size:"
+                        f"0.7rem;font-weight:800;margin-left:4px'>"
+                        f"🌀 COILED · loaded</span>")
+                elif _stg_lt == "FRESH":
+                    _coiled_chip_lt = (
+                        f"<span style='background:#2ed47a22;color:#2ed47a;"
+                        f"padding:2px 8px;border-radius:5px;font-size:"
+                        f"0.7rem;font-weight:700;margin-left:4px'>"
+                        f"⚡ FRESH · breaking out</span>")
+                elif _stg_lt == "EXTENDED":
+                    _coiled_chip_lt = (
+                        f"<span style='background:#8b8d9833;color:#8b8d98;"
+                        f"padding:2px 8px;border-radius:5px;font-size:"
+                        f"0.7rem;font-weight:700;margin-left:4px'>"
+                        f"📉 EXTENDED · move spent</span>")
+
+                # Live R:R from current price (mirror of paper logic).
+                _cur_lt = (prices.get(s["symbol"])
+                           or float(s.get("entry_low") or 0))
+                _stop_lt = float(s.get("stop") or 0)
+                _tgt_lt = float(s.get("target") or 0)
+                _live_risk_lt = 0.0
+                _live_reward_lt = 0.0
+                _live_rr_lt = 0.0
+                if _cur_lt and _stop_lt and _tgt_lt:
+                    if side == "LONG":
+                        _live_risk_lt = (_cur_lt - _stop_lt) / _cur_lt * 100
+                        _live_reward_lt = (_tgt_lt - _cur_lt) / _cur_lt * 100
+                    else:
+                        _live_risk_lt = (_stop_lt - _cur_lt) / _cur_lt * 100
+                        _live_reward_lt = (_cur_lt - _tgt_lt) / _cur_lt * 100
+                    if _live_risk_lt > 0:
+                        _live_rr_lt = _live_reward_lt / _live_risk_lt
+                _drift_chip_lt = ""
+                if _live_rr_lt >= 1.3:
+                    _drift_chip_lt = (
+                        f"<span style='background:#2ed47a33;color:#2ed47a;"
+                        f"padding:2px 8px;border-radius:5px;font-size:"
+                        f"0.7rem;font-weight:700;margin-left:4px'>"
+                        f"✓ At entry zone · R:R {_live_rr_lt:.2f}</span>")
+                elif 0 < _live_rr_lt < 1.2:
+                    _drift_chip_lt = (
+                        f"<span style='background:#ff5c5c33;color:#ff5c5c;"
+                        f"padding:2px 8px;border-radius:5px;font-size:"
+                        f"0.7rem;font-weight:700;margin-left:4px'>"
+                        f"⚠ Entry passed · R:R {_live_rr_lt:.2f}</span>")
+
                 with st.container(border=True):
                     aa, bb = st.columns([6, 1])
                     aa.markdown(
@@ -5090,8 +5217,9 @@ plus funding rate every 8 hours on open positions.
                         f"<span style='background:{str_col}33;"
                         f"color:{str_col};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:700'>"
-                        f"{str_label}</span>"
-                        f"{_premium_chip_lt}"
+                        f"{str_label} · {_combined_disp}</span>"
+                        f"{_premium_chip_lt}{_coiled_chip_lt}"
+                        f"{_drift_chip_lt}"
                         f"<span style='color:#6e8bff;font-weight:700;"
                         f"font-size:0.78rem'>{_lev}× lev</span>"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
@@ -5099,9 +5227,14 @@ plus funding rate every 8 hours on open positions.
                         f"{float(s.get('rr', 0)):.1f}</span></div>"
                         f"<div style='color:#aab;font-size:0.78rem;"
                         f"margin-top:4px'>"
-                        f"entry {fmt_price(s.get('entry_low', 0))} · "
-                        f"stop {fmt_price(s.get('stop', 0))} · "
-                        f"target {fmt_price(s.get('target', 0))}</div>",
+                        f"now <b>{fmt_price(_cur_lt)}</b> · entry zone "
+                        f"{fmt_price(s.get('entry_low', 0))} · stop "
+                        f"{fmt_price(_stop_lt)} "
+                        f"<span style='color:#ff5c5c'>"
+                        f"(−{_live_risk_lt:.1f}%)</span> · target "
+                        f"{fmt_price(_tgt_lt)} "
+                        f"<span style='color:#2ed47a'>"
+                        f"(+{_live_reward_lt:.1f}%)</span></div>",
                         unsafe_allow_html=True)
                     _pk = f"lb_pick_{s['symbol']}:{side}"
                     if bb.button("📥", key=_pk,
