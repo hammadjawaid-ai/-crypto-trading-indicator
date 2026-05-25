@@ -2242,6 +2242,14 @@ auto_ad = (alerts.build_alerts(_alert_merged, timeframe)
            if not _alert_merged.empty
            else {"setups": [], "surges": [], "timeframe": timeframe})
 
+# Per-symbol price lookup at module scope so every section
+# (Paper Trader, Live Trading) shares the same dict. Sections that
+# need live-price overrides for their own open positions can still
+# layer them on top of this base dict locally.
+prices: dict[str, float] = {}
+if not _alert_merged.empty:
+    prices = dict(zip(_alert_merged["symbol"], _alert_merged["price"]))
+
 # Section is selected from the sidebar radio above — no horizontal tab bar.
 
 
@@ -3497,9 +3505,11 @@ if active_section == "🧪 Paper Trader":
     # position's price with a fresh live fetch (5-second cache). That way
     # the position cards, P&L and chart dot reflect a near-real-time price
     # even when the 120-second scanner cache is still warm.
-    prices: dict[str, float] = {}
-    if not _alert_merged.empty:
-        prices = dict(zip(_alert_merged["symbol"], _alert_merged["price"]))
+    # `prices` is built at module scope from the alerts scan. Layer
+    # live-price overrides on top for THIS paper-trader run's open
+    # positions so card/P&L numbers stay near-real-time even when the
+    # 120-second scanner cache is still warm.
+    prices = dict(prices)  # local copy so paper overrides don't leak
     for _p in pb_state["open"]:
         _lp = live_price(_p["symbol"])
         if _lp is not None and _lp > 0:
