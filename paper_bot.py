@@ -26,17 +26,34 @@ DEFAULT_STATE = {
     "balance": 10000.0,
     "starting_balance": 10000.0,
     "risk_per_trade_pct": 1.0,
+    # Futures-style sizing controls. The user sets these from the UI.
+    "leverage": 3.0,                 # 1x .. 10x, applies as margin = notional / leverage
+    "max_notional_per_trade": 5000.0,  # hard cap on $ notional per single trade
     "open": [],
     "closed": [],
     "suggestion_persistence": {},   # {setup_id: first_seen_ts}
     "started_at": None,             # period start — set on first save
-    "version": 3,
+    "version": 4,
 }
 
 
 # How long a paper-trading period runs before balance auto-resets back to
 # the starting amount. Anything still open is closed at market first.
 WEEKLY_RESET_DAYS = 7
+
+# Trade-management levels (multiples of original risk-per-unit, "R").
+#   +1.0R → move stop to entry (break-even)
+#   +1.5R → close PARTIAL_FRACTION of the position; let the rest ride
+# The combination locks in a guaranteed profit on every trade that touches
+# +1.5R while leaving runners free to hit the full target (or, on PREMIUM
+# setups, the chase-TP2 trailing target). This was the model the user ran
+# successfully on 2026-05-23 — removed at 02:51 on 2026-05-24 and restored
+# here after the same-day evidence that pure target/stop gives back too
+# much on reversals (a +1.7R then mean-revert trade went from +0.75R
+# guaranteed → 0R at BE).
+BREAK_EVEN_R = 1.0
+PARTIAL_TAKE_R = 1.5
+PARTIAL_FRACTION = 0.5
 
 
 def load_state(path: Path) -> dict:
@@ -139,14 +156,21 @@ def check_weekly_reset(state: dict,
 
 
 def _qty_for(balance: float, risk_pct: float,
-             entry: float, stop: float) -> float:
-    """Position size so a stop-out costs risk_pct % of the account balance —
-    the fixed-fractional risk model real desks use."""
+             entry: float, stop: float,
+             max_notional: float | None = None) -> float:
+    """Position size so a stop-out costs risk_pct % of the account balance
+    (the fixed-fractional risk model real desks use), capped by
+    `max_notional` if provided. Whichever produces the SMALLER position
+    wins — risk-control AND notional-cap both enforced."""
     risk_dollars = balance * risk_pct / 100
     risk_per_unit = abs(entry - stop)
-    if risk_per_unit <= 0:
+    if risk_per_unit <= 0 or entry <= 0:
         return 0.0
-    return risk_dollars / risk_per_unit
+    risk_qty = risk_dollars / risk_per_unit
+    if max_notional and max_notional > 0:
+        cap_qty = max_notional / entry
+        return min(risk_qty, cap_qty)
+    return risk_qty
 
 
 def open_position(state: dict, alert: dict,
@@ -175,8 +199,15 @@ def open_position(state: dict, alert: dict,
         return None
     if side == "SHORT" and float(stop) <= entry:
         return None
+    # Effective notional cap: user setting × optional strength factor the
+    # caller passes via the alert (e.g. 0.4-1.0 scaled by combined score).
+    # If neither is set we fall back to no cap (pure fixed-fractional).
+    _base_cap = float(state.get("max_notional_per_trade") or 0)
+    _strength = float(alert.get("strength_factor") or 1.0)
+    _effective_cap = (_base_cap * _strength) if _base_cap > 0 else 0
     qty = _qty_for(state["balance"], state["risk_per_trade_pct"],
-                   entry, float(stop))
+                   entry, float(stop),
+                   max_notional=_effective_cap if _effective_cap > 0 else None)
     if qty <= 0:
         return None
     # Chase-TP2 fields — only populated when the alert flags the position
@@ -187,6 +218,9 @@ def open_position(state: dict, alert: dict,
     # without ever giving back the TP1 capture.
     target_2 = alert.get("target_2")
     chase_eligible = bool(alert.get("chase_tp2_eligible"))
+    _notional = float(qty * entry)
+    _leverage = float(state.get("leverage") or 1.0)
+    _margin = _notional / _leverage if _leverage > 0 else _notional
     pos = {
         "symbol": sym,
         "base": alert.get("base") or sym.replace("USDT", ""),
@@ -197,6 +231,10 @@ def open_position(state: dict, alert: dict,
         "target_2": float(target_2) if target_2 else 0.0,
         "chase_tp2_eligible": chase_eligible,
         "qty": float(qty),
+        "original_qty": float(qty),
+        "notional": round(_notional, 2),
+        "leverage": _leverage,
+        "margin": round(_margin, 2),
         "opened_at": time.time(),
         "confidence": int(alert.get("confidence", 0) or 0),
         "rr": float(alert.get("rr", 0.0) or 0.0),
@@ -220,21 +258,55 @@ def evaluate(state: dict, prices: dict[str, float]) -> list[dict]:
             continue
         long = (pos["side"] == "LONG")
 
+        # Original risk-per-unit (in price terms) and current gain. Used by
+        # both the BE move and the partial-take check; compute once.
+        risk_per_unit = abs(pos["entry"] - pos["original_stop"]) \
+            if pos.get("original_stop") is not None else abs(
+                pos["entry"] - pos["stop"])
+        gain_per_unit = ((price - pos["entry"]) if long
+                         else (pos["entry"] - price))
+
         # Break-even auto-move: once the position is up by 1R (an amount
         # equal to the original risk), push the stop to entry. From that
         # point on the trade is a "free option" — it can target run with no
         # downside. Move it ONCE and never widen.
-        if not pos.get("break_even_set"):
-            risk_per_unit = abs(pos["entry"] - pos["original_stop"]) \
-                if pos.get("original_stop") is not None else abs(
-                    pos["entry"] - pos["stop"])
-            gain_per_unit = ((price - pos["entry"]) if long
-                             else (pos["entry"] - price))
-            if risk_per_unit > 0 and gain_per_unit >= risk_per_unit:
-                # remember the original stop for analytics, then move to BE
-                pos.setdefault("original_stop", pos["stop"])
-                pos["stop"] = pos["entry"]
-                pos["break_even_set"] = True
+        if (not pos.get("break_even_set")
+                and risk_per_unit > 0
+                and gain_per_unit >= BREAK_EVEN_R * risk_per_unit):
+            # remember the original stop for analytics, then move to BE
+            pos.setdefault("original_stop", pos["stop"])
+            pos["stop"] = pos["entry"]
+            pos["break_even_set"] = True
+
+        # Partial profit-take at +1.5R — close PARTIAL_FRACTION of the
+        # position to lock in a guaranteed win on the closed slice; the
+        # rest stays open with the break-even stop (and, if the position
+        # is PREMIUM-eligible, the chase-TP2 trailing kicks in for the
+        # remainder when price reaches TP1). Worst case after this fires:
+        # +0.75R on the closed half, 0R on the remainder = +0.375R on the
+        # full original position. Best case: closed half banks +1.5R and
+        # the remainder runs to TP2. Fires ONCE per position.
+        if (not pos.get("partial_taken")
+                and risk_per_unit > 0
+                and gain_per_unit >= PARTIAL_TAKE_R * risk_per_unit):
+            close_qty = pos["qty"] * PARTIAL_FRACTION
+            partial_pnl = gain_per_unit * close_qty
+            partial = dict(pos)
+            partial.update({
+                "qty": float(close_qty),
+                "exit": float(price),
+                "exit_at": time.time(),
+                "exit_reason": f"partial +{PARTIAL_TAKE_R:.1f}R",
+                "partial": True,
+                "pnl_usd": round(partial_pnl, 2),
+                "pnl_pct": round(partial_pnl / state["balance"] * 100, 2)
+                           if state["balance"] else 0.0,
+            })
+            state["closed"].append(partial)
+            state["balance"] = round(state["balance"] + partial_pnl, 2)
+            pos["qty"] = float(pos["qty"] - close_qty)
+            pos["partial_taken"] = True
+            pos["partial_at"] = float(price)
 
         # Chase-TP2 trailing logic — fires once when price reaches TP1 on
         # a PREMIUM-eligible position. Locks in the TP1 win by moving the

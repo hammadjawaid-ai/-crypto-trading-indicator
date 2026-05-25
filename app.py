@@ -3158,7 +3158,7 @@ if active_section == "🧪 Paper Trader":
     pb_state = paper_bot.load_state(PAPER_BOT_FILE)
 
     # ---- Settings (collapsed so the trade UI is the focus) ---------------
-    with st.expander("⚙️ Settings — balance, risk, auto-trade, live, reset"):
+    with st.expander("⚙️ Settings — balance, risk, leverage, auto-trade, live, reset"):
         c1, c2, c3, c4, c5 = st.columns([1.2, 1.2, 1.3, 1.1, 1.1])
         new_balance = c1.number_input(
             "Starting balance ($)", min_value=100.0, max_value=1_000_000.0,
@@ -3182,6 +3182,29 @@ if active_section == "🧪 Paper Trader":
                      use_container_width=True):
             paper_bot.reset(PAPER_BOT_FILE, new_balance, new_risk)
             st.rerun()
+        # Futures-style sizing controls (row 2 — added 2026-05-25 per
+        # user request for leverage trading + max notional cap).
+        cf1, cf2 = st.columns([1, 1])
+        new_leverage = cf1.slider(
+            "Leverage (×)", 1.0, 10.0,
+            float(pb_state.get("leverage") or 3.0), 0.5,
+            key="pb_leverage",
+            help="Margin multiplier. With $5k notional at 3× leverage, "
+                 "margin used = $1,667. Stronger signals can deploy "
+                 "more leverage if you raise this; lower it for safety.")
+        new_max_notional = cf2.number_input(
+            "Max notional per trade ($)",
+            min_value=200.0, max_value=100_000.0,
+            value=float(pb_state.get("max_notional_per_trade") or 5000.0),
+            step=500.0, key="pb_max_notional",
+            help="Hard cap on $ size per single position. The risk model "
+                 "still enforces the 'Risk per trade %' loss limit; this "
+                 "cap stops a tight-stop setup from sizing up beyond "
+                 "what you want exposed.")
+        # Persist the leverage / cap settings into state so paper_bot
+        # honours them on every new position.
+        pb_state["leverage"] = float(new_leverage)
+        pb_state["max_notional_per_trade"] = float(new_max_notional)
 
     # ---- Helpers used in this section ------------------------------------
     def _hold_horizon(tf):
@@ -3553,6 +3576,16 @@ if active_section == "🧪 Paper Trader":
             if _setup_for_open.get("premium_eligible"):
                 _setup_for_open = dict(_setup_for_open)
                 _setup_for_open["chase_tp2_eligible"] = True
+            # Strength-based notional scaling. The notional cap from
+            # settings is multiplied by a factor derived from the
+            # setup's scanner confidence — strong signals deploy
+            # closer to the user's cap, weaker ones get a smaller
+            # position. Auto-trade has no easy access to the combined
+            # score here, so use raw scanner conf as the proxy
+            # (combined - 72 mapped to 0.4-1.0 range).
+            _strength = max(0.4, min(1.0, (_setup_conf - 72) / 23.0 + 0.4))
+            _setup_for_open = dict(_setup_for_open)
+            _setup_for_open["strength_factor"] = _strength
             opened = paper_bot.open_position(
                 pb_state, _setup_for_open,
                 prices.get(setup["symbol"]) or setup.get("entry_low"))
@@ -4229,6 +4262,12 @@ if active_section == "🧪 Paper Trader":
                         _open_setup = dict(s)
                         if s.get("premium_eligible"):
                             _open_setup["chase_tp2_eligible"] = True
+                        # Strength factor scales the notional cap by
+                        # the combined score — top picks deploy the
+                        # full cap, weaker picks get less. Linear from
+                        # 0.4 at combined 72 to 1.0 at combined 95+.
+                        _open_setup["strength_factor"] = max(
+                            0.4, min(1.0, (combined - 72) / 23.0 + 0.4))
                         _opened = paper_bot.open_position(
                             pb_state, _open_setup,
                             prices.get(s["symbol"])
@@ -4261,6 +4300,11 @@ if active_section == "🧪 Paper Trader":
                             _setup_tp2["target"] = float(_tgt_2)
                             _setup_tp2["rr"] = float(
                                 s.get("rr_2") or s.get("rr") or 0)
+                            # Premium-only button → use full strength
+                            # factor for the size allocation.
+                            _setup_tp2["strength_factor"] = max(
+                                0.4, min(1.0,
+                                         (combined - 72) / 23.0 + 0.4))
                             _opened = paper_bot.open_position(
                                 pb_state, _setup_tp2,
                                 prices.get(s["symbol"])

@@ -87,7 +87,10 @@ LIVE_DEFAULTS = {
 
 # --- Market universe -------------------------------------------------------
 QUOTE_ASSET = "USDT"          # only analyse pairs quoted in this asset
-TOP_N = 100                   # number of top coins (by 24h volume) to track
+# Universe widened from 100 to 150 (2026-05-25) to catch mid-cap movers
+# like DEXE / SAGA / ERA / similar that hover just outside the top 100
+# by 24h volume but produce strong signal-engine reads.
+TOP_N = 150                   # number of top coins (by 24h volume) to track
 KLINE_LIMIT = 300             # candles fetched per symbol/timeframe
 
 # Symbols to exclude: leveraged tokens and stablecoin-vs-stablecoin pairs that
