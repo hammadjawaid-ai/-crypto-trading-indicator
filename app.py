@@ -4040,39 +4040,24 @@ if active_section == "🧪 Paper Trader":
                 base -= 10
 
             # --- Breakout Radar STAGE tilt (catches COILED pre-explosion)
-            # Independent of all other inputs — the radar fuses 11 forces
-            # (volume ignition, coil compression, taker flow, OBV, news,
-            # social heat, etc.) and produces a stage label. COILED
-            # means "loaded but not fired yet" — the best predictive
-            # entry. EXTENDED means "move already happened" — chase.
-            # Also checks direction alignment: a COILED bullish radar
-            # read + LONG setup is doubly confirmed.
+            # The radar fuses 11 forces (volume ignition, coil
+            # compression, taker flow, OBV, news, social, etc.) and
+            # produces a STAGE label (COILED / FRESH / EXTENDED) — the
+            # stage info is GENUINELY INDEPENDENT of the forecast
+            # because the forecast only uses radar's DIRECTION signal,
+            # not its stage classification.
+            # Refined 2026-05-25 per honest audit: flat stage tilts only
+            # (no direction-alignment bonus and no direction-only path).
+            # The radar's direction signal already feeds into the
+            # forecast above, so re-using it here would double-count.
             _radar = _radar_by_sym.get(s.get("symbol")) or {}
             _stage = str(_radar.get("stage") or "").upper()
-            _radar_dir = float(_radar.get("direction") or 0)
-            _radar_aligned = (
-                (_radar_dir > 20 and s.get("side") == "LONG")
-                or (_radar_dir < -20 and s.get("side") == "SHORT"))
-            _radar_opposed = (
-                (_radar_dir > 20 and s.get("side") == "SHORT")
-                or (_radar_dir < -20 and s.get("side") == "LONG"))
             if _stage == "COILED":
-                # Loaded but not fired — the predictive entry.
-                base += 8 if _radar_aligned else 5
+                base += 6     # loaded but not fired — predictive entry
             elif _stage == "FRESH":
-                # Early breakout — still room left to run.
-                base += 4 if _radar_aligned else 2
+                base += 3     # early breakout, room left
             elif _stage == "EXTENDED":
-                # Move already spent — heavy penalty. Even worse if
-                # the radar's directional read disagrees with the
-                # setup side (radar bullish but setup is SHORT etc).
-                base -= 12 if _radar_opposed else 8
-            elif _radar_aligned:
-                # No stage data but radar direction agrees — small +.
-                base += 2
-            elif _radar_opposed:
-                # No stage data, radar direction disagrees — small -.
-                base -= 3
+                base -= 8     # move spent, chase risk
 
             _scored.append((base, fc_label, trend, align, s))
         _scored.sort(key=lambda t: t[0], reverse=True)
