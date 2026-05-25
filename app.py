@@ -2234,6 +2234,14 @@ try:
 except Exception:
     pass  # never let the alerts strip block the rest of the dashboard
 
+# Compute the alerts dict ONCE here at module scope so every section
+# (Paper Trader AND Live Trading) can reference it. Without this,
+# Live Trading hits NameError on `auto_ad` when the user navigates
+# straight to it without visiting Paper Trader first.
+auto_ad = (alerts.build_alerts(_alert_merged, timeframe)
+           if not _alert_merged.empty
+           else {"setups": [], "surges": [], "timeframe": timeframe})
+
 # Section is selected from the sidebar radio above — no horizontal tab bar.
 
 
@@ -3506,8 +3514,8 @@ if active_section == "🧪 Paper Trader":
             f"{c['pnl_pct']:+.2f}%", icon="🧪")
 
     # ---- Auto-trade from alerts ------------------------------------------
-    auto_ad = (alerts.build_alerts(_alert_merged, timeframe)
-               if not _alert_merged.empty else {"setups": []})
+    # `auto_ad` is built once at module scope (right after the alerts
+    # strip) so both Paper Trader and Live Trading share the same dict.
 
     # ---- Forecast lookup (used by PREMIUM HUNT + picks board) -----------
     # Built once here, used by both the auto-trade loop and the picks
