@@ -4485,7 +4485,9 @@ if active_section == "🧪 Paper Trader":
                       use_container_width=True, height=240)
 
     # ---- Closed trades history -------------------------------------------
-    st.markdown(f"#### 📜 Closed trades ({len(pb_state['closed'])})")
+    _ct_head, _ct_dl = st.columns([6, 1])
+    _ct_head.markdown(
+        f"#### 📜 Closed trades ({len(pb_state['closed'])})")
     if pb_state["closed"]:
         cs_recent = sorted(pb_state["closed"],
                            key=lambda c: c.get("exit_at", 0),
@@ -4508,8 +4510,19 @@ if active_section == "🧪 Paper Trader":
                 c.get("exit_at", 0), tz=timezone.utc).strftime(
                     "%Y-%m-%d %H:%M"),
         } for c in cs_recent]
-        st.dataframe(pd.DataFrame(closed_rows),
-                     use_container_width=True, hide_index=True)
+        _ct_df = pd.DataFrame(closed_rows)
+        # Full-detail export (all trades, all fields including timeframe,
+        # confidence, rr, original_stop, etc.) for analytical use. The
+        # on-screen table above is a curated view; this CSV is the raw
+        # log so I can analyse what actually worked.
+        _ct_full = pd.DataFrame(pb_state["closed"])
+        _ct_dl.download_button(
+            "⬇ CSV", data=_ct_full.to_csv(index=False).encode("utf-8"),
+            file_name="closed_trades.csv", mime="text/csv",
+            use_container_width=True,
+            help="Download every closed trade with all fields for "
+                 "deeper analysis (win-rate per tier, R metrics, etc.)")
+        st.dataframe(_ct_df, use_container_width=True, hide_index=True)
     else:
         st.caption("No closed trades yet — they appear here once a position "
                    "hits a stop, target, or you close it manually.")
