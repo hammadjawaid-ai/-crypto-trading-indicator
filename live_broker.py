@@ -597,10 +597,18 @@ def open_position(state: dict, alert: dict, price_now: float,
     if fill_price is None:
         fill_price = preview["entry"]   # best-effort; sync will reconcile
 
-    # Slippage check — close immediately if fill is far off.
+    # Slippage check — close immediately if fill is ADVERSELY off.
+    # For LONG: adverse = paid MORE than expected (fill_price > expected).
+    # For SHORT: adverse = sold for LESS than expected (fill_price < expected).
+    # Favorable slippage (better fill than expected) is GOOD — keep the
+    # position. The earlier `abs()` check was closing on favorable
+    # slippage which is the opposite of what we want.
     expected = preview["entry"]
     slip_budget = preview["slippage_budget"]
-    if abs(fill_price - expected) > slip_budget:
+    is_long = (side == "Buy")
+    adverse_slip = ((fill_price - expected) if is_long
+                    else (expected - fill_price))
+    if adverse_slip > slip_budget:
         try:
             c.place_order(category="linear", symbol=symbol,
                           side=("Sell" if side == "Buy" else "Buy"),
@@ -611,8 +619,8 @@ def open_position(state: dict, alert: dict, price_now: float,
             pass
         raise ConfigError(
             f"Slippage rejected: filled at {fill_price} "
-            f"vs expected {expected} (budget {slip_budget}). "
-            "Position closed.")
+            f"vs expected {expected} (adverse {adverse_slip:.6g} > "
+            f"budget {slip_budget:.6g}). Position closed.")
 
     # Park exchange-side stop & take-profit (so they fire even if our
     # process dies).
