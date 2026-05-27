@@ -385,6 +385,53 @@ def set_leverage(symbol: str, leverage: int) -> None:
         raise
 
 
+# Cache of per-symbol lot-size filters so we don't re-fetch on every order.
+_lot_filter_cache: dict[str, dict] = {}
+
+
+def _get_lot_filter(symbol: str) -> dict:
+    """Return Bybit's lotSizeFilter for a symbol — `qtyStep`, `minOrderQty`,
+    `maxOrderQty`. Cached after first call. Different coins have very
+    different step sizes (BTC=0.001, ETH=0.01, ALT=1, etc.), and Bybit
+    rejects orders with `ErrCode 10001 Qty invalid` if qty isn't a clean
+    multiple of qtyStep."""
+    if symbol in _lot_filter_cache:
+        return _lot_filter_cache[symbol]
+    try:
+        c = client()
+        resp = c.get_instruments_info(category="linear", symbol=symbol)
+        rows = (resp.get("result") or {}).get("list") or []
+        if rows:
+            lot = rows[0].get("lotSizeFilter") or {}
+            f = {
+                "qtyStep": float(lot.get("qtyStep") or 0),
+                "minOrderQty": float(lot.get("minOrderQty") or 0),
+                "maxOrderQty": float(lot.get("maxOrderQty") or 0),
+            }
+            _lot_filter_cache[symbol] = f
+            return f
+    except Exception:
+        pass
+    return {"qtyStep": 0, "minOrderQty": 0, "maxOrderQty": 0}
+
+
+def _round_qty(symbol: str, qty: float) -> float:
+    """Round qty DOWN to the symbol's qtyStep — Bybit rejects fractional
+    qty that isn't a clean multiple of the step. Floor (not round) so we
+    never exceed the original notional cap by accident."""
+    import math
+    lot = _get_lot_filter(symbol)
+    step = lot.get("qtyStep", 0)
+    if step and step > 0:
+        # Floor to step. Use round-then-floor for float-precision safety.
+        qty = math.floor(qty / step + 1e-9) * step
+        # Re-precision: avoid 9.999999... artifacts from float math.
+        # Determine decimal places from step.
+        decimals = max(0, -int(round(math.log10(step))) if step < 1 else 0)
+        qty = round(qty, decimals)
+    return qty
+
+
 def open_position(state: dict, alert: dict, price_now: float,
                   *, confirmed: bool = False) -> dict | None:
     """Open a real Bybit position from an alert. Sets stop and take-profit
@@ -400,6 +447,19 @@ def open_position(state: dict, alert: dict, price_now: float,
     qty = preview["qty"]
     lev = preview["leverage"]
     order_link = f"ti-{uuid.uuid4().hex[:14]}"   # idempotency on retries
+
+    # Round qty to the symbol's lot-size step. Bybit rejects fractional
+    # qty that isn't a clean multiple of qtyStep — different per coin.
+    qty = _round_qty(symbol, qty)
+    if qty <= 0:
+        raise ConfigError(
+            f"After rounding to lot step, qty is 0 for {symbol}. "
+            f"Try a larger risk_per_trade_pct or notional_cap_pct.")
+    lot = _get_lot_filter(symbol)
+    if lot["minOrderQty"] > 0 and qty < lot["minOrderQty"]:
+        raise ConfigError(
+            f"Computed qty {qty} below {symbol} minimum "
+            f"{lot['minOrderQty']}. Increase risk or notional cap.")
 
     set_leverage(symbol, lev)
 
@@ -493,7 +553,7 @@ def close_position_at(state: dict, symbol: str, price: float,
     if pos is None:
         return None
     side = "Sell" if pos["side"] == "LONG" else "Buy"
-    qty = float(pos["qty"])
+    qty = _round_qty(symbol, float(pos["qty"]))
     c = client()
     closing_link = f"ti-close-{uuid.uuid4().hex[:12]}"
     fill_price = float(price or pos["entry"])
@@ -573,7 +633,10 @@ def _manage_position(state: dict, pos: dict, price: float) -> dict | None:
     # let the remainder ride to the full target. Fires ONCE.
     if (not pos.get("partial_taken")
             and gain_per_unit >= PARTIAL_TAKE_R * risk_per_unit):
-        close_qty = pos["qty"] * PARTIAL_FRACTION
+        close_qty = _round_qty(pos["symbol"],
+                               pos["qty"] * PARTIAL_FRACTION)
+        if close_qty <= 0:
+            return None  # would round to zero — skip partial
         side = "Sell" if long else "Buy"
         partial_link = f"ti-part-{uuid.uuid4().hex[:12]}"
         fill_price = float(price)
