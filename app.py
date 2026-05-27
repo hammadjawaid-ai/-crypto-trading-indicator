@@ -415,6 +415,42 @@ def htf_alignment(side: str, trend: str) -> str:
     return "neutral"
 
 
+def is_premium_tradeable(
+        scanner_conf: int, side: str,
+        fc: dict | None, radar_stage: str | None,
+        live_rr: float, weekly_align: str) -> bool:
+    """STRICT premium-tier gate used by auto-trade and the manual
+    'tradeable' badge on the picks board.
+
+    All FIVE conditions must hold:
+      1. Scanner conf >= 90 (top-tier signal strength)
+      2. Forecast aligned 3/3 AND direction matches setup side
+      3. Radar stage is COILED or FRESH (NOT EXTENDED — no chasing)
+      4. Live R:R from current price >= 1.3 (green entry zone)
+      5. Weekly trend is NOT counter (aligned or neutral both ok)
+
+    Returns True only when ALL are satisfied — the "sure shot" criteria
+    the user defined. Most days zero setups pass; some days one or two.
+    """
+    if int(scanner_conf or 0) < 90:
+        return False
+    if not fc or not fc.get("aligned"):
+        return False
+    word = fc.get("outlook_word")
+    if side == "LONG" and word != "Bullish":
+        return False
+    if side == "SHORT" and word != "Bearish":
+        return False
+    stage = str(radar_stage or "").upper()
+    if stage not in ("COILED", "FRESH"):
+        return False
+    if live_rr < 1.3:
+        return False
+    if weekly_align == "counter":
+        return False
+    return True
+
+
 @st.cache_data(ttl=5, show_spinner=False)
 def live_price(symbol: str) -> float | None:
     """Fast 5-second-cached live price for one symbol — used by the Paper
@@ -4651,8 +4687,8 @@ plus funding rate every 8 hours on open positions.
         _live_auto_trade = sc7.checkbox(
             "🤖 Auto-trade ON", value=False, key="lb_auto",
             help="When on AND past confirm-first-N, the bot auto-opens "
-                 "very-strong signals (>= auto threshold). Keep OFF until "
-                 "you've watched it work for ≥10 trades.")
+                 "very-strong signals. Use with 💎 Premium-only ON below "
+                 "for safest auto-trading.")
         _new_auto_thresh = sc8.slider(
             "Auto-trade confidence threshold", 70, 99,
             int(_settings.get("auto_threshold", 85)),
@@ -4664,6 +4700,19 @@ plus funding rate every 8 hours on open positions.
                      settings=_settings)
             st.rerun()
 
+        # Strict premium-only auto-gate (the "sure shot" filter).
+        _new_premium_only = st.checkbox(
+            "💎 Auto-trade PREMIUM-ONLY (sure-shot filter)",
+            value=bool(_settings.get("auto_premium_only", True)),
+            key="lb_auto_premium",
+            help="When ON: auto-trade fires ONLY on setups that meet ALL "
+                 "five strict criteria — scanner conf>=90, forecast "
+                 "aligned 3/3 (direction match), radar stage COILED or "
+                 "FRESH (NOT EXTENDED), live R:R>=1.3 (green zone), AND "
+                 "not counter-trend. Expect 0-2 auto-fires per day at "
+                 "best. The 💎 PREMIUM TRADEABLE chip on the picks "
+                 "board shows which manual picks also pass this bar.")
+
         # Persist settings tweaks back to state.
         _settings.update({
             "leverage_cap": _new_lev_cap,
@@ -4673,6 +4722,7 @@ plus funding rate every 8 hours on open positions.
             "slippage_tol_pct": _new_slip,
             "confirm_first_n": _new_confirm_n,
             "auto_threshold": _new_auto_thresh,
+            "auto_premium_only": _new_premium_only,
         })
 
         st.markdown(
@@ -5254,6 +5304,21 @@ plus funding rate every 8 hours on open positions.
                         f"0.7rem;font-weight:700;margin-left:4px'>"
                         f"⚠ Entry passed · R:R {_live_rr_lt:.2f}</span>")
 
+                # 💎 PREMIUM TRADEABLE chip — passes ALL 5 strict criteria
+                # for the auto-trade "sure shot" filter. When this chip
+                # is on, both auto-trade AND manual clicking are the
+                # high-conviction choices. Most cards will NOT have it.
+                _tradeable_chip_lt = ""
+                _is_premium_trd = is_premium_tradeable(
+                    conf, side, _fc_lt, _stg_lt, _live_rr_lt, _lt_align)
+                if _is_premium_trd:
+                    _tradeable_chip_lt = (
+                        f"<span style='background:#9b59b6;color:#fff;"
+                        f"padding:2px 10px;border-radius:5px;font-size:"
+                        f"0.72rem;font-weight:800;margin-left:4px;"
+                        f"box-shadow:0 0 8px #9b59b677'>"
+                        f"💎 PREMIUM TRADEABLE</span>")
+
                 with st.container(border=True):
                     aa, bb = st.columns([6, 1])
                     aa.markdown(
@@ -5268,7 +5333,8 @@ plus funding rate every 8 hours on open positions.
                         f"color:{str_col};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:700'>"
                         f"{str_label} · {_combined_disp}</span>"
-                        f"{_premium_chip_lt}{_coiled_chip_lt}"
+                        f"{_premium_chip_lt}{_tradeable_chip_lt}"
+                        f"{_coiled_chip_lt}"
                         f"{_reentry_chip_lt}{_drift_chip_lt}"
                         f"<span style='color:#6e8bff;font-weight:700;"
                         f"font-size:0.78rem'>{_lev}× lev</span>"
@@ -5346,6 +5412,65 @@ plus funding rate every 8 hours on open positions.
                                 st.error(str(_exc))
                             except Exception as _exc:
                                 st.error(f"Open failed: {_exc}")
+
+        # ---- AUTO-TRADE FIRING LOOP (only if toggle ON) -----------------
+        # Iterates the same live-eligible setups as the picks board above
+        # and fires real orders on Bybit for setups that pass:
+        #   1. lb.auto_trade_gate (confirm-first-N, daily loss cap,
+        #      auto_threshold, max_concurrent)
+        #   2. If auto_premium_only=True: ALL 5 strict criteria
+        #      (conf>=90 + forecast 3/3 + COILED/FRESH + green zone +
+        #      not counter-trend)
+        # When all checks pass, fires via lb.open_position(confirmed=True).
+        # Otherwise skips silently.
+        if _live_auto_trade:
+            _auto_premium_only = bool(
+                _settings.get("auto_premium_only", True))
+            _auto_fired_this_run = []
+            for _lev, _lt_align, s, _combined_lt in _live_eligible:
+                # Standard auto-gate
+                ok_gate, gate_reason = lb.auto_trade_gate(
+                    lb_state, s, _settings)
+                if not ok_gate:
+                    continue
+                # Strict premium gate
+                if _auto_premium_only:
+                    _fc_a = _fc_by_sym_lt.get(s["symbol"]) or {}
+                    _r_a = _radar_by_sym_lt.get(s["symbol"]) or {}
+                    _stg_a = str(_r_a.get("stage") or "").upper()
+                    # Recompute live R:R from current price
+                    _cur_a = (prices.get(s["symbol"])
+                              or float(s.get("entry_low") or 0))
+                    _stop_a = float(s.get("stop") or 0)
+                    _tgt_a = float(s.get("target") or 0)
+                    _risk_a = (((_cur_a - _stop_a) / _cur_a * 100)
+                               if s["side"] == "LONG" else
+                               ((_stop_a - _cur_a) / _cur_a * 100))
+                    _rew_a = (((_tgt_a - _cur_a) / _cur_a * 100)
+                              if s["side"] == "LONG" else
+                              ((_cur_a - _tgt_a) / _cur_a * 100))
+                    _live_rr_a = (_rew_a / _risk_a) if _risk_a > 0 else 0
+                    if not is_premium_tradeable(
+                            int(s.get("confidence", 0) or 0),
+                            s["side"], _fc_a, _stg_a,
+                            _live_rr_a, _lt_align):
+                        continue
+                # FIRE
+                try:
+                    opened = lb.open_position(
+                        lb_state, s,
+                        prices.get(s["symbol"]) or s.get("entry_low"),
+                        confirmed=True)
+                    if opened:
+                        lb.save_state(
+                            config.LIVE_BOT_STATE_PATH, lb_state)
+                        st.toast(
+                            f"💎 AUTO-FIRED {s['side']} {opened['base']} "
+                            f"@ {fmt_price(opened['entry'])} · "
+                            f"{_lev}× lev", icon="💎")
+                        _auto_fired_this_run.append(opened["symbol"])
+                except Exception as _exc:
+                    st.error(f"Auto-fire failed on {s['symbol']}: {_exc}")
 
         st.divider()
         _live_live_positions()

@@ -82,6 +82,11 @@ LIVE_DEFAULTS = {
     "slippage_tol_pct":  0.5,   # reject fills more than X% off expected
     "confirm_first_n":   10,    # first N live trades require manual confirm
     "auto_threshold":    85,    # combined-strength needed for auto-trade
+    # Strict "sure-shot" gate for auto-trade. When True, auto-fire ONLY
+    # if scanner conf>=90 AND forecast aligned 3/3 (direction matches)
+    # AND radar stage COILED/FRESH AND live R:R>=1.3 AND not counter-
+    # trend. With this on, expect 0-2 auto-fires per day at best.
+    "auto_premium_only": True,
 }
 
 
