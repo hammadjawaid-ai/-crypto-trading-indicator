@@ -36,6 +36,58 @@ except ImportError:
     _BybitHTTP = None    # the Live Trading tab gates itself when this is None
 
 
+# --- Clock-skew immunity ---------------------------------------------------
+# Pybit signs each request with the laptop's local time. Bybit only tolerates
+# requests up to 1 SECOND ahead of their server (recv_window doesn't help in
+# that direction). On a machine whose clock drifts forward (1.5+ sec ahead),
+# every authenticated call fails with ErrCode 10002 "invalid request, please
+# check your server timestamp."
+#
+# Rather than depend on the user being able to sync Windows time (often
+# blocked on corporate networks), we monkey-patch the `time` module used
+# inside pybit so all its timestamps are SHIFTED to match Bybit's server
+# clock. We re-sync the offset every 60 seconds against /v5/market/time.
+if _BybitHTTP is not None:
+    import pybit._helpers as _phelpers   # noqa: E402
+    import time as _real_time            # noqa: E402
+
+    class _ClockSync:
+        offset_sec = 0.0
+        last_sync_at = 0.0
+
+        @classmethod
+        def refresh(cls):
+            """Re-query Bybit's server time every 60s. offset_sec is
+            (local - server). 300ms safety buffer keeps signed requests
+            slightly behind the server clock (safe direction)."""
+            now = _real_time.time()
+            if now - cls.last_sync_at < 60:
+                return
+            try:
+                import requests
+                r = requests.get(
+                    "https://api.bybit.com/v5/market/time", timeout=5)
+                server_s = int(r.json()["result"]["timeNano"]) / 1e9
+                cls.offset_sec = now - server_s + 0.3
+                cls.last_sync_at = now
+            except Exception:
+                pass
+
+    def _server_synced_timestamp() -> int:
+        """Replacement for pybit._helpers.generate_timestamp() that returns
+        a millisecond timestamp synchronised to Bybit's server clock.
+        Eliminates the clock-skew rejection (ErrCode 10002) when the local
+        machine drifts ahead of Bybit's server clock."""
+        _ClockSync.refresh()
+        return int((_real_time.time() - _ClockSync.offset_sec) * 1000)
+
+    # Patch pybit's timestamp generator. Every authenticated Bybit call
+    # now signs with a server-synced timestamp instead of local time.
+    _phelpers.generate_timestamp = _server_synced_timestamp
+    # Initial sync on module load.
+    _ClockSync.refresh()
+
+
 # Default per-period balance for the live account (kept symbolic — the
 # real source of truth for live equity is `account_balance()` against
 # Bybit's wallet endpoint).
@@ -138,6 +190,8 @@ def client(testnet: bool | None = None):
         testnet=testnet,
         api_key=config.BYBIT_API_KEY,
         api_secret=config.BYBIT_API_SECRET,
+        recv_window=20000,  # 20s tolerance for clock skew (default 5s
+                            # rejects requests when laptop time drifts).
     )
 
 
