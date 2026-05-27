@@ -5184,9 +5184,18 @@ plus funding rate every 8 hours on open positions.
             for c in (lb_state.get("closed") or [])[-30:]
             if (_now_ts_lt - (c.get("exit_at") or 0)) < 3600
         }
+        # Bybit-tradeable filter — signal data comes from Binance but
+        # orders go to Bybit. Some Binance-listed coins aren't available
+        # as USDT-perp on Bybit (or are delisted, e.g. LUNAUSDT). Drop
+        # those from the picks board so the user never clicks a card
+        # that can't actually trade.
+        _bybit_tradeable = lb.tradeable_symbols()
         _live_eligible = []
         for s in auto_ad["setups"]:
             if s["symbol"] in _open_syms_lt:
+                continue
+            # Skip coins not actively trading on Bybit USDT-perp.
+            if _bybit_tradeable and s["symbol"] not in _bybit_tradeable:
                 continue
             # Higher-TF trend filter — real money is stricter than paper.
             # Counter-trend setups are dropped entirely unless they pack a

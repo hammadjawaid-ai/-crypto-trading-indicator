@@ -442,6 +442,58 @@ def set_leverage(symbol: str, leverage: int) -> None:
 # Cache of per-symbol lot-size filters so we don't re-fetch on every order.
 _lot_filter_cache: dict[str, dict] = {}
 
+# Cache of Bybit's currently-tradeable USDT-perp symbols, with timestamp.
+# Refreshes every hour. Lets the live picks board filter out delisted /
+# suspended contracts (LUNA-style errors) before user clicks 📥.
+_tradeable_cache: dict = {"symbols": set(), "fetched_at": 0.0}
+
+
+def tradeable_symbols(force_refresh: bool = False) -> set[str]:
+    """Return the set of Bybit USDT-perp symbols currently in 'Trading'
+    status. Cached for 1 hour. Empty set on failure (caller decides
+    whether to be permissive or strict)."""
+    now = time.time()
+    if not force_refresh and (now - _tradeable_cache["fetched_at"]) < 3600:
+        if _tradeable_cache["symbols"]:
+            return _tradeable_cache["symbols"]
+    try:
+        c = client()
+        # paginated — fetch all pages
+        syms: set[str] = set()
+        cursor = ""
+        for _ in range(20):   # safety cap on pagination
+            kwargs = {"category": "linear", "limit": 1000}
+            if cursor:
+                kwargs["cursor"] = cursor
+            resp = c.get_instruments_info(**kwargs)
+            result = resp.get("result") or {}
+            for inst in result.get("list") or []:
+                if (inst.get("status") == "Trading"
+                        and inst.get("quoteCoin") == "USDT"
+                        and inst.get("contractType") in (
+                            "LinearPerpetual", "LinearFutures")):
+                    syms.add(inst["symbol"])
+            cursor = result.get("nextPageCursor", "")
+            if not cursor:
+                break
+        if syms:
+            _tradeable_cache["symbols"] = syms
+            _tradeable_cache["fetched_at"] = now
+    except Exception:
+        pass
+    return _tradeable_cache["symbols"]
+
+
+def is_tradeable_on_bybit(symbol: str) -> bool:
+    """Quick check used by the picks-board filter. Returns False on
+    delisted / not-on-Bybit symbols so they never reach the order
+    placement path."""
+    syms = tradeable_symbols()
+    if not syms:
+        # If the lookup failed, be permissive — let preflight catch it.
+        return True
+    return symbol in syms
+
 
 def _get_lot_filter(symbol: str) -> dict:
     """Return Bybit's lotSizeFilter for a symbol — `qtyStep`, `minOrderQty`,
