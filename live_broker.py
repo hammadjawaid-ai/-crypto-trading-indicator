@@ -885,9 +885,67 @@ def sync_positions(state: dict) -> dict:
     if drift:
         state["open"] = [p for p in state["open"]
                          if p["symbol"] in exchange_syms]
+
+    # REVERSE DRIFT: positions Bybit has but local state doesn't track.
+    # Happens when an open call failed mid-flight (slippage check fired
+    # before state was saved, or the dashboard crashed during open).
+    # We import these into local state so they appear on the dashboard
+    # AND so subsequent evaluate() / sync ticks manage them properly.
+    imported = 0
+    for r in rows:
+        sym = r["symbol"]
+        size = float(r.get("size") or 0)
+        if size <= 0:
+            continue
+        if sym in local_syms:
+            continue  # already tracked
+        side = "LONG" if r.get("side") == "Buy" else "SHORT"
+        entry = float(r.get("avgPrice") or r.get("entryPrice") or 0)
+        leverage = float(r.get("leverage") or 1.0)
+        notional = size * entry
+        margin = notional / leverage if leverage > 0 else notional
+        # Bybit-set SL / TP (if any) — preserve them so dashboard shows
+        # the actual exit levels the exchange will fire on.
+        try:
+            sl = float(r.get("stopLoss") or 0)
+        except (ValueError, TypeError):
+            sl = 0.0
+        try:
+            tp = float(r.get("takeProfit") or 0)
+        except (ValueError, TypeError):
+            tp = 0.0
+        # If Bybit has no SL/TP set, fall back to entry to avoid 0
+        # (which would break the local evaluate() check). The dashboard
+        # will flag "no SL/TP set" via the position card warning.
+        imported_pos = {
+            "symbol": sym,
+            "base": (sym[:-4] if sym.endswith("USDT") else sym),
+            "side": side,
+            "entry": entry,
+            "stop": sl if sl > 0 else entry,
+            "target": tp if tp > 0 else entry,
+            "target_2": 0.0,
+            "chase_tp2_eligible": False,
+            "qty": size,
+            "original_qty": size,
+            "notional": round(notional, 2),
+            "leverage": leverage,
+            "margin": round(margin, 2),
+            "opened_at": time.time(),
+            "confidence": 0,
+            "rr": 0.0,
+            "exchange_synced": True,
+            "imported_from_exchange": True,
+            "needs_sl_tp": (sl <= 0 or tp <= 0),
+        }
+        state.setdefault("open", []).append(imported_pos)
+        imported += 1
+
     state["last_sync_ts"] = time.time()
-    return {"drift": drift, "last_sync_ts": state["last_sync_ts"],
-            "exchange_count": len(exchange_syms)}
+    return {"drift": drift + imported,
+            "last_sync_ts": state["last_sync_ts"],
+            "exchange_count": len(exchange_syms),
+            "imported": imported}
 
 
 def emergency_stop_all(state: dict) -> dict:
