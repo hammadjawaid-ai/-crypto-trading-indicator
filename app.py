@@ -5211,34 +5211,14 @@ plus funding rate every 8 hours on open positions.
             if not ok_pf:
                 continue
             _combined_lt = _live_combined_score(s, _lt_align)
-            # Solid-trade filter for the live board: only show cards a
-            # disciplined trader would actually consider clicking.
-            # Drops RED entry-passed setups, weak-Strong picks, and
-            # anything below 80 combined unless radar-COILED rescues
-            # it. Forces the board to show ONLY picks worth real money.
+            # Combined-score gate is the quality filter on the live
+            # board: only Very Strong (>= 80) picks pass. RED entry-
+            # passed cards still show when their combined score clears
+            # the bar — the chips on each card (entry-zone status,
+            # COILED, live R:R) let the user judge per pick. The user
+            # explicitly asked for this — entry-passed setups with
+            # strong underlying scores can still be tradeable.
             if _combined_lt < 80:
-                continue
-            _r_pre = _radar_by_sym_lt.get(s["symbol"]) or {}
-            _stg_pre = str(_r_pre.get("stage") or "").upper()
-            _cur_pre = (prices.get(s["symbol"])
-                        or float(s.get("entry_low") or 0))
-            _stop_pre = float(s.get("stop") or 0)
-            _tgt_pre = float(s.get("target") or 0)
-            if _cur_pre and _stop_pre and _tgt_pre:
-                if s["side"] == "LONG":
-                    _r_pct = (_cur_pre - _stop_pre) / _cur_pre * 100
-                    _w_pct = (_tgt_pre - _cur_pre) / _cur_pre * 100
-                else:
-                    _r_pct = (_stop_pre - _cur_pre) / _cur_pre * 100
-                    _w_pct = (_cur_pre - _tgt_pre) / _cur_pre * 100
-                _live_rr_pre = (_w_pct / _r_pct) if _r_pct > 0 else 0
-            else:
-                _live_rr_pre = 0
-            _is_coiled = (_stg_pre == "COILED")
-            # GREEN (>=1.3) accepted always. YELLOW (>=1.0) accepted
-            # ONLY if radar stage is COILED (pre-explosion). RED dropped.
-            if _live_rr_pre < 1.3 and not (
-                    _is_coiled and _live_rr_pre >= 1.0):
                 continue
             _live_eligible.append(
                 (_prev["leverage"], _lt_align, s, _combined_lt))
@@ -5248,12 +5228,10 @@ plus funding rate every 8 hours on open positions.
 
         if not _live_eligible:
             st.info(
-                "No solid-trade picks right now. The board only shows "
-                "setups with combined ≥ 80 AND green entry zone (or "
-                "COILED with at least yellow zone). This is by design — "
-                "real money should only fire on the highest-conviction "
-                "setups. Wait for the next scan or check the Paper "
-                "Trader tab for the broader signal universe.")
+                "No live-eligible picks right now (combined ≥ 80 "
+                "required). The board waits for high-conviction setups. "
+                "Check the Paper Trader tab for the broader signal "
+                "universe, or wait for the next scan.")
         else:
             for _lev, _lt_align, s, _combined_lt in _live_eligible[:6]:
                 side = s["side"]
