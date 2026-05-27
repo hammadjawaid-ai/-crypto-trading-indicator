@@ -359,9 +359,18 @@ def preflight(state: dict, alert: dict,
         return (False,
                 f"Max concurrent positions hit ({n_open}/{max_conc}).", {})
 
-    # Risk-based qty (fixed-fractional, the same model paper_bot uses)
+    # Risk-based qty (fixed-fractional, the same model paper_bot uses).
+    # If the alert is flagged premium_tradeable, scale risk by the user's
+    # configured multiplier (default 1.5×) — higher conviction setups
+    # deploy more capital. Capped at 2.0× hard to prevent ruin streaks.
+    base_risk_pct = float(state.get("risk_per_trade_pct") or 1.0)
+    premium_mult = 1.0
+    if alert.get("premium_tradeable"):
+        premium_mult = min(2.0, max(1.0, float(
+            settings.get("premium_risk_multiplier") or 1.5)))
+    effective_risk_pct = base_risk_pct * premium_mult
     risk_per_unit = abs(entry - stop)
-    risk_dollars = bal * float(state.get("risk_per_trade_pct") or 1.0) / 100
+    risk_dollars = bal * effective_risk_pct / 100
     qty = (risk_dollars / risk_per_unit) if risk_per_unit > 0 else 0.0
     notional = qty * entry
     margin = notional / lev if lev > 0 else notional

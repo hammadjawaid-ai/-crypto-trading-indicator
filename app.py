@@ -4712,6 +4712,18 @@ plus funding rate every 8 hours on open positions.
                  "not counter-trend. Expect 0-2 auto-fires per day at "
                  "best. The 💎 PREMIUM TRADEABLE chip on the picks "
                  "board shows which manual picks also pass this bar.")
+        _new_premium_mult = st.slider(
+            "💎 Premium risk multiplier",
+            min_value=1.0, max_value=2.0, step=0.05,
+            value=float(
+                _settings.get("premium_risk_multiplier", 1.5)),
+            key="lb_premium_mult",
+            help="When you fire a 💎 PREMIUM TRADEABLE setup (manual OR "
+                 "auto), the risk_per_trade_pct gets multiplied by this "
+                 "factor. 1.0 = same as regular. 1.5 = 50% bigger "
+                 "position. 2.0 = double (max — anything higher risks "
+                 "account ruin on losing streaks). Recommended 1.5 for "
+                 "small accounts.")
 
         # Persist settings tweaks back to state.
         _settings.update({
@@ -4723,6 +4735,7 @@ plus funding rate every 8 hours on open positions.
             "confirm_first_n": _new_confirm_n,
             "auto_threshold": _new_auto_thresh,
             "auto_premium_only": _new_premium_only,
+            "premium_risk_multiplier": _new_premium_mult,
         })
 
         st.markdown(
@@ -5374,13 +5387,23 @@ plus funding rate every 8 hours on open positions.
                         f"(+{_live_reward_lt:.1f}%)</span></div>",
                         unsafe_allow_html=True)
                     _pk = f"lb_pick_{s['symbol']}:{side}"
+                    _pk_help = (
+                        f"LIVE {side} {s['base']} → TP1 (~5-7%)"
+                        + (
+                            f" · 💎 {_settings.get('premium_risk_multiplier', 1.5):.2f}× risk"
+                            if _is_premium_trd else ""
+                        ))
                     if bb.button("📥", key=_pk,
-                                 help=f"LIVE {side} {s['base']} → TP1 "
-                                      f"(~5-7%)",
+                                 help=_pk_help,
                                  use_container_width=True):
                         try:
+                            # Premium-tradeable trades deploy more risk per
+                            # the user-set multiplier — flag in the alert.
+                            _setup_for_open = dict(s)
+                            if _is_premium_trd:
+                                _setup_for_open["premium_tradeable"] = True
                             opened = lb.open_position(
-                                lb_state, s,
+                                lb_state, _setup_for_open,
                                 prices.get(s["symbol"])
                                 or s.get("entry_low"),
                                 confirmed=True)
@@ -5414,6 +5437,10 @@ plus funding rate every 8 hours on open positions.
                                 _s_tp2["target"] = _tgt2_lt
                                 _s_tp2["rr"] = float(
                                     s.get("rr_2") or s.get("rr") or 0)
+                                # TP2 path also flags premium when it
+                                # meets the strict tradeable criteria.
+                                if _is_premium_trd:
+                                    _s_tp2["premium_tradeable"] = True
                                 opened = lb.open_position(
                                     lb_state, _s_tp2,
                                     prices.get(s["symbol"])
@@ -5476,10 +5503,14 @@ plus funding rate every 8 hours on open positions.
                             s["side"], _fc_a, _stg_a,
                             _live_rr_a, _lt_align):
                         continue
-                # FIRE
+                # FIRE — premium auto-fires use the premium risk
+                # multiplier (default 1.5×) for bigger position size.
+                _setup_auto = dict(s)
+                if _auto_premium_only:
+                    _setup_auto["premium_tradeable"] = True
                 try:
                     opened = lb.open_position(
-                        lb_state, s,
+                        lb_state, _setup_auto,
                         prices.get(s["symbol"]) or s.get("entry_low"),
                         confirmed=True)
                     if opened:

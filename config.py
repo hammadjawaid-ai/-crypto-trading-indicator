@@ -87,6 +87,13 @@ LIVE_DEFAULTS = {
     # AND radar stage COILED/FRESH AND live R:R>=1.3 AND not counter-
     # trend. With this on, expect 0-2 auto-fires per day at best.
     "auto_premium_only": True,
+    # When a trade is flagged premium_tradeable (passes the strict gate
+    # above), risk_per_trade_pct is multiplied by this factor for that
+    # single position. Higher conviction = more capital deployed.
+    # Conservative default 1.5 — on a $200 account, 4% base × 1.5 = 6%
+    # risk on premium trades. Cap at 2.0 to avoid liquidation risk on
+    # consecutive losses.
+    "premium_risk_multiplier": 1.5,
 }
 
 
