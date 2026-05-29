@@ -7354,7 +7354,84 @@ if active_section == "🧪 Paper Trader":
                 "• Wait. Forcing trades in low-conviction regimes is "
                 "how you lose money.")
         else:
-            for combined, fc_label, trend, align, s in _bot_picks:
+            # ============================================================
+            # TWO SEGMENTS — per user "two segments here so we can pick
+            # from the best ones".
+            #   1. 🏆 TOP CONVICTION — confirmed signals (alerts engine,
+            #      pattern scout, convergence) where the actual trigger
+            #      candle has printed. Highest reliability.
+            #   2. 🔭 EARLY SETUPS — anticipatory signals (promoted from
+            #      Setups Forming) where leading indicators agree but
+            #      the trigger candle hasn't printed yet. Buffered stop.
+            # User reads the segment header to know WHICH conviction
+            # type they're trading. Conviction tier badge on each card
+            # gives the second-order ranking inside each segment.
+            # ============================================================
+            _confirmed_segment = [
+                pk for pk in _bot_picks
+                if pk[4]["symbol"] not in _sf_promoted_syms]
+            _anticipatory_segment = [
+                pk for pk in _bot_picks
+                if pk[4]["symbol"] in _sf_promoted_syms]
+            # Ordered render: confirmed first, anticipatory second.
+            # Segment header injected BEFORE the first pick of each.
+            _segmented_picks = []
+            if _confirmed_segment:
+                _segmented_picks.append(("__HEADER__", "CONFIRMED",
+                                         len(_confirmed_segment)))
+                _segmented_picks.extend(
+                    [(*pk, "CONFIRMED") for pk in _confirmed_segment])
+            if _anticipatory_segment:
+                _segmented_picks.append(("__HEADER__", "ANTICIPATORY",
+                                         len(_anticipatory_segment)))
+                _segmented_picks.extend(
+                    [(*pk, "ANTICIPATORY")
+                     for pk in _anticipatory_segment])
+
+            for _row in _segmented_picks:
+                # Segment-header row — render the section divider+title
+                if _row[0] == "__HEADER__":
+                    _seg_kind = _row[1]
+                    _seg_count = _row[2]
+                    if _seg_kind == "CONFIRMED":
+                        st.markdown(
+                            "<div style='display:flex;align-items:center;"
+                            "gap:10px;margin-top:14px;margin-bottom:6px;"
+                            "padding:8px 14px;border-radius:8px;"
+                            "background:linear-gradient(90deg,"
+                            "rgba(255,215,0,0.08),rgba(255,215,0,0.02));"
+                            "border-left:3px solid #ffd700'>"
+                            "<span style='font-size:1.05rem;font-weight:900;"
+                            "color:#ffd700;letter-spacing:0.02em'>"
+                            "🏆 TOP CONVICTION</span>"
+                            "<span style='color:#c8d2ed;font-size:0.78rem'>"
+                            "confirmed signals · trigger candle "
+                            f"printed · {_seg_count} pick"
+                            f"{'s' if _seg_count != 1 else ''}</span>"
+                            "</div>",
+                            unsafe_allow_html=True)
+                    else:  # ANTICIPATORY
+                        st.markdown(
+                            "<div style='display:flex;align-items:center;"
+                            "gap:10px;margin-top:18px;margin-bottom:6px;"
+                            "padding:8px 14px;border-radius:8px;"
+                            "background:linear-gradient(90deg,"
+                            "rgba(91,142,255,0.08),rgba(91,142,255,0.02));"
+                            "border-left:3px solid #5b8eff'>"
+                            "<span style='font-size:1.05rem;font-weight:900;"
+                            "color:#5b8eff;letter-spacing:0.02em'>"
+                            "🔭 EARLY SETUPS</span>"
+                            "<span style='color:#c8d2ed;font-size:0.78rem'>"
+                            "anticipatory entries · leading "
+                            f"signals agree · {_seg_count} pick"
+                            f"{'s' if _seg_count != 1 else ''}</span>"
+                            "</div>",
+                            unsafe_allow_html=True)
+                    continue
+                # Regular pick row — same 5-tuple unpack as before
+                # (the extra trailing tag from the segmented list is
+                # ignored — we use the symbol-based set checks).
+                combined, fc_label, trend, align, s, _seg_tag = _row
                 side = s["side"]
                 side_color = "#2ed47a" if side == "LONG" else "#ff5c5c"
                 conf = int(s.get("confidence", 0) or 0)
