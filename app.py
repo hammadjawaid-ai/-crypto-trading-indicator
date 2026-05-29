@@ -5743,14 +5743,7 @@ if active_section == "🧪 Paper Trader":
             "margin:18px 0'></div>",
             unsafe_allow_html=True)
 
-        # === BACKTEST-DRIVEN LOCKDOWN (2026-05-31) ===================
-        # Backtest with 0.18% transaction costs revealed:
-        #   S-tier Convergence: +1.31% avg, 46% win → MARGINAL POSITIVE
-        #   A-tier Pattern Scout STRONG: -0.91% avg → LOSES MONEY
-        #   B-tier Setups Forming: -1.32% avg → LOSES MONEY
-        #   C-tier Pattern Scout WATCH: -0.72% avg → LOSES MONEY
-        # ONLY S-tier is openable. A/B/C are watch-only with no button.
-        # =============================================================
+        # === Safety rails always active (across both old + new picks) ===
         # Daily loss circuit + max concurrent check (research-driven)
         _ds_start = float(pb_state.get("starting_balance") or 20000)
         _ds_today_pnl = 0.0
@@ -5769,39 +5762,28 @@ if active_section == "🧪 Paper Trader":
             st.error(
                 f"🛑 **DAILY LOSS CIRCUIT TRIPPED** · today's realised "
                 f"P&L: **${_ds_today_pnl:,.2f}** ({_ds_daily_loss_pct:.2f}%) "
-                f"· auto-trade BLOCKED for 24h. The system has identified "
-                f"that current market conditions are not profitable. Wait, "
-                f"don't force trades.")
+                f"· auto-trade BLOCKED for 24h. Wait, don't force trades.")
         if _ds_concurrent_full:
             st.warning(
                 f"⚠ **{_ds_open_count}/{_ds_max_concurrent} concurrent "
-                f"positions used.** Close one before opening another. "
-                f"Research shows correlation between concurrent crypto "
-                f"trades is 0.6-0.95 — 3 alt-LONGs ≈ one 3x leveraged "
-                f"position.")
+                f"positions used.** Close one before opening another.")
 
-        st.markdown(
-            "<div style='display:flex;align-items:center;gap:12px;"
-            "margin-top:18px;margin-bottom:6px'>"
-            "<span style='font-size:1.4rem;font-weight:900;"
-            "background:linear-gradient(135deg,#ffd700,#ff006e,#8b5cf6);"
-            "-webkit-background-clip:text;-webkit-text-fill-color:"
-            "transparent;background-clip:text;letter-spacing:-0.02em'>"
-            "🏆 BEST TRADES NOW</span>"
-            f"<span style='color:#aab;font-size:0.84rem'>"
-            f"{len(_best_picks)} ranked · S-tier openable · A/B/C watch-only</span>"
-            "</div>",
-            unsafe_allow_html=True)
-        st.caption(
-            "⚠ **BACKTEST-DRIVEN LOCKDOWN** (2026-05-31) — backtest "
-            "with realistic costs (0.18% round-trip) revealed that only "
-            "**S-tier Convergence** has positive expectancy after costs "
-            "(+1.31% avg, MARGINAL). **A/B/C tiers showed NEGATIVE "
-            "expectancy after costs** (Pattern Scout STRONG -0.91%, "
-            "WATCH -0.72%, Setups Forming -1.32%). To stop losing money, "
-            "only S-tier has the 📥 button. A/B/C are **WATCH ONLY** "
-            "until they backtest as profitable. Max **3 concurrent** "
-            "positions, **3% daily loss** halts new trades for 24h.")
+        # === BEST TRADES NOW — hidden behind expander (user wanted OLD picks) ===
+        # The unified locked-down list is preserved for reference but
+        # collapsed by default. The OLD Bot's Top Picks (with PREMIUM,
+        # COILED, FRESH, aligned 3/3 chips etc.) below is the primary.
+        with st.expander(
+                "💎 BEST TRADES NOW — locked-down by tier "
+                f"(S/A/B/C, {len(_best_picks)} picks)",
+                expanded=False):
+            st.caption(
+                "⚠ **BACKTEST-DRIVEN LOCKDOWN** — backtest with 0.18% "
+                "round-trip costs revealed only **S-tier Convergence** has "
+                "positive expectancy (+1.31%). A/B/C tiers backtested "
+                "NEGATIVE. Only S-tier has 📥 button here. "
+                "**Most users should ignore this and use Bot's Top Picks "
+                "below — that's the proven workhorse with all the original "
+                "chips (PREMIUM, COILED, FRESH, aligned 3/3, etc.).**")
 
         if not _best_picks:
             st.info("No high-conviction picks right now. The system is "
