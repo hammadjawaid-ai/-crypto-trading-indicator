@@ -38,6 +38,7 @@ import reversal_approach
 # rs_vs_btc imported under its alias below so picks-board cached helpers
 # can stay grouped with the other Phase A/B scoring helpers.
 import rs_vs_btc
+import support_resistance
 import tokenomics_unlocks
 import indicators
 import lunarcrush
@@ -1501,6 +1502,37 @@ def run_pattern_scout(interval: str, scan_n: int = 50,
             r["volume_24h"] = float(row["quoteVolume"])
             results.append(r)
     return results
+
+
+@st.cache_data(ttl=config.MARKET_CACHE_TTL, show_spinner=False)
+def load_support_resistance(symbol: str, interval: str,
+                            _cache_version: int = 1) -> dict:
+    """Compute support and resistance ZONES for one symbol/timeframe.
+
+    Clusters raw swing pivots from indicators.swing_levels() into zones
+    using a 0.6% tolerance, then scores each zone by touches + proximity.
+    Returns the 3 nearest support zones (below price) and 3 nearest
+    resistance zones (above price), each with: price, touches, strength,
+    distance_pct.
+
+    Used by the BEST TRADES NOW cards to show the nearest S/R levels so
+    the user can sanity-check entries (don't long into resistance, don't
+    short into support) and see where the move can run before hitting
+    the next barrier.
+
+    Safe-fail to empty dict so picks board never crashes.
+    """
+    try:
+        return support_resistance.fetch_and_compute(
+            symbol, interval=interval, limit=300,
+            n_above=3, n_below=3,
+            window=4, lookback=200, tolerance_pct=0.6)
+    except Exception:
+        return {
+            "supports": [], "resistances": [],
+            "nearest_support": None, "nearest_resistance": None,
+            "price_now": 0.0,
+        }
 
 
 @st.cache_data(ttl=config.MARKET_CACHE_TTL, show_spinner=False)
@@ -7628,6 +7660,51 @@ if active_section == "🧪 Paper Trader":
                     f"box-shadow:{_conv_glow}'>"
                     f"{_conv_emoji} {_conv_tier} CONVICTION</span>")
 
+                # ============================================================
+                # 🛡️ SUPPORT / RESISTANCE ZONES
+                # ============================================================
+                # Show the nearest S/R zone on each side of current price so
+                # the user can sanity-check the trade plan:
+                #   LONG  — nearest resistance = realistic TP ceiling
+                #   SHORT — nearest support    = realistic TP floor
+                # Strength = touches × proximity (0-100). 70+ = strong zone.
+                _sr = load_support_resistance(s["symbol"], timeframe)
+                _sr_html = ""
+                _sup_z = _sr.get("nearest_support")
+                _res_z = _sr.get("nearest_resistance")
+                if _sup_z or _res_z:
+                    _sr_parts = []
+                    if _sup_z:
+                        _sup_strong = (
+                            "🟢" if _sup_z["strength"] >= 70 else "🔵")
+                        _sr_parts.append(
+                            f"<span style='color:#2ed47a;font-weight:700'>"
+                            f"{_sup_strong} S</span> "
+                            f"<b>{fmt_price(_sup_z['price'])}</b> "
+                            f"<span style='color:#888'>"
+                            f"({_sup_z['touches']}× · "
+                            f"{_sup_z['distance_pct']:+.1f}%)</span>")
+                    if _res_z:
+                        _res_strong = (
+                            "🔴" if _res_z["strength"] >= 70 else "🟠")
+                        _sr_parts.append(
+                            f"<span style='color:#ff5c5c;font-weight:700'>"
+                            f"{_res_strong} R</span> "
+                            f"<b>{fmt_price(_res_z['price'])}</b> "
+                            f"<span style='color:#888'>"
+                            f"({_res_z['touches']}× · "
+                            f"+{_res_z['distance_pct']:.1f}%)</span>")
+                    _sr_html = (
+                        f"<div style='color:#aab;font-size:0.76rem;"
+                        f"margin-top:4px;padding:5px 10px;"
+                        f"background:rgba(91,142,255,0.04);"
+                        f"border-left:2px solid rgba(91,142,255,0.25);"
+                        f"border-radius:4px'>"
+                        f"<span style='color:#6e8bff;font-weight:700;"
+                        f"margin-right:8px'>🛡️ ZONES</span>"
+                        f"{' · '.join(_sr_parts)}"
+                        f"</div>")
+
                 # Forecast confirmation chip
                 fc_chip = ""
                 if fc_label == "forecast confirms · aligned 3/3":
@@ -7949,6 +8026,7 @@ if active_section == "🧪 Paper Trader":
                             f"live R:R <b>{_live_rr:.2f}</b>"
                         )
                         + f"</div>"
+                        f"{_sr_html}"
                         f"<div style='color:#9aa0b4;font-size:0.78rem;"
                         f"margin-top:2px'>proof — {md_safe(proof)}</div>"
                         f"{fc_line}",
