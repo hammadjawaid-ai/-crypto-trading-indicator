@@ -5197,7 +5197,7 @@ if active_section == "🧪 Paper Trader":
             "12 bars (vs baseline 48%), TTM Squeeze SHORT 57%, VWAP loss "
             "62%. These are top-catchers / failing-rally fades. The "
             "BTC-dominance regime is currently **"
-            f"{_btc_reg_for_shorts := load_btc_regime().get('regime', 'UNKNOWN')}"
+            f"{load_btc_regime().get('regime', 'UNKNOWN')}"
             "** — BTC-dominant + alts under-performing = more short setups "
             "than usual.")
 
