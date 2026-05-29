@@ -882,17 +882,24 @@ def run_pattern_scout(interval: str, scan_n: int = 50) -> list:
         except Exception:
             continue
         if r["score"] >= 65:  # surface anything WATCH-tier or above
-            # Generate FULL trade plan for openable picks using the
-            # same signals.analyze() infrastructure that builds plans
-            # for the regular picks board. This way pattern Scout
-            # cards can show entry/stop/TP1/TP2/R:R and be openable
-            # via 📥.
+            # Generate FULL trade plan for openable picks. We call
+            # signals._trade_plan directly with a forced "LONG" label
+            # because pattern_scout only fires on bullish patterns —
+            # signals.analyze() may return NEUTRAL composite even when
+            # an individual bullish pattern fires (long_patterns,
+            # v_bottom, morning star, hammer). Forcing the LONG label
+            # ensures every Pattern Scout match gets a tradeable plan.
             try:
-                sig_result = signals.analyze(df, mode="futures")
-                trade_plan = sig_result.get("trade_plan") or {}
-                # Determine side from pattern scout signal (LONG-only
-                # for now since pattern scout patterns are bullish)
-                if r["side"] == "LONG" and trade_plan:
+                # Determine regime for the trade plan (Trending/Ranging/Developing)
+                last = df.iloc[-1]
+                from signals import _regime as _sig_regime, _trade_plan as _sig_trade_plan
+                regime_str = _sig_regime(last)
+                trade_plan = _sig_trade_plan(
+                    "LONG", df, regime_str,
+                    mode="futures",
+                    confidence=float(r["score"])
+                )
+                if trade_plan:
                     r["trade_plan"] = trade_plan
                     r["entry_low"] = trade_plan.get("entry_low")
                     r["entry_high"] = trade_plan.get("entry_high")
@@ -903,7 +910,7 @@ def run_pattern_scout(interval: str, scan_n: int = 50) -> list:
                     r["rr"] = trade_plan.get("risk_reward")
                     r["rr_2"] = trade_plan.get("risk_reward_2")
                     r["maturity"] = trade_plan.get("maturity") or {}
-                    r["scanner_confidence"] = sig_result.get("confidence", 50)
+                    r["scanner_confidence"] = r["score"]
             except Exception:
                 pass
             r["base"] = base
@@ -4167,12 +4174,28 @@ if active_section == "🧪 Paper Trader":
 
     pb_state = paper_bot.load_state(PAPER_BOT_FILE)
 
+    # ---- One-time balance migration to $20k (per user request) -----------
+    # If the user's state has the old $10k default AND has no closed trades
+    # yet, auto-bump to the new $20k default. Skips migration if user has
+    # any trading history (preserves their P&L curve).
+    _old_default_balance = 10000.0
+    _new_default_balance = 20000.0
+    _has_history = bool(pb_state.get("closed")) or bool(pb_state.get("open"))
+    _cur_start = float(pb_state.get("starting_balance") or 0)
+    _cur_bal = float(pb_state.get("balance") or 0)
+    if (not _has_history
+            and abs(_cur_start - _old_default_balance) < 0.01
+            and abs(_cur_bal - _old_default_balance) < 0.01):
+        pb_state["starting_balance"] = _new_default_balance
+        pb_state["balance"] = _new_default_balance
+        paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+
     # ---- Settings (collapsed so the trade UI is the focus) ---------------
     with st.expander("⚙️ Settings — balance, risk, leverage, auto-trade, live, reset"):
         c1, c2, c3, c4, c5 = st.columns([1.2, 1.2, 1.3, 1.1, 1.1])
         new_balance = c1.number_input(
             "Starting balance ($)", min_value=100.0, max_value=1_000_000.0,
-            value=float(pb_state.get("starting_balance") or 10000.0),
+            value=float(pb_state.get("starting_balance") or 20000.0),
             step=500.0, key="pb_start_balance")
         new_risk = c2.slider(
             "Risk per trade (%)", 0.25, 5.0,
