@@ -5787,18 +5787,18 @@ if active_section == "🧪 Paper Trader":
                               if _ds_start > 0 else 0)
         _ds_circuit_tripped = _ds_daily_loss_pct <= -3.0
         _ds_open_count = len(pb_state.get("open") or [])
-        _ds_max_concurrent = 3
-        _ds_concurrent_full = _ds_open_count >= _ds_max_concurrent
+        # Concurrent-position cap removed per user — they want to open
+        # as many positions as they like. The variables are kept defined
+        # (set to safe defaults) so any leftover references in disabled
+        # code blocks don't NameError.
+        _ds_max_concurrent = 999
+        _ds_concurrent_full = False
 
         if _ds_circuit_tripped:
             st.error(
                 f"🛑 **DAILY LOSS CIRCUIT TRIPPED** · today's realised "
                 f"P&L: **${_ds_today_pnl:,.2f}** ({_ds_daily_loss_pct:.2f}%) "
                 f"· auto-trade BLOCKED for 24h. Wait, don't force trades.")
-        if _ds_concurrent_full:
-            st.warning(
-                f"⚠ **{_ds_open_count}/{_ds_max_concurrent} concurrent "
-                f"positions used.** Close one before opening another.")
 
         # NOTE: BEST TRADES NOW + tier legend rendering REMOVED entirely.
         # The OLD Bot's Top Picks below (with PREMIUM, COILED, FRESH,
