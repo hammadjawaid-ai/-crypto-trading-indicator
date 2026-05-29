@@ -849,6 +849,163 @@ def load_klines(symbol: str, interval: str) -> pd.DataFrame:
 # indicator and long-term-hold scores alongside the existing system so
 # the user can A/B test before promoting any signal into the live path.
 
+@st.cache_data(ttl=300, show_spinner=False)
+def compute_unified_best_picks(interval: str, scan_n: int = 50,
+                               _cache_version: int = 1) -> list:
+    """Unified ranking of the BEST picks across all sources, deduplicated
+    by symbol. Highest tier wins per coin. Shown in the top-of-board
+    "🏆 Best Trades Now" section so user doesn't have to dig through
+    7 different sections to find what to trade.
+
+    Tier priority (highest first):
+      S (priority 100): ⚡ CONVERGENCE — backtested +6.8pp uplift, validated
+      A (priority 85):  🎯 PATTERN SCOUT STRONG (score ≥ 80)
+      B (priority 70):  🔭 SETUPS FORMING STRONG WATCH (score ≥ 80)
+      C (priority 55):  🎯 PATTERN SCOUT WATCH (score 65-79)
+      D (priority 40):  🔭 SETUPS FORMING WATCH (score 60-79)
+
+    Returns top 8 sorted by tier × score.
+    """
+    picks_by_sym = {}  # symbol → pick dict (best-tier wins)
+
+    # === S-TIER: Convergence (validated edge) =========================
+    try:
+        cv_list = compute_convergence_picks(interval, scan_n)
+        for cv in cv_list:
+            sym = cv["symbol"]
+            picks_by_sym[sym] = {
+                "tier": "S",
+                "tier_label": "⚡ CONVERGENCE",
+                "tier_color": "#ffd700",
+                "tier_gradient": "linear-gradient(135deg,#ffd700,#ff006e,#8b5cf6)",
+                "priority": 100,
+                "symbol": sym,
+                "base": cv["base"],
+                "side": cv["side"],
+                "score": float(cv["convergence_score"]),
+                "entry": cv.get("entry"),
+                "stop": cv.get("stop"),
+                "target": cv.get("target"),
+                "target_2": cv.get("target_2"),
+                "rr": cv.get("rr"),
+                "reasons": cv.get("convergence_reasons", []),
+                "best_signal": cv.get("best_signal", ""),
+                "source": "convergence",
+                "pct_24h": cv.get("pct_24h", 0),
+                "price": cv.get("price"),
+                "has_plan": True,
+            }
+    except Exception:
+        pass
+
+    # === A-TIER: Pattern Scout STRONG (score ≥ 80) ====================
+    try:
+        scout_list = run_pattern_scout(interval, scan_n)
+        for ps in scout_list:
+            sym = ps["symbol"]
+            if sym in picks_by_sym:
+                continue  # already covered by higher tier
+            if ps.get("score", 50) < 80:
+                continue  # only STRONG into top picks
+            picks_by_sym[sym] = {
+                "tier": "A",
+                "tier_label": "🎯 STRONG PATTERN",
+                "tier_color": "#00d4ff",
+                "tier_gradient": "linear-gradient(135deg,#00d4ff,#5b8eff)",
+                "priority": 85,
+                "symbol": sym,
+                "base": ps["base"],
+                "side": ps["side"],
+                "score": float(ps["score"]),
+                "entry": ps.get("entry"),
+                "stop": ps.get("stop"),
+                "target": ps.get("target"),
+                "target_2": ps.get("target_2"),
+                "rr": ps.get("rr"),
+                "best_signal": ps.get("best_signal", ""),
+                "signals": ps.get("signals", []),
+                "source": "pattern_scout",
+                "pct_24h": ps.get("pct_24h", 0),
+                "price": ps.get("price"),
+                "has_plan": ps.get("entry") is not None,
+            }
+    except Exception:
+        pass
+
+    # === B-TIER: Setups Forming STRONG WATCH (≥ 80) ===================
+    try:
+        approach_list = run_reversal_approach_scan(interval, scan_n=30)
+        for ar in approach_list:
+            sym = ar["symbol"]
+            if sym in picks_by_sym:
+                continue
+            if ar.get("score", 50) < 80:
+                continue
+            picks_by_sym[sym] = {
+                "tier": "B",
+                "tier_label": "🔭 SETUP FORMING",
+                "tier_color": "#ff9500",
+                "tier_gradient": "linear-gradient(135deg,#ff9500,#ffcc66)",
+                "priority": 70,
+                "symbol": sym,
+                "base": ar["base"],
+                "side": ar["side"],
+                "score": float(ar["score"]),
+                "entry": ar.get("entry"),
+                "stop": ar.get("stop"),
+                "target": ar.get("target"),
+                "target_2": ar.get("target_2"),
+                "rr": ar.get("rr"),
+                "best_signal": "approach_to_reversal",
+                "conditions_met": ar.get("conditions_met", 0),
+                "source": "setups_forming",
+                "pct_24h": ar.get("pct_24h", 0),
+                "price": ar.get("price"),
+                "has_plan": bool(ar.get("has_plan", False)),
+            }
+    except Exception:
+        pass
+
+    # === C-TIER: Pattern Scout WATCH (65-79) ==========================
+    try:
+        for ps in scout_list:
+            sym = ps["symbol"]
+            if sym in picks_by_sym:
+                continue
+            if ps.get("score", 50) < 65 or ps.get("score", 50) >= 80:
+                continue
+            picks_by_sym[sym] = {
+                "tier": "C",
+                "tier_label": "🎯 WATCH",
+                "tier_color": "#5b8eff",
+                "tier_gradient": "linear-gradient(135deg,#5b8eff,#8b5cf6)",
+                "priority": 55,
+                "symbol": sym,
+                "base": ps["base"],
+                "side": ps["side"],
+                "score": float(ps["score"]),
+                "entry": ps.get("entry"),
+                "stop": ps.get("stop"),
+                "target": ps.get("target"),
+                "target_2": ps.get("target_2"),
+                "rr": ps.get("rr"),
+                "best_signal": ps.get("best_signal", ""),
+                "signals": ps.get("signals", []),
+                "source": "pattern_scout_watch",
+                "pct_24h": ps.get("pct_24h", 0),
+                "price": ps.get("price"),
+                "has_plan": ps.get("entry") is not None,
+            }
+    except Exception:
+        pass
+
+    # Rank by priority then score, take top 8
+    ranked = sorted(picks_by_sym.values(),
+                    key=lambda p: (p["priority"], p["score"]),
+                    reverse=True)
+    return ranked[:8]
+
+
 @st.cache_data(ttl=600, show_spinner=False)
 def compute_convergence_picks(interval: str, scan_n: int = 50,
                               _cache_version: int = 2) -> list:
@@ -5382,6 +5539,247 @@ if active_section == "🧪 Paper Trader":
             f"the analysis surfaces — your job is just to click 📥."
             f"</div>"
             f"</div>",
+            unsafe_allow_html=True)
+
+        # ====================================================================
+        # 🏆 BEST TRADES NOW — Unified ranked picks (S/A/B/C tiers)
+        # ====================================================================
+        # Per user request: consolidate ALL discovery sections into ONE
+        # ranked list, deduplicated by symbol. Highest tier wins per coin.
+        # Mixed LONG + SHORT. Show top 8. Other source-specific sections
+        # collapse into "Browse all sources" expander below.
+        try:
+            _best_picks = compute_unified_best_picks(timeframe, scan_n=50)
+        except Exception:
+            _best_picks = []
+
+        st.markdown(
+            "<div style='display:flex;align-items:center;gap:12px;"
+            "margin-top:18px;margin-bottom:6px'>"
+            "<span style='font-size:1.4rem;font-weight:900;"
+            "background:linear-gradient(135deg,#ffd700,#ff006e,#8b5cf6);"
+            "-webkit-background-clip:text;-webkit-text-fill-color:"
+            "transparent;background-clip:text;letter-spacing:-0.02em'>"
+            "🏆 BEST TRADES NOW</span>"
+            f"<span style='color:#aab;font-size:0.84rem'>"
+            f"{len(_best_picks)} ranked picks · LONG + SHORT mixed</span>"
+            "</div>",
+            unsafe_allow_html=True)
+        st.caption(
+            "**Unified ranking across ALL signal sources, deduplicated "
+            "by coin** — Convergence (validated edge ⭐) takes priority, "
+            "then Pattern Scout STRONG, then Setups Forming. The "
+            "system picks ONE side per coin (LONG or SHORT) based on "
+            "strongest signal. **Click 📥 to open paper trade.** "
+            "Browse individual sources below if you want the full view.")
+
+        if not _best_picks:
+            st.info("No high-conviction picks right now. The system is "
+                    "waiting for stronger signals. Check the **🔭 Browse "
+                    "all sources** expander below for lower-tier setups, "
+                    "or check back in a few minutes.")
+        else:
+            # Render each best pick with tier badge
+            for _bp in _best_picks:
+                _bp_side = _bp["side"]
+                _bp_side_color = "#00d4ff" if _bp_side == "LONG" else "#ff3d57"
+                _bp_side_emoji = "🟢" if _bp_side == "LONG" else "🩸"
+                _bp_tier = _bp["tier"]
+                _bp_tier_label = _bp["tier_label"]
+                _bp_tier_gradient = _bp["tier_gradient"]
+                _bp_tier_color = _bp["tier_color"]
+                _bp_score = _bp["score"]
+                _bp_entry = float(_bp.get("entry") or 0)
+                _bp_stop = float(_bp.get("stop") or 0)
+                _bp_tgt = float(_bp.get("target") or 0)
+                _bp_tgt2 = float(_bp.get("target_2") or 0)
+                _bp_rr = float(_bp.get("rr") or 0)
+                _bp_cur = float(_bp.get("price") or _bp_entry)
+                _bp_pct24h = _bp.get("pct_24h", 0)
+                _bp_pct_color = ("#2ed47a" if _bp_pct24h > 0
+                                 else "#ff5c5c" if _bp_pct24h < 0 else "#888")
+                _bp_has_plan = bool(_bp.get("has_plan", False)) and (
+                    _bp_entry > 0 and _bp_stop > 0 and _bp_tgt > 0)
+                _bp_sid = f"bp_{_bp['symbol']}"
+
+                # Position size — conviction-scaled
+                _bp_target_notional = 1000.0 + (
+                    (_bp_score - 65) / 30.0) * 1500.0
+                _bp_target_notional = max(1000.0, min(2500.0, _bp_target_notional))
+                _bp_bal = float(pb_state.get("balance") or 0)
+                _bp_risk_pct = float(pb_state.get("risk_per_trade_pct") or 1.0)
+                _bp_lev = float(pb_state.get("leverage") or 3.0)
+                if _bp_has_plan and _bp_entry > 0:
+                    _bp_riskd = _bp_bal * _bp_risk_pct / 100
+                    _bp_stopdist = abs(_bp_stop - _bp_entry) or 1.0
+                    _bp_qty_risk = _bp_riskd / _bp_stopdist
+                    _bp_notional_risk = _bp_qty_risk * _bp_entry
+                    _bp_notional = min(_bp_notional_risk,
+                                       _bp_target_notional, 3000.0)
+                    _bp_qty = (_bp_notional / _bp_entry
+                               if _bp_entry > 0 else 0.0)
+                    _bp_margin = (_bp_notional / _bp_lev
+                                  if _bp_lev > 0 else _bp_notional)
+                    _bp_loss = _bp_qty * abs(_bp_stop - _bp_entry)
+                    _bp_profit = _bp_qty * abs(_bp_tgt - _bp_entry)
+                    _bp_sf = _bp_notional / 3000.0
+                else:
+                    _bp_qty = _bp_notional = _bp_margin = 0.0
+                    _bp_loss = _bp_profit = 0.0
+                    _bp_sf = 0.4
+
+                # Reasons line (for S-tier convergence picks)
+                _bp_reasons_html = ""
+                if _bp_tier == "S" and _bp.get("reasons"):
+                    _bp_reasons_html = (
+                        f"<div style='color:#c8d2ed;font-size:0.78rem;"
+                        f"line-height:1.55;margin-top:8px;"
+                        f"padding:6px 10px;background:rgba(255,215,0,0.06);"
+                        f"border-radius:6px;border-left:2px solid #ffd700'>"
+                        f"<b style='color:#ffd700'>Why this stacks:</b> "
+                        f"{' · '.join(_bp['reasons'])}"
+                        f"</div>")
+                elif _bp_tier == "B" and _bp.get("conditions_met"):
+                    _bp_reasons_html = (
+                        f"<div style='color:#aab;font-size:0.78rem;"
+                        f"margin-top:6px'>"
+                        f"<b>{_bp['conditions_met']}/7</b> pre-conditions "
+                        f"met · anticipatory entry (lower win rate, "
+                        f"better entry)"
+                        f"</div>")
+
+                with st.container(border=True):
+                    _bp_txt, _bp_btn = st.columns([6, 1])
+                    _bp_txt.markdown(
+                        # Tier badge + symbol + side
+                        f"<div style='display:flex;align-items:center;"
+                        f"gap:8px;flex-wrap:wrap'>"
+                        f"<span style='font-size:1.15rem;font-weight:800;"
+                        f"font-family:Space Grotesk,Inter,sans-serif'>"
+                        f"{_bp['base']}</span>"
+                        f"<span style='background:{_bp_side_color};"
+                        f"color:#06121f;padding:3px 12px;border-radius:"
+                        f"6px;font-size:0.76rem;font-weight:800'>"
+                        f"{_bp_side_emoji} {_bp_side}</span>"
+                        f"<span style='background:{_bp_tier_gradient};"
+                        f"color:#001122;padding:3px 12px;border-radius:"
+                        f"7px;font-size:0.78rem;font-weight:800;"
+                        f"box-shadow:0 0 10px {_bp_tier_color}55'>"
+                        f"{_bp_tier_label} · {_bp_score:.0f}</span>"
+                        f"<span style='color:#8b8d98;font-size:0.78rem'>"
+                        f"now ${_bp_cur:.4g} · "
+                        f"<span style='color:{_bp_pct_color}'>"
+                        f"{_bp_pct24h:+.2f}% 24h</span></span>"
+                        f"</div>"
+                        # Reasons (S-tier or B-tier)
+                        + _bp_reasons_html
+                        # Trade plan
+                        + (
+                            f"<div style='color:#aab;font-size:0.80rem;"
+                            f"margin-top:8px;line-height:1.6'>"
+                            f"entry <b>${_bp_entry:.4g}</b> · "
+                            f"stop <b>${_bp_stop:.4g}</b> · "
+                            f"TP1 <b>${_bp_tgt:.4g}</b> · "
+                            + (f"TP2 <b>${_bp_tgt2:.4g}</b> · "
+                               if _bp_tgt2 > 0 else "")
+                            + f"R:R <b>{_bp_rr:.2f}</b></div>"
+                            # Size preview
+                            f"<div style='background:rgba(0,212,255,0.05);"
+                            f"border:1px solid rgba(0,212,255,0.15);"
+                            f"border-radius:8px;padding:8px 12px;"
+                            f"margin-top:8px;color:#c8d2ed;"
+                            f"font-size:0.78rem;line-height:1.6'>"
+                            f"<b style='color:#00d4ff'>📥 If you click NOW:</b> "
+                            f"<b>{_bp_qty:.4f}</b> {_bp['base']} "
+                            f"{_bp_side.lower()} · notional "
+                            f"<b>${_bp_notional:,.0f}</b> · "
+                            f"<b>{_bp_lev:.0f}x</b> lev · "
+                            f"margin <b>${_bp_margin:,.0f}</b> · "
+                            f"risk <b style='color:#ff5c5c'>"
+                            f"-${_bp_loss:,.2f}</b> · "
+                            f"profit <b style='color:#2ed47a'>"
+                            f"+${_bp_profit:,.2f}</b>"
+                            f"</div>"
+                            if _bp_has_plan else
+                            f"<div style='color:#e0a92b;font-size:0.78rem;"
+                            f"margin-top:8px'>⚠ Trade plan unavailable</div>"
+                        ),
+                        unsafe_allow_html=True)
+                    # 📥 Open Trade
+                    if _bp_has_plan:
+                        if _bp_btn.button(
+                                "📥", key=f"pb_{_bp_sid}",
+                                help=(f"Open {_bp_side} {_bp['base']} · "
+                                      f"{_bp_tier_label} · score {_bp_score:.0f}"),
+                                use_container_width=True):
+                            _bp_setup = {
+                                "symbol": _bp["symbol"],
+                                "base": _bp["base"],
+                                "side": _bp_side,
+                                "entry": _bp_entry,
+                                "entry_low": _bp_entry,
+                                "entry_high": _bp_entry,
+                                "stop": _bp_stop,
+                                "target": _bp_tgt,
+                                "target_2": _bp_tgt2 if _bp_tgt2 > 0 else None,
+                                "rr": _bp_rr,
+                                "confidence": int(min(99, _bp_score)),
+                                "strength_factor": _bp_sf,
+                            }
+                            _bp_opened = paper_bot.open_position(
+                                pb_state, _bp_setup,
+                                prices.get(_bp["symbol"]) or _bp_entry)
+                            if _bp_opened:
+                                _enrich_position(
+                                    _bp_opened, int(min(99, _bp_score)),
+                                    timeframe)
+                                paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                                st.toast(
+                                    f"🏆 Opened {_bp_side} "
+                                    f"{_bp_opened['base']} @ "
+                                    f"{fmt_price(_bp_opened['entry'])} · "
+                                    f"{_bp_tier_label} {_bp_score:.0f}",
+                                    icon="🏆")
+                                st.rerun()
+                            else:
+                                st.warning(
+                                    f"Could not open {_bp['base']} — "
+                                    "check balance/concurrency/already-open.")
+
+        # Tier legend
+        st.markdown(
+            "<div style='color:#aab;font-size:0.74rem;margin-top:10px;"
+            "padding:8px 12px;background:rgba(255,255,255,0.02);"
+            "border-radius:6px'>"
+            "<b>Tier legend:</b> "
+            "<span style='color:#ffd700'>⚡ CONVERGENCE</span> (validated +6.8pp uplift) · "
+            "<span style='color:#00d4ff'>🎯 STRONG PATTERN</span> (Pattern Scout ≥80) · "
+            "<span style='color:#ff9500'>🔭 SETUP FORMING</span> (anticipatory) · "
+            "<span style='color:#5b8eff'>🎯 WATCH</span> (Pattern Scout 65-79)"
+            "</div>",
+            unsafe_allow_html=True)
+
+        st.markdown(
+            "<div style='height:1px;background:linear-gradient(90deg,"
+            "transparent,rgba(255,255,255,0.10),transparent);"
+            "margin:22px 0'></div>",
+            unsafe_allow_html=True)
+
+        # ====================================================================
+        # 🔭 Browse all sources — open the expander to see individual
+        # signal sources. Default state: closed (use the BEST TRADES
+        # NOW section above instead).
+        # ====================================================================
+        st.markdown(
+            "<div style='color:#aab;font-size:0.84rem;margin-top:8px;"
+            "padding:10px 14px;background:rgba(91,142,255,0.06);"
+            "border:1px solid rgba(91,142,255,0.12);border-radius:10px'>"
+            "<b style='color:#5b8eff'>🔭 Browse individual sources below</b> "
+            "— Pattern Scout, Setups Forming, regular Bot Picks, "
+            "Movers, Top SHORT setups. Most users only need the "
+            "BEST TRADES section above. The sections below give you "
+            "the full view if you want to dig in."
+            "</div>",
             unsafe_allow_html=True)
 
         # ====================================================================
