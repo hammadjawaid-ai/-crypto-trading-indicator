@@ -597,6 +597,218 @@ st.markdown(
     [data-testid="stMarkdownContainer"] span[style*="border-radius"]:hover {
         transform: scale(1.04);
     }
+
+    /* ============================================================
+       PREMIUM PICK CARDS — Linear/Vercel/Stripe-grade
+       Multi-layer depth, gradient borders, glass effect,
+       animated hover sweep, subtle glow.
+       ============================================================ */
+
+    /* The pick cards live inside st.container(border=True) which
+       Streamlit renders as stVerticalBlockBorderWrapper. We target
+       the SECOND-LEVEL ones (the cards inside the picks board)
+       so the regime hero and outer panels stay distinct. */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        background:
+            linear-gradient(135deg,
+                rgba(0, 212, 255, 0.025) 0%,
+                rgba(91, 142, 255, 0.015) 50%,
+                transparent 100%),
+            linear-gradient(180deg,
+                rgba(255, 255, 255, 0.03) 0%,
+                transparent 8%),
+            var(--bg-card) !important;
+        backdrop-filter: blur(16px) saturate(140%);
+        -webkit-backdrop-filter: blur(16px) saturate(140%);
+        border: 1px solid var(--border-soft);
+        border-radius: 18px !important;
+        padding: 16px 20px !important;
+        margin-bottom: 14px !important;
+        position: relative;
+        overflow: hidden;
+        transition: all .35s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow:
+            0 1px 3px rgba(0, 0, 0, 0.3),
+            0 6px 20px rgba(0, 0, 0, 0.15),
+            inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+
+    /* Top inner highlight (subtle "glass" reflection) */
+    div[data-testid="stVerticalBlockBorderWrapper"]::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 1px;
+        background: linear-gradient(90deg,
+            transparent 0%,
+            rgba(255, 255, 255, 0.08) 30%,
+            rgba(255, 255, 255, 0.12) 50%,
+            rgba(255, 255, 255, 0.08) 70%,
+            transparent 100%);
+        pointer-events: none;
+    }
+
+    /* Soft accent glow in top-right corner (premium SaaS touch) */
+    div[data-testid="stVerticalBlockBorderWrapper"]::after {
+        content: "";
+        position: absolute;
+        top: -80px; right: -80px;
+        width: 220px; height: 220px;
+        background: radial-gradient(circle,
+            rgba(0, 212, 255, 0.10) 0%,
+            transparent 65%);
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity .4s ease;
+    }
+
+    /* Hover lift + glow + reveal corner accent */
+    div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+        border-color: rgba(0, 212, 255, 0.30);
+        transform: translateY(-3px);
+        box-shadow:
+            0 4px 8px rgba(0, 0, 0, 0.4),
+            0 16px 40px rgba(0, 212, 255, 0.12),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+    div[data-testid="stVerticalBlockBorderWrapper"]:hover::after {
+        opacity: 1;
+    }
+
+    /* Animated sweep on hover — a thin diagonal light streak */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        background-size: 100% 100%, 100% 100%, 100% 100%;
+    }
+
+    @keyframes card-sweep {
+        0% {
+            background-position: -200% 0, 0 0, 0 0;
+        }
+        100% {
+            background-position: 200% 0, 0 0, 0 0;
+        }
+    }
+
+    /* === Premium price display blocks inside cards ============== */
+    /* Make the inline price text more dramatic by enlarging <b> */
+    div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMarkdownContainer"] b {
+        color: var(--text-primary);
+        font-weight: 700;
+        font-family: 'Space Grotesk', 'Inter', sans-serif;
+        letter-spacing: -0.01em;
+    }
+
+    /* === Better chip designs — premium gradient borders ========= */
+    /* Use inset shadow for depth on chips */
+    [data-testid="stMarkdownContainer"] span[style*="border-radius"][style*="background"] {
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.08),
+            0 1px 2px rgba(0, 0, 0, 0.2) !important;
+        font-family: 'Inter', sans-serif !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.01em !important;
+    }
+
+    /* === Open Trade button — premium CTA inside cards =========== */
+    /* Buttons inside pick cards get the gradient treatment */
+    div[data-testid="stVerticalBlockBorderWrapper"] .stButton button {
+        background: linear-gradient(135deg,
+            rgba(0, 212, 255, 0.15),
+            rgba(91, 142, 255, 0.10));
+        border: 1px solid rgba(0, 212, 255, 0.35);
+        color: var(--accent-primary);
+        font-weight: 700;
+        font-size: 1rem;
+        padding: 10px 16px;
+        position: relative;
+        overflow: hidden;
+        transition: all .22s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"] .stButton button:hover {
+        background: linear-gradient(135deg,
+            rgba(0, 212, 255, 0.30),
+            rgba(91, 142, 255, 0.20));
+        border-color: var(--accent-primary);
+        color: #ffffff;
+        transform: translateY(-1px);
+        box-shadow:
+            0 4px 16px rgba(0, 212, 255, 0.30),
+            inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+
+    /* Button shine sweep on hover */
+    div[data-testid="stVerticalBlockBorderWrapper"] .stButton button::before {
+        content: "";
+        position: absolute;
+        top: 0; left: -100%;
+        width: 100%; height: 100%;
+        background: linear-gradient(90deg,
+            transparent,
+            rgba(255, 255, 255, 0.15),
+            transparent);
+        transition: left .5s ease;
+    }
+    div[data-testid="stVerticalBlockBorderWrapper"] .stButton button:hover::before {
+        left: 100%;
+    }
+
+    /* === Container-level emphasis on PREMIUM cards ============== */
+    /* When a card contains 🏆 PREMIUM chip, give the whole card
+       a golden tinge. Detected via :has() — modern browsers only. */
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(span[style*="ffd700"]) {
+        border-color: rgba(255, 215, 0, 0.25) !important;
+        background:
+            linear-gradient(135deg,
+                rgba(255, 215, 0, 0.04) 0%,
+                rgba(224, 169, 43, 0.02) 50%,
+                transparent 100%),
+            var(--bg-card) !important;
+    }
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(span[style*="ffd700"])::after {
+        background: radial-gradient(circle,
+            rgba(255, 215, 0, 0.12) 0%,
+            transparent 65%) !important;
+        opacity: 0.6;
+    }
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(span[style*="ffd700"])::before {
+        background: linear-gradient(90deg,
+            transparent 0%,
+            rgba(255, 215, 0, 0.20) 30%,
+            rgba(255, 215, 0, 0.30) 50%,
+            rgba(255, 215, 0, 0.20) 70%,
+            transparent 100%) !important;
+    }
+
+    /* === Status badge for LONG side cards (green tinge) ========= */
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(span[style*="2ed47a"][style*="#06121f"]),
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(span[style*="#34c759"]) {
+        border-left: 3px solid var(--success);
+    }
+
+    /* === Status badge for SHORT side cards (red tinge) ========== */
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(span[style*="ff5c5c"][style*="#06121f"]),
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(span[style*="🩸"]) {
+        border-left: 3px solid var(--danger);
+    }
+
+    /* === Typography polish inside cards ========================= */
+    div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMarkdownContainer"] {
+        position: relative;
+        z-index: 1;
+    }
+
+    /* Make the symbol/base text (the first <span> with font-weight:800) larger */
+    div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMarkdownContainer"] span[style*="font-weight:800"][style*="font-size:1rem"],
+    div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stMarkdownContainer"] span[style*="font-weight:800"][style*="font-size:1.05rem"] {
+        font-size: 1.15rem !important;
+        font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+        letter-spacing: -0.02em !important;
+        background: linear-gradient(135deg, #ffffff 0%, #c8d2ed 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
     </style>
     """,
     unsafe_allow_html=True,
