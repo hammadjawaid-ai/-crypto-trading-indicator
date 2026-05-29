@@ -5642,7 +5642,7 @@ if active_section == "🧪 Paper Trader":
         with st.expander(
                 "🔭 **Where Money Is Forming — Multi-Timeframe Watchlist** "
                 "(15m + 1h + 4h convergence)",
-                expanded=True):
+                expanded=False):
             st.caption(
                 "**The intelligence layer.** Coins where reversal setups "
                 "are forming on **2+ timeframes simultaneously** (15m, 1h, "
@@ -5768,29 +5768,18 @@ if active_section == "🧪 Paper Trader":
                 f"⚠ **{_ds_open_count}/{_ds_max_concurrent} concurrent "
                 f"positions used.** Close one before opening another.")
 
-        # === BEST TRADES NOW — hidden behind expander (user wanted OLD picks) ===
-        # The unified locked-down list is preserved for reference but
-        # collapsed by default. The OLD Bot's Top Picks (with PREMIUM,
-        # COILED, FRESH, aligned 3/3 chips etc.) below is the primary.
-        with st.expander(
-                "💎 BEST TRADES NOW — locked-down by tier "
-                f"(S/A/B/C, {len(_best_picks)} picks)",
-                expanded=False):
-            st.caption(
-                "⚠ **BACKTEST-DRIVEN LOCKDOWN** — backtest with 0.18% "
-                "round-trip costs revealed only **S-tier Convergence** has "
-                "positive expectancy (+1.31%). A/B/C tiers backtested "
-                "NEGATIVE. Only S-tier has 📥 button here. "
-                "**Most users should ignore this and use Bot's Top Picks "
-                "below — that's the proven workhorse with all the original "
-                "chips (PREMIUM, COILED, FRESH, aligned 3/3, etc.).**")
-
-        if not _best_picks:
+        # NOTE: BEST TRADES NOW + tier legend rendering REMOVED entirely.
+        # The OLD Bot's Top Picks below (with PREMIUM, COILED, FRESH,
+        # aligned 3/3, RS LEADER chips and a 📥 button) is now the SOLE
+        # primary action board. Per user: "too many segments, I get lost".
+        # Convergence picks are surfaced as a ⚡ chip on Bot's Top Picks
+        # cards when they qualify (compute_convergence_picks set lookup).
+        if False:  # disabled — Bot's Top Picks is now the only board
             st.info("No high-conviction picks right now. The system is "
                     "waiting for stronger signals. Check the **🔭 Browse "
                     "all sources** expander below for lower-tier setups, "
                     "or check back in a few minutes.")
-        else:
+        if False:  # rendering also disabled (was the else: branch)
             # Render each best pick with tier badge
             for _bp in _best_picks:
                 _bp_side = _bp["side"]
@@ -5992,44 +5981,25 @@ if active_section == "🧪 Paper Trader":
                                     f"Could not open {_bp['base']} — "
                                     "check balance/concurrency/already-open.")
 
-        # Tier legend
-        st.markdown(
-            "<div style='color:#aab;font-size:0.74rem;margin-top:10px;"
-            "padding:8px 12px;background:rgba(255,255,255,0.02);"
-            "border-radius:6px'>"
-            "<b>Tier legend:</b> "
-            "<span style='color:#ffd700'>⚡ CONVERGENCE</span> (validated +6.8pp uplift) · "
-            "<span style='color:#00d4ff'>🎯 STRONG PATTERN</span> (Pattern Scout ≥80) · "
-            "<span style='color:#ff9500'>🔭 SETUP FORMING</span> (anticipatory) · "
-            "<span style='color:#5b8eff'>🎯 WATCH</span> (Pattern Scout 65-79)"
-            "</div>",
-            unsafe_allow_html=True)
-
-        st.markdown(
-            "<div style='height:1px;background:linear-gradient(90deg,"
-            "transparent,rgba(255,255,255,0.10),transparent);"
-            "margin:22px 0'></div>",
-            unsafe_allow_html=True)
+        # Tier legend + divider also disabled (was for the killed
+        # BEST TRADES NOW board). Bot's Top Picks below has its own
+        # self-explanatory chips so no legend needed.
+        if False:
+            st.markdown(
+                "<div style='color:#aab;font-size:0.74rem;margin-top:10px;"
+                "padding:8px 12px;background:rgba(255,255,255,0.02);"
+                "border-radius:6px'>"
+                "<b>Tier legend:</b> "
+                "<span style='color:#ffd700'>⚡ CONVERGENCE</span> "
+                "<span style='color:#00d4ff'>🎯 STRONG PATTERN</span> "
+                "<span style='color:#ff9500'>🔭 SETUP FORMING</span> "
+                "<span style='color:#5b8eff'>🎯 WATCH</span>"
+                "</div>",
+                unsafe_allow_html=True)
 
         # ====================================================================
-        # 🔭 Browse all sources — open the expander to see individual
-        # signal sources. Default state: closed (use the BEST TRADES
-        # NOW section above instead).
-        # ====================================================================
-        st.markdown(
-            "<div style='color:#aab;font-size:0.84rem;margin-top:8px;"
-            "padding:10px 14px;background:rgba(91,142,255,0.06);"
-            "border:1px solid rgba(91,142,255,0.12);border-radius:10px'>"
-            "<b style='color:#5b8eff'>🔭 Browse individual sources below</b> "
-            "— Pattern Scout, Setups Forming, regular Bot Picks, "
-            "Movers, Top SHORT setups. Most users only need the "
-            "BEST TRADES section above. The sections below give you "
-            "the full view if you want to dig in."
-            "</div>",
-            unsafe_allow_html=True)
-
-        # ====================================================================
-        # ⚡ CONVERGENCE — Highest-conviction picks (signal stacking)
+        # ⚡ CONVERGENCE — collapsed by default. Convergence-qualified picks
+        # also surface as a ⚡ chip on Bot's Top Picks cards below.
         # ====================================================================
         # The crown of the system. Surfaces picks where MULTIPLE independent
         # signals AGREE on the same coin + same direction:
@@ -6044,7 +6014,13 @@ if active_section == "🧪 Paper Trader":
             _convergence_picks = compute_convergence_picks(timeframe, scan_n=50)
         except Exception:
             _convergence_picks = []
-        if _convergence_picks:
+        # Build symbol set so Bot's Top Picks below can render a ⚡ chip
+        _convergence_syms = {p.get("symbol") for p in (_convergence_picks or [])}
+        # Standalone CONVERGENCE rendering DISABLED — convergence picks
+        # still surface via their high combined_score in Bot's Top Picks
+        # and get a ⚡ CONVERGENCE chip there. Per user: no more duplicate
+        # segments. Set to True to restore the standalone section.
+        if False and _convergence_picks:
             st.markdown(
                 "<div style='display:flex;align-items:center;gap:12px;"
                 "margin-top:18px;margin-bottom:10px'>"
@@ -6425,7 +6401,7 @@ if active_section == "🧪 Paper Trader":
         # through all 150+ Binance coins their patterns etc to indicate
         # me the best outcomes and top picks accordingly".
         with st.expander("🎯 Pattern Scout — universal scan (validated edge only)",
-                         expanded=True):
+                         expanded=False):
             st.caption(
                 "Scans the top 50 coins for these **backtested-edge** "
                 "patterns INDEPENDENT of the regular picks gate: "
@@ -7219,8 +7195,13 @@ if active_section == "🧪 Paper Trader":
             if is_ss:
                 _sure_shots.append((combined, fc_label, trend, align, s, ss_reasons))
 
-        # Render SURE SHOT section if any qualify
-        if _sure_shots:
+        # SURE SHOT rendering DISABLED — picks that qualify already
+        # appear at the TOP of Bot's Top Picks (sorted by combined score).
+        # Per user: "too many segments". Build a set so we can chip-tag
+        # them in the main rendering loop instead.
+        _sure_shot_syms = {s.get("symbol")
+                           for _, _, _, _, s, _ in _sure_shots}
+        if False and _sure_shots:
             st.markdown(
                 "<div style='display:flex;align-items:center;gap:10px;"
                 "margin-top:18px;margin-bottom:10px'>"
@@ -7391,6 +7372,34 @@ if active_section == "🧪 Paper Trader":
                         f"0.72rem;font-weight:800;margin-left:4px;"
                         f"box-shadow:0 0 8px #e0a92b66'>"
                         f"🏆 PREMIUM</span>")
+
+                # ⚡ CONVERGENCE chip — pick qualifies under the validated
+                # convergence formula (Pattern Scout + Setups Forming +
+                # regime + 4h trend + BTC corr). Folded in here so the
+                # standalone CONVERGENCE segment can stay hidden.
+                # Backtest: +6.8pp uplift over baseline at 12bar.
+                convergence_chip = ""
+                if s["symbol"] in _convergence_syms:
+                    convergence_chip = (
+                        f"<span style='background:linear-gradient(90deg,"
+                        f"#ffd700,#ff006e,#8b5cf6);color:#fff;"
+                        f"padding:2px 10px;border-radius:5px;font-size:"
+                        f"0.72rem;font-weight:800;margin-left:4px;"
+                        f"box-shadow:0 0 10px rgba(255,215,0,0.5)'>"
+                        f"⚡ CONVERGENCE</span>")
+
+                # 💎 SURE SHOT chip — passed the strict meta-filter
+                # (score >= 88, Pattern Scout agrees, 2+ confirming chips,
+                # regime-OK or R:R >= 1.5, not extended).
+                sure_shot_chip = ""
+                if s["symbol"] in _sure_shot_syms:
+                    sure_shot_chip = (
+                        f"<span style='background:linear-gradient(90deg,"
+                        f"#00d4ff,#ffd700);color:#001122;"
+                        f"padding:2px 10px;border-radius:5px;font-size:"
+                        f"0.72rem;font-weight:800;margin-left:4px;"
+                        f"box-shadow:0 0 10px rgba(0,212,255,0.5)'>"
+                        f"💎 SURE SHOT</span>")
 
                 # Forecast confirmation chip
                 fc_chip = ""
@@ -7676,7 +7685,8 @@ if active_section == "🧪 Paper Trader":
                         f"color:{str_color};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:700'>"
                         f"{str_label} · {combined_display}</span>"
-                        f"{premium_chip}{recovery_chip}{coiled_chip}"
+                        f"{convergence_chip}{sure_shot_chip}{premium_chip}"
+                        f"{recovery_chip}{coiled_chip}"
                         f"{early_chip}{long_chip}{rs_chip}{dv_chip}"
                         f"{fc_chip}{reentry_chip}{_drift_chip}"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
@@ -7798,7 +7808,10 @@ if active_section == "🧪 Paper Trader":
         _movers = [m for m in _surges_all
                    if m["symbol"] not in _open_syms
                    and m["symbol"] not in _pick_syms][:5]
-        if _movers:
+        # Movers section DISABLED per user — too many sections. Volume
+        # surges already factored into combined_score for picks. Flip
+        # to True to restore the standalone Movers list.
+        if False and _movers:
             st.markdown("#### 🔥 Movers right now")
             st.caption("Coins already running on a volume surge "
                        "(≥ 2× average). These don't have a fresh entry "
@@ -7836,27 +7849,14 @@ if active_section == "🧪 Paper Trader":
                         f"· scanner conf {mconf}%</span></div>",
                         unsafe_allow_html=True)
 
-        # ---- 🩸 Top SHORT setups (where bears have backtested edge) ----
-        # Backtest data: CVD divergence SHORT wins 67%, TTM Squeeze SHORT
-        # 57%, VWAP reclaim SHORT 62% (vs baseline 48%). These signals
-        # DO have edge on the short side — surfacing them as first-class
-        # picks the user can short instead of just warnings on longs.
-        # Per user spec: "if the win rate is high, use the macro
-        # dynamics of sentiment — doesn't matter if we short or long".
-        st.markdown("#### 🩸 Top SHORT setups · where bears have edge")
-        st.caption(
-            "Coins where the early-momentum **SHORT** signals are firing "
-            "strongly. Backtested edge: CVD divergence SHORT wins 67% over "
-            "12 bars (vs baseline 48%), TTM Squeeze SHORT 57%, VWAP loss "
-            "62%. These are top-catchers / failing-rally fades. The "
-            "BTC-dominance regime is currently **"
-            f"{load_btc_regime().get('regime', 'UNKNOWN')}"
-            "** — BTC-dominant + alts under-performing = more short setups "
-            "than usual.")
-
-        _short_universe = [s for s in auto_ad.get("setups") or []
-                           if s["symbol"] not in _open_syms
-                           and s["symbol"] not in _pick_syms][:30]
+        # ---- 🩸 Top SHORT setups DISABLED per user (too many sections) ---
+        # SHORT picks now surface inline in Bot's Top Picks above (the
+        # alerts engine already produces both LONG and SHORT setups).
+        # The standalone SHORT panel was duplicating signal real-estate.
+        # Setting _short_universe = [] short-circuits the scoring loop
+        # and rendering. Flip the empty list back to the original
+        # comprehension to restore.
+        _short_universe = []
         _short_scored = []
         for s in _short_universe:
             try:
