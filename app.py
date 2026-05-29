@@ -5568,54 +5568,24 @@ if active_section == "🧪 Paper Trader":
         _breadth_pct = (_reg_comps.get("breadth") or {}).get("pct_above", 50)
         _vol_lbl = (_reg_comps.get("volatility") or {}).get("label", "—")
 
+        # Compact one-line regime pill (was a huge banner — user wanted
+        # less noise).
         st.markdown(
-            f"<div class='regime-hero' style='--regime-accent: {_reg_color}'>"
-            f"<div class='regime-hero-title'>"
-            f"<span style='color:{_reg_color}'>{_reg_emoji} REGIME: {_reg_lbl}</span>"
-            f"<span style='color:#aab0bd;font-size:0.82rem;font-weight:600'>"
-            f"  ·  confidence {_reg_conf:.0f}%  ·  composite {_reg_composite:.0f}/100</span>"
-            f"</div>"
-
-            # Bias bars
-            f"<div class='bias-bar'>"
-            f"<div class='bias-label' style='color:#2ed47a'>LONG bias {_reg_long_bias:.0f}</div>"
-            f"<div class='bias-track'>"
-            f"<div class='bias-fill-long' style='width:{_reg_long_bias:.0f}%'></div>"
-            f"</div></div>"
-            f"<div class='bias-bar'>"
-            f"<div class='bias-label' style='color:#ff5c5c'>SHORT bias {_reg_short_bias:.0f}</div>"
-            f"<div class='bias-track'>"
-            f"<div class='bias-fill-short' style='width:{_reg_short_bias:.0f}%'></div>"
-            f"</div></div>"
-
-            # Component stats
-            f"<div class='regime-hero-stats'>"
-            f"<div class='regime-stat'>"
-            f"<div class='regime-stat-label'>BTC Daily</div>"
-            f"<div class='regime-stat-value' style='font-size:0.85rem'>{_daily_lbl.replace('_', ' ')}</div>"
-            f"</div>"
-            f"<div class='regime-stat'>"
-            f"<div class='regime-stat-label'>BTC Weekly</div>"
-            f"<div class='regime-stat-value' style='font-size:0.85rem'>{_weekly_lbl.replace('WEEKLY_', '')}</div>"
-            f"</div>"
-            f"<div class='regime-stat'>"
-            f"<div class='regime-stat-label'>Breadth</div>"
-            f"<div class='regime-stat-value'>{_breadth_pct:.0f}%</div>"
-            f"</div>"
-            f"<div class='regime-stat'>"
-            f"<div class='regime-stat-label'>Volatility</div>"
-            f"<div class='regime-stat-value' style='font-size:0.85rem'>{_vol_lbl}</div>"
-            f"</div>"
-            f"</div>"
-
-            f"<div class='regime-hero-sub' style='margin-top:14px'>"
-            f"<b>The adaptive engine.</b> Picks are tilted by regime: "
-            f"strong LONGs surface in BULL, strong SHORTs in BEAR — but "
-            f"signal strength dominates so opposite-side opportunities "
-            f"still appear when the setup is concrete enough. "
-            f"Top picks include the strongest LONG and SHORT setups "
-            f"the analysis surfaces — your job is just to click 📥."
-            f"</div>"
+            f"<div style='display:inline-flex;align-items:center;gap:10px;"
+            f"padding:6px 14px;border-radius:20px;"
+            f"background:rgba(255,255,255,0.03);"
+            f"border:1px solid {_reg_color}44;margin-bottom:14px'>"
+            f"<span style='color:{_reg_color};font-weight:800;font-size:0.9rem'>"
+            f"{_reg_emoji} {_reg_lbl}</span>"
+            f"<span style='color:#888;font-size:0.78rem'>·</span>"
+            f"<span style='color:#2ed47a;font-size:0.78rem;font-weight:700'>"
+            f"LONG {_reg_long_bias:.0f}</span>"
+            f"<span style='color:#888;font-size:0.78rem'>·</span>"
+            f"<span style='color:#ff5c5c;font-size:0.78rem;font-weight:700'>"
+            f"SHORT {_reg_short_bias:.0f}</span>"
+            f"<span style='color:#888;font-size:0.78rem'>·</span>"
+            f"<span style='color:#aab;font-size:0.78rem'>"
+            f"conf {_reg_conf:.0f}%</span>"
             f"</div>",
             unsafe_allow_html=True)
 
@@ -5639,10 +5609,10 @@ if active_section == "🧪 Paper Trader":
         # setup forming, that's broad-market positioning shift — much
         # stronger than a single TF signal. Pure WATCHLIST — no trade
         # buttons. Watch for the actual fire candle, then act.
-        with st.expander(
-                "🔭 **Where Money Is Forming — Multi-Timeframe Watchlist** "
-                "(15m + 1h + 4h convergence)",
-                expanded=False):
+        # Multi-TF Watchlist expander REMOVED per user (too many segments).
+        # The compute function still runs (cheap, cached 10 min) for any
+        # internal use, but no UI block.
+        if False:
             st.caption(
                 "**The intelligence layer.** Coins where reversal setups "
                 "are forming on **2+ timeframes simultaneously** (15m, 1h, "
@@ -6194,9 +6164,8 @@ if active_section == "🧪 Paper Trader":
         # likely within 1-5 bars).
         # HONEST CAVEAT: leading signals are less reliable than
         # confirmed candles (~40-55% vs ~60-65%). Use as a WATCHLIST.
-        with st.expander(
-                "🔭 Setups Forming — leading-indicator watchlist",
-                expanded=False):
+        # Setups Forming expander REMOVED per user (too many segments).
+        if False:
             st.caption(
                 "Coins where REVERSAL pre-conditions are forming. "
                 "By the time a shooting star or hammer prints, the "
@@ -6400,8 +6369,10 @@ if active_section == "🧪 Paper Trader":
         # rarely. User explicitly asked for this — "you should read
         # through all 150+ Binance coins their patterns etc to indicate
         # me the best outcomes and top picks accordingly".
-        with st.expander("🎯 Pattern Scout — universal scan (validated edge only)",
-                         expanded=False):
+        # Pattern Scout expander REMOVED per user (too many segments).
+        # Pattern Scout picks still surface inline in Bot's Top Picks via
+        # combined_score + the validated CONVERGENCE/SURE SHOT chips.
+        if False:
             st.caption(
                 "Scans the top 50 coins for these **backtested-edge** "
                 "patterns INDEPENDENT of the regular picks gate: "
@@ -7019,34 +6990,8 @@ if active_section == "🧪 Paper Trader":
         _mixed.sort(key=lambda t: t[0], reverse=True)
         _bot_picks = _mixed[:8]
 
-        # ====================================================================
-        # 📊 BOT'S TOP PICKS — The Proven Workhorse (USER-DRIVEN PRIMARY)
-        # ====================================================================
-        # User explicitly said this is what was working. The alerts-gated
-        # picks with multi-TF forecast (3/3) + premium tier + radar stage +
-        # weekly trend + BTC outlook + maturity tilt + regime tilt + all
-        # the validated bonuses (early_momentum / long_patterns / RS /
-        # derivatives_velocity). Combined score ≥72 floor. This is the
-        # ACTION layer — the picks the user reported as good.
-        st.markdown(
-            "<div style='display:flex;align-items:center;gap:12px;"
-            "margin-top:24px;margin-bottom:6px'>"
-            "<span style='font-size:1.5rem;font-weight:900;"
-            "background:linear-gradient(135deg,#00d4ff,#2ed47a);"
-            "-webkit-background-clip:text;-webkit-text-fill-color:"
-            "transparent;background-clip:text;letter-spacing:-0.02em'>"
-            "📊 BOT'S TOP PICKS</span>"
-            "<span style='color:#aab;font-size:0.84rem'>"
-            "the proven workhorse · multi-signal aggregated</span>"
-            "</div>",
-            unsafe_allow_html=True)
-        st.caption(
-            "**The action layer.** Picks that pass alerts gate + multi-TF "
-            "forecast aligned + premium tier (conf ≥80 + 3/3) + Breakout "
-            "Radar stage + Weekly trend + BTC Outlook + Move maturity + "
-            "Regime tilt. **Combined score ≥72 floor.** Click 📥 to open. "
-            "This is the board you reported as working — it stays the "
-            "primary action layer.")
+        # Header + caption removed per user (too noisy). The earlier
+        # "### 🤖 Bot's top picks" header above already labels the board.
 
         # Re-entry detection — if a coin you JUST closed (within 60 min) is
         # back in the setups list, the scanner thinks it qualifies again
