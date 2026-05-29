@@ -849,6 +849,84 @@ def load_klines(symbol: str, interval: str) -> pd.DataFrame:
 # indicator and long-term-hold scores alongside the existing system so
 # the user can A/B test before promoting any signal into the live path.
 
+@st.cache_data(ttl=600, show_spinner=False)
+def compute_multi_tf_setups_forming(scan_n: int = 30,
+                                    _cache_version: int = 1) -> list:
+    """Multi-timeframe Setups Forming watchlist — scans coins on 15m,
+    1h, and 4h simultaneously. Surfaces coins where the SAME direction
+    is forming on MULTIPLE timeframes (genuine money-flow signal).
+
+    Why this works: a single-TF setup may be noise. But when 15m AND
+    1h AND 4h ALL show approaching-reversal conditions on the same
+    side, that's broad-market positioning shift — institutional money
+    rotating. Professional traders watch this.
+
+    Returns list of dicts with per-TF scores. NO TRADE PLANS, NO BUTTONS —
+    pure intelligence layer for the user to watch and act on the actual
+    fire candle when it prints.
+    """
+    try:
+        top_df = load_top_symbols(scan_n)
+    except Exception:
+        return []
+    results = []
+    timeframes = ["15m", "1h", "4h"]
+    for _, row in top_df.iterrows():
+        sym = row["symbol"]
+        base = row["base"]
+        last_price = float(row["lastPrice"])
+        pct_24h = float(row["priceChangePercent"])
+        per_tf = {}
+        for tf in timeframes:
+            try:
+                df = binance_client.get_klines(sym, tf)
+                df = indicators.enrich(df)
+                r = reversal_approach.scan_both_sides(df)
+                per_tf[tf] = {
+                    "score": r.get("score", 50),
+                    "side": r.get("side", "NEUTRAL"),
+                    "conditions": r.get("conditions_met", 0),
+                }
+            except Exception:
+                per_tf[tf] = {"score": 50, "side": "NEUTRAL", "conditions": 0}
+
+        # Count timeframes where conditions are forming (≥ 3/7 met)
+        # AND the side is same direction
+        long_tfs = [tf for tf, d in per_tf.items()
+                    if d["conditions"] >= 3 and d["side"] == "LONG"]
+        short_tfs = [tf for tf, d in per_tf.items()
+                     if d["conditions"] >= 3 and d["side"] == "SHORT"]
+
+        # Only surface coins where 2+ timeframes agree
+        if len(long_tfs) >= 2:
+            net_side = "LONG"
+            agreeing_tfs = long_tfs
+        elif len(short_tfs) >= 2:
+            net_side = "SHORT"
+            agreeing_tfs = short_tfs
+        else:
+            continue
+
+        # Total score is sum across agreeing TFs (more = stronger)
+        total_score = sum(per_tf[tf]["score"] for tf in agreeing_tfs)
+        results.append({
+            "symbol": sym,
+            "base": base,
+            "side": net_side,
+            "agreeing_tfs": agreeing_tfs,
+            "per_tf": per_tf,
+            "total_score": total_score,
+            "price": last_price,
+            "pct_24h": round(pct_24h, 2),
+            "tf_count": len(agreeing_tfs),
+        })
+
+    # Rank by tf_count (more TFs agreeing wins) then total_score
+    results.sort(key=lambda r: (r["tf_count"], r["total_score"]),
+                 reverse=True)
+    return results[:10]
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def compute_unified_best_picks(interval: str, scan_n: int = 50,
                                _cache_version: int = 1) -> list:
@@ -5553,6 +5631,118 @@ if active_section == "🧪 Paper Trader":
         except Exception:
             _best_picks = []
 
+        # ====================================================================
+        # 🔭 WHERE MONEY IS FORMING — Multi-Timeframe Watchlist
+        # ====================================================================
+        # User-driven: professional traders watch SAME coin across multiple
+        # timeframes (15m, 1h, 4h). When 2+ timeframes show same-direction
+        # setup forming, that's broad-market positioning shift — much
+        # stronger than a single TF signal. Pure WATCHLIST — no trade
+        # buttons. Watch for the actual fire candle, then act.
+        with st.expander(
+                "🔭 **Where Money Is Forming — Multi-Timeframe Watchlist** "
+                "(15m + 1h + 4h convergence)",
+                expanded=True):
+            st.caption(
+                "**The intelligence layer.** Coins where reversal setups "
+                "are forming on **2+ timeframes simultaneously** (15m, 1h, "
+                "and/or 4h). When multiple TFs agree, that's institutional "
+                "positioning shift, not noise. **NO TRADE BUTTONS** here — "
+                "this is watchlist intelligence. Watch these coins, and "
+                "when the actual fire candle prints (caught by Bot's Top "
+                "Picks below), THAT'S the trade.")
+            try:
+                _mtf_setups = compute_multi_tf_setups_forming(scan_n=30)
+            except Exception:
+                _mtf_setups = []
+
+            if not _mtf_setups:
+                st.info("No coins currently showing multi-timeframe "
+                        "agreement. Market is choppy or directionless. "
+                        "Check back in a few minutes.")
+            else:
+                st.markdown(
+                    f"**{len(_mtf_setups)} coins** showing multi-TF setup "
+                    f"convergence:")
+                for _mtf in _mtf_setups[:8]:
+                    _mtf_side = _mtf["side"]
+                    _mtf_color = ("#ff3d57" if _mtf_side == "SHORT"
+                                  else "#00e676")
+                    _mtf_emoji = "🩸" if _mtf_side == "SHORT" else "🟢"
+                    _mtf_pct = _mtf.get("pct_24h", 0)
+                    _mtf_pct_color = ("#2ed47a" if _mtf_pct > 0
+                                      else "#ff5c5c" if _mtf_pct < 0
+                                      else "#888")
+                    # Build per-TF chips
+                    _tf_chips = ""
+                    for _tf in ["15m", "1h", "4h"]:
+                        _tf_data = _mtf["per_tf"].get(_tf, {})
+                        _tf_in_agree = _tf in _mtf["agreeing_tfs"]
+                        _tf_score = _tf_data.get("score", 50)
+                        _tf_cond = _tf_data.get("conditions", 0)
+                        if _tf_in_agree:
+                            _tf_chip_color = _mtf_color
+                            _tf_chip_bg = (f"rgba("
+                                f"{int(_mtf_color[1:3], 16)},"
+                                f"{int(_mtf_color[3:5], 16)},"
+                                f"{int(_mtf_color[5:7], 16)},0.20)")
+                        else:
+                            _tf_chip_color = "#666"
+                            _tf_chip_bg = "rgba(255,255,255,0.03)"
+                        _tf_chips += (
+                            f"<span style='background:{_tf_chip_bg};"
+                            f"color:{_tf_chip_color};padding:3px 10px;"
+                            f"border-radius:6px;font-size:0.74rem;"
+                            f"font-weight:700;margin-right:6px'>"
+                            f"{_tf} · {_tf_cond}/7"
+                            f"</span>")
+                    with st.container(border=True):
+                        st.markdown(
+                            f"<div style='display:flex;align-items:center;"
+                            f"gap:10px;flex-wrap:wrap'>"
+                            f"<span style='font-weight:800;"
+                            f"font-size:1.05rem;font-family:"
+                            f"Space Grotesk,Inter,sans-serif'>"
+                            f"{_mtf['base']}</span>"
+                            f"<span style='background:{_mtf_color};"
+                            f"color:#06121f;padding:3px 12px;"
+                            f"border-radius:6px;font-size:0.74rem;"
+                            f"font-weight:800'>{_mtf_emoji} "
+                            f"{_mtf_side} forming</span>"
+                            f"<span style='background:linear-gradient(135deg,"
+                            f"#5b8eff,#8b5cf6);color:#fff;padding:3px 10px;"
+                            f"border-radius:6px;font-size:0.72rem;"
+                            f"font-weight:800;box-shadow:0 0 8px "
+                            f"rgba(91,142,255,0.4)'>"
+                            f"🔭 {_mtf['tf_count']}/3 TFs agree</span>"
+                            f"<span style='color:#888;font-size:0.78rem'>"
+                            f"now ${_mtf['price']:.4g} · "
+                            f"<span style='color:{_mtf_pct_color}'>"
+                            f"{_mtf_pct:+.2f}% 24h</span></span>"
+                            f"</div>"
+                            f"<div style='margin-top:10px'>{_tf_chips}</div>"
+                            f"<div style='color:#aab;font-size:0.78rem;"
+                            f"margin-top:8px;line-height:1.5'>"
+                            f"<b>Watch for:</b> "
+                            + (f"bearish reversal candle (shooting star, "
+                               f"evening star, bearish engulfing) on any "
+                               f"of these timeframes. When it prints, "
+                               f"check the regular picks below for the "
+                               f"confirmed entry."
+                               if _mtf_side == "SHORT" else
+                               f"bullish reversal candle (hammer, morning "
+                               f"star, bullish engulfing) on any of these "
+                               f"timeframes. When it prints, check the "
+                               f"regular picks below for the entry.")
+                            + f"</div>",
+                            unsafe_allow_html=True)
+
+        st.markdown(
+            "<div style='height:1px;background:linear-gradient(90deg,"
+            "transparent,rgba(91,142,255,0.3),transparent);"
+            "margin:18px 0'></div>",
+            unsafe_allow_html=True)
+
         # === BACKTEST-DRIVEN LOCKDOWN (2026-05-31) ===================
         # Backtest with 0.18% transaction costs revealed:
         #   S-tier Convergence: +1.31% avg, 46% win → MARGINAL POSITIVE
@@ -6870,6 +7060,35 @@ if active_section == "🧪 Paper Trader":
             _mixed = _mixed + _extras[:8 - len(_mixed)]
         _mixed.sort(key=lambda t: t[0], reverse=True)
         _bot_picks = _mixed[:8]
+
+        # ====================================================================
+        # 📊 BOT'S TOP PICKS — The Proven Workhorse (USER-DRIVEN PRIMARY)
+        # ====================================================================
+        # User explicitly said this is what was working. The alerts-gated
+        # picks with multi-TF forecast (3/3) + premium tier + radar stage +
+        # weekly trend + BTC outlook + maturity tilt + regime tilt + all
+        # the validated bonuses (early_momentum / long_patterns / RS /
+        # derivatives_velocity). Combined score ≥72 floor. This is the
+        # ACTION layer — the picks the user reported as good.
+        st.markdown(
+            "<div style='display:flex;align-items:center;gap:12px;"
+            "margin-top:24px;margin-bottom:6px'>"
+            "<span style='font-size:1.5rem;font-weight:900;"
+            "background:linear-gradient(135deg,#00d4ff,#2ed47a);"
+            "-webkit-background-clip:text;-webkit-text-fill-color:"
+            "transparent;background-clip:text;letter-spacing:-0.02em'>"
+            "📊 BOT'S TOP PICKS</span>"
+            "<span style='color:#aab;font-size:0.84rem'>"
+            "the proven workhorse · multi-signal aggregated</span>"
+            "</div>",
+            unsafe_allow_html=True)
+        st.caption(
+            "**The action layer.** Picks that pass alerts gate + multi-TF "
+            "forecast aligned + premium tier (conf ≥80 + 3/3) + Breakout "
+            "Radar stage + Weekly trend + BTC Outlook + Move maturity + "
+            "Regime tilt. **Combined score ≥72 floor.** Click 📥 to open. "
+            "This is the board you reported as working — it stays the "
+            "primary action layer.")
 
         # Re-entry detection — if a coin you JUST closed (within 60 min) is
         # back in the setups list, the scanner thinks it qualifies again
