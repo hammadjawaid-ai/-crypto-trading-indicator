@@ -851,7 +851,7 @@ def load_klines(symbol: str, interval: str) -> pd.DataFrame:
 
 @st.cache_data(ttl=600, show_spinner=False)
 def compute_convergence_picks(interval: str, scan_n: int = 50,
-                              _cache_version: int = 1) -> list:
+                              _cache_version: int = 2) -> list:
     """⚡ CONVERGENCE — the highest-conviction picks across the system.
 
     Cross-references multiple INDEPENDENT signals on the same coin:
@@ -880,6 +880,9 @@ def compute_convergence_picks(interval: str, scan_n: int = 50,
         return []
     # Index approach picks by symbol for fast lookup
     approach_by_sym = {a["symbol"]: a for a in approach_picks}
+    # Index scout picks by symbol for BTC-ETH-SOL alignment check
+    scout_by_sym = {p["symbol"]: p for p in scout_picks}
+
     # Get BTC 4h trend for correlation check
     try:
         btc_4h = binance_client.get_klines("BTCUSDT", "4h")
@@ -889,17 +892,31 @@ def compute_convergence_picks(interval: str, scan_n: int = 50,
         btc_4h_change = (
             (float(btc_last["close"]) / float(btc_4h_back["close"]) - 1.0)
             * 100 if float(btc_4h_back["close"]) > 0 else 0)
-        btc_below_50ema = float(btc_last["close"]) < float(
-            btc_last.get("ema_slow") or 0)
     except Exception:
         btc_4h_change = 0
-        btc_below_50ema = False
     # Get regime
     try:
         regime = load_market_regime()
         regime_composite = float(regime.get("composite") or 50)
     except Exception:
         regime_composite = 50
+
+    # --- NEW: BTC-ETH-SOL majors alignment check ---
+    # If all three top majors are showing same-direction signals in
+    # Pattern Scout, that's broad-market agreement → bonus for picks
+    # matching that direction.
+    btc_dir = scout_by_sym.get("BTCUSDT", {}).get("side", "NEUTRAL")
+    eth_dir = scout_by_sym.get("ETHUSDT", {}).get("side", "NEUTRAL")
+    sol_dir = scout_by_sym.get("SOLUSDT", {}).get("side", "NEUTRAL")
+    majors_aligned_side = None
+    if btc_dir == eth_dir == sol_dir and btc_dir != "NEUTRAL":
+        majors_aligned_side = btc_dir
+
+    # --- NEW: Funding rates for all picks (single fapi call) ---
+    try:
+        all_funding = derivatives.all_funding_rates()
+    except Exception:
+        all_funding = {}
 
     convergence = []
     for pick in scout_picks:
@@ -967,6 +984,43 @@ def compute_convergence_picks(interval: str, scan_n: int = 50,
             reasons.append(
                 f"⚠ BTC pumping +{btc_4h_change:.1f}% 4h "
                 "(SHORT may get squeezed)")
+
+        # 5. NEW: Funding rate extreme filter
+        # When funding is heavily one-sided, crowd is positioned hard
+        # — opposite direction has squeeze risk
+        funding = all_funding.get(sym)
+        if funding is not None:
+            funding_pct = funding * 100  # convert to %
+            if side == "LONG" and funding_pct >= 0.08:
+                penalty += 20
+                reasons.append(
+                    f"⚠ funding {funding_pct:+.3f}% (crowded longs, "
+                    "squeeze risk)")
+            elif side == "SHORT" and funding_pct <= -0.08:
+                penalty += 20
+                reasons.append(
+                    f"⚠ funding {funding_pct:+.3f}% (crowded shorts, "
+                    "squeeze risk)")
+            elif side == "LONG" and funding_pct <= -0.03:
+                bonus += 5
+                reasons.append(
+                    f"funding {funding_pct:+.3f}% (shorts crowded, "
+                    "contrarian LONG)")
+            elif side == "SHORT" and funding_pct >= 0.03:
+                bonus += 5
+                reasons.append(
+                    f"funding {funding_pct:+.3f}% (longs crowded, "
+                    "contrarian SHORT)")
+
+        # 6. NEW: BTC-ETH-SOL alignment bonus
+        # When all three top majors show same-direction signals, broad-
+        # market move is confirmed by independent corroboration
+        if (majors_aligned_side is not None
+                and majors_aligned_side == side):
+            bonus += 10
+            reasons.append(
+                f"BTC + ETH + SOL all signal {side} "
+                "(broad-market alignment)")
 
         final_score = max(0, min(100, base_score + bonus - penalty))
         if final_score >= 88:

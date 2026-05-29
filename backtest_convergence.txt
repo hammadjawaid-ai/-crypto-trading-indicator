@@ -1,0 +1,67 @@
+﻿Loading top 20 universe...
+Fetching BTC daily and 4h for regime + correlation...
+
+Walking forward through 20 coins...
+  [1/20] BTCUSDT: 34 fires
+  [2/20] ETHUSDT: 39 fires
+  [3/20] GENIUSUSDT: SKIP (too few bars)
+  [4/20] SOLUSDT: 58 fires
+  [5/20] XLMUSDT: 28 fires
+  [6/20] NEARUSDT: 76 fires
+  [7/20] XRPUSDT: 26 fires
+  [8/20] ALLOUSDT: 75 fires
+  [9/20] ZECUSDT: 86 fires
+  [10/20] BNBUSDT: 35 fires
+  [11/20] TRXUSDT: 26 fires
+  [12/20] MEGAUSDT: 29 fires
+  [13/20] SUIUSDT: 84 fires
+  [14/20] DOGEUSDT: 53 fires
+  [15/20] HBARUSDT: 33 fires
+  [16/20] WLDUSDT: 68 fires
+  [17/20] FETUSDT: 60 fires
+  [18/20] INJUSDT: 74 fires
+  [19/20] HEIUSDT: 61 fires
+  [20/20] IOUSDT: 76 fires
+
+==============================================================================
+RESULTS — Pattern Scout vs CONVERGENCE
+==============================================================================
+Total pattern_scout fires: 1021
+  of which qualified as CONVERGENCE: 488 (47.8%)
+
+Group                        horizon       n    win%       avg
+----------------------------------------------------------------------
+All pattern_scout fires      +12        1021    48.7     0.342
+All pattern_scout fires      +24        1021    45.9     0.633
+All pattern_scout fires      +48        1021    49.7     1.941
+CONVERGENCE qualified        +12         488    55.5     0.988
+CONVERGENCE qualified        +24         488    51.8     1.881
+CONVERGENCE qualified        +48         488    58.4      3.89
+Pattern_scout NOT converged  +12         533    42.4    -0.249
+Pattern_scout NOT converged  +24         533    40.5    -0.509
+Pattern_scout NOT converged  +48         533    41.7     0.156
+
+BREAKDOWN BY SIDE
+----------------------------------------------------------------------
+LONG All      +12  n=962  win=47.9% avg=0.342%
+LONG All      +24  n=962  win=45.2% avg=0.652%
+LONG All      +48  n=962  win=49.7% avg=2.244%
+LONG CONV     +12  n=477  win=55.1% avg=0.996%
+LONG CONV     +24  n=477  win=51.2% avg=1.871%
+LONG CONV     +48  n=477  win=58.1% avg=3.944%
+
+SHORT All      +12  n=59   win=61.0% avg=0.355%
+SHORT All      +24  n=59   win=57.6% avg=0.331%
+SHORT All      +48  n=59   win=49.2% avg=-2.995%
+SHORT CONV     +12  n=11   win=72.7% avg=0.661%
+SHORT CONV     +24  n=11   win=81.8% avg=2.325%
+SHORT CONV     +48  n=11   win=72.7% avg=1.541%
+
+==============================================================================
+VERDICT
+==============================================================================
+  +12bar: convergence wins 55.5% vs baseline 48.7% (+6.9pp) · avg +0.99% vs +0.34% (+0.65pp) → ✅ VALIDATED
+  +24bar: convergence wins 51.8% vs baseline 45.9% (+5.9pp) · avg +1.88% vs +0.63% (+1.25pp) → ✅ VALIDATED
+  +48bar: convergence wins 58.4% vs baseline 49.7% (+8.7pp) · avg +3.89% vs +1.94% (+1.95pp) → ✅ VALIDATED
+
+Total runtime: 41.6s
