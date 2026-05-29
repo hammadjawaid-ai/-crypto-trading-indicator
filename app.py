@@ -5843,14 +5843,22 @@ if active_section == "🧪 Paper Trader":
             st.caption(
                 f"Found **{len(_top_shorts)}** SHORT candidates with "
                 "multiple aligned signals.")
+            st.caption(
+                "**Strength tiers** — STRONG ≥20 (high conviction, "
+                "click 📥 confidently), MODERATE 12-19 (mild conviction, "
+                "lighter size), WEAK <12 (hidden from board). The number "
+                "is total signal contribution (each firing signal adds "
+                "weight × deviation from neutral).")
             for _s in _top_shorts:
                 _str = _s["strength"]
                 _str_color = ("#ff5c5c" if _str >= 20
                               else "#e0a92b" if _str >= 12 else "#8b8d98")
                 _str_label = ("STRONG" if _str >= 20
                               else "MODERATE" if _str >= 12 else "WEAK")
+                _short_sid = f"short_{_s['symbol']}"
                 with st.container(border=True):
-                    st.markdown(
+                    _txt_col, _btn_col = st.columns([6, 1])
+                    _txt_col.markdown(
                         f"<div style='display:flex;align-items:center;"
                         f"gap:8px;flex-wrap:wrap'>"
                         f"<span style='font-weight:800;font-size:1rem'>"
@@ -5861,7 +5869,7 @@ if active_section == "🧪 Paper Trader":
                         f"<span style='background:{_str_color}33;"
                         f"color:{_str_color};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:700'>"
-                        f"{_str_label} · {_str:.0f}</span>"
+                        f"{_str_label} · strength {_str:.0f}/50</span>"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
                         f"em-score {_s['em_score']:.0f}"
                         + (f" · price {fmt_price(_s['price'])}"
@@ -5873,12 +5881,50 @@ if active_section == "🧪 Paper Trader":
                         + " · ".join(_s["signals"])
                         + "</div>",
                         unsafe_allow_html=True)
+                    # 📥 Open trade button — opens the paper short trade
+                    # directly from this card. Uses the underlying setup
+                    # dict from the scanner (which has the same SHORT
+                    # entry/stop/target plan as the main picks board
+                    # would have used).
+                    if _btn_col.button("📥", key=f"pb_short_{_short_sid}",
+                                       help=(f"Open SHORT {_s['base']} "
+                                             "paper trade at TP1"),
+                                       use_container_width=True):
+                        _open_setup = dict(_s["setup"])
+                        # Strength factor scales position size — STRONG
+                        # gets larger size, MODERATE smaller, mirroring
+                        # the strength-tier semantics.
+                        _strength_factor = max(0.4, min(1.0, _str / 30.0))
+                        _open_setup["strength_factor"] = _strength_factor
+                        _open_price = (prices.get(_s["symbol"])
+                                       or _open_setup.get("entry_low"))
+                        _opened = paper_bot.open_position(
+                            pb_state, _open_setup, _open_price)
+                        if _opened:
+                            _enrich_position(
+                                _opened,
+                                int(min(99, max(0, _str * 4))),
+                                timeframe)
+                            paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                            st.toast(
+                                f"📥 Opened SHORT {_opened['base']} @ "
+                                f"{fmt_price(_opened['entry'])} · "
+                                f"strength {_str:.0f}",
+                                icon="🩸")
+                            st.rerun()
+                        else:
+                            st.warning(
+                                f"Could not open SHORT {_s['base']} — "
+                                "the paper bot rejected the position. "
+                                "Usually means: insufficient balance, "
+                                "max-concurrent hit, or symbol already "
+                                "in open positions.")
                     st.caption(
-                        f"💡 Historical edge of these components on SHORT "
-                        f"side: ~60-67% win rate over 12 bars (backtest "
-                        f"sample n=131-92 fires across top-19 coins, "
-                        f"6 weeks). Open the trade via the 'Open a trade' "
-                        f"form on the left — set SIDE to SHORT.")
+                        f"💡 Historical edge of the proven SHORT components: "
+                        f"CVD div 67% win, VWAP loss 62%, Squeeze SHORT 57% "
+                        f"(over 12 bars, backtest n=131-92 across top-19 "
+                        f"coins). Click 📥 to open as paper trade — "
+                        f"position size scales with strength.")
 
         st.divider()
         # Open positions — LIVE fragment (updates in place every 10s).
