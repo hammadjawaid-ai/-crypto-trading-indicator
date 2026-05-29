@@ -6708,24 +6708,9 @@ if active_section == "🧪 Paper Trader":
                                         f"Could not open {_sc['base']} — "
                                         "check balance/concurrency/already-open.")
 
-        st.caption(
-            "**Adaptive unified picks board.** Ranks LONG and SHORT setups "
-            "by a fused score that combines: Market Scanner alert + "
-            "Forecast multi-horizon read + Weekly trend + BTC 24h Outlook "
-            "+ Move maturity + Breakout Radar stage + 🔥 Early-Momentum "
-            "(Phase A backtested) + ⚡ RS vs BTC (Phase B) + 💱 "
-            "Derivatives Velocity (Phase C) + 📊 Market Regime tilt. "
-            "The regime tilt is the adaptive layer: LONG signals get "
-            "boosted in BULL regimes and penalised in BEAR regimes "
-            "(SHORT mirror). Floor is combined ≥ 72. "
-            "📥 opens at **TP1 (~5-7%)** — the default exit. "
-            "**On 🏆 PREMIUM cards** (conf ≥ 80 + forecast 3/3) the "
-            "📥 button also activates **chase-TP2**: if price hits "
-            "TP1 the stop trails up to TP1 (locking in the win) and "
-            "the target extends to TP2 (~7.5-10%) so the trade rides "
-            "remaining momentum. If trend dies after TP1 you still "
-            "bank TP1 — never worse than the plain plan, sometimes "
-            "+1R better.")
+        # Old "Adaptive unified picks board" caption removed — replaced
+        # by the concise caption attached to the new BEST TRADES NOW
+        # header above.
 
         # _fc_by_sym was built earlier (right after auto_ad) and is shared
         # with the auto-trade loop, so no additional forecast call here.
@@ -6967,14 +6952,17 @@ if active_section == "🧪 Paper Trader":
 
             _scored.append((base, fc_label, trend, align, s))
         _scored.sort(key=lambda t: t[0], reverse=True)
-        # Quality floor: combined score >= 72 (matches the alert floor
-        # CONF_ALERT=72). Counter-trend, forecast-disagree, and re-run
-        # setups stay visible — the existing scoring (-8 counter, -8
-        # disagree) already pushes them down the list naturally, and
-        # the user has explicitly said they want to see them since a
-        # clean setup can still hit target even when one engine flags
-        # against. Trust the ranking; cleaner picks rise to the top.
-        _scored = [t for t in _scored if t[0] >= 72]
+        # Quality floor: combined score >= 65 (was 72).
+        # Lowered so the user ALWAYS sees picks even in low-conviction
+        # markets (BEAR / CHOP / TRANSITION with sub-50 regime conf).
+        # The CONVICTION TIER badge on each card is the safety:
+        #   ⚡⚡⚡ MAX (>=90)  → trade with full size
+        #   ⚡⚡ HIGH (>=85)   → trade meaningful
+        #   ⚡ STRONG (>=80)  → trade small
+        #   ⚪ STANDARD (65-79) → information only, very small or skip
+        # User reads the tier to decide — the floor just guarantees the
+        # board is never empty when there's any signal at all.
+        _scored = [t for t in _scored if t[0] >= 65]
 
         # 🔥 EARLY-MOMENTUM A/B filter — strict mode that hides any
         # pick lacking an aligned early-momentum confirmation. Off by
@@ -7254,9 +7242,17 @@ if active_section == "🧪 Paper Trader":
                 unsafe_allow_html=True)
 
         if not _bot_picks:
-            st.info("No high-confidence setups for the agent to recommend "
-                    "right now. Watch the alerts strip or switch the "
-                    "timeframe.")
+            st.warning(
+                "**No qualifying picks right now** — the multi-layer "
+                "scoring is below the floor (combined < 65) for every "
+                "coin on this timeframe. This usually means market "
+                "regime is choppy/low-conviction. **Try:**\n"
+                "• Switch timeframe (top bar): 1h is most reliable, "
+                "4h gives the bigger-picture setups.\n"
+                "• Check **🔭 SETUPS FORMING** below — coins about to "
+                "trigger.\n"
+                "• Wait. Forcing trades in low-conviction regimes is "
+                "how you lose money.")
         else:
             for combined, fc_label, trend, align, s in _bot_picks:
                 side = s["side"]
