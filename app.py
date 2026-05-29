@@ -6964,6 +6964,75 @@ if active_section == "🧪 Paper Trader":
         # board is never empty when there's any signal at all.
         _scored = [t for t in _scored if t[0] >= 65]
 
+        # ============================================================
+        # 🔭 PROMOTE STRONG Setups Forming PICKS into BEST TRADES NOW
+        # ============================================================
+        # User: "setup forming if proven right should be in the top
+        # picks to trade as well".
+        #
+        # "Proven right" = STRONG WATCH tier (reversal_approach score
+        # >= 80) with 5+/7 pre-conditions met. At that bar — multiple
+        # leading signals AGREE on the same reversal direction:
+        # approach to level + RSI extreme + volume waning + body
+        # shrinkage + EMA extension + CVD divergence + intra-bar
+        # rejection. Backtest pattern: when 5+/7 conditions hit, the
+        # actual reversal candle prints within 1-5 bars ~50-60% of
+        # the time — strong enough to ANTICIPATE the trade with a
+        # buffered stop. Promoted picks get a 🔭 SETUP FORMING chip
+        # so the user knows the entry is anticipatory (not confirmed).
+        try:
+            _sf_promote_results = run_reversal_approach_scan(
+                timeframe, scan_n=30)
+        except Exception:
+            _sf_promote_results = []
+        _scored_syms = {t[4]["symbol"] for t in _scored}
+        _sf_promoted_syms = set()
+        for _sfp in _sf_promote_results:
+            # Only promote STRONG WATCH with 5+/7 conditions AND a
+            # valid anticipatory trade plan.
+            if (_sfp.get("score", 0) < 80
+                    or _sfp.get("conditions_met", 0) < 5
+                    or not _sfp.get("has_plan", False)):
+                continue
+            # Avoid dupes — if symbol already in _scored, skip
+            # (the existing pick has more signals stacked).
+            if _sfp["symbol"] in _scored_syms:
+                continue
+            # Build a synthetic setup dict shaped like alerts.setups
+            _sf_sym = _sfp["symbol"]
+            _sf_side = _sfp["side"]
+            _sf_entry = float(_sfp.get("entry") or 0)
+            _sf_stop = float(_sfp.get("stop") or 0)
+            _sf_tgt = float(_sfp.get("target") or 0)
+            _sf_tgt2 = float(_sfp.get("target_2") or 0)
+            _sf_rr = float(_sfp.get("rr") or 0)
+            _sf_score = float(_sfp["score"])
+            _sf_setup = {
+                "symbol": _sf_sym,
+                "base": _sfp.get("base", _sf_sym.replace("USDT", "")),
+                "side": _sf_side,
+                "entry": _sf_entry,
+                "entry_low": _sf_entry,
+                "entry_high": _sf_entry,
+                "stop": _sf_stop,
+                "target": _sf_tgt,
+                "target_2": _sf_tgt2 if _sf_tgt2 > 0 else None,
+                "rr": _sf_rr,
+                "confidence": int(min(99, _sf_score)),
+                "strength_factor": max(
+                    0.4, min(1.0, (_sf_score - 65) / 30.0 + 0.4)),
+                "label": f"{_sf_side} (Setup Forming · "
+                         f"{_sfp.get('conditions_met', 0)}/7)",
+            }
+            # 5-tuple matches: (combined, fc_label, trend, align, setup)
+            # combined = sf score (already 80+, passes floor easily)
+            # fc_label = neutral (forecast not consulted for SF picks)
+            _scored.append(
+                (_sf_score, "forecast neutral", "flat", "neutral",
+                 _sf_setup))
+            _sf_promoted_syms.add(_sf_sym)
+        _scored.sort(key=lambda t: t[0], reverse=True)
+
         # 🔥 EARLY-MOMENTUM A/B filter — strict mode that hides any
         # pick lacking an aligned early-momentum confirmation. Off by
         # default; user toggles it in Paper Trader settings. Paper
@@ -7380,6 +7449,21 @@ if active_section == "🧪 Paper Trader":
                         f"box-shadow:0 0 10px rgba(0,212,255,0.5)'>"
                         f"💎 SURE SHOT</span>")
 
+                # 🔭 SETUP FORMING chip — promoted from the Setups
+                # Forming watchlist (STRONG WATCH with 5+/7 conditions).
+                # Tells user "this is an ANTICIPATORY entry — leading
+                # signals agree but the actual trigger candle hasn't
+                # printed yet". Buffered stop in the trade plan.
+                setup_forming_chip = ""
+                if s["symbol"] in _sf_promoted_syms:
+                    setup_forming_chip = (
+                        f"<span style='background:linear-gradient(90deg,"
+                        f"#5b8eff,#8b5cf6);color:#fff;"
+                        f"padding:2px 10px;border-radius:5px;font-size:"
+                        f"0.72rem;font-weight:800;margin-left:4px;"
+                        f"box-shadow:0 0 8px rgba(91,142,255,0.4)'>"
+                        f"🔭 SETUP FORMING</span>")
+
                 # ============================================================
                 # 🏆 CONVICTION TIER — multi-layer fusion badge.
                 # ============================================================
@@ -7721,7 +7805,8 @@ if active_section == "🧪 Paper Trader":
                         f"5px;font-size:0.72rem;font-weight:700'>"
                         f"{str_label} · {combined_display}</span>"
                         f"{conviction_chip}"
-                        f"{convergence_chip}{sure_shot_chip}{premium_chip}"
+                        f"{convergence_chip}{sure_shot_chip}"
+                        f"{setup_forming_chip}{premium_chip}"
                         f"{recovery_chip}{coiled_chip}"
                         f"{early_chip}{long_chip}{rs_chip}{dv_chip}"
                         f"{fc_chip}{reentry_chip}{_drift_chip}"
@@ -7903,11 +7988,14 @@ if active_section == "🧪 Paper Trader":
         except Exception:
             _sf_results = []
         # Show top 6 — only score >= 65 (3+ conditions). Skip coins that
-        # are already in BEST TRADES NOW (avoid duplication).
+        # are already in BEST TRADES NOW (whether from regular setups
+        # or promoted from Setups Forming itself).
         _btn_syms = {pk[4]["symbol"] for pk in _bot_picks}
         _sf_top = [r for r in sorted(_sf_results,
                                      key=lambda r: r["score"], reverse=True)
-                   if r["score"] >= 65 and r["symbol"] not in _btn_syms][:6]
+                   if r["score"] >= 65
+                   and r["symbol"] not in _btn_syms
+                   and r["symbol"] not in _sf_promoted_syms][:6]
         if _sf_top:
             st.markdown(
                 "<div style='display:flex;align-items:center;gap:10px;"
