@@ -30,6 +30,7 @@ import derivatives_velocity
 import early_momentum
 import forecast
 import fred_macro
+import long_patterns
 import market_regime
 # rs_vs_btc imported under its alias below so picks-board cached helpers
 # can stay grouped with the other Phase A/B scoring helpers.
@@ -346,6 +347,28 @@ def load_klines(symbol: str, interval: str) -> pd.DataFrame:
 # auto_trade_gate, or is_premium_tradeable. They surface NEW leading-
 # indicator and long-term-hold scores alongside the existing system so
 # the user can A/B test before promoting any signal into the live path.
+
+@st.cache_data(ttl=config.MARKET_CACHE_TTL, show_spinner=False)
+def load_long_patterns(symbol: str, interval: str) -> dict:
+    """Compute proven LONG-pattern conviction for one symbol/timeframe.
+
+    The early_momentum LONG signal failed in backtest because its
+    'bullish CVD' definition was catching dip-buyers in a bear market.
+    This module uses the textbook patterns that have actual edge:
+    bullish RSI divergence (price LL + RSI HL), trend reclaim with
+    volume, higher-low structure, bullish engulfing at support.
+
+    Returns the long_patterns dict; falls back to neutral on error so
+    the picks board never crashes.
+    """
+    try:
+        df = binance_client.get_klines(symbol, interval)
+        df = indicators.enrich(df)
+        return long_patterns.score(df)
+    except Exception:
+        return {"score": 50.0, "weighted_avg": 50.0, "side": "NEUTRAL",
+                "components": {}, "flags": [], "n_aligned": 0}
+
 
 @st.cache_data(ttl=config.MARKET_CACHE_TTL, show_spinner=False)
 def load_early_momentum(symbol: str, interval: str) -> dict:
@@ -4609,6 +4632,23 @@ if active_section == "🧪 Paper Trader":
                     or (_setup_side == "SHORT" and _dv_pick_score <= 30)):
                 base += 3
 
+            # 🟢 PROVEN LONG PATTERNS (replaces broken bullish CVD) ------
+            # Only applies to LONG setups. Bullish RSI divergence + trend
+            # reclaim + higher-low structure + bullish engulfing at
+            # support. These are textbook patterns with documented edge
+            # across decades — replaces the per-bar "bullish CVD" that
+            # backtested at 3.6% win rate.
+            if _setup_side == "LONG":
+                _lp_pick = load_long_patterns(s["symbol"], timeframe)
+                _lp_pick_score = float(_lp_pick.get("score") or 50)
+                _lp_n_aligned = int(_lp_pick.get("n_aligned") or 0)
+                if _lp_pick_score >= 75 and _lp_n_aligned >= 2:
+                    base += 8     # 2+ proven patterns agreeing — strong LONG
+                elif _lp_pick_score >= 70:
+                    base += 5     # single strong pattern
+                elif _lp_pick_score >= 60:
+                    base += 2     # mild lift
+
             # --- Market Regime tilt (adaptive layer) --------------------
             # In a BULL regime, push every score TOWARD LONG. In BEAR,
             # push TOWARD SHORT. The tilt magnitude is capped by regime
@@ -4906,6 +4946,44 @@ if active_section == "🧪 Paper Trader":
                         f"0.7rem;font-weight:700;margin-left:4px'>"
                         f"⚠ Early-mom opposes ({_em_score:.0f})</span>")
 
+                # 🟢 PROVEN LONG PATTERNS chip — only on LONG setups
+                long_chip = ""
+                if side == "LONG":
+                    _lp = load_long_patterns(s["symbol"], timeframe)
+                    _lp_score = float(_lp.get("score") or 50)
+                    _lp_flags = list(_lp.get("flags") or [])
+                    _lp_n = int(_lp.get("n_aligned") or 0)
+                    if _lp_score >= 70 and _lp_n >= 1:
+                        # Build flag short labels
+                        flag_lbls = []
+                        if "rsi_divergence" in _lp_flags:
+                            flag_lbls.append("RSI div")
+                        if "trend_reclaim" in _lp_flags:
+                            flag_lbls.append("reclaim")
+                        if "higher_low" in _lp_flags:
+                            flag_lbls.append("HL")
+                        if "engulfing_support" in _lp_flags:
+                            flag_lbls.append("engulf")
+                        flag_text = (" · " + " · ".join(flag_lbls[:2])
+                                     if flag_lbls else "")
+                        # Stronger colors for multi-pattern alignment
+                        if _lp_n >= 2:
+                            long_chip = (
+                                f"<span style='background:linear-gradient("
+                                f"90deg,#0b8a3e,#34c759);color:#06121f;"
+                                f"padding:2px 10px;border-radius:5px;"
+                                f"font-size:0.72rem;font-weight:800;"
+                                f"margin-left:4px;box-shadow:0 0 6px "
+                                f"#34c75966'>"
+                                f"🟢 LONG · {_lp_score:.0f}{flag_text}</span>")
+                        else:
+                            long_chip = (
+                                f"<span style='background:#2ed47a22;"
+                                f"color:#2ed47a;padding:2px 8px;"
+                                f"border-radius:5px;font-size:0.7rem;"
+                                f"font-weight:700;margin-left:4px'>"
+                                f"🟢 LONG · {_lp_score:.0f}{flag_text}</span>")
+
                 # ⚡ RS LEADER chip (Phase B) — relative strength vs BTC.
                 # When the alt is significantly out-performing BTC across
                 # short/med/long windows (z-score >= +0.5), capital is
@@ -5024,7 +5102,7 @@ if active_section == "🧪 Paper Trader":
                         f"5px;font-size:0.72rem;font-weight:700'>"
                         f"{str_label} · {combined_display}</span>"
                         f"{premium_chip}{coiled_chip}{early_chip}"
-                        f"{rs_chip}{dv_chip}{fc_chip}"
+                        f"{long_chip}{rs_chip}{dv_chip}{fc_chip}"
                         f"{reentry_chip}{_drift_chip}"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
                         f"scanner {conf}% · R:R {rr:.1f} · "
