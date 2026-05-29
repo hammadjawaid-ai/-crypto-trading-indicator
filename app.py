@@ -4308,11 +4308,11 @@ if active_section == "🧪 Paper Trader":
                  "counter-trend setups require >= 85), long and short.")
         live_mode = c4.checkbox(
             "🔴 Live", value=True, key="pb_live",
-            help="Auto-refresh every 90 seconds so the page stays "
+            help="Auto-refresh every 3 minutes so the page stays "
                  "active, scanner cache (120s) refreshes between "
                  "loads, and new patterns / picks surface "
                  "automatically without you reloading. Pattern Scout "
-                 "(10-min cache) re-scans every 7 cycles. Default ON.")
+                 "(10-min cache) re-scans every 3-4 cycles. Default ON.")
         if c5.button("🔄 Reset", type="secondary",
                      use_container_width=True):
             paper_bot.reset(PAPER_BOT_FILE, new_balance, new_risk)
@@ -6977,11 +6977,12 @@ if active_section == "🧪 Paper Trader":
     # ---- Live mode — only the 10-min hard refresh now -------------------
     # The Bank stats and Open positions sections already update in place
     # every 10s via st.fragment — no full page reload needed for live P&L.
-    # Live mode triggers a 90-second full page refresh so the scanner
-    # cache (120s) is hit fresh on every other reload, Pattern Scout
-    # cache (600s) refreshes every 7 cycles, and new V-bottom / pattern
-    # fires surface automatically. User requested aggressive refresh
-    # so "charts remain active and signals fire accordingly".
+    # Live mode triggers a 3-minute full page refresh — the sweet spot
+    # between freshness and not hammering the API. Cadence:
+    #   - Live fragments (P&L, positions): every 10 sec
+    #   - Full page reload: every 180 sec
+    #   - Scanner cache (120s) hits fresh on every other reload
+    #   - Pattern Scout cache (600s) refreshes every ~3-4 reloads
     if live_mode:
         # Visual indicator with pulsing dot so user knows live mode is on
         st.markdown(
@@ -6994,11 +6995,11 @@ if active_section == "🧪 Paper Trader":
             "<span style='color:#ff3d57;font-size:0.78rem;font-weight:700'>"
             "🔴 LIVE MODE</span>"
             "<span style='color:#aab;font-size:0.78rem'>"
-            "page auto-refreshes every 90s · Pattern Scout re-scans every "
+            "page auto-refreshes every 3 min · Pattern Scout re-scans every "
             "10 min · live position P&amp;L updates every 10s</span>"
             "</div>",
             unsafe_allow_html=True)
-        _inject_autorefresh(90)
+        _inject_autorefresh(180)
 
 
 # ===========================================================================
