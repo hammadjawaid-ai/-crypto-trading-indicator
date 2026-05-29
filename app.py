@@ -857,10 +857,13 @@ def run_pattern_scout(interval: str, scan_n: int = 50) -> list:
     Per user feedback: the picks board only surfaces coins that pass
     CONF_ALERT=72. Coins with strong individual patterns (V-bottom,
     long_patterns, morning star, hammer-at-support) but lower scanner
-    confidence never appear. This helper surfaces them.
+    confidence never appear. This helper surfaces them — AND now also
+    generates a full trade plan (entry/stop/TP1/TP2) for each pick so
+    the user can open the trade with a 📥 button directly from the
+    Pattern Scout cards.
 
-    Cached 10 min — scan of 50 coins × klines fetch + 4 patterns takes
-    20-40 sec but the cache keeps repeated visits fast.
+    Cached 10 min — scan of 50 coins × klines fetch + patterns +
+    trade plan takes 30-60 sec but the cache keeps repeated visits fast.
     """
     try:
         top_df = load_top_symbols(scan_n)
@@ -879,6 +882,30 @@ def run_pattern_scout(interval: str, scan_n: int = 50) -> list:
         except Exception:
             continue
         if r["score"] >= 65:  # surface anything WATCH-tier or above
+            # Generate FULL trade plan for openable picks using the
+            # same signals.analyze() infrastructure that builds plans
+            # for the regular picks board. This way pattern Scout
+            # cards can show entry/stop/TP1/TP2/R:R and be openable
+            # via 📥.
+            try:
+                sig_result = signals.analyze(df, mode="futures")
+                trade_plan = sig_result.get("trade_plan") or {}
+                # Determine side from pattern scout signal (LONG-only
+                # for now since pattern scout patterns are bullish)
+                if r["side"] == "LONG" and trade_plan:
+                    r["trade_plan"] = trade_plan
+                    r["entry_low"] = trade_plan.get("entry_low")
+                    r["entry_high"] = trade_plan.get("entry_high")
+                    r["entry"] = trade_plan.get("entry")
+                    r["stop"] = trade_plan.get("stop_loss")
+                    r["target"] = trade_plan.get("take_profit")
+                    r["target_2"] = trade_plan.get("take_profit_2")
+                    r["rr"] = trade_plan.get("risk_reward")
+                    r["rr_2"] = trade_plan.get("risk_reward_2")
+                    r["maturity"] = trade_plan.get("maturity") or {}
+                    r["scanner_confidence"] = sig_result.get("confidence", 50)
+            except Exception:
+                pass
             r["base"] = base
             r["price"] = last_price
             r["volume_24h"] = float(row["quoteVolume"])
@@ -5051,8 +5078,59 @@ if active_section == "🧪 Paper Trader":
                     _pct_24h = _sc.get("pct_24h", 0)
                     _pct_color = ("#2ed47a" if _pct_24h > 0
                                   else "#ff5c5c" if _pct_24h < 0 else "#888")
+                    _ps_sid = f"ps_{_sc['symbol']}"
+                    # Pull trade plan (entry/stop/TP) if available
+                    _ps_entry = float(_sc.get("entry_low")
+                                      or _sc.get("entry") or 0)
+                    _ps_stop = float(_sc.get("stop") or 0)
+                    _ps_tgt = float(_sc.get("target") or 0)
+                    _ps_tgt2 = float(_sc.get("target_2") or 0)
+                    _ps_rr = float(_sc.get("rr") or 0)
+                    _ps_rr2 = float(_sc.get("rr_2") or 0)
+                    _ps_has_plan = (_ps_entry > 0 and _ps_stop > 0
+                                    and _ps_tgt > 0)
+                    _ps_cur = _sc["price"]
+                    # Live R:R from current price
+                    _ps_live_risk = ((_ps_cur - _ps_stop) / _ps_cur * 100
+                                     if _ps_cur > 0 and _ps_stop > 0
+                                     else 0.0)
+                    _ps_live_reward = ((_ps_tgt - _ps_cur) / _ps_cur * 100
+                                       if _ps_cur > 0 and _ps_tgt > 0
+                                       else 0.0)
+                    _ps_live_rr = (_ps_live_reward / _ps_live_risk
+                                   if _ps_live_risk > 0 else 0.0)
+                    # Position-size preview using paper bot settings
+                    _ps_bal = float(pb_state.get("balance") or 0)
+                    _ps_risk_pct = float(
+                        pb_state.get("risk_per_trade_pct") or 1.0)
+                    _ps_lev = float(pb_state.get("leverage") or 3.0)
+                    _ps_maxn = float(
+                        pb_state.get("max_notional_per_trade") or 5000.0)
+                    if _ps_has_plan and _ps_entry > 0:
+                        _ps_riskd = _ps_bal * _ps_risk_pct / 100
+                        _ps_stopdist = abs(_ps_stop - _ps_entry) or 1.0
+                        _ps_qty = _ps_riskd / _ps_stopdist
+                        _ps_notional = _ps_qty * _ps_entry
+                        # Strength factor scales by score (higher score =
+                        # bigger position, capped at full cap)
+                        _ps_sf = max(0.4, min(1.0, (_score - 65) / 30 + 0.4))
+                        _ps_cap = _ps_maxn * _ps_sf
+                        if _ps_notional > _ps_cap:
+                            _ps_notional = _ps_cap
+                            _ps_qty = (_ps_notional / _ps_entry
+                                       if _ps_entry > 0 else 0.0)
+                        _ps_margin = (_ps_notional / _ps_lev
+                                      if _ps_lev > 0 else _ps_notional)
+                        _ps_loss = _ps_qty * abs(_ps_stop - _ps_entry)
+                        _ps_profit = _ps_qty * abs(_ps_tgt - _ps_entry)
+                    else:
+                        _ps_qty = _ps_notional = _ps_margin = 0.0
+                        _ps_loss = _ps_profit = 0.0
+
                     with st.container(border=True):
-                        st.markdown(
+                        _ps_text_col, _ps_btn_col = st.columns([6, 1])
+                        _ps_text_col.markdown(
+                            # Header
                             f"<div style='display:flex;align-items:center;"
                             f"gap:8px;flex-wrap:wrap'>"
                             f"<span style='font-weight:800;font-size:1.05rem'>"
@@ -5063,16 +5141,103 @@ if active_section == "🧪 Paper Trader":
                             f"🎯 {_tier} · {_score:.0f}</span>"
                             f"{_signal_chips}"
                             f"<span style='color:#8b8d98;font-size:0.78rem'>"
-                            f"price ${_sc['price']:.4g} · "
+                            f"now ${_ps_cur:.4g} · "
                             f"<span style='color:{_pct_color}'>"
                             f"{_pct_24h:+.2f}% 24h</span></span>"
                             f"</div>"
-                            f"<div style='color:#aab;font-size:0.78rem;"
-                            f"margin-top:6px'>"
-                            f"<b>Best signal:</b> {_sc['best_signal']}<br>"
-                            f"{_sc['signals'][0]['detail'][:140]}"
-                            f"</div>",
+                            # Trade plan row (only if we have one)
+                            + (
+                                f"<div style='color:#aab;font-size:0.80rem;"
+                                f"margin-top:8px;line-height:1.6'>"
+                                f"entry <b>${_ps_entry:.4g}</b> · "
+                                f"stop <b>${_ps_stop:.4g}</b> "
+                                f"<span style='color:#ff5c5c'>"
+                                f"(-{abs(_ps_stop - _ps_entry) / _ps_entry * 100:.1f}%)</span> · "
+                                f"TP1 <b>${_ps_tgt:.4g}</b> "
+                                f"<span style='color:#2ed47a'>"
+                                f"(+{abs(_ps_tgt - _ps_entry) / _ps_entry * 100:.1f}%)</span>"
+                                + (f" · TP2 <b>${_ps_tgt2:.4g}</b> "
+                                   f"<span style='color:#e0a92b'>"
+                                   f"(+{abs(_ps_tgt2 - _ps_entry) / _ps_entry * 100:.1f}%)</span>"
+                                   if _ps_tgt2 > 0 else "")
+                                + f" · plan R:R <b>{_ps_rr:.2f}</b>"
+                                + (f" · live R:R <b>{_ps_live_rr:.2f}</b>"
+                                   if _ps_live_rr > 0 else "")
+                                + f"</div>"
+                                # Position-size preview box
+                                f"<div style='background:rgba(0,212,255,0.05);"
+                                f"border:1px solid rgba(0,212,255,0.15);"
+                                f"border-radius:8px;padding:8px 12px;"
+                                f"margin-top:8px;color:#c8d2ed;"
+                                f"font-size:0.78rem;line-height:1.6'>"
+                                f"<b style='color:#00d4ff'>📥 If you click NOW:</b> "
+                                f"<b>{_ps_qty:.4f}</b> {_sc['base']} long · "
+                                f"notional <b>${_ps_notional:,.0f}</b> · "
+                                f"<b>{_ps_lev:.0f}x</b> lev · "
+                                f"margin <b>${_ps_margin:,.0f}</b> · "
+                                f"risk <b style='color:#ff5c5c'>"
+                                f"-${_ps_loss:,.2f}</b> · "
+                                f"profit at TP <b style='color:#2ed47a'>"
+                                f"+${_ps_profit:,.2f}</b>"
+                                f"</div>"
+                                if _ps_has_plan else
+                                f"<div style='color:#e0a92b;font-size:0.78rem;"
+                                f"margin-top:8px'>"
+                                f"⚠ Trade plan unavailable for this coin "
+                                f"(scanner couldn't generate one) — open "
+                                f"manually via Open a trade form on left."
+                                f"</div>"
+                            )
+                            + (
+                                f"<div style='color:#aab;font-size:0.76rem;"
+                                f"margin-top:6px'>"
+                                f"<b>Best signal:</b> {_sc['best_signal']} · "
+                                f"{_sc['signals'][0]['detail'][:100]}"
+                                f"</div>"
+                            ),
                             unsafe_allow_html=True)
+                        # 📥 Open Trade button
+                        if _ps_has_plan:
+                            if _ps_btn_col.button(
+                                    "📥", key=f"pb_ps_{_ps_sid}",
+                                    help=(f"Open LONG {_sc['base']} paper "
+                                          f"trade at TP1 — Pattern Scout "
+                                          f"pick (validated edge, NOT "
+                                          f"alerts-gated)"),
+                                    use_container_width=True):
+                                _ps_open_setup = {
+                                    "symbol": _sc["symbol"],
+                                    "base": _sc["base"],
+                                    "side": "LONG",
+                                    "entry": _ps_entry,
+                                    "entry_low": _ps_entry,
+                                    "entry_high": _sc.get("entry_high") or _ps_entry,
+                                    "stop": _ps_stop,
+                                    "target": _ps_tgt,
+                                    "target_2": _ps_tgt2 if _ps_tgt2 > 0 else None,
+                                    "rr": _ps_rr,
+                                    "confidence": int(min(99, _score)),
+                                    "strength_factor": _ps_sf,
+                                }
+                                _ps_opened = paper_bot.open_position(
+                                    pb_state, _ps_open_setup,
+                                    prices.get(_sc["symbol"]) or _ps_entry)
+                                if _ps_opened:
+                                    _enrich_position(
+                                        _ps_opened, int(min(99, _score)),
+                                        timeframe)
+                                    paper_bot.save_state(PAPER_BOT_FILE,
+                                                         pb_state)
+                                    st.toast(
+                                        f"📥 Opened LONG {_ps_opened['base']} @ "
+                                        f"{fmt_price(_ps_opened['entry'])} · "
+                                        f"Pattern Scout · score {_score:.0f}",
+                                        icon="🎯")
+                                    st.rerun()
+                                else:
+                                    st.warning(
+                                        f"Could not open {_sc['base']} — "
+                                        "check balance/concurrency/already-open.")
 
         st.caption(
             "**Adaptive unified picks board.** Ranks LONG and SHORT setups "
