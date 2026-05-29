@@ -6981,32 +6981,63 @@ if active_section == "🧪 Paper Trader":
         # buffered stop. Promoted picks get a 🔭 SETUP FORMING chip
         # so the user knows the entry is anticipatory (not confirmed).
         try:
+            # Scan widened to 50 coins (was 30) to catch mid-cap setups
+            # like AVAX/SUI that may not be in the top 30 by volume.
             _sf_promote_results = run_reversal_approach_scan(
-                timeframe, scan_n=30)
+                timeframe, scan_n=50)
         except Exception:
             _sf_promote_results = []
         _scored_syms = {t[4]["symbol"] for t in _scored}
         _sf_promoted_syms = set()
         for _sfp in _sf_promote_results:
-            # Only promote STRONG WATCH with 5+/7 conditions AND a
-            # valid anticipatory trade plan.
-            if (_sfp.get("score", 0) < 80
-                    or _sfp.get("conditions_met", 0) < 5
-                    or not _sfp.get("has_plan", False)):
+            # Promote when leading signals AGREE strongly. Relaxed from
+            # the original strict (score>=80 + 5+/7 + has_plan) to:
+            #   - score >= 75 (catches STRONG-WATCH tier and above)
+            #   - conditions_met >= 5/7 (majority of pre-conditions)
+            # has_plan is NOT required — we build a percent-based
+            # fallback plan from current price if reversal_approach
+            # couldn't generate one (e.g., ATR window too short or
+            # level detection failed). 5+/7 conditions agreeing is
+            # itself a stronger signal than the trade plan.
+            if (_sfp.get("score", 0) < 75
+                    or _sfp.get("conditions_met", 0) < 5):
                 continue
             # Avoid dupes — if symbol already in _scored, skip
             # (the existing pick has more signals stacked).
             if _sfp["symbol"] in _scored_syms:
                 continue
-            # Build a synthetic setup dict shaped like alerts.setups
             _sf_sym = _sfp["symbol"]
             _sf_side = _sfp["side"]
+            _sf_score = float(_sfp["score"])
             _sf_entry = float(_sfp.get("entry") or 0)
             _sf_stop = float(_sfp.get("stop") or 0)
             _sf_tgt = float(_sfp.get("target") or 0)
             _sf_tgt2 = float(_sfp.get("target_2") or 0)
             _sf_rr = float(_sfp.get("rr") or 0)
-            _sf_score = float(_sfp["score"])
+
+            # FALLBACK trade plan — if reversal_approach didn't
+            # generate one, build a sensible anticipatory plan from
+            # current price (1.5% stop, 3% target -> 2.0 R:R).
+            _sf_has_plan = bool(_sfp.get("has_plan", False)) and (
+                _sf_entry > 0 and _sf_stop > 0 and _sf_tgt > 0)
+            if not _sf_has_plan:
+                _sf_cur_price = prices.get(_sf_sym) or float(
+                    _sfp.get("price") or 0)
+                if _sf_cur_price > 0:
+                    _sf_entry = _sf_cur_price
+                    if _sf_side == "LONG":
+                        _sf_stop = _sf_cur_price * 0.985   # -1.5%
+                        _sf_tgt = _sf_cur_price * 1.030    # +3.0%
+                        _sf_tgt2 = _sf_cur_price * 1.050   # +5.0%
+                    else:  # SHORT
+                        _sf_stop = _sf_cur_price * 1.015   # +1.5%
+                        _sf_tgt = _sf_cur_price * 0.970    # -3.0%
+                        _sf_tgt2 = _sf_cur_price * 0.950   # -5.0%
+                    _sf_rr = 2.0
+                else:
+                    # No price available — can't build a plan. Skip.
+                    continue
+
             _sf_setup = {
                 "symbol": _sf_sym,
                 "base": _sfp.get("base", _sf_sym.replace("USDT", "")),
@@ -7025,7 +7056,7 @@ if active_section == "🧪 Paper Trader":
                          f"{_sfp.get('conditions_met', 0)}/7)",
             }
             # 5-tuple matches: (combined, fc_label, trend, align, setup)
-            # combined = sf score (already 80+, passes floor easily)
+            # combined = sf score (>=75, passes the 65 floor)
             # fc_label = neutral (forecast not consulted for SF picks)
             _scored.append(
                 (_sf_score, "forecast neutral", "flat", "neutral",
@@ -7984,7 +8015,7 @@ if active_section == "🧪 Paper Trader":
         # this is intel; when the actual fire candle lands it shows
         # up in BEST TRADES NOW above.
         try:
-            _sf_results = run_reversal_approach_scan(timeframe, scan_n=30)
+            _sf_results = run_reversal_approach_scan(timeframe, scan_n=50)
         except Exception:
             _sf_results = []
         # Show top 6 — only score >= 65 (3+ conditions). Skip coins that
