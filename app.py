@@ -6981,10 +6981,10 @@ if active_section == "🧪 Paper Trader":
         # buffered stop. Promoted picks get a 🔭 SETUP FORMING chip
         # so the user knows the entry is anticipatory (not confirmed).
         try:
-            # Scan widened to 50 coins (was 30) to catch mid-cap setups
-            # like AVAX/SUI that may not be in the top 30 by volume.
+            # Scan widened to TOP 100 Binance coins by volume — per user.
+            # The cache (10 min TTL) means subsequent calls cost ~0.
             _sf_promote_results = run_reversal_approach_scan(
-                timeframe, scan_n=50)
+                timeframe, scan_n=100)
         except Exception:
             _sf_promote_results = []
         _scored_syms = {t[4]["symbol"] for t in _scored}
@@ -8015,7 +8015,9 @@ if active_section == "🧪 Paper Trader":
         # this is intel; when the actual fire candle lands it shows
         # up in BEST TRADES NOW above.
         try:
-            _sf_results = run_reversal_approach_scan(timeframe, scan_n=50)
+            # Same scan_n=100 as the promote step — shared cache, one
+            # actual scan per 10-min cache window.
+            _sf_results = run_reversal_approach_scan(timeframe, scan_n=100)
         except Exception:
             _sf_results = []
         # Show top 6 — only score >= 65 (3+ conditions). Skip coins that
