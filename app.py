@@ -5856,12 +5856,76 @@ if active_section == "🧪 Paper Trader":
                 _str_label = ("STRONG" if _str >= 20
                               else "MODERATE" if _str >= 12 else "WEAK")
                 _short_sid = f"short_{_s['symbol']}"
+                # --- Trade plan extraction (same data the main board uses)
+                _setup = _s["setup"]
+                _entry_plan = float(_setup.get("entry_low")
+                                    or _setup.get("entry") or 0)
+                _stop_plan = float(_setup.get("stop") or 0)
+                _tgt_plan = float(_setup.get("target") or 0)
+                _rr_plan = float(_setup.get("rr") or 0)
+                _hold_horiz = _hold_horizon(timeframe)
+                _cur_short = _s.get("price") or _entry_plan
+                # SHORT math: stop ABOVE entry, target BELOW entry.
+                # risk_pct = stop / entry - 1 (positive %)
+                # reward_pct = 1 - target / entry (positive %)
+                if _entry_plan > 0 and _stop_plan > 0 and _tgt_plan > 0:
+                    _risk_pct_short = (_stop_plan - _entry_plan) / _entry_plan * 100
+                    _reward_pct_short = (_entry_plan - _tgt_plan) / _entry_plan * 100
+                else:
+                    _risk_pct_short = 0.0
+                    _reward_pct_short = 0.0
+                # Live R:R from current price
+                _live_risk_short = ((_stop_plan - _cur_short) / _cur_short * 100
+                                    if _cur_short > 0 and _stop_plan > 0 else 0.0)
+                _live_reward_short = ((_cur_short - _tgt_plan) / _cur_short * 100
+                                      if _cur_short > 0 and _tgt_plan > 0 else 0.0)
+                _live_rr_short = (_live_reward_short / _live_risk_short
+                                  if _live_risk_short > 0 else 0.0)
+                # Position-size preview based on strength_factor + paper settings
+                _strength_factor_preview = max(0.4, min(1.0, _str / 30.0))
+                _bal = float(pb_state.get("balance") or 0)
+                _risk_pct_setting = float(
+                    pb_state.get("risk_per_trade_pct") or 1.0)
+                _lev_setting = float(pb_state.get("leverage") or 3.0)
+                _max_notional = float(
+                    pb_state.get("max_notional_per_trade") or 5000.0)
+                _risk_dollars = _bal * _risk_pct_setting / 100.0
+                _stop_dist = abs(_stop_plan - _entry_plan) or 1.0
+                _qty_est = _risk_dollars / _stop_dist if _stop_dist > 0 else 0.0
+                _notional_est = _qty_est * _entry_plan
+                _notional_cap_eff = _max_notional * _strength_factor_preview
+                if _notional_est > _notional_cap_eff:
+                    _notional_est = _notional_cap_eff
+                    _qty_est = (_notional_est / _entry_plan
+                                if _entry_plan > 0 else 0.0)
+                _margin_est = (_notional_est / _lev_setting
+                               if _lev_setting > 0 else _notional_est)
+                _profit_est = _qty_est * abs(_entry_plan - _tgt_plan)
+                _loss_est = _qty_est * abs(_stop_plan - _entry_plan)
+
+                # Live R:R chip
+                _short_rr_chip = ""
+                if _live_rr_short >= 1.3:
+                    _short_rr_chip = (
+                        f"<span style='background:#2ed47a33;color:#2ed47a;"
+                        f"padding:2px 8px;border-radius:5px;font-size:"
+                        f"0.7rem;font-weight:700;margin-left:4px'>"
+                        f"✓ At entry zone · live R:R {_live_rr_short:.2f}"
+                        f"</span>")
+                elif 0 < _live_rr_short < 1.2:
+                    _short_rr_chip = (
+                        f"<span style='background:#ff5c5c33;color:#ff5c5c;"
+                        f"padding:2px 8px;border-radius:5px;font-size:"
+                        f"0.7rem;font-weight:700;margin-left:4px'>"
+                        f"⚠ Entry passed · live R:R {_live_rr_short:.2f}"
+                        f"</span>")
                 with st.container(border=True):
                     _txt_col, _btn_col = st.columns([6, 1])
                     _txt_col.markdown(
+                        # Header row
                         f"<div style='display:flex;align-items:center;"
                         f"gap:8px;flex-wrap:wrap'>"
-                        f"<span style='font-weight:800;font-size:1rem'>"
+                        f"<span style='font-weight:800;font-size:1.05rem'>"
                         f"{_s['base']}</span>"
                         f"<span style='background:#ff5c5c;color:#06121f;"
                         f"padding:2px 10px;border-radius:5px;font-size:"
@@ -5870,11 +5934,41 @@ if active_section == "🧪 Paper Trader":
                         f"color:{_str_color};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:700'>"
                         f"{_str_label} · strength {_str:.0f}/50</span>"
+                        f"{_short_rr_chip}"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
-                        f"em-score {_s['em_score']:.0f}"
-                        + (f" · price {fmt_price(_s['price'])}"
-                           if _s.get('price') else "")
-                        + f"</span></div>"
+                        f"em-score {_s['em_score']:.0f}</span>"
+                        f"</div>"
+                        # Trade plan row (entry/stop/target with %)
+                        f"<div style='color:#aab;font-size:0.80rem;"
+                        f"margin-top:8px;line-height:1.6'>"
+                        f"hold: <b>{_hold_horiz}</b> · now "
+                        f"<b>{fmt_price(_cur_short)}</b> · entry "
+                        f"<b>{fmt_price(_entry_plan)}</b> · "
+                        f"stop <b>{fmt_price(_stop_plan)}</b> "
+                        f"<span style='color:#ff5c5c'>"
+                        f"(+{_risk_pct_short:.1f}%)</span> · "
+                        f"target <b>{fmt_price(_tgt_plan)}</b> "
+                        f"<span style='color:#2ed47a'>"
+                        f"(−{_reward_pct_short:.1f}%)</span> · "
+                        f"plan R:R <b>{_rr_plan:.2f}</b>"
+                        f"</div>"
+                        # Position-size preview row
+                        f"<div style='background:rgba(0,212,255,0.05);"
+                        f"border:1px solid rgba(0,212,255,0.15);"
+                        f"border-radius:8px;padding:8px 12px;"
+                        f"margin-top:8px;color:#c8d2ed;"
+                        f"font-size:0.78rem;line-height:1.6'>"
+                        f"<b style='color:#00d4ff'>📥 If you click NOW:</b> "
+                        f"<b>{_qty_est:.4f}</b> {_s['base']} short · "
+                        f"notional <b>${_notional_est:,.0f}</b> · "
+                        f"<b>{_lev_setting:.0f}x</b> leverage · "
+                        f"margin <b>${_margin_est:,.0f}</b> · "
+                        f"risk <b style='color:#ff5c5c'>"
+                        f"-${_loss_est:,.2f}</b> · "
+                        f"profit at TP <b style='color:#2ed47a'>"
+                        f"+${_profit_est:,.2f}</b>"
+                        f"</div>"
+                        # Signals row
                         f"<div style='color:#aab;font-size:0.78rem;"
                         f"margin-top:6px'>"
                         f"<b>Signals firing:</b> "
