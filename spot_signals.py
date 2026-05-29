@@ -340,14 +340,20 @@ _WEIGHTS = {
 }
 
 
-def score(weekly: pd.DataFrame, is_btc_or_eth: bool = False) -> dict:
+def score(bars: pd.DataFrame, is_btc_or_eth: bool = False,
+          interval: str = "1w") -> dict:
     """Compute the long-term spot conviction score for one coin.
 
     Args:
-        weekly: weekly OHLCV DataFrame (Binance interval='1w'). Needs at
-                least ~35 bars for Stage 2, ideally 200+ for full Mayer.
+        bars: OHLCV DataFrame in the chosen timeframe (1w default, but
+              1d/3d/1w all work since the math is relative to bar count).
+              Needs at least ~35 bars for Stage 2, ideally 200+ for full
+              Mayer.
         is_btc_or_eth: enables BTC/ETH-tuned Mayer scoring. Pass False
                        for alts (Mayer becomes informational only).
+        interval: the bar interval string (for display labels). Doesn't
+                  affect calculations — those depend on bar count, not
+                  the time-per-bar.
 
     Returns:
         {
@@ -356,16 +362,17 @@ def score(weekly: pd.DataFrame, is_btc_or_eth: bool = False) -> dict:
           "components": {...},        # per-component scores + details
           "stage": str,               # Weinstein stage label
           "tier": "STRONG"|"WATCH"|"AVOID",
+          "interval": str,            # which TF was scored
         }
     """
-    if weekly is None or len(weekly) < 20:
-        return _empty_result("Insufficient weekly data")
+    if bars is None or len(bars) < 20:
+        return _empty_result(f"Insufficient {interval} data")
 
     components = {
-        "weinstein":  _weinstein_stage(weekly),
-        "mayer":      _mayer_multiple(weekly, is_btc_or_eth=is_btc_or_eth),
-        "drawdown":   _drawdown_score(weekly),
-        "structure":  _hh_hl_structure(weekly),
+        "weinstein":  _weinstein_stage(bars),
+        "mayer":      _mayer_multiple(bars, is_btc_or_eth=is_btc_or_eth),
+        "drawdown":   _drawdown_score(bars),
+        "structure":  _hh_hl_structure(bars),
     }
 
     composite = sum(
@@ -390,6 +397,7 @@ def score(weekly: pd.DataFrame, is_btc_or_eth: bool = False) -> dict:
         "side": "LONG",
         "tier": tier,
         "stage": stage,
+        "interval": interval,
         "components": components,
     }
 

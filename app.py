@@ -32,6 +32,7 @@ import forecast
 import fred_macro
 import long_patterns
 import market_regime
+import pattern_scout
 import recovery_detector
 # rs_vs_btc imported under its alias below so picks-board cached helpers
 # can stay grouped with the other Phase A/B scoring helpers.
@@ -847,6 +848,44 @@ def load_klines(symbol: str, interval: str) -> pd.DataFrame:
 # indicator and long-term-hold scores alongside the existing system so
 # the user can A/B test before promoting any signal into the live path.
 
+@st.cache_data(ttl=600, show_spinner=False)
+def run_pattern_scout(interval: str, scan_n: int = 50) -> list:
+    """Universal Pattern Scout — scans top N coins for high-conviction
+    setups across all validated-edge patterns, INDEPENDENT of the
+    alerts.build_alerts() gate.
+
+    Per user feedback: the picks board only surfaces coins that pass
+    CONF_ALERT=72. Coins with strong individual patterns (V-bottom,
+    long_patterns, morning star, hammer-at-support) but lower scanner
+    confidence never appear. This helper surfaces them.
+
+    Cached 10 min — scan of 50 coins × klines fetch + 4 patterns takes
+    20-40 sec but the cache keeps repeated visits fast.
+    """
+    try:
+        top_df = load_top_symbols(scan_n)
+    except Exception:
+        return []
+    results = []
+    for _, row in top_df.iterrows():
+        sym = row["symbol"]
+        base = row["base"]
+        last_price = float(row["lastPrice"])
+        pct_24h = float(row["priceChangePercent"])
+        try:
+            df = binance_client.get_klines(sym, interval)
+            df = indicators.enrich(df)
+            r = pattern_scout.scan_one(sym, df, pct_24h=pct_24h)
+        except Exception:
+            continue
+        if r["score"] >= 65:  # surface anything WATCH-tier or above
+            r["base"] = base
+            r["price"] = last_price
+            r["volume_24h"] = float(row["quoteVolume"])
+            results.append(r)
+    return results
+
+
 @st.cache_data(ttl=config.MARKET_CACHE_TTL, show_spinner=False)
 def load_recovery(symbol: str, interval: str) -> dict:
     """Compute V-bottom recovery score for one symbol/timeframe.
@@ -1052,22 +1091,25 @@ def load_tokenomics(symbol: str) -> dict:
                 "detail": "tokenomics unavailable"}
 
 
-@st.cache_data(ttl=config.MARKET_CACHE_TTL, show_spinner=False)
-def load_spot_long_score(symbol: str) -> dict:
-    """Compute the long-term spot score for one symbol on WEEKLY bars.
+@st.cache_data(ttl=600, show_spinner=False)
+def load_spot_long_score(symbol: str, interval: str = "1d") -> dict:
+    """Compute the long-term spot score for one symbol on the chosen
+    timeframe (default 1d — user feedback was that weekly was too slow
+    and 1d/3d/1w trends are more actionable).
 
-    Weekly klines are fetched on demand (not part of the regular scan
-    pipeline). BTC and ETH get the Mayer Multiple zone treatment; all
-    other coins get Mayer-neutral scoring. Cached at the regular market
-    TTL — weekly data changes slowly so this is plenty.
+    The underlying math is bar-count-relative so it works on any
+    timeframe. 1d gives more responsive signals; 1w gives slower
+    cycle-level read.
     """
     try:
-        weekly = binance_client.get_klines(symbol, "1w")
+        bars = binance_client.get_klines(symbol, interval)
         is_btc_or_eth = symbol in ("BTCUSDT", "ETHUSDT")
-        return spot_signals.score(weekly, is_btc_or_eth=is_btc_or_eth)
+        return spot_signals.score(
+            bars, is_btc_or_eth=is_btc_or_eth, interval=interval)
     except Exception:
         return {"score": 50.0, "side": "LONG", "tier": "AVOID",
-                "stage": "UNKNOWN", "components": {}}
+                "stage": "UNKNOWN", "interval": interval,
+                "components": {}}
 
 
 def _scan_one(symbol: str, interval: str, funding: float | None = None,
@@ -4952,6 +4994,84 @@ if active_section == "🧪 Paper Trader":
             f"</div>",
             unsafe_allow_html=True)
 
+        # ---- 🎯 PATTERN SCOUT — scans 50 coins for validated patterns -
+        # Independent of the alerts.build_alerts() CONF_ALERT=72 gate.
+        # Surfaces coins where high-edge individual patterns fire but
+        # may not have multi-TF aggregated confidence to make the
+        # standard picks board. Cached 10 min so the scan only runs
+        # rarely. User explicitly asked for this — "you should read
+        # through all 150+ Binance coins their patterns etc to indicate
+        # me the best outcomes and top picks accordingly".
+        with st.expander("🎯 Pattern Scout — universal scan (validated edge only)",
+                         expanded=True):
+            st.caption(
+                "Scans the top 50 coins for these **backtested-edge** "
+                "patterns INDEPENDENT of the regular picks gate: "
+                "🔄 V-bottom recovery (75% win @ 12bar), 🟢 long_patterns "
+                "aligned (67.4% win @ 48bar), 🌅 morning star + RSI<35 + "
+                "downtrend (60-75%), 🔨 hammer at confirmed support "
+                "(60-65%). 24h freshness filter active — coins already "
+                "+8% in 24h are downgraded so picks board surfaces EARLY "
+                "setups, not chases. Cached 10 minutes.")
+            _scout = run_pattern_scout(timeframe, scan_n=50)
+            _scout_top = sorted(_scout, key=lambda r: r["score"],
+                                reverse=True)[:6]
+            if not _scout_top:
+                st.info("No coins scored ≥65 in the last scan. Either "
+                        "the regime is genuinely quiet OR a fresh scan "
+                        "is loading — wait 30-60 sec and refresh.")
+            else:
+                st.markdown(
+                    f"**Found {len(_scout)} qualifying setups · top 6 below:**")
+                for _sc in _scout_top:
+                    _score = _sc["score"]
+                    _color = ("#2ed47a" if _score >= 80
+                              else "#00d4ff" if _score >= 75
+                              else "#e0a92b")
+                    _tier = ("STRONG" if _score >= 80
+                             else "ALIGNED" if _score >= 75
+                             else "WATCH")
+                    _signal_chips = ""
+                    for _sig in _sc["signals"][:3]:
+                        _sn = _sig["name"]
+                        _emoji = {
+                            "v_bottom_recovery": "🔄",
+                            "long_patterns_aligned": "🟢",
+                            "morning_star": "🌅",
+                            "hammer_at_support": "🔨",
+                        }.get(_sn, "📊")
+                        _signal_chips += (
+                            f"<span style='background:rgba(0,212,255,0.10);"
+                            f"color:#00d4ff;padding:2px 8px;border-radius:"
+                            f"5px;font-size:0.7rem;font-weight:700;"
+                            f"margin-left:4px'>{_emoji} {_sn} "
+                            f"{_sig['score']:.0f}</span>")
+                    _pct_24h = _sc.get("pct_24h", 0)
+                    _pct_color = ("#2ed47a" if _pct_24h > 0
+                                  else "#ff5c5c" if _pct_24h < 0 else "#888")
+                    with st.container(border=True):
+                        st.markdown(
+                            f"<div style='display:flex;align-items:center;"
+                            f"gap:8px;flex-wrap:wrap'>"
+                            f"<span style='font-weight:800;font-size:1.05rem'>"
+                            f"{_sc['base']}</span>"
+                            f"<span style='background:{_color};color:#06121f;"
+                            f"padding:2px 10px;border-radius:5px;font-size:"
+                            f"0.72rem;font-weight:800'>"
+                            f"🎯 {_tier} · {_score:.0f}</span>"
+                            f"{_signal_chips}"
+                            f"<span style='color:#8b8d98;font-size:0.78rem'>"
+                            f"price ${_sc['price']:.4g} · "
+                            f"<span style='color:{_pct_color}'>"
+                            f"{_pct_24h:+.2f}% 24h</span></span>"
+                            f"</div>"
+                            f"<div style='color:#aab;font-size:0.78rem;"
+                            f"margin-top:6px'>"
+                            f"<b>Best signal:</b> {_sc['best_signal']}<br>"
+                            f"{_sc['signals'][0]['detail'][:140]}"
+                            f"</div>",
+                            unsafe_allow_html=True)
+
         st.caption(
             "**Adaptive unified picks board.** Ranks LONG and SHORT setups "
             "by a fused score that combines: Market Scanner alert + "
@@ -7223,60 +7343,80 @@ if active_section == "💎 Spot Long-Term":
         "- **35% Weinstein Stage** — only Stage 2 (markup) scores high. "
         "Stage 1 (basing) is neutral; Stage 3/4 (distribution/decline) "
         "score low.\n"
-        "- **25% Weekly structure** — last 2 swing highs AND 2 swing lows "
+        "- **25% Structure** — last 2 swing highs AND 2 swing lows "
         "both ascending (no lookahead). Confirms an uptrend.\n"
-        "- **20% Mayer Multiple** — close / 200-week SMA. Only BTC and ETH "
+        "- **20% Mayer Multiple** — close / 200-bar SMA. Only BTC and ETH "
         "get the zone scoring (deep value / accumulation / fair / "
         "extended); alts get a neutral Mayer (informational only).\n"
         "- **20% Drawdown from ATH** — % off all-time-high, with a "
         "capitulation bonus when current volume is < 50% of peak-area "
         "volume.\n\n"
-        "**Floor: 65** (WATCH tier). **Strong: 80+** (STRONG tier).")
+        "**Floor: 65** (WATCH tier). **Strong: 80+** (STRONG tier). "
+        "**Timeframe affects what the score MEANS:** 1d picks shift "
+        "weekly, 3d picks shift monthly, 1w picks shift quarterly.")
 
-    spot_col1, spot_col2, spot_col3 = st.columns([1, 1, 1])
+    spot_col0, spot_col1, spot_col2, spot_col3 = st.columns([1, 1, 1, 1])
+    with spot_col0:
+        spot_tf = st.selectbox(
+            "Timeframe", ["1d", "3d", "1w"], index=0,
+            key="spot_tf_selector",
+            help="1d (default) = daily bars, more responsive. 3d = "
+                 "smoother trend filter. 1w = classic Weinstein cycle "
+                 "read but slower.")
     with spot_col1:
         spot_min_score = st.slider(
-            "Minimum score", 50, 95, 65, step=5,
-            help="Filter floor for the picks list. WATCH ≥65, STRONG ≥80.")
+            "Min score", 50, 95, 65, step=5,
+            help="Filter floor. WATCH ≥65, STRONG ≥80.")
     with spot_col2:
         spot_max_picks = st.slider(
-            "Max picks shown", 5, 30, 15, step=5)
+            "Max picks", 5, 30, 15, step=5)
     with spot_col3:
         spot_scan_n = st.slider(
-            "Coins to scan", 20, 100, 50, step=10,
-            help="Scans the top N coins by 24h volume on WEEKLY bars. "
-                 "Higher N = more candidates but slower scan (~1s per coin).")
+            "Coins to scan", 20, 100, 30, step=10,
+            help=f"Scans the top N coins by 24h volume on {spot_tf} bars. "
+                 "30 is the auto-load default. Higher N = more "
+                 "candidates but slower scan (~0.5-1s per coin).")
 
-    if st.button("🔄 Run weekly scan", use_container_width=False,
-                 help="Fetches weekly klines for the top N coins and "
-                      "computes the long-term score. Cached for 2 "
-                      "minutes — repeated clicks within that window "
-                      "return instantly."):
+    # AUTO-LOAD on entry: kick off the scan if we don't have fresh
+    # results for this timeframe. Cached for 10 min via load_spot_long_score.
+    _spot_results = st.session_state.get("_spot_scan_results", [])
+    _spot_scan_ts = st.session_state.get("_spot_scan_ts", 0)
+    _spot_scan_tf = st.session_state.get("_spot_scan_tf", "")
+    _spot_scan_n_cached = st.session_state.get("_spot_scan_n", 0)
+    _need_scan = (
+        not _spot_results
+        or _spot_scan_tf != spot_tf
+        or _spot_scan_n_cached != spot_scan_n
+        or (time.time() - _spot_scan_ts) > 1800  # 30 min staleness
+    )
+
+    _b1, _b2 = st.columns([1, 5])
+    if _b1.button(f"🔄 Rescan ({spot_tf})", use_container_width=True,
+                  help="Force a fresh scan even if cached results exist.") \
+            or _need_scan:
         with st.spinner(
-                f"Scanning weekly bars for {spot_scan_n} coins..."):
-            # Reuse the cached top-symbols lookup.
+                f"Scanning {spot_tf} bars for {spot_scan_n} coins..."):
             try:
                 _top_df = load_top_symbols(spot_scan_n)
                 _spot_results = []
                 for _, row in _top_df.iterrows():
                     sym = row["symbol"]
                     base = row["base"]
-                    sscore = load_spot_long_score(sym)
+                    sscore = load_spot_long_score(sym, spot_tf)
                     sscore["symbol"] = sym
                     sscore["base"] = base
                     sscore["price"] = float(row["lastPrice"])
                     sscore["volume_24h"] = float(row["quoteVolume"])
                     _spot_results.append(sscore)
-                # Cache scan results in session_state so they survive
-                # page reruns from other widgets without a full re-scan.
                 st.session_state["_spot_scan_results"] = _spot_results
                 st.session_state["_spot_scan_ts"] = time.time()
+                st.session_state["_spot_scan_tf"] = spot_tf
+                st.session_state["_spot_scan_n"] = spot_scan_n
+                _spot_scan_ts = st.session_state["_spot_scan_ts"]
             except Exception as exc:
                 st.error(f"Spot scan failed: {exc}")
                 st.session_state["_spot_scan_results"] = []
-
-    _spot_results = st.session_state.get("_spot_scan_results", [])
-    _spot_scan_ts = st.session_state.get("_spot_scan_ts", 0)
+                _spot_results = []
     if _spot_results:
         st.caption(
             f"Last scan: {datetime.fromtimestamp(_spot_scan_ts, tz=timezone.utc).strftime('%H:%M:%S UTC')} "
