@@ -7015,15 +7015,18 @@ if active_section == "🧪 Paper Trader":
             key=lambda t: t[0], reverse=True)
         # Mix: top 5 longs + top 3 shorts, then re-rank by combined.
         # If one side has fewer, fill in with the other side.
-        _mixed = (_longs_scored[:5] + _shorts_scored[:3])
-        # Backfill from each side if we have <8
-        if len(_mixed) < 8:
+        # Show up to 12 picks (was 8) — user wants more options when
+        # the market is active. Top 7 LONGs + top 5 SHORTs, then re-rank
+        # by score. Floor at combined >=72 already filters out weak ones,
+        # so this only shows additional picks IF they qualify.
+        _mixed = (_longs_scored[:7] + _shorts_scored[:5])
+        if len(_mixed) < 12:
             _used = set(id(t) for t in _mixed)
             _extras = [t for t in (_longs_scored + _shorts_scored)
                        if id(t) not in _used]
-            _mixed = _mixed + _extras[:8 - len(_mixed)]
+            _mixed = _mixed + _extras[:12 - len(_mixed)]
         _mixed.sort(key=lambda t: t[0], reverse=True)
-        _bot_picks = _mixed[:8]
+        _bot_picks = _mixed[:12]
 
         # Header + caption removed per user (too noisy). The earlier
         # "### 🤖 Bot's top picks" header above already labels the board.
@@ -7886,13 +7889,93 @@ if active_section == "🧪 Paper Trader":
                         f"· scanner conf {mconf}%</span></div>",
                         unsafe_allow_html=True)
 
-        # ---- 🩸 Top SHORT setups DISABLED per user (too many sections) ---
-        # SHORT picks now surface inline in Bot's Top Picks above (the
-        # alerts engine already produces both LONG and SHORT setups).
-        # The standalone SHORT panel was duplicating signal real-estate.
-        # Setting _short_universe = [] short-circuits the scoring loop
-        # and rendering. Flip the empty list back to the original
-        # comprehension to restore.
+        # ============================================================
+        # 🔭 SETUPS FORMING — Compact directional intel (NOT openable)
+        # ============================================================
+        # User: "setups forming was good ... as it gives the direction".
+        # This is the leading-indicator watchlist showing coins where
+        # reversal pre-conditions are forming on the current timeframe.
+        # By the time a hammer/shooting-star prints, the rejection
+        # already happened — this catches the 1-5 bar lead-up so the
+        # user knows WHERE direction is shifting and can position
+        # accordingly. Compact one-line-per-coin format (NOT a card
+        # board) so it doesn't bloat the page. NO trade buttons —
+        # this is intel; when the actual fire candle lands it shows
+        # up in BEST TRADES NOW above.
+        try:
+            _sf_results = run_reversal_approach_scan(timeframe, scan_n=30)
+        except Exception:
+            _sf_results = []
+        # Show top 6 — only score >= 65 (3+ conditions). Skip coins that
+        # are already in BEST TRADES NOW (avoid duplication).
+        _btn_syms = {pk[4]["symbol"] for pk in _bot_picks}
+        _sf_top = [r for r in sorted(_sf_results,
+                                     key=lambda r: r["score"], reverse=True)
+                   if r["score"] >= 65 and r["symbol"] not in _btn_syms][:6]
+        if _sf_top:
+            st.markdown(
+                "<div style='display:flex;align-items:center;gap:10px;"
+                "margin-top:18px;margin-bottom:6px'>"
+                "<span style='font-size:1.15rem;font-weight:900;"
+                "background:linear-gradient(135deg,#5b8eff,#8b5cf6);"
+                "-webkit-background-clip:text;-webkit-text-fill-color:"
+                "transparent;background-clip:text;letter-spacing:-0.02em'>"
+                "🔭 SETUPS FORMING</span>"
+                "<span style='color:#aab;font-size:0.78rem'>"
+                f"direction intel · {len(_sf_top)} forming · NOT openable</span>"
+                "</div>",
+                unsafe_allow_html=True)
+            st.caption(
+                "Coins where reversal pre-conditions are forming "
+                "(approach to level, RSI extreme, volume waning, body "
+                "shrinkage, EMA extension, CVD divergence, intra-bar "
+                "rejection). **Watch these** — when the actual candle "
+                "prints, the coin moves into **BEST TRADES NOW** above.")
+            for _sf in _sf_top:
+                _sf_side = _sf["side"]
+                _sf_color = ("#ff3d57" if _sf_side == "SHORT"
+                             else "#00e676")
+                _sf_emoji = "🩸" if _sf_side == "SHORT" else "🟢"
+                _sf_tier = ("STRONG" if _sf["score"] >= 80 else "WATCH")
+                _sf_tier_color = ("#ff9500" if _sf["score"] >= 80
+                                  else "#5b8eff")
+                _sf_watch = ("bearish reversal (shooting star, evening "
+                             "star, engulfing)" if _sf_side == "SHORT"
+                             else "bullish reversal (hammer, morning "
+                                  "star, engulfing)")
+                _sf_pct = _sf.get("pct_24h", 0)
+                _sf_pct_color = ("#2ed47a" if _sf_pct > 0
+                                 else "#ff5c5c" if _sf_pct < 0
+                                 else "#888")
+                st.markdown(
+                    f"<div style='display:flex;align-items:center;"
+                    f"gap:8px;flex-wrap:wrap;padding:6px 12px;"
+                    f"background:rgba(255,255,255,0.02);"
+                    f"border:1px solid rgba(91,142,255,0.10);"
+                    f"border-radius:8px;margin-bottom:4px'>"
+                    f"<span style='font-weight:800;font-size:0.94rem;"
+                    f"min-width:60px'>{_sf['base']}</span>"
+                    f"<span style='background:{_sf_color};color:#06121f;"
+                    f"padding:2px 8px;border-radius:5px;font-size:"
+                    f"0.7rem;font-weight:800'>{_sf_emoji} "
+                    f"{_sf_side} forming</span>"
+                    f"<span style='background:{_sf_tier_color}33;"
+                    f"color:{_sf_tier_color};padding:2px 8px;"
+                    f"border-radius:5px;font-size:0.7rem;font-weight:"
+                    f"700'>🔭 {_sf_tier} · {_sf['score']:.0f}</span>"
+                    f"<span style='color:#aab;font-size:0.74rem'>"
+                    f"{_sf['conditions_met']}/7 conditions</span>"
+                    f"<span style='color:#888;font-size:0.74rem'>·</span>"
+                    f"<span style='color:#888;font-size:0.74rem'>"
+                    f"${_sf['price']:.4g} · "
+                    f"<span style='color:{_sf_pct_color}'>"
+                    f"{_sf_pct:+.2f}%</span></span>"
+                    f"<span style='flex:1;color:#888;font-size:0.72rem;"
+                    f"text-align:right'>watch for: {_sf_watch}</span>"
+                    f"</div>",
+                    unsafe_allow_html=True)
+
+        # ---- 🩸 Top SHORT setups DISABLED per user (folded into BEST TRADES) ---
         _short_universe = []
         _short_scored = []
         for s in _short_universe:
