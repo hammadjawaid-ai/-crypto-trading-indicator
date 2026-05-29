@@ -1,0 +1,58 @@
+﻿Loading top 20 universe...
+Costs: taker 0.04% × 2 + slippage 0.05% × 2 = 0.18% round-trip
+
+Fetching BTC daily and 4h...
+
+Walking forward through 20 coins...
+  [1/20] BTCUSDT: S=15 A=7 B=0 C=11
+  [2/20] ETHUSDT: S=12 A=11 B=0 C=25
+  [4/20] XLMUSDT: S=13 A=8 B=2 C=10
+  [5/20] SOLUSDT: S=23 A=8 B=1 C=22
+  [6/20] NEARUSDT: S=44 A=9 B=0 C=17
+  [7/20] XRPUSDT: S=11 A=5 B=2 C=21
+  [8/20] ALLOUSDT: S=11 A=21 B=1 C=35
+  [9/20] ZECUSDT: S=67 A=3 B=0 C=12
+  [10/20] BNBUSDT: S=19 A=6 B=0 C=7
+  [11/20] TRXUSDT: S=21 A=3 B=0 C=2
+  [12/20] MEGAUSDT: S=3 A=16 B=2 C=10
+  [13/20] SUIUSDT: S=49 A=5 B=0 C=30
+  [14/20] DOGEUSDT: S=32 A=8 B=0 C=20
+  [15/20] HBARUSDT: S=17 A=7 B=0 C=21
+  [16/20] WLDUSDT: S=37 A=9 B=0 C=13
+  [17/20] FETUSDT: S=39 A=4 B=0 C=17
+  [18/20] INJUSDT: S=66 A=0 B=0 C=7
+  [19/20] HEIUSDT: S=15 A=6 B=0 C=31
+  [20/20] IOUSDT: S=44 A=8 B=0 C=21
+
+==================================================================================
+TIER-BY-TIER RESULTS — WITH TRANSACTION COSTS
+==================================================================================
+All stats apply 0.18% round-trip cost (Binance taker + slippage).
+
+Tier  Tier Name                      horizon      n  win%(gross)   win%(net)  avg_net%  sharpe
+----------------------------------------------------------------------------------
+S     Convergence (S)                +12        538        51.7%       48.3%   +0.554%    0.12
+S     Convergence (S)                +24        538        49.1%       46.5%   +1.313%    0.18
+S     Convergence (S)                +48        538        53.7%       53.2%   +2.989%    0.20
+
+A     Pattern Scout STRONG (A)       +12        144        41.7%       38.2%   -0.679%   -0.27
+A     Pattern Scout STRONG (A)       +24        144        40.3%       37.5%   -0.909%   -0.25
+A     Pattern Scout STRONG (A)       +48        144        41.7%       41.0%   -0.134%   -0.01
+
+B     Setups Forming (B)             +12          8        37.5%       12.5%   -0.962%   -0.58
+B     Setups Forming (B)             +24          8        37.5%       37.5%   -1.318%   -0.63
+B     Setups Forming (B)             +48          8        62.5%       62.5%   -0.452%   -0.12
+
+C     Pattern Scout WATCH (C)        +12        332        45.2%       38.9%   -0.587%   -0.22
+C     Pattern Scout WATCH (C)        +24        332        41.9%       39.5%   -0.719%   -0.19
+C     Pattern Scout WATCH (C)        +48        332        41.9%       39.8%   +0.596%    0.03
+
+==================================================================================
+TRADE/WATCH RECOMMENDATIONS
+==================================================================================
+S Convergence (S)                    : n=538 win=46.5% avg=+1.31% → ⚠ MARGINAL — barely positive, trade selectively
+A Pattern Scout STRONG (A)           : n=144 win=37.5% avg=-0.91% → ❌ DO NOT TRADE — negative expectancy after costs
+B Setups Forming (B)                 : n=8 win=37.5% avg=-1.32% → ⚠ TOO FEW FIRES — small sample, treat as WATCH
+C Pattern Scout WATCH (C)            : n=332 win=39.5% avg=-0.72% → ❌ DO NOT TRADE — negative expectancy after costs
+
+Runtime: 69.2s

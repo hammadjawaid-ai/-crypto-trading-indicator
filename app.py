@@ -5553,6 +5553,43 @@ if active_section == "🧪 Paper Trader":
         except Exception:
             _best_picks = []
 
+        # === BACKTEST-DRIVEN LOCKDOWN (2026-05-31) ===================
+        # Backtest with 0.18% transaction costs revealed:
+        #   S-tier Convergence: +1.31% avg, 46% win → MARGINAL POSITIVE
+        #   A-tier Pattern Scout STRONG: -0.91% avg → LOSES MONEY
+        #   B-tier Setups Forming: -1.32% avg → LOSES MONEY
+        #   C-tier Pattern Scout WATCH: -0.72% avg → LOSES MONEY
+        # ONLY S-tier is openable. A/B/C are watch-only with no button.
+        # =============================================================
+        # Daily loss circuit + max concurrent check (research-driven)
+        _ds_start = float(pb_state.get("starting_balance") or 20000)
+        _ds_today_pnl = 0.0
+        _ds_today_cutoff = now_ts - 86400  # last 24h
+        for _c in pb_state.get("closed", []):
+            if (_c.get("exit_at") or 0) >= _ds_today_cutoff:
+                _ds_today_pnl += float(_c.get("pnl_usd") or 0)
+        _ds_daily_loss_pct = (_ds_today_pnl / _ds_start * 100
+                              if _ds_start > 0 else 0)
+        _ds_circuit_tripped = _ds_daily_loss_pct <= -3.0
+        _ds_open_count = len(pb_state.get("open") or [])
+        _ds_max_concurrent = 3
+        _ds_concurrent_full = _ds_open_count >= _ds_max_concurrent
+
+        if _ds_circuit_tripped:
+            st.error(
+                f"🛑 **DAILY LOSS CIRCUIT TRIPPED** · today's realised "
+                f"P&L: **${_ds_today_pnl:,.2f}** ({_ds_daily_loss_pct:.2f}%) "
+                f"· auto-trade BLOCKED for 24h. The system has identified "
+                f"that current market conditions are not profitable. Wait, "
+                f"don't force trades.")
+        if _ds_concurrent_full:
+            st.warning(
+                f"⚠ **{_ds_open_count}/{_ds_max_concurrent} concurrent "
+                f"positions used.** Close one before opening another. "
+                f"Research shows correlation between concurrent crypto "
+                f"trades is 0.6-0.95 — 3 alt-LONGs ≈ one 3x leveraged "
+                f"position.")
+
         st.markdown(
             "<div style='display:flex;align-items:center;gap:12px;"
             "margin-top:18px;margin-bottom:6px'>"
@@ -5562,16 +5599,19 @@ if active_section == "🧪 Paper Trader":
             "transparent;background-clip:text;letter-spacing:-0.02em'>"
             "🏆 BEST TRADES NOW</span>"
             f"<span style='color:#aab;font-size:0.84rem'>"
-            f"{len(_best_picks)} ranked picks · LONG + SHORT mixed</span>"
+            f"{len(_best_picks)} ranked · S-tier openable · A/B/C watch-only</span>"
             "</div>",
             unsafe_allow_html=True)
         st.caption(
-            "**Unified ranking across ALL signal sources, deduplicated "
-            "by coin** — Convergence (validated edge ⭐) takes priority, "
-            "then Pattern Scout STRONG, then Setups Forming. The "
-            "system picks ONE side per coin (LONG or SHORT) based on "
-            "strongest signal. **Click 📥 to open paper trade.** "
-            "Browse individual sources below if you want the full view.")
+            "⚠ **BACKTEST-DRIVEN LOCKDOWN** (2026-05-31) — backtest "
+            "with realistic costs (0.18% round-trip) revealed that only "
+            "**S-tier Convergence** has positive expectancy after costs "
+            "(+1.31% avg, MARGINAL). **A/B/C tiers showed NEGATIVE "
+            "expectancy after costs** (Pattern Scout STRONG -0.91%, "
+            "WATCH -0.72%, Setups Forming -1.32%). To stop losing money, "
+            "only S-tier has the 📥 button. A/B/C are **WATCH ONLY** "
+            "until they backtest as profitable. Max **3 concurrent** "
+            "positions, **3% daily loss** halts new trades for 24h.")
 
         if not _best_picks:
             st.info("No high-conviction picks right now. The system is "
@@ -5705,8 +5745,42 @@ if active_section == "🧪 Paper Trader":
                             f"margin-top:8px'>⚠ Trade plan unavailable</div>"
                         ),
                         unsafe_allow_html=True)
-                    # 📥 Open Trade
-                    if _bp_has_plan:
+                    # 📥 Open Trade — ONLY for S-tier (validated edge)
+                    # A/B/C tiers backtested NEGATIVE after costs, no button
+                    _bp_can_open = (
+                        _bp_has_plan
+                        and _bp_tier == "S"
+                        and not _ds_circuit_tripped
+                        and not _ds_concurrent_full
+                    )
+                    if not _bp_has_plan:
+                        _bp_btn.markdown(
+                            "<div style='color:#888;font-size:0.7rem;"
+                            "text-align:center;padding:6px'>"
+                            "No plan</div>",
+                            unsafe_allow_html=True)
+                    elif _bp_tier != "S":
+                        # A/B/C tiers — WATCH ONLY, no button
+                        _bp_btn.markdown(
+                            "<div style='color:#e0a92b;font-size:0.65rem;"
+                            "text-align:center;padding:6px;background:"
+                            "rgba(224,169,43,0.08);border-radius:6px;"
+                            "border:1px solid rgba(224,169,43,0.2)'>"
+                            "👁<br>WATCH<br>ONLY</div>",
+                            unsafe_allow_html=True)
+                    elif _ds_circuit_tripped:
+                        _bp_btn.markdown(
+                            "<div style='color:#ff5c5c;font-size:0.65rem;"
+                            "text-align:center;padding:6px'>"
+                            "🛑<br>HALTED</div>",
+                            unsafe_allow_html=True)
+                    elif _ds_concurrent_full:
+                        _bp_btn.markdown(
+                            "<div style='color:#e0a92b;font-size:0.65rem;"
+                            "text-align:center;padding:6px'>"
+                            "⚠<br>3/3<br>OPEN</div>",
+                            unsafe_allow_html=True)
+                    elif _bp_can_open:
                         if _bp_btn.button(
                                 "📥", key=f"pb_{_bp_sid}",
                                 help=(f"Open {_bp_side} {_bp['base']} · "
