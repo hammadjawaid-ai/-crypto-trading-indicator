@@ -1,0 +1,71 @@
+﻿Loading top 20 universe...
+
+==============================================================================
+FULL recovery_detector composite (score >= 70 LONG)
+==============================================================================
+Done in 10.8s
+========================================================================
+Walk-forward backtest report
+========================================================================
+Symbols:        19 / 20 OK
+Interval:       1h   warmup=200   sample_every=4
+Long fires:     4    Short fires: 0
+Thresholds:     long>=70.0  short<=0.0
+
+POOLED FORWARD RETURNS
+------------------------------------------------------------------------
+
+[LONG]
+  +12bar: n=    4  win= 75.0%  avg= +2.26%  med= +2.59%  exp= +2.26%  best= +4.4%  worst= -0.5%
+  +24bar: n=    4  win= 75.0%  avg= -0.01%  med= +1.39%  exp= -0.01%  best= +1.4%  worst= -4.2%
+  +48bar: n=    4  win= 50.0%  avg= -1.15%  med= +0.95%  exp= -1.15%  best= +3.8%  worst=-10.3%
+
+[SHORT]
+  +12bar: (no data)
+  +24bar: (no data)
+  +48bar: (no data)
+
+[BASELINE]
+  +12bar: n= 3496  win= 48.4%  avg= +0.10%  med= -0.05%  exp= +0.10%  best= +1.1%  worst= -1.6%
+  +24bar: n= 3496  win= 48.4%  avg= +0.16%  med= -0.07%  exp= +0.16%  best= +2.0%  worst= -3.2%
+  +48bar: n= 3496  win= 59.2%  avg= +0.56%  med= +0.14%  exp= +0.56%  best= +4.2%  worst= -6.6%
+
+========================================================================
+
+==============================================================================
+PER-PATTERN BREAKDOWN
+==============================================================================
+
+--- v_bottom_bounce ---
+  +12bar: n=4  win=75.0%  avg=2.264%
+  +24bar: n=4  win=75.0%  avg=-0.005%
+  +48bar: n=4  win=50.0%  avg=-1.146%
+
+--- trend_reclaim ---
+  +12bar: n=42  win=42.9%  avg=-0.51%
+  +24bar: n=42  win=11.9%  avg=-1.107%
+  +48bar: n=42  win=16.7%  avg=-1.012%
+
+--- volume_shock ---
+  +12bar: n=0  win=None%  avg=None%
+  +24bar: n=0  win=None%  avg=None%
+  +48bar: n=0  win=None%  avg=None%
+
+==============================================================================
+COMPONENT COMPARISON — LONG, multiple horizons
+==============================================================================
+Component              h        n    win%       avg
+------------------------------------------------------------
+v_bottom_bounce        +12      4   75.0%   +2.264%
+v_bottom_bounce        +24      4   75.0%   -0.005%
+v_bottom_bounce        +48      4   50.0%   -1.146%
+trend_reclaim          +12     42   42.9%   -0.510%
+trend_reclaim          +24     42   11.9%   -1.107%
+trend_reclaim          +48     42   16.7%   -1.012%
+volume_shock           +12      0    None      None
+volume_shock           +24      0    None      None
+volume_shock           +48      0    None      None
+
+BASELINE (random) +12bar: n=3496  win=48.4%  avg=0.1%
+BASELINE (random) +24bar: n=3496  win=48.4%  avg=0.161%
+BASELINE (random) +48bar: n=3496  win=59.2%  avg=0.565%

@@ -59,7 +59,7 @@ def main():
     print("=" * 78)
     print("PER-PATTERN BREAKDOWN")
     print("=" * 78)
-    components = ["v_bottom_bounce", "trend_reclaim"]
+    components = ["v_bottom_bounce", "trend_reclaim", "volume_shock"]
     by_comp = {}
     for comp in components:
         print(f"\n--- {comp} ---")

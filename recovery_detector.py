@@ -172,6 +172,133 @@ def _v_bottom_bounce(df: pd.DataFrame,
 
 
 # ---------------------------------------------------------------------------
+# Pattern 3: Volume shock reversal (extended decline → sudden reversal)
+# ---------------------------------------------------------------------------
+
+def _volume_shock_reversal(df: pd.DataFrame,
+                           decline_min: float = 0.12,
+                           decline_lookback: int = 72,
+                           downtrend_lookback: int = 24,
+                           downtrend_min_red_pct: float = 0.50,
+                           body_min: float = 0.55,
+                           vol_shock_mult: float = 3.5,
+                           rsi_max_recent: float = 32.0,
+                           rsi_lookback: int = 24) -> dict:
+    """Catch the ROBO/NIL-style setup: long downtrend exhausting into a
+    sudden reversal candle with massive volume spike.
+
+    Different from v_bottom_bounce in TWO ways:
+      1. Looks back FURTHER (96 bars vs 48) — catches multi-day drawdowns
+         where the peak is too far back for v_bottom_bounce to see.
+      2. Requires a SINGLE massive volume spike on the reversal candle
+         (5x+ average) rather than a "capitulation cluster" 5-15 bars back.
+
+    These two signals rarely co-fire because they catch different stages
+    of different setup types.
+    """
+    needed = ["close", "open", "high", "low", "volume", "rsi",
+              "ema_fast", "ema_slow"]
+    if any(c not in df.columns for c in needed) or len(df) < decline_lookback + 5:
+        return {"score": 50, "side": "NEUTRAL",
+                "detail": "Volume shock — insufficient data"}
+
+    close = df["close"]
+    open_ = df["open"]
+    high = df["high"]
+    low = df["low"]
+    vol = df["volume"]
+    rsi = df["rsi"]
+    ema_fast = df["ema_fast"]
+    ema_slow = df["ema_slow"]
+
+    last_close = float(close.iloc[-1])
+    last_open = float(open_.iloc[-1])
+    last_high = float(high.iloc[-1])
+    last_low = float(low.iloc[-1])
+    last_vol = float(vol.iloc[-1])
+
+    # 1. Decline check — peak in last decline_lookback bars down to recent low
+    high_long = float(high.tail(decline_lookback).max())
+    low_recent = float(low.tail(decline_lookback // 4).min())
+    if high_long <= 0:
+        return {"score": 50, "side": "NEUTRAL",
+                "detail": "Volume shock — zero reference high"}
+    decline_pct = 1.0 - (low_recent / high_long)
+    if decline_pct < decline_min:
+        return {"score": 50, "side": "NEUTRAL",
+                "detail": (f"Volume shock — decline only "
+                           f"{decline_pct * 100:.1f}% (need ≥{decline_min * 100:.0f}%)")}
+
+    # 2. Sustained downtrend over last downtrend_lookback bars
+    trend_window = df.iloc[-downtrend_lookback - 1:-1]
+    if len(trend_window) > 0:
+        reds = int((trend_window["close"] < trend_window["open"]).sum())
+        red_pct = reds / len(trend_window)
+    else:
+        red_pct = 0.0
+    if red_pct < downtrend_min_red_pct:
+        return {"score": 50, "side": "NEUTRAL",
+                "detail": (f"Volume shock — only {red_pct * 100:.0f}% red bars "
+                           f"in last {downtrend_lookback} (need ≥{downtrend_min_red_pct * 100:.0f}%)")}
+
+    # 3. Current bar STRONG GREEN body
+    rng = last_high - last_low
+    if rng <= 0:
+        return {"score": 50, "side": "NEUTRAL",
+                "detail": "Volume shock — zero candle range"}
+    body = last_close - last_open
+    body_pct = body / rng
+    if body <= 0 or body_pct < body_min:
+        return {"score": 50, "side": "NEUTRAL",
+                "detail": (f"Volume shock — current candle body too weak "
+                           f"({body_pct * 100:.0f}% of range, need ≥{body_min * 100:.0f}%)")}
+
+    # 4. Massive volume on the reversal candle
+    avg_vol_20 = float(vol.tail(20).mean() or 1)
+    if avg_vol_20 <= 0:
+        return {"score": 50, "side": "NEUTRAL",
+                "detail": "Volume shock — zero average volume"}
+    vol_ratio = last_vol / avg_vol_20
+    if vol_ratio < vol_shock_mult:
+        return {"score": 50, "side": "NEUTRAL",
+                "detail": (f"Volume shock — vol only {vol_ratio:.1f}x avg "
+                           f"(need ≥{vol_shock_mult:.0f}x)")}
+
+    # 5. RSI was oversold recently
+    rsi_min = float(rsi.tail(rsi_lookback).min())
+    if rsi_min > rsi_max_recent:
+        return {"score": 50, "side": "NEUTRAL",
+                "detail": (f"Volume shock — RSI never oversold "
+                           f"(min {rsi_min:.0f}, need ≤{rsi_max_recent:.0f})")}
+
+    # 6. Current bar reclaims AT LEAST ONE MA
+    above_ema20 = last_close > float(ema_fast.iloc[-1])
+    above_ema50 = last_close > float(ema_slow.iloc[-1])
+    if not (above_ema20 or above_ema50):
+        return {"score": 50, "side": "NEUTRAL",
+                "detail": "Volume shock — close below both MA20 and MA50"}
+
+    # All conditions met — score scales with each factor's strength
+    decline_factor = min(1.0, (decline_pct - decline_min) / 0.20)
+    body_factor = min(1.0, (body_pct - body_min) / 0.30)
+    vol_factor = min(1.0, (vol_ratio - vol_shock_mult) / 10.0)
+    rsi_factor = max(0.3, (rsi_max_recent - rsi_min) / 25)
+    ma_factor = 1.0 if (above_ema20 and above_ema50) else 0.7
+
+    composite = (0.20 * decline_factor + 0.25 * body_factor
+                 + 0.30 * vol_factor + 0.15 * rsi_factor
+                 + 0.10 * ma_factor)
+    score = 72 + composite * 28
+    score = float(np.clip(score, 72, 100))
+
+    return {"score": round(score), "side": "LONG",
+            "detail": (f"VOLUME SHOCK REVERSAL — decline {decline_pct * 100:.0f}% "
+                       f"over {decline_lookback}b + {red_pct * 100:.0f}% reds + "
+                       f"green body {body_pct * 100:.0f}% range + "
+                       f"vol {vol_ratio:.1f}x avg + RSI bottomed at {rsi_min:.0f}")}
+
+
+# ---------------------------------------------------------------------------
 # Pattern 2: Trend reclaim with momentum
 # ---------------------------------------------------------------------------
 
@@ -304,37 +431,68 @@ def score(df: pd.DataFrame) -> dict:
     if df is None or len(df) < 60:
         return _empty(reason="not enough klines")
 
+    # --- 24h freshness filter -------------------------------------------
+    # If the coin is already +8% or more in the last 24 hours, the move
+    # is mostly DONE — we want EARLY catches, not chases. Mark as
+    # "extended" and skip firing the signal. No lookahead: we compare
+    # close[t] vs close[t-24], both past data.
+    pct_24h = 0.0
+    if len(df) > 25:
+        close_now = float(df["close"].iloc[-1])
+        close_24h_ago = float(df["close"].iloc[-25])
+        if close_24h_ago > 0:
+            pct_24h = (close_now / close_24h_ago - 1.0) * 100
+    extended_already = pct_24h >= 8.0
+
     p1 = _v_bottom_bounce(df)
     p2 = _trend_reclaim_momentum(df)
+    p3 = _volume_shock_reversal(df)
 
     components = {
-        "v_bottom_bounce":  p1,
-        "trend_reclaim":    p2,
+        "v_bottom_bounce":     p1,
+        "trend_reclaim":       p2,
+        "volume_shock":        p3,
     }
 
-    # ONLY v_bottom_bounce contributes to the composite score (per
-    # backtest verdict above). trend_reclaim shown as confirmation chip
-    # only.
+    # ONLY v_bottom_bounce contributes to the composite score. p2 and p3
+    # are both kept as functions for diagnostic display but excluded
+    # from scoring per backtest verdicts:
+    #   trend_reclaim:  n=42, win 42.9%, avg -0.51% → no edge
+    #   volume_shock:   n=3,  win 33.3%, avg -1.16% → anti-edge, even
+    #                   after parameter relaxation. Tried decline 12%/72b,
+    #                   vol_mult 3.5x, body 55%, rsi 32 — still 2 of 3
+    #                   fires LOST. The ROBO/NIL-style examples don't
+    #                   generalize across the top-20 universe over 6 weeks.
+    #                   Keeping the function for future re-design.
     final_score = p1["score"]
-    if p1["score"] >= 70 and p2["score"] >= 70:
-        # Both firing — keep main score from v_bottom (the edge holder)
-        # but flag the agreement for display.
-        pattern_label = "v_bottom_with_reclaim_confirm"
-    elif p1["score"] >= 70:
+    if p1["score"] >= 70:
         pattern_label = "v_bottom_bounce"
     else:
         pattern_label = "no_recovery"
+
+    # Apply 24h freshness filter — if already extended, DON'T fire even
+    # if patterns met. Drops the composite below the chip threshold so
+    # the picks board doesn't surface a stale signal.
+    if extended_already and final_score >= 70:
+        final_score = min(final_score, 65)  # below chip threshold
+        pattern_label = f"{pattern_label}_extended_skip"
 
     flags = []
     if "V-BOTTOM BOUNCE" in p1["detail"]:
         flags.append("v_bottom_bounce")
     if "MA50 RECLAIM" in p2["detail"]:
-        flags.append("ma50_reclaim_confirm")
+        flags.append("ma50_reclaim_diagnostic")  # diagnostic only — no score
+    if "VOLUME SHOCK REVERSAL" in p3["detail"]:
+        flags.append("volume_shock_diagnostic")  # diagnostic only — no score
+    if extended_already:
+        flags.append("extended_24h")
 
     return {
         "score": round(float(final_score), 1),
-        "side": p1["side"] if final_score >= 70 else "NEUTRAL",
+        "side": winning["side"] if final_score >= 70 else "NEUTRAL",
         "pattern": pattern_label,
+        "pct_24h": round(pct_24h, 2),
+        "extended_already": extended_already,
         "components": components,
         "flags": flags,
     }
@@ -345,9 +503,12 @@ def _empty(reason: str) -> dict:
         "score": 50.0,
         "side": "NEUTRAL",
         "pattern": "no_data",
+        "pct_24h": 0.0,
+        "extended_already": False,
         "components": {
             "v_bottom_bounce": {"score": 50, "side": "NEUTRAL", "detail": reason},
             "trend_reclaim":   {"score": 50, "side": "NEUTRAL", "detail": reason},
+            "volume_shock":    {"score": 50, "side": "NEUTRAL", "detail": reason},
         },
         "flags": [],
     }
