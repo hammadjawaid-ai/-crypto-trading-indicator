@@ -5392,47 +5392,47 @@ if active_section == "🧪 Paper Trader":
                                            else 0.0)
                     _ps_live_rr = (_ps_live_reward / _ps_live_risk
                                    if _ps_live_risk > 0 else 0.0)
-                    # === DYNAMIC NOTIONAL SIZING (per user feedback) ===
-                    # The fixed $5k cap was hitting on EVERY pick because
-                    # tight stops + 1% risk = high natural notional.
-                    # New formula: risk-based qty (anchored on stop distance)
-                    # capped by a DYNAMIC ceiling that scales with:
-                    #   - strength_factor (conviction)
-                    #   - account balance (% of capital deployable)
-                    #   - leverage (how much margin headroom)
-                    # This way position size GENUINELY varies trade-to-trade
-                    # based on the analysis: tighter stop + higher conviction
-                    # = bigger position; wider stop or weaker signal = smaller.
+                    # === CONVICTION-SCALED NOTIONAL SIZING ===
+                    # User-set targets: $1000-$2500 typical, $3000 hard cap.
+                    # Position size scales LINEARLY with conviction score:
+                    #   Score 65 (floor)  → target $1,000 notional
+                    #   Score 80 (mid)    → target $1,750 notional
+                    #   Score 95 (top)    → target $2,500 notional
+                    #   Hard ceiling      → $3,000 (no matter what)
+                    # Risk-based qty still calculated but USED ONLY if it's
+                    # LOWER than the target (e.g. very wide stop). This way
+                    # actual $ risk is always ≤ risk_per_trade_pct budget.
                     _ps_bal = float(pb_state.get("balance") or 0)
                     _ps_risk_pct = float(
                         pb_state.get("risk_per_trade_pct") or 1.0)
                     _ps_lev = float(pb_state.get("leverage") or 3.0)
                     if _ps_has_plan and _ps_entry > 0:
-                        # 1. Risk-based qty — the foundational sizing
+                        # 1. Risk-based notional ceiling (don't exceed risk budget)
                         _ps_riskd = _ps_bal * _ps_risk_pct / 100
                         _ps_stopdist = abs(_ps_stop - _ps_entry) or 1.0
-                        _ps_qty_raw = _ps_riskd / _ps_stopdist
-                        _ps_notional_raw = _ps_qty_raw * _ps_entry
-                        # 2. Strength factor scales 0.4 (weak) to 1.4 (max)
-                        _ps_sf = max(0.4, min(1.4, (_score - 65) / 30 + 0.5))
-                        # 3. Dynamic ceiling — % of balance deployable with
-                        #    leverage. balance * 0.40 * leverage * strength
-                        #    means: at full strength + 3x lev, can deploy
-                        #    40% × balance × 3 = 1.2× balance notional.
-                        #    At weak signal (0.4), only 0.4 × 0.4 × 3 = 0.48×.
-                        _ps_dyn_cap = _ps_bal * 0.40 * _ps_lev * _ps_sf
-                        # 4. Apply cap only if risk-based exceeds it
-                        if _ps_notional_raw > _ps_dyn_cap:
-                            _ps_notional = _ps_dyn_cap
-                            _ps_qty = (_ps_notional / _ps_entry
-                                       if _ps_entry > 0 else 0.0)
-                        else:
-                            _ps_notional = _ps_notional_raw
-                            _ps_qty = _ps_qty_raw
+                        _ps_qty_riskbased = _ps_riskd / _ps_stopdist
+                        _ps_notional_riskbased = _ps_qty_riskbased * _ps_entry
+                        # 2. Conviction-scaled target ($1000-$2500)
+                        _ps_target_notional = 1000.0 + (
+                            (_score - 65) / 30.0) * 1500.0
+                        _ps_target_notional = max(
+                            1000.0, min(2500.0, _ps_target_notional))
+                        # 3. Hard cap $3000
+                        _ps_hard_cap = 3000.0
+                        # 4. Final: LOWER of (risk-based, target, hard cap)
+                        _ps_notional = min(
+                            _ps_notional_riskbased,
+                            _ps_target_notional,
+                            _ps_hard_cap)
+                        _ps_qty = (_ps_notional / _ps_entry
+                                   if _ps_entry > 0 else 0.0)
                         _ps_margin = (_ps_notional / _ps_lev
                                       if _ps_lev > 0 else _ps_notional)
                         _ps_loss = _ps_qty * abs(_ps_stop - _ps_entry)
                         _ps_profit = _ps_qty * abs(_ps_tgt - _ps_entry)
+                        # strength_factor for the open-position call (kept
+                        # as ratio of notional to hard cap for compatibility)
+                        _ps_sf = _ps_notional / _ps_hard_cap
                     else:
                         _ps_qty = _ps_notional = _ps_margin = 0.0
                         _ps_loss = _ps_profit = 0.0
@@ -6756,23 +6756,28 @@ if active_section == "🧪 Paper Trader":
                                       if _cur_short > 0 and _tgt_plan > 0 else 0.0)
                 _live_rr_short = (_live_reward_short / _live_risk_short
                                   if _live_risk_short > 0 else 0.0)
-                # Position-size preview based on strength_factor + paper settings
+                # Position-size preview — same conviction-scaled formula
+                # as Pattern Scout cards. Notional $1000-$2500 by strength,
+                # hard cap $3000. Strength here is the "strength" score
+                # (0-50 range) — map to 0-100 equivalent for consistency.
+                _str_as_score = 65.0 + (_str / 50.0) * 35.0  # str 0->65, str 50->100
                 _strength_factor_preview = max(0.4, min(1.0, _str / 30.0))
                 _bal = float(pb_state.get("balance") or 0)
                 _risk_pct_setting = float(
                     pb_state.get("risk_per_trade_pct") or 1.0)
                 _lev_setting = float(pb_state.get("leverage") or 3.0)
-                _max_notional = float(
-                    pb_state.get("max_notional_per_trade") or 5000.0)
                 _risk_dollars = _bal * _risk_pct_setting / 100.0
                 _stop_dist = abs(_stop_plan - _entry_plan) or 1.0
-                _qty_est = _risk_dollars / _stop_dist if _stop_dist > 0 else 0.0
-                _notional_est = _qty_est * _entry_plan
-                _notional_cap_eff = _max_notional * _strength_factor_preview
-                if _notional_est > _notional_cap_eff:
-                    _notional_est = _notional_cap_eff
-                    _qty_est = (_notional_est / _entry_plan
-                                if _entry_plan > 0 else 0.0)
+                _qty_riskbased = _risk_dollars / _stop_dist if _stop_dist > 0 else 0.0
+                _notional_riskbased = _qty_riskbased * _entry_plan
+                # Conviction-scaled target
+                _target_notional = 1000.0 + (
+                    (_str_as_score - 65) / 30.0) * 1500.0
+                _target_notional = max(1000.0, min(2500.0, _target_notional))
+                # Hard cap $3000
+                _notional_est = min(_notional_riskbased, _target_notional, 3000.0)
+                _qty_est = (_notional_est / _entry_plan
+                            if _entry_plan > 0 else 0.0)
                 _margin_est = (_notional_est / _lev_setting
                                if _lev_setting > 0 else _notional_est)
                 _profit_est = _qty_est * abs(_entry_plan - _tgt_plan)
