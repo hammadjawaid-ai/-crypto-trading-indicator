@@ -5598,13 +5598,8 @@ if active_section == "🧪 Paper Trader":
             "</div>",
             unsafe_allow_html=True)
         st.caption(
-            "Each pick stacks **scanner conf + forecast alignment + "
-            "Pattern Scout + CONVERGENCE/SURE SHOT meta-filters + "
-            "Breakout Radar + regime tilt + RS/DERIV/early-momentum**. "
-            "The **CONVICTION badge** on each card tells you how many "
-            "layers agree: ⚡⚡⚡ MAX (all top layers stacked) · "
-            "⚡⚡ HIGH (most layers) · ⚡ STRONG (strong base) · "
-            "⚪ STANDARD (passes floor).")
+            "Confirmed signals first, anticipatory setups second. "
+            "**CONVICTION** badge tells you which layers agree.")
 
         # ---- 📊 Market Regime Banner — modern hero design --------------
         # Critical adaptive layer. Backtested edges are regime-dependent —
@@ -7038,6 +7033,10 @@ if active_section == "🧪 Paper Trader":
             # (the existing pick has more signals stacked).
             if _sfp["symbol"] in _scored_syms:
                 continue
+            # Skip if user already has an open position — the 📥 button
+            # would no-op via paper_bot dedup.
+            if _sfp["symbol"] in _open_syms:
+                continue
             _sf_sym = _sfp["symbol"]
             _sf_side = _sfp["side"]
             _sf_score = float(_sfp["score"])
@@ -8179,11 +8178,13 @@ if active_section == "🧪 Paper Trader":
         # are already in BEST TRADES NOW (whether from regular setups
         # or promoted from Setups Forming itself).
         _btn_syms = {pk[4]["symbol"] for pk in _bot_picks}
+        # Dont dedup against promoted syms — only against actually-rendered
+        # cards (_btn_syms). If a promoted pick was cut by top-12 it should
+        # still surface here as intel.
         _sf_top = [r for r in sorted(_sf_results,
                                      key=lambda r: r["score"], reverse=True)
                    if r["score"] >= 65
-                   and r["symbol"] not in _btn_syms
-                   and r["symbol"] not in _sf_promoted_syms][:6]
+                   and r["symbol"] not in _btn_syms][:6]
         if _sf_top:
             st.markdown(
                 "<div style='display:flex;align-items:center;gap:10px;"
@@ -8247,253 +8248,7 @@ if active_section == "🧪 Paper Trader":
                     f"</div>",
                     unsafe_allow_html=True)
 
-        # ---- 🩸 Top SHORT setups DISABLED per user (folded into BEST TRADES) ---
-        _short_universe = []
-        _short_scored = []
-        for s in _short_universe:
-            try:
-                em = load_early_momentum(s["symbol"], timeframe)
-                dv = load_derivatives_velocity(s["symbol"], timeframe)
-            except Exception:
-                continue
-            comps = em.get("components") or {}
-            # Sum short-side strengths from components that backtest showed
-            # have edge. Each "short strength" = max(0, 50 - component_score)
-            # — so a CVD short at score 12 contributes 38 strength.
-            short_signals = []
-            short_strength = 0.0
-            cvd = comps.get("cvd_divergence") or {}
-            if cvd.get("side") == "SHORT" and cvd.get("score", 50) <= 35:
-                s_str = max(0, 50 - float(cvd["score"]))
-                short_strength += s_str * 0.30  # cvd has highest edge
-                short_signals.append(f"CVD div ({cvd['score']:.0f})")
-            sq = comps.get("ttm_squeeze") or {}
-            if sq.get("side") == "SHORT" and sq.get("score", 50) <= 35:
-                s_str = max(0, 50 - float(sq["score"]))
-                short_strength += s_str * 0.20
-                short_signals.append(f"Squeeze ({sq['score']:.0f})")
-            vw = comps.get("vwap_reclaim") or {}
-            if vw.get("side") == "SHORT" and vw.get("score", 50) <= 35:
-                s_str = max(0, 50 - float(vw["score"]))
-                short_strength += s_str * 0.25
-                short_signals.append(f"VWAP loss ({vw['score']:.0f})")
-            sm = comps.get("smc_sweep") or {}
-            if sm.get("side") == "SHORT" and sm.get("score", 50) <= 35:
-                # SMC SHORT was near-baseline in the backtest — small weight
-                s_str = max(0, 50 - float(sm["score"]))
-                short_strength += s_str * 0.10
-                short_signals.append(f"SMC sweep ({sm['score']:.0f})")
-            # Derivatives velocity bullish flip (contrarian short — funding
-            # flipping positive means longs piling in → squeeze down).
-            if dv.get("side") == "SHORT" and dv.get("score", 50) <= 35:
-                d_str = max(0, 50 - float(dv["score"]))
-                short_strength += d_str * 0.15
-                short_signals.append(f"Funding flip ({dv['score']:.0f})")
-            if short_strength >= 8 and len(short_signals) >= 2:
-                _short_scored.append({
-                    "symbol": s["symbol"], "base": s["base"],
-                    "strength": short_strength,
-                    "signals": short_signals,
-                    "em_score": em.get("score", 50),
-                    "price": prices.get(s["symbol"]),
-                    "setup": s,
-                })
-        _short_scored.sort(key=lambda x: x["strength"], reverse=True)
-        _top_shorts = _short_scored[:6]
-
-        if not _top_shorts:
-            st.info(
-                "No SHORT setups with strong aligned signals right now. "
-                "This is the normal state during early-up moves — the "
-                "early-momentum SHORT components only fire at tops and "
-                "failing rallies. Check back when BTC stalls or hits a "
-                "key resistance.")
-        else:
-            st.caption(
-                f"Found **{len(_top_shorts)}** SHORT candidates with "
-                "multiple aligned signals.")
-            st.caption(
-                "**Strength tiers** — STRONG ≥20 (high conviction, "
-                "click 📥 confidently), MODERATE 12-19 (mild conviction, "
-                "lighter size), WEAK <12 (hidden from board). The number "
-                "is total signal contribution (each firing signal adds "
-                "weight × deviation from neutral).")
-            for _s in _top_shorts:
-                _str = _s["strength"]
-                _str_color = ("#ff5c5c" if _str >= 20
-                              else "#e0a92b" if _str >= 12 else "#8b8d98")
-                _str_label = ("STRONG" if _str >= 20
-                              else "MODERATE" if _str >= 12 else "WEAK")
-                _short_sid = f"short_{_s['symbol']}"
-                # --- Trade plan extraction (same data the main board uses)
-                _setup = _s["setup"]
-                _entry_plan = float(_setup.get("entry_low")
-                                    or _setup.get("entry") or 0)
-                _stop_plan = float(_setup.get("stop") or 0)
-                _tgt_plan = float(_setup.get("target") or 0)
-                _rr_plan = float(_setup.get("rr") or 0)
-                _hold_horiz = _hold_horizon(timeframe)
-                _cur_short = _s.get("price") or _entry_plan
-                # SHORT math: stop ABOVE entry, target BELOW entry.
-                # risk_pct = stop / entry - 1 (positive %)
-                # reward_pct = 1 - target / entry (positive %)
-                if _entry_plan > 0 and _stop_plan > 0 and _tgt_plan > 0:
-                    _risk_pct_short = (_stop_plan - _entry_plan) / _entry_plan * 100
-                    _reward_pct_short = (_entry_plan - _tgt_plan) / _entry_plan * 100
-                else:
-                    _risk_pct_short = 0.0
-                    _reward_pct_short = 0.0
-                # Live R:R from current price
-                _live_risk_short = ((_stop_plan - _cur_short) / _cur_short * 100
-                                    if _cur_short > 0 and _stop_plan > 0 else 0.0)
-                _live_reward_short = ((_cur_short - _tgt_plan) / _cur_short * 100
-                                      if _cur_short > 0 and _tgt_plan > 0 else 0.0)
-                _live_rr_short = (_live_reward_short / _live_risk_short
-                                  if _live_risk_short > 0 else 0.0)
-                # Position-size preview — same conviction-scaled formula
-                # as Pattern Scout cards. Notional $1000-$2500 by strength,
-                # hard cap $3000. Strength here is the "strength" score
-                # (0-50 range) — map to 0-100 equivalent for consistency.
-                _str_as_score = 65.0 + (_str / 50.0) * 35.0  # str 0->65, str 50->100
-                _strength_factor_preview = max(0.4, min(1.0, _str / 30.0))
-                _bal = float(pb_state.get("balance") or 0)
-                _risk_pct_setting = float(
-                    pb_state.get("risk_per_trade_pct") or 1.0)
-                _lev_setting = float(pb_state.get("leverage") or 3.0)
-                _risk_dollars = _bal * _risk_pct_setting / 100.0
-                _stop_dist = abs(_stop_plan - _entry_plan) or 1.0
-                _qty_riskbased = _risk_dollars / _stop_dist if _stop_dist > 0 else 0.0
-                _notional_riskbased = _qty_riskbased * _entry_plan
-                # Conviction-scaled target
-                _target_notional = 1000.0 + (
-                    (_str_as_score - 65) / 30.0) * 1500.0
-                _target_notional = max(1000.0, min(2500.0, _target_notional))
-                # Hard cap $3000
-                _notional_est = min(_notional_riskbased, _target_notional, 3000.0)
-                _qty_est = (_notional_est / _entry_plan
-                            if _entry_plan > 0 else 0.0)
-                _margin_est = (_notional_est / _lev_setting
-                               if _lev_setting > 0 else _notional_est)
-                _profit_est = _qty_est * abs(_entry_plan - _tgt_plan)
-                _loss_est = _qty_est * abs(_stop_plan - _entry_plan)
-
-                # Live R:R chip
-                _short_rr_chip = ""
-                if _live_rr_short >= 1.3:
-                    _short_rr_chip = (
-                        f"<span style='background:#2ed47a33;color:#2ed47a;"
-                        f"padding:2px 8px;border-radius:5px;font-size:"
-                        f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"✓ At entry zone · live R:R {_live_rr_short:.2f}"
-                        f"</span>")
-                elif 0 < _live_rr_short < 1.2:
-                    _short_rr_chip = (
-                        f"<span style='background:#ff5c5c33;color:#ff5c5c;"
-                        f"padding:2px 8px;border-radius:5px;font-size:"
-                        f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"⚠ Entry passed · live R:R {_live_rr_short:.2f}"
-                        f"</span>")
-                with st.container(border=True):
-                    _txt_col, _btn_col = st.columns([6, 1])
-                    _txt_col.markdown(
-                        # Header row
-                        f"<div style='display:flex;align-items:center;"
-                        f"gap:8px;flex-wrap:wrap'>"
-                        f"<span style='font-weight:800;font-size:1.05rem'>"
-                        f"{_s['base']}</span>"
-                        f"<span style='background:#ff5c5c;color:#06121f;"
-                        f"padding:2px 10px;border-radius:5px;font-size:"
-                        f"0.72rem;font-weight:800'>🩸 SHORT</span>"
-                        f"<span style='background:{_str_color}33;"
-                        f"color:{_str_color};padding:2px 8px;border-radius:"
-                        f"5px;font-size:0.72rem;font-weight:700'>"
-                        f"{_str_label} · strength {_str:.0f}/50</span>"
-                        f"{_short_rr_chip}"
-                        f"<span style='color:#8b8d98;font-size:0.78rem'>"
-                        f"em-score {_s['em_score']:.0f}</span>"
-                        f"</div>"
-                        # Trade plan row (entry/stop/target with %)
-                        f"<div style='color:#aab;font-size:0.80rem;"
-                        f"margin-top:8px;line-height:1.6'>"
-                        f"hold: <b>{_hold_horiz}</b> · now "
-                        f"<b>{fmt_price(_cur_short)}</b> · entry "
-                        f"<b>{fmt_price(_entry_plan)}</b> · "
-                        f"stop <b>{fmt_price(_stop_plan)}</b> "
-                        f"<span style='color:#ff5c5c'>"
-                        f"(+{_risk_pct_short:.1f}%)</span> · "
-                        f"target <b>{fmt_price(_tgt_plan)}</b> "
-                        f"<span style='color:#2ed47a'>"
-                        f"(−{_reward_pct_short:.1f}%)</span> · "
-                        f"plan R:R <b>{_rr_plan:.2f}</b>"
-                        f"</div>"
-                        # Position-size preview row
-                        f"<div style='background:rgba(0,212,255,0.05);"
-                        f"border:1px solid rgba(0,212,255,0.15);"
-                        f"border-radius:8px;padding:8px 12px;"
-                        f"margin-top:8px;color:#c8d2ed;"
-                        f"font-size:0.78rem;line-height:1.6'>"
-                        f"<b style='color:#00d4ff'>📥 If you click NOW:</b> "
-                        f"<b>{_qty_est:.4f}</b> {_s['base']} short · "
-                        f"notional <b>${_notional_est:,.0f}</b> · "
-                        f"<b>{_lev_setting:.0f}x</b> leverage · "
-                        f"margin <b>${_margin_est:,.0f}</b> · "
-                        f"risk <b style='color:#ff5c5c'>"
-                        f"-${_loss_est:,.2f}</b> · "
-                        f"profit at TP <b style='color:#2ed47a'>"
-                        f"+${_profit_est:,.2f}</b>"
-                        f"</div>"
-                        # Signals row
-                        f"<div style='color:#aab;font-size:0.78rem;"
-                        f"margin-top:6px'>"
-                        f"<b>Signals firing:</b> "
-                        + " · ".join(_s["signals"])
-                        + "</div>",
-                        unsafe_allow_html=True)
-                    # 📥 Open trade button — opens the paper short trade
-                    # directly from this card. Uses the underlying setup
-                    # dict from the scanner (which has the same SHORT
-                    # entry/stop/target plan as the main picks board
-                    # would have used).
-                    if _btn_col.button("📥", key=f"pb_short_{_short_sid}",
-                                       help=(f"Open SHORT {_s['base']} "
-                                             "paper trade at TP1"),
-                                       use_container_width=True):
-                        _open_setup = dict(_s["setup"])
-                        # Strength factor scales position size — STRONG
-                        # gets larger size, MODERATE smaller, mirroring
-                        # the strength-tier semantics.
-                        _strength_factor = max(0.4, min(1.0, _str / 30.0))
-                        _open_setup["strength_factor"] = _strength_factor
-                        _open_price = (prices.get(_s["symbol"])
-                                       or _open_setup.get("entry_low"))
-                        _opened = paper_bot.open_position(
-                            pb_state, _open_setup, _open_price)
-                        if _opened:
-                            _enrich_position(
-                                _opened,
-                                int(min(99, max(0, _str * 4))),
-                                timeframe)
-                            paper_bot.save_state(PAPER_BOT_FILE, pb_state)
-                            st.toast(
-                                f"📥 Opened SHORT {_opened['base']} @ "
-                                f"{fmt_price(_opened['entry'])} · "
-                                f"strength {_str:.0f}",
-                                icon="🩸")
-                            st.rerun()
-                        else:
-                            st.warning(
-                                f"Could not open SHORT {_s['base']} — "
-                                "the paper bot rejected the position. "
-                                "Usually means: insufficient balance, "
-                                "max-concurrent hit, or symbol already "
-                                "in open positions.")
-                    st.caption(
-                        f"💡 Historical edge of the proven SHORT components: "
-                        f"CVD div 67% win, VWAP loss 62%, Squeeze SHORT 57% "
-                        f"(over 12 bars, backtest n=131-92 across top-19 "
-                        f"coins). Click 📥 to open as paper trade — "
-                        f"position size scales with strength.")
-
+        # ---- 🩸 Top SHORT setups REMOVED — folded into BEST TRADES NOW
         st.divider()
         # Open positions — LIVE fragment (updates in place every 10s).
         _live_paper_positions()
