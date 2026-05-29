@@ -5536,8 +5536,43 @@ if active_section == "🧪 Paper Trader":
                             "this coin.")
 
     with right_col:
-        # ---- 🤖 Bot's top picks — what the agent would open right now ---
-        st.markdown("### 🤖 Bot's top picks")
+        # ---- 🏆 BEST TRADES NOW — multi-layer conviction board ---------
+        # The single source of truth for what to trade. Combines:
+        #   • Scanner conf (alerts engine multi-TF)
+        #   • Forecast alignment (1h + 4h + 1d horizons)
+        #   • Pattern Scout (backtested patterns: V-bottom, morning star,
+        #     long_patterns_aligned, hammers, engulfings)
+        #   • Setups Forming (pre-condition leading signals)
+        #   • CONVERGENCE meta-filter (validated +6.8pp uplift)
+        #   • SURE SHOT meta-filter (strict 88+ multi-confirm)
+        #   • Breakout Radar stage (COILED / FRESH / EXTENDED)
+        #   • Market Regime tilt (BULL/BEAR adaptive)
+        #   • Weekly trend + BTC Outlook + Move maturity
+        #   • Early Momentum (CVD, TTM, VWAP, SMC)
+        #   • Relative Strength vs BTC
+        #   • Derivatives Velocity (funding ROC + OI compression)
+        # Each card shows a CONVICTION tier (MAX / HIGH / STRONG /
+        # STANDARD) so you instantly see WHICH layers stacked.
+        st.markdown(
+            "<div style='display:flex;align-items:center;gap:12px;"
+            "margin-top:14px;margin-bottom:4px'>"
+            "<span style='font-size:1.5rem;font-weight:900;"
+            "background:linear-gradient(135deg,#ffd700,#ff006e,#8b5cf6);"
+            "-webkit-background-clip:text;-webkit-text-fill-color:"
+            "transparent;background-clip:text;letter-spacing:-0.02em'>"
+            "🏆 BEST TRADES NOW</span>"
+            "<span style='color:#aab;font-size:0.82rem'>"
+            "multi-layer conviction · click 📥 to open</span>"
+            "</div>",
+            unsafe_allow_html=True)
+        st.caption(
+            "Each pick stacks **scanner conf + forecast alignment + "
+            "Pattern Scout + CONVERGENCE/SURE SHOT meta-filters + "
+            "Breakout Radar + regime tilt + RS/DERIV/early-momentum**. "
+            "The **CONVICTION badge** on each card tells you how many "
+            "layers agree: ⚡⚡⚡ MAX (all top layers stacked) · "
+            "⚡⚡ HIGH (most layers) · ⚡ STRONG (strong base) · "
+            "⚪ STANDARD (passes floor).")
 
         # ---- 📊 Market Regime Banner — modern hero design --------------
         # Critical adaptive layer. Backtested edges are regime-dependent —
@@ -7346,6 +7381,62 @@ if active_section == "🧪 Paper Trader":
                         f"box-shadow:0 0 10px rgba(0,212,255,0.5)'>"
                         f"💎 SURE SHOT</span>")
 
+                # ============================================================
+                # 🏆 CONVICTION TIER — multi-layer fusion badge.
+                # ============================================================
+                # Tells the user at a glance how many top conviction
+                # layers agree on this pick. The MOST important chip on
+                # the card — it sits leftmost in render order below.
+                #
+                # MAX  (⚡⚡⚡): combined >=90 AND (CONVERGENCE OR SURE SHOT)
+                #               — every top layer agrees, max conviction.
+                # HIGH (⚡⚡)  : combined >=85 AND any one of (CONVERGENCE,
+                #               SURE SHOT, PREMIUM)
+                # STRONG (⚡) : combined >=80 AND forecast aligned 3/3
+                # STANDARD  : combined >=72 (passes alert floor)
+                _conv_score = combined  # combined score (multi-layer)
+                _conv_in_convergence = s["symbol"] in _convergence_syms
+                _conv_in_sureshot = s["symbol"] in _sure_shot_syms
+                _conv_is_premium = bool(premium_chip)
+                _conv_forecast_aligned = (
+                    fc_label == "forecast confirms · aligned 3/3")
+
+                if (_conv_score >= 90
+                        and (_conv_in_convergence or _conv_in_sureshot)):
+                    _conv_tier = "MAX"
+                    _conv_emoji = "⚡⚡⚡"
+                    _conv_grad = ("linear-gradient(90deg,"
+                                  "#ffd700,#ff006e,#8b5cf6,#00d4ff)")
+                    _conv_glow = "0 0 14px rgba(255,215,0,0.6)"
+                    _conv_text = "#fff"
+                elif (_conv_score >= 85
+                        and (_conv_in_convergence
+                             or _conv_in_sureshot or _conv_is_premium)):
+                    _conv_tier = "HIGH"
+                    _conv_emoji = "⚡⚡"
+                    _conv_grad = "linear-gradient(90deg,#ff006e,#8b5cf6)"
+                    _conv_glow = "0 0 10px rgba(139,92,246,0.5)"
+                    _conv_text = "#fff"
+                elif _conv_score >= 80 and _conv_forecast_aligned:
+                    _conv_tier = "STRONG"
+                    _conv_emoji = "⚡"
+                    _conv_grad = "linear-gradient(90deg,#00d4ff,#2ed47a)"
+                    _conv_glow = "0 0 8px rgba(0,212,255,0.4)"
+                    _conv_text = "#001122"
+                else:
+                    _conv_tier = "STANDARD"
+                    _conv_emoji = "⚪"
+                    _conv_grad = "rgba(255,255,255,0.06)"
+                    _conv_glow = "none"
+                    _conv_text = "#aab"
+                conviction_chip = (
+                    f"<span style='background:{_conv_grad};"
+                    f"color:{_conv_text};padding:3px 12px;"
+                    f"border-radius:6px;font-size:0.74rem;font-weight:800;"
+                    f"margin-left:0;letter-spacing:0.02em;"
+                    f"box-shadow:{_conv_glow}'>"
+                    f"{_conv_emoji} {_conv_tier} CONVICTION</span>")
+
                 # Forecast confirmation chip
                 fc_chip = ""
                 if fc_label == "forecast confirms · aligned 3/3":
@@ -7630,6 +7721,7 @@ if active_section == "🧪 Paper Trader":
                         f"color:{str_color};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:700'>"
                         f"{str_label} · {combined_display}</span>"
+                        f"{conviction_chip}"
                         f"{convergence_chip}{sure_shot_chip}{premium_chip}"
                         f"{recovery_chip}{coiled_chip}"
                         f"{early_chip}{long_chip}{rs_chip}{dv_chip}"
