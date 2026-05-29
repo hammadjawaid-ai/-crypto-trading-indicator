@@ -34,6 +34,7 @@ import long_patterns
 import market_regime
 import pattern_scout
 import recovery_detector
+import reversal_approach
 # rs_vs_btc imported under its alias below so picks-board cached helpers
 # can stay grouped with the other Phase A/B scoring helpers.
 import rs_vs_btc
@@ -847,6 +848,44 @@ def load_klines(symbol: str, interval: str) -> pd.DataFrame:
 # auto_trade_gate, or is_premium_tradeable. They surface NEW leading-
 # indicator and long-term-hold scores alongside the existing system so
 # the user can A/B test before promoting any signal into the live path.
+
+@st.cache_data(ttl=600, show_spinner=False)
+def run_reversal_approach_scan(interval: str, scan_n: int = 30,
+                               _cache_version: int = 1) -> list:
+    """Scan top N coins for coins APPROACHING reversal conditions.
+
+    Leading-indicator scan — finds coins where pre-shooting-star or
+    pre-hammer conditions are forming (3+ of 7 pre-conditions met).
+    Surfaces them as a WATCHLIST so the user knows where to look
+    for the actual fire candle.
+
+    Cached 10 min — runs cheap (~100ms per coin × 30 coins = 3 sec).
+    """
+    try:
+        top_df = load_top_symbols(scan_n)
+    except Exception:
+        return []
+    results = []
+    for _, row in top_df.iterrows():
+        sym = row["symbol"]
+        base = row["base"]
+        last_price = float(row["lastPrice"])
+        pct_24h = float(row["priceChangePercent"])
+        try:
+            df = binance_client.get_klines(sym, interval)
+            df = indicators.enrich(df)
+            r = reversal_approach.scan_both_sides(df)
+        except Exception:
+            continue
+        if r["conditions_met"] >= 3 and r["score"] >= 60:
+            r["symbol"] = sym
+            r["base"] = base
+            r["price"] = last_price
+            r["volume_24h"] = float(row["quoteVolume"])
+            r["pct_24h"] = round(pct_24h, 2)
+            results.append(r)
+    return results
+
 
 @st.cache_data(ttl=600, show_spinner=False)
 def run_pattern_scout(interval: str, scan_n: int = 50,
@@ -5096,6 +5135,113 @@ if active_section == "🧪 Paper Trader":
             f"</div>"
             f"</div>",
             unsafe_allow_html=True)
+
+        # ---- 🔭 SETUPS FORMING — leading-indicator watchlist ----------
+        # Predicts reversal candles (shooting stars / hammers) BEFORE
+        # they print by detecting pre-conditions:
+        #   1. Approach to resistance/support
+        #   2. RSI extreme + trending toward it
+        #   3. Volume waning on dominant-color bars
+        #   4. Body shrinkage (consecutive smaller bodies)
+        #   5. Extension from EMA20 (>1.5 ATR)
+        #   6. Bearish/bullish CVD divergence
+        #   7. Intra-bar rejection forming
+        # When 3+ conditions met → WATCH. 5+ → STRONG WATCH (reversal
+        # likely within 1-5 bars).
+        # HONEST CAVEAT: leading signals are less reliable than
+        # confirmed candles (~40-55% vs ~60-65%). Use as a WATCHLIST.
+        with st.expander(
+                "🔭 Setups Forming — leading-indicator watchlist",
+                expanded=False):
+            st.caption(
+                "Coins where REVERSAL pre-conditions are forming. "
+                "By the time a shooting star or hammer prints, the "
+                "rejection already happened. This scan finds coins "
+                "approaching those setups — gives you a 1-5 bar "
+                "head start. **Watchlist, not a trade signal.** When "
+                "the actual fire candle prints (caught by Pattern "
+                "Scout below), THAT's the trade.")
+            try:
+                _approach_results = run_reversal_approach_scan(
+                    timeframe, scan_n=30)
+            except Exception:
+                _approach_results = []
+            _approach_top = sorted(_approach_results,
+                                   key=lambda r: r["score"],
+                                   reverse=True)[:6]
+            if not _approach_top:
+                st.info("No coins currently show 3+ pre-conditions for a "
+                        "reversal setup. Check back as conditions develop.")
+            else:
+                st.markdown(
+                    f"**{len(_approach_results)} coins showing setup "
+                    f"formation · top 6 below:**")
+                for _ar in _approach_top:
+                    _ar_side = _ar["side"]
+                    _ar_side_color = ("#ff3d57" if _ar_side == "SHORT"
+                                      else "#00e676")
+                    _ar_side_emoji = "🩸" if _ar_side == "SHORT" else "🟢"
+                    _ar_tier = ("STRONG WATCH" if _ar["score"] >= 80
+                                else "WATCH")
+                    _ar_tier_color = ("#ff9500" if _ar["score"] >= 80
+                                      else "#5b8eff")
+                    # Build condition chips for the ones that hit
+                    _cond_chips = ""
+                    _condition_labels = {
+                        "approach": "📏 Approaching level",
+                        "rsi": "📊 RSI extreme",
+                        "vol_waning": "📉 Volume waning",
+                        "body_shrink": "🎢 Body shrinking",
+                        "extension": "🎯 EMA stretched",
+                        "cvd_div": "💱 CVD diverging",
+                        "intra_bar": "⚡ Live rejection",
+                    }
+                    for _ck, _cv in _ar["components"].items():
+                        if _cv.get("hit"):
+                            _label = _condition_labels.get(_ck, _ck)
+                            _cond_chips += (
+                                f"<span style='background:rgba("
+                                f"{_ar_side_color[1:3]},{_ar_side_color[3:5]},"
+                                f"{_ar_side_color[5:7]},0.10);"
+                                f"color:{_ar_side_color};padding:2px 8px;"
+                                f"border-radius:5px;font-size:0.7rem;"
+                                f"font-weight:700;margin-left:4px'>"
+                                f"{_label}</span>")
+                    with st.container(border=True):
+                        st.markdown(
+                            f"<div style='display:flex;align-items:center;"
+                            f"gap:8px;flex-wrap:wrap'>"
+                            f"<span style='font-weight:800;font-size:1.05rem'>"
+                            f"{_ar['base']}</span>"
+                            f"<span style='background:{_ar_side_color};"
+                            f"color:#06121f;padding:2px 10px;"
+                            f"border-radius:5px;font-size:0.72rem;"
+                            f"font-weight:800'>{_ar_side_emoji} "
+                            f"{_ar_side} setup forming</span>"
+                            f"<span style='background:{_ar_tier_color}33;"
+                            f"color:{_ar_tier_color};padding:2px 8px;"
+                            f"border-radius:5px;font-size:0.72rem;"
+                            f"font-weight:700'>🔭 {_ar_tier} · "
+                            f"{_ar['score']:.0f}</span>"
+                            f"<span style='color:#8b8d98;font-size:0.78rem'>"
+                            f"now ${_ar['price']:.4g} · "
+                            f"{_ar['conditions_met']}/7 conditions</span>"
+                            f"</div>"
+                            f"<div style='margin-top:8px'>{_cond_chips}</div>"
+                            f"<div style='color:#aab;font-size:0.78rem;"
+                            f"margin-top:8px;line-height:1.5'>"
+                            f"<b>Watch for:</b> "
+                            + (f"shooting star, evening star, or bearish "
+                               f"engulfing at current resistance level. "
+                               f"If a SHORT pattern fires below this "
+                               f"section, that's the entry."
+                               if _ar_side == "SHORT" else
+                               f"hammer, morning star, or bullish "
+                               f"engulfing at current support level. "
+                               f"If a LONG pattern fires below this "
+                               f"section, that's the entry.")
+                            + f"</div>",
+                            unsafe_allow_html=True)
 
         # ---- 🎯 PATTERN SCOUT — scans 50 coins for validated patterns -
         # Independent of the alerts.build_alerts() CONF_ALERT=72 gate.
