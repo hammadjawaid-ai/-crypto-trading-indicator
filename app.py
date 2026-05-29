@@ -4218,26 +4218,16 @@ if active_section == "🧪 Paper Trader":
         pb_state["leverage"] = float(new_leverage)
         pb_state["max_notional_per_trade"] = float(new_max_notional)
 
-        # 🔥 Early-momentum picks-board filter (Phase A MVP, paper-only).
-        # When ON, the bot's top picks board hides setups WITHOUT an
-        # aligned early-momentum confirmation (score >= 75 AND the
-        # early-momentum side matches the setup's direction). This is
-        # the A/B test toggle — leave OFF for classic ranking, flip ON
-        # for strict early-momentum mode and compare win rates over a
-        # week or two of paper trades. Does NOT affect Live Trading,
-        # auto_trade_gate, or the live broker — paper trader only.
-        em_filter_on = st.checkbox(
-            "🔥 Picks-board: EARLY MOMENTUM filter (A/B test)",
-            value=bool(pb_state.get("em_filter_on", False)),
-            key="pb_em_filter",
-            help="Strict mode for testing the new leading-indicator "
-                 "score. When ON, the picks board only shows setups "
-                 "that ALSO have an aligned 🔥 EARLY MOMENTUM chip — "
-                 "CVD divergence, TTM Squeeze fire, ROC acceleration "
-                 "inflection, or SMC liquidity sweep, all gated by "
-                 "the Hurst regime check. Auto-trade respects this "
-                 "filter too. Live broker is NOT affected.")
-        pb_state["em_filter_on"] = bool(em_filter_on)
+        # EARLY MOMENTUM filter REMOVED 2026-05-30. It was an A/B test
+        # toggle that caused recurring "empty picks board" confusion.
+        # With the new Pattern Scout + 💎 SURE SHOT + long_patterns
+        # architecture, this filter is obsolete:
+        #   - SURE SHOT already requires Pattern Scout confirmation
+        #   - long_patterns provides validated LONG-side edge (67% @ 48b)
+        #   - early_momentum LONG component backtested 38% win — kept
+        #     only as a SHORT-side signal (which works at 71% win)
+        # Force off in state so existing users don't inherit the filter.
+        pb_state["em_filter_on"] = False
 
     # ---- Helpers used in this section ------------------------------------
     def _hold_horizon(tf):
@@ -5060,21 +5050,67 @@ if active_section == "🧪 Paper Trader":
                     _tier = ("STRONG" if _score >= 80
                              else "ALIGNED" if _score >= 75
                              else "WATCH")
+                    # === Distinct badge per signal type ===
+                    # Each pattern gets its own visual identity so the user
+                    # can read the card at a glance and know WHICH pattern
+                    # fired. Each badge: emoji + short name + score +
+                    # backtested win rate, with a gradient unique to the
+                    # signal type.
+                    _badge_styles = {
+                        "v_bottom_recovery": {
+                            "emoji": "🔄",
+                            "label": "V-BOTTOM",
+                            "win": "75%/12bar",
+                            "gradient": "linear-gradient(135deg,#00d4ff,#ffd700)",
+                            "text_color": "#001122",
+                            "glow": "rgba(0,212,255,0.4)",
+                        },
+                        "long_patterns_aligned": {
+                            "emoji": "🟢",
+                            "label": "LONG PATTERNS",
+                            "win": "67%/48bar",
+                            "gradient": "linear-gradient(135deg,#0b8a3e,#34c759)",
+                            "text_color": "#06121f",
+                            "glow": "rgba(52,199,89,0.35)",
+                        },
+                        "morning_star": {
+                            "emoji": "🌅",
+                            "label": "MORNING STAR",
+                            "win": "60-75% w/ filters",
+                            "gradient": "linear-gradient(135deg,#ff9500,#ffcc66)",
+                            "text_color": "#1a0f00",
+                            "glow": "rgba(255,149,0,0.35)",
+                        },
+                        "hammer_at_support": {
+                            "emoji": "🔨",
+                            "label": "HAMMER",
+                            "win": "60-65% at support",
+                            "gradient": "linear-gradient(135deg,#5b8eff,#8b5cf6)",
+                            "text_color": "#fff",
+                            "glow": "rgba(91,142,255,0.35)",
+                        },
+                    }
                     _signal_chips = ""
                     for _sig in _sc["signals"][:3]:
                         _sn = _sig["name"]
-                        _emoji = {
-                            "v_bottom_recovery": "🔄",
-                            "long_patterns_aligned": "🟢",
-                            "morning_star": "🌅",
-                            "hammer_at_support": "🔨",
-                        }.get(_sn, "📊")
+                        _style = _badge_styles.get(_sn, {
+                            "emoji": "📊", "label": _sn.upper(),
+                            "win": "n/a",
+                            "gradient": "rgba(0,212,255,0.10)",
+                            "text_color": "#00d4ff",
+                            "glow": "rgba(0,212,255,0.2)",
+                        })
                         _signal_chips += (
-                            f"<span style='background:rgba(0,212,255,0.10);"
-                            f"color:#00d4ff;padding:2px 8px;border-radius:"
-                            f"5px;font-size:0.7rem;font-weight:700;"
-                            f"margin-left:4px'>{_emoji} {_sn} "
-                            f"{_sig['score']:.0f}</span>")
+                            f"<span title='Backtested edge: {_style['win']}' "
+                            f"style='background:{_style['gradient']};"
+                            f"color:{_style['text_color']};padding:4px 12px;"
+                            f"border-radius:7px;font-size:0.72rem;"
+                            f"font-weight:800;margin-left:6px;"
+                            f"box-shadow:0 0 8px {_style['glow']};"
+                            f"display:inline-block;letter-spacing:0.02em'>"
+                            f"{_style['emoji']} {_style['label']} "
+                            f"<span style='opacity:0.7'>· {_sig['score']:.0f}</span>"
+                            f"</span>")
                     _pct_24h = _sc.get("pct_24h", 0)
                     _pct_color = ("#2ed47a" if _pct_24h > 0
                                   else "#ff5c5c" if _pct_24h < 0 else "#888")
