@@ -1,0 +1,51 @@
+﻿Running backtest on 20 symbols (1h, 1000 klines each)...
+  [1/20] GENIUSUSDT
+  [2/20] BTCUSDT
+  [3/20] ETHUSDT
+  [4/20] ZECUSDT
+  [5/20] XLMUSDT
+  [6/20] SOLUSDT
+  [7/20] XRPUSDT
+  [8/20] MEGAUSDT
+  [9/20] ALLOUSDT
+  [10/20] NEARUSDT
+  [11/20] TRXUSDT
+  [12/20] BNBUSDT
+  [13/20] HBARUSDT
+  [14/20] DOGEUSDT
+  [15/20] SUIUSDT
+  [16/20] WLDUSDT
+  [17/20] BCHUSDT
+  [18/20] TONUSDT
+  [19/20] PAXGUSDT
+  [20/20] UNIUSDT
+
+Finished in 52.4s.
+
+========================================================================
+Walk-forward backtest report
+========================================================================
+Symbols:        19 / 20 OK
+Interval:       1h   warmup=200   sample_every=4
+Long fires:     142    Short fires: 109
+Thresholds:     long>=70.0  short<=30.0
+
+POOLED FORWARD RETURNS
+------------------------------------------------------------------------
+
+[LONG]
+  +12bar: n=  142  win= 38.0%  avg= -0.50%  med= -0.09%  exp= -0.50%  best= +2.4%  worst= -3.0%
+  +24bar: n=  142  win= 16.2%  avg= -1.27%  med= -0.99%  exp= -1.27%  best= +1.9%  worst= -5.7%
+  +48bar: n=  142  win= 19.0%  avg= -1.76%  med= -1.46%  exp= -1.76%  best= +5.6%  worst= -6.8%
+
+[SHORT]
+  +12bar: n=  109  win= 71.6%  avg= +0.20%  med= +0.10%  exp= +0.20%  best= +2.2%  worst= -1.8%
+  +24bar: n=  109  win= 22.9%  avg= -1.03%  med= -0.98%  exp= -1.03%  best= +1.5%  worst= -3.9%
+  +48bar: n=  109  win= 55.0%  avg= -1.36%  med= +0.82%  exp= -1.36%  best= +4.5%  worst=-15.8%
+
+[BASELINE]
+  +12bar: n= 3496  win= 48.4%  avg= +0.08%  med= -0.03%  exp= +0.08%  best= +1.1%  worst= -1.6%
+  +24bar: n= 3496  win= 43.0%  avg= +0.11%  med= -0.05%  exp= +0.11%  best= +2.1%  worst= -3.2%
+  +48bar: n= 3496  win= 53.8%  avg= +0.40%  med= +0.14%  exp= +0.40%  best= +4.2%  worst= -6.6%
+
+========================================================================

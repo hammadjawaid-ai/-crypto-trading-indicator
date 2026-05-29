@@ -1,0 +1,104 @@
+﻿Loading top universe...
+Universe: ['BTCUSDT', 'ETHUSDT', 'GENIUSUSDT', 'XLMUSDT', 'SOLUSDT', 'ZECUSDT', 'XRPUSDT', 'ALLOUSDT', 'NEARUSDT', 'TRXUSDT', 'BNBUSDT', 'MEGAUSDT', 'HBARUSDT', 'DOGEUSDT', 'SUIUSDT', 'WLDUSDT', 'BCHUSDT', 'TONUSDT', 'PAXGUSDT', 'UNIUSDT']
+
+==============================================================================
+Phase C: derivatives_velocity — funding ROC + OI compression
+==============================================================================
+Symbol        Score      Side Flags                         
+------------------------------------------------------------------------------
+BTCUSDT        50.0   NEUTRAL —                             
+ETHUSDT        50.0   NEUTRAL —                             
+GENIUSUSDT     75.0      LONG funding_flip                  
+XLMUSDT        50.0   NEUTRAL —                             
+SOLUSDT        50.0   NEUTRAL —                             
+ZECUSDT        50.0   NEUTRAL —                             
+XRPUSDT        50.0   NEUTRAL —                             
+ALLOUSDT       73.0      LONG funding_flip                  
+NEARUSDT       50.0   NEUTRAL —                             
+TRXUSDT        73.0      LONG funding_flip                  
+BNBUSDT        50.0   NEUTRAL —                             
+MEGAUSDT       50.0   NEUTRAL —                             
+HBARUSDT       50.0   NEUTRAL —                             
+DOGEUSDT       50.0   NEUTRAL —                             
+SUIUSDT        50.0   NEUTRAL —                             
+WLDUSDT        88.0      LONG funding_flip                  
+BCHUSDT        50.0   NEUTRAL —                             
+TONUSDT        50.0   NEUTRAL —                             
+PAXGUSDT       50.0   NEUTRAL —                             
+UNIUSDT        50.0   NEUTRAL —                             
+
+Distribution: LONG=4  SHORT=0  NEUTRAL=16
+Score range: min=50.0 max=88.0 mean=55.5
+
+==============================================================================
+Phase E: Regime overlays
+==============================================================================
+BTC dominance: BTC_DOMINANT  alt_mult=0.6  BTC.D=57.66%
+   BTC-dominant: ETH/BTC -0.33%/d, BTC.D 57.7% — alts under-perform here
+
+Macro:         UNKNOWN  risk_mult=1.0
+   FRED_API_KEY not set — macro overlay disabled
+
+==============================================================================
+Phase E: Coin Metrics on-chain (BTC + ETH only)
+==============================================================================
+BTCUSDT: score=50 side=NEUTRAL
+   Not available (BTC/ETH only on community tier)
+ETHUSDT: score=50 side=NEUTRAL
+   Not available (BTC/ETH only on community tier)
+
+==============================================================================
+Phase E: DefiLlama TVL growth (top 10 of universe)
+==============================================================================
+SOLUSDT      score=  40.0 TVL 90d -4.6% · 30d -3.7%
+
+==============================================================================
+Phase F: Cup-and-handle (top 10 of universe, weekly)
+==============================================================================
+BTCUSDT      score=  75.0 stage=HANDLE_FORMING     Cup (31% deep) + handle (11.9% deep, 2w) — awaiting breakout
+ETHUSDT      score=  60.0 stage=CUP_NO_HANDLE      Cup found (31% deep, 45w) — handle depth 18.8% out of band
+GENIUSUSDT   score=  50.0 stage=NO_DATA            Insufficient weekly data
+XLMUSDT      score=  60.0 stage=CUP_NO_HANDLE      Cup found (42% deep, 21w) — no bars after right lip yet
+SOLUSDT      score=  60.0 stage=CUP_NO_HANDLE      Cup found (21% deep, 8w) — handle depth 18.7% out of band
+ZECUSDT      score=  50.0 stage=NO_CUP             No cup pattern detected
+XRPUSDT      score=  75.0 stage=HANDLE_FORMING     Cup (13% deep) + handle (9.6% deep, 1w) — awaiting breakout 
+ALLOUSDT     score=  50.0 stage=NO_CUP             No cup pattern detected
+NEARUSDT     score=  95.0 stage=BREAKOUT           Cup+handle BREAKOUT above 1.692, handle 12.6% deep over 2w, 
+TRXUSDT      score=  60.0 stage=CUP_NO_HANDLE      Cup found (26% deep, 39w) — no bars after right lip yet
+
+==============================================================================
+Phase F: Tokenomics dilution risk (top 10 of universe)
+==============================================================================
+BTCUSDT      score=  95.0 side=    LONG circulating 100.0% of max · FDV/mcap 1.00x
+ETHUSDT      score=  95.0 side=    LONG circulating 100.0% of max · FDV/mcap 1.00x
+GENIUSUSDT   score=  74.0 side=    LONG circulating 66.5% of max · FDV/mcap 1.00x
+XLMUSDT      score=  50.0 side= NEUTRAL No tokenomics data
+SOLUSDT      score=  50.0 side= NEUTRAL No tokenomics data
+ZECUSDT      score=  50.0 side= NEUTRAL No tokenomics data
+XRPUSDT      score=  50.0 side= NEUTRAL No tokenomics data
+ALLOUSDT     score=  50.0 side= NEUTRAL No tokenomics data
+NEARUSDT     score=  50.0 side= NEUTRAL No tokenomics data
+TRXUSDT      score=  50.0 side= NEUTRAL No tokenomics data
+
+==============================================================================
+SUMMARY
+==============================================================================
+Phase C — derivatives_velocity:
+  Strong SHORT fires (where backtest showed edge): 0
+  Strong LONG fires (caution — backtest showed weak edge): 4
+     GENIUSUSDT: 75 · ['funding_flip']
+     ALLOUSDT: 73 · ['funding_flip']
+     TRXUSDT: 73 · ['funding_flip']
+     WLDUSDT: 88 · ['funding_flip']
+
+Regime overlays:
+  BTC.D:  BTC_DOMINANT  (alt_mult=0.6)
+  Macro:  UNKNOWN  (risk_mult=1.0)
+
+Phase E/F long-term signals are not run through the walk-forward
+1h backtest harness because they don't change bar-by-bar — they
+update daily/weekly. A proper backtest would simulate a portfolio
+rebalanced monthly across multi-year history. Out of scope for
+this session; the modules themselves work and surface live data.
+
+Total runtime: 50.5s
