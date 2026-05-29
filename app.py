@@ -60,126 +60,355 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+    /* ============================================================
+       GOODCRYPTO-INSPIRED DESIGN SYSTEM
+       Deep navy + electric blue, layered depth, glassmorphism,
+       bold typography, premium SaaS feel.
+       ============================================================ */
+
+    :root {
+        --bg-primary:    #060818;
+        --bg-secondary:  #0a0e27;
+        --bg-tertiary:   #11152e;
+        --bg-card:       rgba(20, 24, 56, 0.5);
+        --bg-card-hover: rgba(28, 34, 72, 0.7);
+
+        --accent-primary:   #00d4ff;
+        --accent-secondary: #5b8eff;
+        --accent-purple:    #8b5cf6;
+        --accent-gradient:  linear-gradient(135deg, #00d4ff, #5b8eff);
+
+        --text-primary:   #f1f5ff;
+        --text-secondary: #a8b3d4;
+        --text-muted:     #6b7494;
+        --text-dim:       #4a5378;
+
+        --success: #00e676;
+        --danger:  #ff3d57;
+        --warning: #ffb547;
+
+        --border-subtle: rgba(150, 180, 255, 0.06);
+        --border-soft:   rgba(150, 180, 255, 0.12);
+        --border-strong: rgba(150, 180, 255, 0.22);
+
+        --glow-blue:   0 0 24px rgba(0, 212, 255, 0.25);
+        --glow-purple: 0 0 24px rgba(139, 92, 246, 0.25);
+    }
 
     html, body, .stApp, [class*="css"], [data-testid="stMarkdownContainer"] {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    /* --- canvas: near-black with one restrained accent wash -------------- */
+    /* === Canvas: layered depth like GoodCrypto =================== */
     .stApp {
         background:
-          radial-gradient(1100px 520px at 50% -16%,
-                          rgba(110,139,255,0.06), transparent),
-          #0b0c10;
+            /* Top accent glow */
+            radial-gradient(1400px 700px at 30% -20%,
+                            rgba(0, 212, 255, 0.10), transparent 70%),
+            /* Right accent glow */
+            radial-gradient(900px 500px at 90% 10%,
+                            rgba(91, 142, 255, 0.08), transparent 60%),
+            /* Subtle grid pattern */
+            linear-gradient(rgba(150, 180, 255, 0.025) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(150, 180, 255, 0.025) 1px, transparent 1px),
+            var(--bg-primary);
+        background-size: auto, auto, 60px 60px, 60px 60px, auto;
+        background-attachment: fixed;
     }
     [data-testid="stHeader"] { background: transparent; }
-    div.block-container { padding-top: 2.4rem; max-width: 1500px; }
-
-    /* --- typography ------------------------------------------------------- */
-    h1, h2, h3, h4 { letter-spacing: -0.018em; color: #f1f2f5; }
-    h1 { font-weight: 800; }
-    h2, h3, h4 { font-weight: 700; }
-    h3 {
-        margin-top: 0.9rem; font-size: 1.05rem;
-        border-left: 2px solid #6e8bff; padding-left: 12px;
+    div.block-container {
+        padding-top: 2.6rem;
+        max-width: 1500px;
     }
-    h4 { margin-top: 0.4rem; font-size: 0.98rem; color: #c9cbd4; }
 
-    /* --- metric cards: flat, calm, refined -------------------------------- */
+    /* === Typography — bolder, more dramatic ====================== */
+    h1, h2, h3, h4 {
+        color: var(--text-primary);
+        letter-spacing: -0.022em;
+        font-family: 'Inter', sans-serif;
+    }
+    h1 {
+        font-weight: 900;
+        font-size: 2.4rem;
+        background: linear-gradient(135deg, #ffffff 0%, #a8b3d4 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    h2 {
+        font-weight: 800;
+        font-size: 1.65rem;
+        margin-top: 1.2rem;
+    }
+    h3 {
+        font-weight: 700;
+        font-size: 1.2rem;
+        margin-top: 1rem;
+        padding-left: 14px;
+        border-left: 3px solid var(--accent-primary);
+        position: relative;
+    }
+    h3::before {
+        content: "";
+        position: absolute;
+        left: -3px; top: 0; bottom: 0; width: 3px;
+        background: var(--accent-primary);
+        box-shadow: 0 0 12px rgba(0, 212, 255, 0.6);
+    }
+    h4 {
+        font-weight: 700;
+        font-size: 1.02rem;
+        color: var(--text-secondary);
+        margin-top: 0.6rem;
+    }
+    p, [data-testid="stCaptionContainer"] {
+        color: var(--text-secondary);
+    }
+
+    /* === Metric cards: glassmorphism ============================ */
     [data-testid="stMetric"] {
-        background: #15161c;
-        border: 1px solid rgba(255,255,255,0.055);
-        border-radius: 12px;
-        padding: 14px 18px;
-        transition: border-color .18s ease;
+        background: var(--bg-card);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--border-soft);
+        border-radius: 14px;
+        padding: 16px 20px;
+        transition: all .22s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+    [data-testid="stMetric"]::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 1px;
+        background: linear-gradient(90deg,
+            transparent, var(--accent-primary), transparent);
+        opacity: 0;
+        transition: opacity .25s ease;
     }
     [data-testid="stMetric"]:hover {
-        border-color: rgba(110,139,255,0.40);
+        border-color: var(--border-strong);
+        background: var(--bg-card-hover);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 28px rgba(0, 212, 255, 0.10);
+    }
+    [data-testid="stMetric"]:hover::before {
+        opacity: 1;
     }
     [data-testid="stMetricValue"] {
-        font-size: 1.5rem; font-weight: 700; color: #f4f5f7;
+        font-size: 1.65rem;
+        font-weight: 800;
+        color: var(--text-primary);
+        font-family: 'Space Grotesk', 'Inter', sans-serif;
+        letter-spacing: -0.02em;
     }
     [data-testid="stMetricLabel"] {
-        opacity: 0.55; text-transform: uppercase;
-        font-size: 0.67rem; letter-spacing: 0.08em; font-weight: 600;
+        opacity: 0.7;
+        text-transform: uppercase;
+        font-size: 0.66rem;
+        letter-spacing: 0.10em;
+        font-weight: 700;
+        color: var(--text-muted);
     }
-    [data-testid="stMetricDelta"] { font-size: 0.78rem; }
+    [data-testid="stMetricDelta"] {
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
 
-    /* --- panels ----------------------------------------------------------- */
+    /* === Panels (st.container border) — glass effect ============ */
     div[data-testid="stVerticalBlockBorderWrapper"] {
-        background: #121319;
-        border-radius: 14px;
+        background: var(--bg-card);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid var(--border-soft);
+        border-radius: 16px;
+        transition: all .22s ease;
+    }
+    div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+        border-color: var(--border-strong);
     }
 
-    /* --- tabs ------------------------------------------------------------- */
+    /* === Tabs — accent underline ================================ */
     [data-testid="stTabs"] [data-baseweb="tab-list"] {
-        gap: 4px; border-bottom: 1px solid rgba(255,255,255,0.06);
+        gap: 6px;
+        border-bottom: 1px solid var(--border-subtle);
     }
     [data-testid="stTabs"] [data-baseweb="tab"] {
-        border-radius: 9px 9px 0 0; padding: 9px 20px;
-    }
-    [data-testid="stTabs"] [data-baseweb="tab"] p {
-        font-weight: 600; font-size: 0.92rem;
-    }
-    [data-testid="stTabs"] [aria-selected="true"] {
-        background: rgba(110,139,255,0.10);
-        border-bottom: 2px solid #6e8bff;
-    }
-
-    /* --- sidebar ---------------------------------------------------------- */
-    [data-testid="stSidebar"] {
-        background: #0d0e13;
-        border-right: 1px solid rgba(255,255,255,0.05);
-    }
-
-    /* --- buttons ---------------------------------------------------------- */
-    .stButton button {
-        border-radius: 9px; font-weight: 600;
-        border: 1px solid rgba(255,255,255,0.09);
+        border-radius: 11px 11px 0 0;
+        padding: 10px 22px;
         transition: all .15s ease;
     }
+    [data-testid="stTabs"] [data-baseweb="tab"] p {
+        font-weight: 600;
+        font-size: 0.94rem;
+    }
+    [data-testid="stTabs"] [data-baseweb="tab"]:hover {
+        background: rgba(0, 212, 255, 0.05);
+    }
+    [data-testid="stTabs"] [aria-selected="true"] {
+        background: linear-gradient(180deg,
+            rgba(0, 212, 255, 0.10), transparent);
+        border-bottom: 2px solid var(--accent-primary);
+        box-shadow: 0 -3px 12px rgba(0, 212, 255, 0.15) inset;
+    }
+
+    /* === Sidebar — slightly darker for depth ==================== */
+    [data-testid="stSidebar"] {
+        background:
+            linear-gradient(180deg,
+                rgba(0, 212, 255, 0.03) 0%, transparent 30%),
+            #060818;
+        border-right: 1px solid var(--border-subtle);
+    }
+    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h1 {
+        font-size: 1.4rem;
+        background: linear-gradient(135deg, #00d4ff, #5b8eff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    /* === Buttons — premium electric-blue accent ================= */
+    .stButton button {
+        border-radius: 11px;
+        font-weight: 600;
+        font-size: 0.92rem;
+        border: 1px solid var(--border-soft);
+        background: var(--bg-card);
+        backdrop-filter: blur(8px);
+        color: var(--text-primary);
+        padding: 8px 18px;
+        transition: all .18s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
     .stButton button:hover {
-        border-color: #6e8bff; color: #6e8bff;
-        background: rgba(110,139,255,0.07);
+        border-color: var(--accent-primary);
+        color: var(--accent-primary);
+        background: rgba(0, 212, 255, 0.08);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 16px rgba(0, 212, 255, 0.15);
+    }
+    .stButton button:active {
+        transform: translateY(0);
+    }
+    /* Primary buttons (when type="primary") get the gradient */
+    .stButton button[kind="primary"] {
+        background: var(--accent-gradient);
+        border: none;
+        color: #001122;
+        font-weight: 700;
+        box-shadow: 0 4px 18px rgba(0, 212, 255, 0.25);
+    }
+    .stButton button[kind="primary"]:hover {
+        box-shadow: 0 6px 24px rgba(0, 212, 255, 0.40);
+        transform: translateY(-2px);
     }
 
-    /* --- expanders, dataframes ------------------------------------------- */
+    /* === Form inputs ============================================ */
+    [data-testid="stTextInput"] input,
+    [data-testid="stNumberInput"] input,
+    [data-baseweb="select"] > div,
+    [data-baseweb="input"] > div {
+        background: var(--bg-card) !important;
+        border: 1px solid var(--border-soft) !important;
+        border-radius: 10px !important;
+        color: var(--text-primary) !important;
+        transition: border-color .18s ease;
+    }
+    [data-testid="stTextInput"] input:focus,
+    [data-testid="stNumberInput"] input:focus,
+    [data-baseweb="select"] > div:focus-within,
+    [data-baseweb="input"] > div:focus-within {
+        border-color: var(--accent-primary) !important;
+        box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.12) !important;
+    }
+
+    /* === Expanders =============================================== */
     [data-testid="stExpander"] {
-        border: 1px solid rgba(255,255,255,0.055);
-        border-radius: 11px; background: #121319;
+        border: 1px solid var(--border-soft);
+        border-radius: 13px;
+        background: var(--bg-card);
+        backdrop-filter: blur(8px);
+        overflow: hidden;
     }
+    [data-testid="stExpander"] > details > summary {
+        font-weight: 600;
+        padding: 14px 18px !important;
+    }
+    [data-testid="stExpander"] > details > summary:hover {
+        background: rgba(0, 212, 255, 0.04);
+    }
+
+    /* === DataFrames ============================================= */
     [data-testid="stDataFrame"] {
-        border-radius: 11px; border: 1px solid rgba(255,255,255,0.055);
+        border-radius: 12px;
+        border: 1px solid var(--border-soft);
+        overflow: hidden;
     }
 
-    /* --- progress accent -------------------------------------------------- */
+    /* === Progress bars — electric blue ========================== */
+    [data-testid="stProgress"] div[role="progressbar"] {
+        background: rgba(150, 180, 255, 0.06);
+        border-radius: 5px;
+    }
     [data-testid="stProgress"] div[role="progressbar"] > div {
-        background: #6e8bff;
+        background: var(--accent-gradient);
+        box-shadow: 0 0 12px rgba(0, 212, 255, 0.5);
     }
 
-    hr { border-color: rgba(255,255,255,0.06); opacity: 1; margin: 1rem 0; }
+    /* === Sliders ================================================ */
+    [data-testid="stSlider"] [role="slider"] {
+        background: var(--accent-primary);
+        box-shadow: 0 0 12px rgba(0, 212, 255, 0.5);
+    }
 
-    /* --- scrollbars ------------------------------------------------------- */
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-thumb { background: #262833; border-radius: 6px; }
-    ::-webkit-scrollbar-thumb:hover { background: #343748; }
+    /* === Checkboxes / radio ===================================== */
+    [data-testid="stCheckbox"] svg[data-baseweb="icon"],
+    [data-testid="stRadio"] svg[data-baseweb="icon"] {
+        color: var(--accent-primary);
+    }
+
+    /* === Dividers — subtle gradient ============================= */
+    hr {
+        border: none;
+        height: 1px;
+        background: linear-gradient(90deg,
+            transparent, var(--border-soft), transparent);
+        margin: 1.2rem 0;
+    }
+
+    /* === Scrollbars ============================================= */
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, #3a4373, #2a3258);
+        border-radius: 6px;
+        border: 2px solid var(--bg-primary);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, var(--accent-primary), #5b8eff);
+    }
     ::-webkit-scrollbar-track { background: transparent; }
 
-    /* === MODERN DESIGN SYSTEM v2 (Phase D UI upgrade) ==================== */
-
-    /* Hero regime banner — top of picks board */
+    /* ============================================================
+       HERO REGIME BANNER — premium glass card
+       ============================================================ */
     .regime-hero {
         background:
             linear-gradient(135deg,
-                rgba(110,139,255,0.10) 0%,
-                rgba(46,212,122,0.04) 50%,
+                rgba(0, 212, 255, 0.08) 0%,
+                rgba(91, 142, 255, 0.04) 50%,
                 transparent 100%),
-            #14151c;
-        border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 16px;
-        padding: 18px 22px;
-        margin-bottom: 18px;
+            var(--bg-card);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid var(--border-soft);
+        border-radius: 20px;
+        padding: 24px 28px;
+        margin-bottom: 22px;
         position: relative;
         overflow: hidden;
         transition: all .25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -190,126 +419,183 @@ st.markdown(
         top: 0; left: 0; right: 0;
         height: 3px;
         background: linear-gradient(90deg,
-            var(--regime-accent, #6e8bff), transparent);
+            var(--regime-accent, var(--accent-primary)),
+            transparent);
+        box-shadow: 0 0 24px var(--regime-accent, var(--accent-primary));
+    }
+    .regime-hero::after {
+        content: "";
+        position: absolute;
+        top: -50%; right: -10%;
+        width: 400px; height: 400px;
+        background: radial-gradient(circle,
+            var(--regime-accent, var(--accent-primary)) 0%,
+            transparent 70%);
+        opacity: 0.07;
+        pointer-events: none;
     }
     .regime-hero:hover {
-        border-color: rgba(110,139,255,0.30);
-        transform: translateY(-1px);
+        border-color: var(--border-strong);
+        transform: translateY(-2px);
+        box-shadow: 0 12px 36px rgba(0, 212, 255, 0.12);
     }
     .regime-hero-title {
-        font-size: 1.25rem; font-weight: 800;
-        letter-spacing: -0.02em;
-        display: flex; align-items: center; gap: 10px;
+        font-size: 1.45rem;
+        font-weight: 800;
+        letter-spacing: -0.025em;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-family: 'Space Grotesk', 'Inter', sans-serif;
     }
     .regime-hero-sub {
-        color: #aab0bd; font-size: 0.84rem; margin-top: 6px;
-        line-height: 1.55;
+        color: var(--text-secondary);
+        font-size: 0.86rem;
+        margin-top: 8px;
+        line-height: 1.6;
     }
     .regime-hero-stats {
-        display: flex; gap: 14px; margin-top: 14px;
+        display: flex;
+        gap: 14px;
+        margin-top: 16px;
         flex-wrap: wrap;
     }
     .regime-stat {
-        display: flex; flex-direction: column;
-        padding: 8px 14px;
-        background: rgba(255,255,255,0.025);
-        border-radius: 9px;
-        border: 1px solid rgba(255,255,255,0.05);
-        min-width: 88px;
+        display: flex;
+        flex-direction: column;
+        padding: 10px 16px;
+        background: rgba(0, 212, 255, 0.04);
+        border-radius: 11px;
+        border: 1px solid var(--border-soft);
+        min-width: 100px;
+        transition: all .18s ease;
+    }
+    .regime-stat:hover {
+        background: rgba(0, 212, 255, 0.08);
+        border-color: var(--border-strong);
     }
     .regime-stat-label {
-        font-size: 0.65rem; text-transform: uppercase;
-        letter-spacing: 0.08em; color: #888c99;
+        font-size: 0.62rem;
+        text-transform: uppercase;
+        letter-spacing: 0.10em;
+        color: var(--text-muted);
         font-weight: 700;
     }
     .regime-stat-value {
-        font-size: 1.05rem; font-weight: 800;
-        color: #f1f2f5; margin-top: 2px;
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: var(--text-primary);
+        margin-top: 3px;
+        font-family: 'Space Grotesk', 'Inter', sans-serif;
+        letter-spacing: -0.015em;
     }
 
-    /* Bias bars — visual confidence */
+    /* === Bias bars — glowing electric ============================ */
     .bias-bar {
-        display: flex; align-items: center; gap: 10px;
-        margin-top: 10px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 12px;
     }
     .bias-track {
-        flex: 1; height: 8px; background: rgba(255,255,255,0.04);
-        border-radius: 5px; overflow: hidden; position: relative;
+        flex: 1;
+        height: 10px;
+        background: rgba(150, 180, 255, 0.04);
+        border-radius: 6px;
+        overflow: hidden;
+        position: relative;
+        border: 1px solid var(--border-subtle);
     }
     .bias-fill-long {
         height: 100%;
-        background: linear-gradient(90deg, #0b8a3e, #2ed47a);
-        border-radius: 5px;
-        transition: width .5s ease;
+        background: linear-gradient(90deg, #00b85e, #00e676);
+        border-radius: 6px;
+        transition: width .6s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 0 12px rgba(0, 230, 118, 0.4) inset;
     }
     .bias-fill-short {
         height: 100%;
-        background: linear-gradient(90deg, #c93030, #ff5c5c);
-        border-radius: 5px;
-        transition: width .5s ease;
+        background: linear-gradient(90deg, #d62845, #ff3d57);
+        border-radius: 6px;
+        transition: width .6s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 0 12px rgba(255, 61, 87, 0.4) inset;
     }
     .bias-label {
-        font-size: 0.72rem; font-weight: 700;
-        min-width: 92px;
+        font-size: 0.74rem;
+        font-weight: 700;
+        min-width: 100px;
+        font-family: 'Space Grotesk', 'Inter', sans-serif;
     }
 
-    /* Enhanced pick card */
+    /* === Pick cards — direction-coded with glow ================== */
     .pick-card-long {
-        border-left: 3px solid #2ed47a;
+        border-left: 3px solid var(--success);
     }
     .pick-card-short {
-        border-left: 3px solid #ff5c5c;
+        border-left: 3px solid var(--danger);
     }
 
-    /* Metric mini-cards (top dashboard) */
-    .metric-mini {
-        background:
-            linear-gradient(135deg, rgba(110,139,255,0.04), transparent),
-            #14151c;
-        border: 1px solid rgba(255,255,255,0.06);
-        border-radius: 12px;
-        padding: 14px 18px;
-        transition: all .2s ease;
-    }
-    .metric-mini:hover {
-        border-color: rgba(110,139,255,0.35);
-        transform: translateY(-1px);
-    }
-    .metric-mini-label {
-        font-size: 0.66rem; text-transform: uppercase;
-        letter-spacing: 0.08em; color: #888c99;
-        font-weight: 700; margin-bottom: 6px;
-    }
-    .metric-mini-value {
-        font-size: 1.42rem; font-weight: 800; color: #f4f5f7;
-        letter-spacing: -0.02em;
-    }
-    .metric-mini-delta {
-        font-size: 0.78rem; margin-top: 4px; font-weight: 600;
-    }
-    .delta-up { color: #2ed47a; }
-    .delta-down { color: #ff5c5c; }
-
-    /* Chip enhancements — subtle inner shadow + better hover */
-    [data-testid="stMarkdownContainer"] span[style*="border-radius"] {
-        transition: transform .15s ease;
+    /* === Numbered section markers ================================ */
+    .section-number {
+        display: inline-block;
+        font-family: 'Space Grotesk', 'Inter', sans-serif;
+        font-size: 0.76rem;
+        font-weight: 700;
+        color: var(--accent-primary);
+        letter-spacing: 0.1em;
+        background: rgba(0, 212, 255, 0.08);
+        padding: 4px 12px;
+        border-radius: 6px;
+        border: 1px solid rgba(0, 212, 255, 0.2);
+        margin-right: 10px;
     }
 
-    /* Subtle gradient line dividers */
+    /* === Gradient dividers ====================================== */
     .gradient-divider {
         height: 1px;
         background: linear-gradient(90deg,
-            transparent, rgba(255,255,255,0.10), transparent);
-        margin: 18px 0;
+            transparent, var(--accent-primary), transparent);
+        opacity: 0.3;
+        margin: 22px 0;
     }
 
-    /* Animated pulse for active signals */
+    /* === Pulse animation for active signals ===================== */
     @keyframes pulse-accent {
-        0%, 100% { box-shadow: 0 0 0 0 rgba(110,139,255,0.35); }
-        50%      { box-shadow: 0 0 0 8px rgba(110,139,255,0); }
+        0%, 100% {
+            box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.4);
+        }
+        50% {
+            box-shadow: 0 0 0 12px rgba(0, 212, 255, 0);
+        }
     }
     .pulse {
         animation: pulse-accent 2.2s ease-in-out infinite;
+    }
+
+    /* === Glow keyframe for breakout signals ===================== */
+    @keyframes glow-accent {
+        0%, 100% { filter: drop-shadow(0 0 4px rgba(0, 212, 255, 0.5)); }
+        50%      { filter: drop-shadow(0 0 12px rgba(0, 212, 255, 0.9)); }
+    }
+    .glow {
+        animation: glow-accent 2.5s ease-in-out infinite;
+    }
+
+    /* === Toasts / alerts — accent border ======================== */
+    [data-testid="stAlert"] {
+        background: var(--bg-card) !important;
+        border: 1px solid var(--border-soft) !important;
+        border-left: 3px solid var(--accent-primary) !important;
+        border-radius: 11px !important;
+        backdrop-filter: blur(8px);
+    }
+
+    /* === Chip enhancement: subtle transform on hover ============ */
+    [data-testid="stMarkdownContainer"] span[style*="border-radius"] {
+        transition: transform .15s ease, box-shadow .15s ease;
+    }
+    [data-testid="stMarkdownContainer"] span[style*="border-radius"]:hover {
+        transform: scale(1.04);
     }
     </style>
     """,
