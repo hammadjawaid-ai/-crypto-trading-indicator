@@ -4157,10 +4157,12 @@ if active_section == "🧪 Paper Trader":
                  "every high-confidence trade alert (>= 72% confidence, "
                  "counter-trend setups require >= 85), long and short.")
         live_mode = c4.checkbox(
-            "🔴 Live", value=False, key="pb_live",
-            help="Auto-refresh every 5 min so the bot actively manages "
-                 "positions and watches for new alerts without you "
-                 "reloading the page.")
+            "🔴 Live", value=True, key="pb_live",
+            help="Auto-refresh every 90 seconds so the page stays "
+                 "active, scanner cache (120s) refreshes between "
+                 "loads, and new patterns / picks surface "
+                 "automatically without you reloading. Pattern Scout "
+                 "(10-min cache) re-scans every 7 cycles. Default ON.")
         if c5.button("🔄 Reset", type="secondary",
                      use_container_width=True):
             paper_bot.reset(PAPER_BOT_FILE, new_balance, new_risk)
@@ -6283,10 +6285,28 @@ if active_section == "🧪 Paper Trader":
     # ---- Live mode — only the 10-min hard refresh now -------------------
     # The Bank stats and Open positions sections already update in place
     # every 10s via st.fragment — no full page reload needed for live P&L.
-    # Live mode still triggers a hard 10-minute refresh to clear caches
-    # (scanner, news, forecast) so fresh signals can land.
+    # Live mode triggers a 90-second full page refresh so the scanner
+    # cache (120s) is hit fresh on every other reload, Pattern Scout
+    # cache (600s) refreshes every 7 cycles, and new V-bottom / pattern
+    # fires surface automatically. User requested aggressive refresh
+    # so "charts remain active and signals fire accordingly".
     if live_mode:
-        _inject_autorefresh(600)
+        # Visual indicator with pulsing dot so user knows live mode is on
+        st.markdown(
+            "<div style='display:flex;align-items:center;gap:8px;"
+            "padding:6px 14px;background:rgba(255,61,87,0.08);"
+            "border:1px solid rgba(255,61,87,0.20);border-radius:10px;"
+            "margin-top:8px;width:fit-content;'>"
+            "<span class='pulse' style='display:inline-block;width:8px;"
+            "height:8px;background:#ff3d57;border-radius:50%;'></span>"
+            "<span style='color:#ff3d57;font-size:0.78rem;font-weight:700'>"
+            "🔴 LIVE MODE</span>"
+            "<span style='color:#aab;font-size:0.78rem'>"
+            "page auto-refreshes every 90s · Pattern Scout re-scans every "
+            "10 min · live position P&amp;L updates every 10s</span>"
+            "</div>",
+            unsafe_allow_html=True)
+        _inject_autorefresh(90)
 
 
 # ===========================================================================
