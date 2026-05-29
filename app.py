@@ -850,7 +850,7 @@ def load_klines(symbol: str, interval: str) -> pd.DataFrame:
 
 @st.cache_data(ttl=600, show_spinner=False)
 def run_pattern_scout(interval: str, scan_n: int = 50,
-                      _cache_version: int = 4) -> list:
+                      _cache_version: int = 5) -> list:
     """Universal Pattern Scout — scans top N coins for high-conviction
     setups across all validated-edge patterns, INDEPENDENT of the
     alerts.build_alerts() gate.
@@ -890,15 +890,11 @@ def run_pattern_scout(interval: str, scan_n: int = 50,
             continue
         if r["score"] >= 65:  # surface anything WATCH-tier or above
             # Generate FULL trade plan for openable picks. Two-step
-            # strategy to guarantee EVERY Pattern Scout match has a
-            # tradeable plan:
-            #   1. Try signals._trade_plan with forced "LONG" label —
-            #      uses swing-structure stops and targets (preferred).
-            #   2. If that returns None or fails, fall back to a simple
-            #      ATR-based plan (3-4% stop, 2.5x ATR target). Every
-            #      coin with valid OHLC + ATR will get a plan this way.
-            # VALIDATION: only assign if stop < entry < target (proper
-            # LONG direction). If not, fall through to the ATR fallback.
+            # strategy + side-aware (LONG or SHORT based on pattern):
+            #   1. Try signals._trade_plan with the right label
+            #   2. If that returns None or fails, fall back to ATR-based
+            # VALIDATION: ensure direction is correct for the side
+            _scout_side = r.get("side", "LONG")
             trade_plan = None
             try:
                 last = df.iloc[-1]
@@ -906,39 +902,50 @@ def run_pattern_scout(interval: str, scan_n: int = 50,
                                      _trade_plan as _sig_trade_plan)
                 regime_str = _sig_regime(last)
                 _candidate_plan = _sig_trade_plan(
-                    "LONG", df, regime_str,
+                    _scout_side, df, regime_str,
                     mode="futures",
                     confidence=float(r["score"])
                 )
-                # Validate direction — only accept proper LONG plans
+                # Validate direction
                 if _candidate_plan:
                     _p_entry = float(_candidate_plan.get("entry") or 0)
                     _p_stop = float(_candidate_plan.get("stop_loss") or 0)
                     _p_tgt = float(_candidate_plan.get("take_profit") or 0)
-                    if (_p_entry > 0 and _p_stop > 0 and _p_tgt > 0
-                            and _p_stop < _p_entry < _p_tgt):
+                    if _scout_side == "LONG":
+                        valid = (_p_entry > 0 and _p_stop > 0 and _p_tgt > 0
+                                 and _p_stop < _p_entry < _p_tgt)
+                    else:  # SHORT
+                        valid = (_p_entry > 0 and _p_stop > 0 and _p_tgt > 0
+                                 and _p_tgt < _p_entry < _p_stop)
+                    if valid:
                         trade_plan = _candidate_plan
             except Exception:
                 pass
-            # Fallback: simple ATR-based LONG plan if the structural plan failed
+            # ATR fallback — side-aware
             if trade_plan is None:
                 try:
                     last = df.iloc[-1]
                     price = float(last["close"])
                     atr_val = float(last.get("atr") or 0)
                     if price > 0 and atr_val > 0:
-                        # Stop: 1.5x ATR below, clamped to [3%, 5%] of entry
                         stop_dist = max(price * 0.03,
                                         min(price * 0.05, atr_val * 1.5))
-                        entry_p = price
-                        stop_p = price - stop_dist
-                        # TP1: 2.5x ATR up = ~1.67 R:R; TP2: 4x ATR = ~2.67 R:R
                         tgt_dist_1 = max(stop_dist * 1.5, atr_val * 2.5)
                         tgt_dist_2 = max(stop_dist * 2.5, atr_val * 4.0)
-                        tgt_1 = price + tgt_dist_1
-                        tgt_2 = price + tgt_dist_2
+                        if _scout_side == "LONG":
+                            entry_p = price
+                            stop_p = price - stop_dist
+                            tgt_1 = price + tgt_dist_1
+                            tgt_2 = price + tgt_dist_2
+                            tgt_3 = price + tgt_dist_1 + tgt_dist_2
+                        else:  # SHORT
+                            entry_p = price
+                            stop_p = price + stop_dist
+                            tgt_1 = price - tgt_dist_1
+                            tgt_2 = price - tgt_dist_2
+                            tgt_3 = price - tgt_dist_1 - tgt_dist_2
                         trade_plan = {
-                            "side": "LONG",
+                            "side": _scout_side,
                             "mode": "futures",
                             "entry": entry_p,
                             "entry_low": entry_p,
@@ -946,12 +953,11 @@ def run_pattern_scout(interval: str, scan_n: int = 50,
                             "stop_loss": stop_p,
                             "take_profit": tgt_1,
                             "take_profit_2": tgt_2,
-                            "take_profit_3": tgt_2 + tgt_dist_1,
+                            "take_profit_3": tgt_3,
                             "risk_reward": tgt_dist_1 / stop_dist,
                             "risk_reward_2": tgt_dist_2 / stop_dist,
                             "maturity": {"stage": "FALLBACK", "confidence": 50,
-                                         "note": ("ATR-based plan (structural "
-                                                  "swing-level detection failed)")},
+                                         "note": ("ATR-based plan")},
                         }
                 except Exception:
                     trade_plan = None
@@ -5133,39 +5139,57 @@ if active_section == "🧪 Paper Trader":
                     # can read the card at a glance and know WHICH pattern
                     # fired. Each badge: emoji + short name + score +
                     # backtested win rate, with a gradient unique to the
-                    # signal type.
+                    # signal type. SHORT-side patterns use red/orange palettes.
                     _badge_styles = {
                         "v_bottom_recovery": {
-                            "emoji": "🔄",
-                            "label": "V-BOTTOM",
+                            "emoji": "🔄", "label": "V-BOTTOM",
                             "win": "75%/12bar",
                             "gradient": "linear-gradient(135deg,#00d4ff,#ffd700)",
                             "text_color": "#001122",
                             "glow": "rgba(0,212,255,0.4)",
                         },
                         "long_patterns_aligned": {
-                            "emoji": "🟢",
-                            "label": "LONG PATTERNS",
+                            "emoji": "🟢", "label": "LONG PATTERNS",
                             "win": "67%/48bar",
                             "gradient": "linear-gradient(135deg,#0b8a3e,#34c759)",
                             "text_color": "#06121f",
                             "glow": "rgba(52,199,89,0.35)",
                         },
                         "morning_star": {
-                            "emoji": "🌅",
-                            "label": "MORNING STAR",
+                            "emoji": "🌅", "label": "MORNING STAR",
                             "win": "60-75% w/ filters",
                             "gradient": "linear-gradient(135deg,#ff9500,#ffcc66)",
                             "text_color": "#1a0f00",
                             "glow": "rgba(255,149,0,0.35)",
                         },
                         "hammer_at_support": {
-                            "emoji": "🔨",
-                            "label": "HAMMER",
+                            "emoji": "🔨", "label": "HAMMER",
                             "win": "60-65% at support",
                             "gradient": "linear-gradient(135deg,#5b8eff,#8b5cf6)",
                             "text_color": "#fff",
                             "glow": "rgba(91,142,255,0.35)",
+                        },
+                        # SHORT-side patterns
+                        "evening_star": {
+                            "emoji": "🌃", "label": "EVENING STAR",
+                            "win": "mirror of morning",
+                            "gradient": "linear-gradient(135deg,#d62845,#ff6b6b)",
+                            "text_color": "#fff",
+                            "glow": "rgba(255,107,107,0.35)",
+                        },
+                        "shooting_star_at_resistance": {
+                            "emoji": "💫", "label": "SHOOTING STAR",
+                            "win": "at resistance",
+                            "gradient": "linear-gradient(135deg,#8b00ff,#ff006e)",
+                            "text_color": "#fff",
+                            "glow": "rgba(255,0,110,0.35)",
+                        },
+                        "bearish_rsi_divergence": {
+                            "emoji": "📉", "label": "BEARISH RSI DIV",
+                            "win": "textbook reversal",
+                            "gradient": "linear-gradient(135deg,#c93030,#e0a92b)",
+                            "text_color": "#fff",
+                            "glow": "rgba(201,48,48,0.35)",
                         },
                     }
                     _signal_chips = ""
@@ -5193,6 +5217,7 @@ if active_section == "🧪 Paper Trader":
                     _pct_color = ("#2ed47a" if _pct_24h > 0
                                   else "#ff5c5c" if _pct_24h < 0 else "#888")
                     _ps_sid = f"ps_{_sc['symbol']}"
+                    _ps_side_str = _sc.get("side", "LONG")  # NEW: side-aware
                     # Pull trade plan (entry/stop/TP) if available
                     _ps_entry = float(_sc.get("entry_low")
                                       or _sc.get("entry") or 0)
@@ -5204,35 +5229,60 @@ if active_section == "🧪 Paper Trader":
                     _ps_has_plan = (_ps_entry > 0 and _ps_stop > 0
                                     and _ps_tgt > 0)
                     _ps_cur = _sc["price"]
-                    # Live R:R from current price
-                    _ps_live_risk = ((_ps_cur - _ps_stop) / _ps_cur * 100
-                                     if _ps_cur > 0 and _ps_stop > 0
-                                     else 0.0)
-                    _ps_live_reward = ((_ps_tgt - _ps_cur) / _ps_cur * 100
-                                       if _ps_cur > 0 and _ps_tgt > 0
-                                       else 0.0)
+                    # Live R:R from current price — side-aware
+                    if _ps_side_str == "LONG":
+                        _ps_live_risk = ((_ps_cur - _ps_stop) / _ps_cur * 100
+                                         if _ps_cur > 0 and _ps_stop > 0
+                                         else 0.0)
+                        _ps_live_reward = ((_ps_tgt - _ps_cur) / _ps_cur * 100
+                                           if _ps_cur > 0 and _ps_tgt > 0
+                                           else 0.0)
+                    else:  # SHORT
+                        _ps_live_risk = ((_ps_stop - _ps_cur) / _ps_cur * 100
+                                         if _ps_cur > 0 and _ps_stop > 0
+                                         else 0.0)
+                        _ps_live_reward = ((_ps_cur - _ps_tgt) / _ps_cur * 100
+                                           if _ps_cur > 0 and _ps_tgt > 0
+                                           else 0.0)
                     _ps_live_rr = (_ps_live_reward / _ps_live_risk
                                    if _ps_live_risk > 0 else 0.0)
-                    # Position-size preview using paper bot settings
+                    # === DYNAMIC NOTIONAL SIZING (per user feedback) ===
+                    # The fixed $5k cap was hitting on EVERY pick because
+                    # tight stops + 1% risk = high natural notional.
+                    # New formula: risk-based qty (anchored on stop distance)
+                    # capped by a DYNAMIC ceiling that scales with:
+                    #   - strength_factor (conviction)
+                    #   - account balance (% of capital deployable)
+                    #   - leverage (how much margin headroom)
+                    # This way position size GENUINELY varies trade-to-trade
+                    # based on the analysis: tighter stop + higher conviction
+                    # = bigger position; wider stop or weaker signal = smaller.
                     _ps_bal = float(pb_state.get("balance") or 0)
                     _ps_risk_pct = float(
                         pb_state.get("risk_per_trade_pct") or 1.0)
                     _ps_lev = float(pb_state.get("leverage") or 3.0)
-                    _ps_maxn = float(
-                        pb_state.get("max_notional_per_trade") or 5000.0)
                     if _ps_has_plan and _ps_entry > 0:
+                        # 1. Risk-based qty — the foundational sizing
                         _ps_riskd = _ps_bal * _ps_risk_pct / 100
                         _ps_stopdist = abs(_ps_stop - _ps_entry) or 1.0
-                        _ps_qty = _ps_riskd / _ps_stopdist
-                        _ps_notional = _ps_qty * _ps_entry
-                        # Strength factor scales by score (higher score =
-                        # bigger position, capped at full cap)
-                        _ps_sf = max(0.4, min(1.0, (_score - 65) / 30 + 0.4))
-                        _ps_cap = _ps_maxn * _ps_sf
-                        if _ps_notional > _ps_cap:
-                            _ps_notional = _ps_cap
+                        _ps_qty_raw = _ps_riskd / _ps_stopdist
+                        _ps_notional_raw = _ps_qty_raw * _ps_entry
+                        # 2. Strength factor scales 0.4 (weak) to 1.4 (max)
+                        _ps_sf = max(0.4, min(1.4, (_score - 65) / 30 + 0.5))
+                        # 3. Dynamic ceiling — % of balance deployable with
+                        #    leverage. balance * 0.40 * leverage * strength
+                        #    means: at full strength + 3x lev, can deploy
+                        #    40% × balance × 3 = 1.2× balance notional.
+                        #    At weak signal (0.4), only 0.4 × 0.4 × 3 = 0.48×.
+                        _ps_dyn_cap = _ps_bal * 0.40 * _ps_lev * _ps_sf
+                        # 4. Apply cap only if risk-based exceeds it
+                        if _ps_notional_raw > _ps_dyn_cap:
+                            _ps_notional = _ps_dyn_cap
                             _ps_qty = (_ps_notional / _ps_entry
                                        if _ps_entry > 0 else 0.0)
+                        else:
+                            _ps_notional = _ps_notional_raw
+                            _ps_qty = _ps_qty_raw
                         _ps_margin = (_ps_notional / _ps_lev
                                       if _ps_lev > 0 else _ps_notional)
                         _ps_loss = _ps_qty * abs(_ps_stop - _ps_entry)
@@ -5240,6 +5290,7 @@ if active_section == "🧪 Paper Trader":
                     else:
                         _ps_qty = _ps_notional = _ps_margin = 0.0
                         _ps_loss = _ps_profit = 0.0
+                        _ps_sf = 0.4
 
                     with st.container(border=True):
                         _ps_text_col, _ps_btn_col = st.columns([6, 1])
@@ -5285,14 +5336,16 @@ if active_section == "🧪 Paper Trader":
                                 f"margin-top:8px;color:#c8d2ed;"
                                 f"font-size:0.78rem;line-height:1.6'>"
                                 f"<b style='color:#00d4ff'>📥 If you click NOW:</b> "
-                                f"<b>{_ps_qty:.4f}</b> {_sc['base']} long · "
+                                f"<b>{_ps_qty:.4f}</b> {_sc['base']} "
+                                f"{_ps_side_str.lower()} · "
                                 f"notional <b>${_ps_notional:,.0f}</b> · "
                                 f"<b>{_ps_lev:.0f}x</b> lev · "
                                 f"margin <b>${_ps_margin:,.0f}</b> · "
                                 f"risk <b style='color:#ff5c5c'>"
                                 f"-${_ps_loss:,.2f}</b> · "
                                 f"profit at TP <b style='color:#2ed47a'>"
-                                f"+${_ps_profit:,.2f}</b>"
+                                f"+${_ps_profit:,.2f}</b> · "
+                                f"strength factor <b>{_ps_sf:.2f}</b>"
                                 f"</div>"
                                 if _ps_has_plan else
                                 f"<div style='color:#e0a92b;font-size:0.78rem;"
@@ -5314,15 +5367,15 @@ if active_section == "🧪 Paper Trader":
                         if _ps_has_plan:
                             if _ps_btn_col.button(
                                     "📥", key=f"pb_ps_{_ps_sid}",
-                                    help=(f"Open LONG {_sc['base']} paper "
-                                          f"trade at TP1 — Pattern Scout "
-                                          f"pick (validated edge, NOT "
+                                    help=(f"Open {_ps_side_str} {_sc['base']} "
+                                          f"paper trade at TP1 — Pattern "
+                                          f"Scout pick (validated edge, NOT "
                                           f"alerts-gated)"),
                                     use_container_width=True):
                                 _ps_open_setup = {
                                     "symbol": _sc["symbol"],
                                     "base": _sc["base"],
-                                    "side": "LONG",
+                                    "side": _ps_side_str,
                                     "entry": _ps_entry,
                                     "entry_low": _ps_entry,
                                     "entry_high": _sc.get("entry_high") or _ps_entry,
@@ -5343,7 +5396,8 @@ if active_section == "🧪 Paper Trader":
                                     paper_bot.save_state(PAPER_BOT_FILE,
                                                          pb_state)
                                     st.toast(
-                                        f"📥 Opened LONG {_ps_opened['base']} @ "
+                                        f"📥 Opened {_ps_side_str} "
+                                        f"{_ps_opened['base']} @ "
                                         f"{fmt_price(_ps_opened['entry'])} · "
                                         f"Pattern Scout · score {_score:.0f}",
                                         icon="🎯")
