@@ -510,8 +510,44 @@ def scan_one(symbol: str, df: pd.DataFrame, pct_24h: float = 0.0) -> dict:
     best_score = best["strength"]
     net_side = best["side"]
 
-    # Multi-signal agreement bonus — but ONLY when signals agree on side
+    # === CONFLICTING SIGNAL CHECK (user-reported bug fix) ===========
+    # When LONG and SHORT signals BOTH fire strongly on the same coin,
+    # we cannot trust either side. Three tiers of response:
+    #   Strength delta < 10: CONFLICTED — refuse to fire (return NEUTRAL)
+    #   Strength delta < 20: significant penalty (-15)
+    #   Strength delta < 30: small penalty (-5)
+    #   Strength delta >= 30: signals clearly favor one side, no penalty
     same_side = [s for s in signals if s["side"] == net_side]
+    opposing = [s for s in signals
+                if s["side"] != net_side and s["side"] != "NEUTRAL"]
+    opposing_max_strength = max(
+        (s["strength"] for s in opposing), default=0)
+    strength_delta = best_score - opposing_max_strength
+
+    if opposing and strength_delta < 10:
+        # Conflicted — refuse to surface as actionable pick
+        return {
+            "symbol": symbol,
+            "score": 50.0,
+            "side": "NEUTRAL",
+            "signals": signals,
+            "best_signal": f"conflicted_{best['name']}_vs_{opposing[0]['name']}",
+            "extended_already": False,
+            "pct_24h": round(pct_24h, 2),
+            "conflict_note": (
+                f"Opposing signals firing: {best['name']} "
+                f"({best_score:.0f} strength) vs {opposing[0]['name']} "
+                f"({opposing_max_strength:.0f} strength) — direction "
+                "ambiguous, skipped from picks."),
+        }
+    elif opposing and strength_delta < 20:
+        # Significant penalty — clean signal can absorb but should warn
+        best_score = max(50, best_score - 15)
+    elif opposing and strength_delta < 30:
+        # Small penalty for any opposition
+        best_score = max(50, best_score - 5)
+
+    # Multi-signal agreement bonus — but ONLY when signals agree on side
     if len(same_side) >= 2:
         best_score = min(100, best_score + 4)
     if len(same_side) >= 3:
@@ -535,6 +571,7 @@ def scan_one(symbol: str, df: pd.DataFrame, pct_24h: float = 0.0) -> dict:
         "best_signal": best["name"],
         "extended_already": extended_already,
         "pct_24h": round(pct_24h, 2),
+        "opposing_max_strength": round(opposing_max_strength, 1),
     }
 
 

@@ -889,7 +889,7 @@ def run_reversal_approach_scan(interval: str, scan_n: int = 30,
 
 @st.cache_data(ttl=600, show_spinner=False)
 def run_pattern_scout(interval: str, scan_n: int = 50,
-                      _cache_version: int = 5) -> list:
+                      _cache_version: int = 6) -> list:
     """Universal Pattern Scout — scans top N coins for high-conviction
     setups across all validated-edge patterns, INDEPENDENT of the
     alerts.build_alerts() gate.
