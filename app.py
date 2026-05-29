@@ -849,10 +849,17 @@ def load_klines(symbol: str, interval: str) -> pd.DataFrame:
 # the user can A/B test before promoting any signal into the live path.
 
 @st.cache_data(ttl=600, show_spinner=False)
-def run_pattern_scout(interval: str, scan_n: int = 50) -> list:
+def run_pattern_scout(interval: str, scan_n: int = 50,
+                      _cache_version: int = 4) -> list:
     """Universal Pattern Scout — scans top N coins for high-conviction
     setups across all validated-edge patterns, INDEPENDENT of the
     alerts.build_alerts() gate.
+
+    `_cache_version`: bump this when changing the function logic to
+    force cache invalidation. Streamlit @st.cache_data doesn't auto-
+    invalidate on code changes — only when args change. v3 = added LONG
+    trade plan validation guard so SHORT-direction plans never leak
+    into the card display.
 
     Per user feedback: the picks board only surfaces coins that pass
     CONF_ALERT=72. Coins with strong individual patterns (V-bottom,
@@ -882,37 +889,85 @@ def run_pattern_scout(interval: str, scan_n: int = 50) -> list:
         except Exception:
             continue
         if r["score"] >= 65:  # surface anything WATCH-tier or above
-            # Generate FULL trade plan for openable picks. We call
-            # signals._trade_plan directly with a forced "LONG" label
-            # because pattern_scout only fires on bullish patterns —
-            # signals.analyze() may return NEUTRAL composite even when
-            # an individual bullish pattern fires (long_patterns,
-            # v_bottom, morning star, hammer). Forcing the LONG label
-            # ensures every Pattern Scout match gets a tradeable plan.
+            # Generate FULL trade plan for openable picks. Two-step
+            # strategy to guarantee EVERY Pattern Scout match has a
+            # tradeable plan:
+            #   1. Try signals._trade_plan with forced "LONG" label —
+            #      uses swing-structure stops and targets (preferred).
+            #   2. If that returns None or fails, fall back to a simple
+            #      ATR-based plan (3-4% stop, 2.5x ATR target). Every
+            #      coin with valid OHLC + ATR will get a plan this way.
+            # VALIDATION: only assign if stop < entry < target (proper
+            # LONG direction). If not, fall through to the ATR fallback.
+            trade_plan = None
             try:
-                # Determine regime for the trade plan (Trending/Ranging/Developing)
                 last = df.iloc[-1]
-                from signals import _regime as _sig_regime, _trade_plan as _sig_trade_plan
+                from signals import (_regime as _sig_regime,
+                                     _trade_plan as _sig_trade_plan)
                 regime_str = _sig_regime(last)
-                trade_plan = _sig_trade_plan(
+                _candidate_plan = _sig_trade_plan(
                     "LONG", df, regime_str,
                     mode="futures",
                     confidence=float(r["score"])
                 )
-                if trade_plan:
-                    r["trade_plan"] = trade_plan
-                    r["entry_low"] = trade_plan.get("entry_low")
-                    r["entry_high"] = trade_plan.get("entry_high")
-                    r["entry"] = trade_plan.get("entry")
-                    r["stop"] = trade_plan.get("stop_loss")
-                    r["target"] = trade_plan.get("take_profit")
-                    r["target_2"] = trade_plan.get("take_profit_2")
-                    r["rr"] = trade_plan.get("risk_reward")
-                    r["rr_2"] = trade_plan.get("risk_reward_2")
-                    r["maturity"] = trade_plan.get("maturity") or {}
-                    r["scanner_confidence"] = r["score"]
+                # Validate direction — only accept proper LONG plans
+                if _candidate_plan:
+                    _p_entry = float(_candidate_plan.get("entry") or 0)
+                    _p_stop = float(_candidate_plan.get("stop_loss") or 0)
+                    _p_tgt = float(_candidate_plan.get("take_profit") or 0)
+                    if (_p_entry > 0 and _p_stop > 0 and _p_tgt > 0
+                            and _p_stop < _p_entry < _p_tgt):
+                        trade_plan = _candidate_plan
             except Exception:
                 pass
+            # Fallback: simple ATR-based LONG plan if the structural plan failed
+            if trade_plan is None:
+                try:
+                    last = df.iloc[-1]
+                    price = float(last["close"])
+                    atr_val = float(last.get("atr") or 0)
+                    if price > 0 and atr_val > 0:
+                        # Stop: 1.5x ATR below, clamped to [3%, 5%] of entry
+                        stop_dist = max(price * 0.03,
+                                        min(price * 0.05, atr_val * 1.5))
+                        entry_p = price
+                        stop_p = price - stop_dist
+                        # TP1: 2.5x ATR up = ~1.67 R:R; TP2: 4x ATR = ~2.67 R:R
+                        tgt_dist_1 = max(stop_dist * 1.5, atr_val * 2.5)
+                        tgt_dist_2 = max(stop_dist * 2.5, atr_val * 4.0)
+                        tgt_1 = price + tgt_dist_1
+                        tgt_2 = price + tgt_dist_2
+                        trade_plan = {
+                            "side": "LONG",
+                            "mode": "futures",
+                            "entry": entry_p,
+                            "entry_low": entry_p,
+                            "entry_high": entry_p,
+                            "stop_loss": stop_p,
+                            "take_profit": tgt_1,
+                            "take_profit_2": tgt_2,
+                            "take_profit_3": tgt_2 + tgt_dist_1,
+                            "risk_reward": tgt_dist_1 / stop_dist,
+                            "risk_reward_2": tgt_dist_2 / stop_dist,
+                            "maturity": {"stage": "FALLBACK", "confidence": 50,
+                                         "note": ("ATR-based plan (structural "
+                                                  "swing-level detection failed)")},
+                        }
+                except Exception:
+                    trade_plan = None
+            # Assign to result if we have one
+            if trade_plan:
+                r["trade_plan"] = trade_plan
+                r["entry_low"] = trade_plan.get("entry_low")
+                r["entry_high"] = trade_plan.get("entry_high")
+                r["entry"] = trade_plan.get("entry")
+                r["stop"] = trade_plan.get("stop_loss")
+                r["target"] = trade_plan.get("take_profit")
+                r["target_2"] = trade_plan.get("take_profit_2")
+                r["rr"] = trade_plan.get("risk_reward")
+                r["rr_2"] = trade_plan.get("risk_reward_2")
+                r["maturity"] = trade_plan.get("maturity") or {}
+                r["scanner_confidence"] = r["score"]
             r["base"] = base
             r["price"] = last_price
             r["volume_24h"] = float(row["quoteVolume"])
