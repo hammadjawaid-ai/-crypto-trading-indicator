@@ -130,7 +130,11 @@ BINANCE_BASES = [
     "https://api2.binance.com",
 ]
 HTTP_TIMEOUT = 12             # seconds
-SCAN_WORKERS = 10             # parallel threads for the market scanner
+SCAN_WORKERS = 16             # parallel threads for the market scanner
+                              # Bumped 10 -> 16 to make the 150-coin
+                              # Market Scanner load ~40% faster. Binance
+                              # rate-limit retry in binance_client._get
+                              # absorbs the modest extra concurrency.
 
 # Live order-flow (recent trades + order-book depth).
 ORDERFLOW_TRADES_LIMIT = 1000  # recent trades pulled per snapshot
@@ -140,7 +144,12 @@ DEPTH_BAND_PCT = 1.0           # +/- % band around mid price for depth imbalance
 LARGE_TRADE_QUANTILE = 0.97    # trades above this size quantile flagged "large"
 
 # --- Caching ---------------------------------------------------------------
-MARKET_CACHE_TTL = 120        # seconds (klines / tickers)
+# Bumped 120 -> 300 (5 min) to match the new page-refresh cadence the
+# user set. With the page reloading every 5 min, 2-min cache meant
+# the cache expired every reload and the scanner re-fetched ~150
+# coins every time. 5-min cache + 5-min refresh = at-most one cold
+# scan per refresh cycle (page render hits warm cache most of the time).
+MARKET_CACHE_TTL = 300        # seconds (klines / tickers)
 NEWS_CACHE_TTL = 600          # seconds (news + sentiment)
 
 # --- Indicator parameters --------------------------------------------------
