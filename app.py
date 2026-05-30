@@ -1515,7 +1515,20 @@ def run_pattern_scout(interval: str, scan_n: int = 50,
     return results
 
 
-@st.cache_data(ttl=config.MARKET_CACHE_TTL, show_spinner=False)
+@st.cache_data(ttl=600, show_spinner=False)
+def _agent_load_chart_klines(symbol: str, interval: str = "1d",
+                             limit: int = 365):
+    """Module-scope cached kline loader for the 24/7 Agent charts.
+
+    Moved out of the section closure (it was being re-defined and
+    cache-reset every time the user navigated to the section). Now
+    persists across navigations.
+    """
+    df = binance_client.get_klines(symbol, interval, limit=limit)
+    return indicators.enrich(df)
+
+
+@st.cache_data(ttl=600, show_spinner=False)
 def load_support_resistance(symbol: str, interval: str,
                             _cache_version: int = 1) -> dict:
     """Compute support and resistance ZONES for one symbol/timeframe.
@@ -8432,36 +8445,29 @@ if active_section == "🤖 24/7 Agent":
         "Auto-refresh every 5 minutes. Multi-timeframe "
         "(15m / 1h / 4h / 1d) conviction scoring across all major signals.")
 
-    # ---- Cached loaders (5-minute TTL matches the fragment cadence) -------
-    # The cache_version arg is purely a cache-busting handle — bump it from
-    # the UI if/when we want to force a fresh scan without waiting for the
-    # TTL.
-    @st.cache_data(ttl=300, show_spinner=False)
-    def load_watchlist(_cache_version: int = 1):
-        """5-min cached deep scan over the 20 portfolio coins."""
+    # ---- Cached loaders ---------------------------------------------------
+    # TTL = 900s (15 min) — significantly LONGER than the 300s fragment
+    # cadence so cache always covers the next refresh cycle. The cold-
+    # cache scan is ~110s (analyze 20 coins × 3 TFs), so we cannot let
+    # the cache expire mid-fragment-cycle — that would block rendering
+    # for ~2 minutes every cycle.
+    @st.cache_data(ttl=900, show_spinner=False)
+    def load_watchlist(_cache_version: int = 2):
+        """15-min cached deep scan over the 20 portfolio coins.
+        Long TTL because cold scan is ~110s; if TTL was 300s and the
+        cache expired mid-cycle the page would block."""
         return watchlist_agent.analyze_portfolio()
 
-    @st.cache_data(ttl=300, show_spinner=False)
-    def load_premium_picks(_cache_version: int = 3):
-        """5-min cached premium-pick scan across the rest of Binance.
-
-        min_conviction = 80 — per user. Stays in the STRONG+ tier so
-        picks remain genuinely premium, but doesn't perpetually empty
-        the board in BEAR / CHOP regimes the way 85 did.
-        """
+    @st.cache_data(ttl=900, show_spinner=False)
+    def load_premium_picks(_cache_version: int = 4):
+        """15-min cached premium-pick scan across the rest of Binance.
+        min_conviction = 80 (per user). Long TTL for same reason as above."""
         return premium_picks_agent.scan_premium_picks(
             scan_n=200, min_conviction=80, max_picks=10)
 
-    # CRITICAL: chart kline fetches must be cached or the page hangs.
-    # Without caching, every page render fans out 30+ uncached
-    # binance_client.get_klines() calls in parallel (expanders render
-    # their body even when collapsed). 600s TTL = 10 min (daily candles
-    # don't need to be fresher than that).
-    @st.cache_data(ttl=600, show_spinner=False)
-    def _load_chart_klines(symbol: str, interval: str = "1d",
-                           limit: int = 365):
-        df = binance_client.get_klines(symbol, interval, limit=limit)
-        return indicators.enrich(df)
+    # Use the module-scope _agent_load_chart_klines (defined near the
+    # other load_* helpers) — it persists the cache across navigations.
+    _load_chart_klines = _agent_load_chart_klines
 
     # ---- Small render helpers (kept local — no other section uses them) --
     def _agent_conviction_color(tier: str) -> tuple[str, str]:
@@ -8793,15 +8799,24 @@ if active_section == "🤖 24/7 Agent":
     def _agent_section():
         # Load all data ONCE so the Best Trades sub-board, the Portfolio
         # cards and the Premium Picks can all see the same scan results.
-        try:
-            reports = load_watchlist()
-        except Exception as exc:
-            st.error(f"Portfolio scan failed: {exc}")
-            reports = []
-        try:
-            premium_picks_data = load_premium_picks()
-        except Exception:
-            premium_picks_data = []
+        # Visible spinner — cold scan is ~110s and the user previously
+        # thought the page was broken when it was just running the scan.
+        with st.spinner(
+                "🔍 Scanning 20 portfolio coins across 3 timeframes "
+                "(this takes ~60-90s on first load; cached for 15 min "
+                "after)..."):
+            try:
+                reports = load_watchlist()
+            except Exception as exc:
+                st.error(f"Portfolio scan failed: {exc}")
+                reports = []
+        with st.spinner(
+                "🌐 Scanning top 200 Binance coins for premium picks "
+                "(~30s on first load)..."):
+            try:
+                premium_picks_data = load_premium_picks()
+            except Exception:
+                premium_picks_data = []
 
         # ===== SUB-BOARD: 🏆 BEST TRADES (≥80 conviction) ==================
         # Aggregates HIGH-conviction signals from BOTH the portfolio AND
