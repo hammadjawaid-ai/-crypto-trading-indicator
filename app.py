@@ -8521,16 +8521,16 @@ if active_section == "🤖 24/7 Agent":
     # the cache expire mid-fragment-cycle — that would block rendering
     # for ~2 minutes every cycle.
     @st.cache_data(ttl=900, show_spinner=False)
-    def load_watchlist(_cache_version: int = 2):
+    def load_watchlist(_cache_version: int = 3):
         """15-min cached deep scan over the 20 portfolio coins.
-        Long TTL because cold scan is ~110s; if TTL was 300s and the
-        cache expired mid-cycle the page would block."""
+        v3: bump invalidates cached 'unavailable' entries from before
+        the Bybit fallback (TAO, INIT, etc) landed in binance_client."""
         return watchlist_agent.analyze_portfolio()
 
     @st.cache_data(ttl=900, show_spinner=False)
-    def load_premium_picks(_cache_version: int = 4):
+    def load_premium_picks(_cache_version: int = 5):
         """15-min cached premium-pick scan across the rest of Binance.
-        min_conviction = 80 (per user). Long TTL for same reason as above."""
+        min_conviction = 80 (per user). v5: same Bybit-fallback flush."""
         return premium_picks_agent.scan_premium_picks(
             scan_n=200, min_conviction=80, max_picks=10)
 
@@ -9251,25 +9251,46 @@ if active_section == "🤖 24/7 Agent":
                     (cur_px / entry_op - 1) * 100 if side_op == "LONG"
                     else (entry_op / cur_px - 1) * 100) if entry_op else 0
                 pnl_color = "#2ed47a" if pnl >= 0 else "#ff5c5c"
+                # Notional = qty × entry price (the dollar value of the
+                # position). Also compute current notional (qty × mark)
+                # to show how much exposure has changed with price.
+                notional_op = qty_op * entry_op if entry_op else 0.0
+                notional_now = qty_op * cur_px if cur_px else notional_op
+                # Leverage / margin if the position dict carries it
+                lev_op = float(op.get("leverage") or 0.0)
+                margin_op = (notional_op / lev_op
+                             if lev_op > 0 else notional_op)
+
                 with st.container(border=True):
-                    # ROW 1 — metrics
-                    cols = st.columns([2, 1.4, 1.4, 1.6, 1.2])
+                    # ROW 1 — metrics with notional + margin
+                    cols = st.columns([1.8, 1.3, 1.3, 1.3, 1.6, 1.0])
                     cols[0].markdown(
                         f"**{op.get('base', sym_op)}** · {sym_op}<br>"
-                        f"<span style='color:#aab;font-size:0.85rem'>"
-                        f"{side_op} · qty {qty_op:.4f}</span>",
+                        f"<span style='color:#aab;font-size:0.82rem'>"
+                        f"{side_op} · qty {qty_op:.4f}"
+                        + (f" · {lev_op:g}x lev" if lev_op > 0 else "")
+                        + "</span>",
                         unsafe_allow_html=True)
                     cols[1].markdown(
-                        f"Entry<br><b>{entry_op:g}</b>",
+                        f"Notional<br><b>${notional_op:,.0f}</b>"
+                        + (f"<br><span style='color:#888;font-size:0.72rem'>"
+                           f"now ${notional_now:,.0f}</span>"
+                           if abs(notional_now - notional_op) > 1 else "")
+                        + (f"<br><span style='color:#888;font-size:0.72rem'>"
+                           f"margin ${margin_op:,.0f}</span>"
+                           if lev_op > 0 else ""),
                         unsafe_allow_html=True)
                     cols[2].markdown(
-                        f"Mark<br><b>{cur_px:g}</b>",
+                        f"Entry<br><b>{entry_op:g}</b>",
                         unsafe_allow_html=True)
                     cols[3].markdown(
+                        f"Mark<br><b>{cur_px:g}</b>",
+                        unsafe_allow_html=True)
+                    cols[4].markdown(
                         f"P&L<br><b style='color:{pnl_color}'>"
                         f"${pnl:+,.2f} ({pnl_pct:+.2f}%)</b>",
                         unsafe_allow_html=True)
-                    if cols[4].button(
+                    if cols[5].button(
                             "✖ Close",
                             key=f"agent_close_{sym_op}",
                             use_container_width=True):
