@@ -5597,20 +5597,14 @@ if active_section == "🧪 Paper Trader":
         # Each card shows a CONVICTION tier (MAX / HIGH / STRONG /
         # STANDARD) so you instantly see WHICH layers stacked.
         st.markdown(
-            "<div style='display:flex;align-items:center;gap:12px;"
-            "margin-top:14px;margin-bottom:4px'>"
-            "<span style='font-size:1.5rem;font-weight:900;"
-            "background:linear-gradient(135deg,#ffd700,#ff006e,#8b5cf6);"
-            "-webkit-background-clip:text;-webkit-text-fill-color:"
-            "transparent;background-clip:text;letter-spacing:-0.02em'>"
-            "🏆 BEST TRADES NOW</span>"
-            "<span style='color:#aab;font-size:0.82rem'>"
-            "multi-layer conviction · click 📥 to open</span>"
+            "<div style='color:#aab;font-size:0.78rem;margin-top:8px;"
+            "margin-bottom:2px'>"
+            "Three sections below — <b style='color:#ffd700'>TOP CONVICTION</b> "
+            "(confirmed signals) · <b style='color:#5b8eff'>EARLY SETUPS</b> "
+            "(anticipatory) · <b style='color:#8b5cf6'>SETUPS FORMING</b> "
+            "(intel watchlist). Click 📥 on any card to open."
             "</div>",
             unsafe_allow_html=True)
-        st.caption(
-            "Confirmed signals first, anticipatory setups second. "
-            "**CONVICTION** badge tells you which layers agree.")
 
         # ---- 📊 Market Regime Banner — modern hero design --------------
         # Critical adaptive layer. Backtested edges are regime-dependent —
@@ -7436,37 +7430,41 @@ if active_section == "🧪 Paper Trader":
                     _seg_kind = _row[1]
                     _seg_count = _row[2]
                     if _seg_kind == "CONFIRMED":
+                        # Full section header (was inline strip) — Section 1
                         st.markdown(
                             "<div style='display:flex;align-items:center;"
-                            "gap:10px;margin-top:14px;margin-bottom:6px;"
-                            "padding:8px 14px;border-radius:8px;"
-                            "background:linear-gradient(90deg,"
-                            "rgba(255,215,0,0.08),rgba(255,215,0,0.02));"
-                            "border-left:3px solid #ffd700'>"
-                            "<span style='font-size:1.05rem;font-weight:900;"
-                            "color:#ffd700;letter-spacing:0.02em'>"
+                            "gap:14px;margin-top:22px;margin-bottom:10px'>"
+                            "<span style='font-size:1.45rem;font-weight:900;"
+                            "background:linear-gradient(135deg,"
+                            "#ffd700,#ff8c00);"
+                            "-webkit-background-clip:text;"
+                            "-webkit-text-fill-color:transparent;"
+                            "background-clip:text;letter-spacing:-0.02em'>"
                             "🏆 TOP CONVICTION</span>"
-                            "<span style='color:#c8d2ed;font-size:0.78rem'>"
-                            "confirmed signals · trigger candle "
-                            f"printed · {_seg_count} pick"
-                            f"{'s' if _seg_count != 1 else ''}</span>"
+                            "<span style='color:#aab;font-size:0.82rem'>"
+                            "confirmed signals · trigger candle printed · "
+                            f"{_seg_count} pick"
+                            f"{'s' if _seg_count != 1 else ''} · primary "
+                            "size-up board</span>"
                             "</div>",
                             unsafe_allow_html=True)
                     else:  # ANTICIPATORY
+                        # Full section header — Section 2
                         st.markdown(
                             "<div style='display:flex;align-items:center;"
-                            "gap:10px;margin-top:18px;margin-bottom:6px;"
-                            "padding:8px 14px;border-radius:8px;"
-                            "background:linear-gradient(90deg,"
-                            "rgba(91,142,255,0.08),rgba(91,142,255,0.02));"
-                            "border-left:3px solid #5b8eff'>"
-                            "<span style='font-size:1.05rem;font-weight:900;"
-                            "color:#5b8eff;letter-spacing:0.02em'>"
+                            "gap:14px;margin-top:28px;margin-bottom:10px'>"
+                            "<span style='font-size:1.45rem;font-weight:900;"
+                            "background:linear-gradient(135deg,"
+                            "#5b8eff,#8b5cf6);"
+                            "-webkit-background-clip:text;"
+                            "-webkit-text-fill-color:transparent;"
+                            "background-clip:text;letter-spacing:-0.02em'>"
                             "🔭 EARLY SETUPS</span>"
-                            "<span style='color:#c8d2ed;font-size:0.78rem'>"
-                            "anticipatory entries · leading "
-                            f"signals agree · {_seg_count} pick"
-                            f"{'s' if _seg_count != 1 else ''}</span>"
+                            "<span style='color:#aab;font-size:0.82rem'>"
+                            "anticipatory entries · 1-5 bars before "
+                            f"trigger · {_seg_count} pick"
+                            f"{'s' if _seg_count != 1 else ''} · "
+                            "lighter size, buffered stop</span>"
                             "</div>",
                             unsafe_allow_html=True)
                     continue
@@ -8197,16 +8195,18 @@ if active_section == "🧪 Paper Trader":
                    if r["score"] >= 65
                    and r["symbol"] not in _btn_syms][:6]
         if _sf_top:
+            # Full section header — Section 3
             st.markdown(
-                "<div style='display:flex;align-items:center;gap:10px;"
-                "margin-top:18px;margin-bottom:6px'>"
-                "<span style='font-size:1.15rem;font-weight:900;"
-                "background:linear-gradient(135deg,#5b8eff,#8b5cf6);"
+                "<div style='display:flex;align-items:center;gap:14px;"
+                "margin-top:28px;margin-bottom:10px'>"
+                "<span style='font-size:1.45rem;font-weight:900;"
+                "background:linear-gradient(135deg,#8b5cf6,#ff006e);"
                 "-webkit-background-clip:text;-webkit-text-fill-color:"
                 "transparent;background-clip:text;letter-spacing:-0.02em'>"
                 "🔭 SETUPS FORMING</span>"
-                "<span style='color:#aab;font-size:0.78rem'>"
-                f"direction intel · {len(_sf_top)} forming · NOT openable</span>"
+                "<span style='color:#aab;font-size:0.82rem'>"
+                f"direction intel · {len(_sf_top)} forming · watchlist "
+                "for the next promotion</span>"
                 "</div>",
                 unsafe_allow_html=True)
             st.caption(

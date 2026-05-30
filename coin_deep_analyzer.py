@@ -351,7 +351,10 @@ def _confidence_tier(conviction: float,
         return "MAX"
     if c >= 85.0 and (mtf_aligned or ignited or forecast_aligned):
         return "HIGH"
-    if c >= 80.0 and forecast_aligned:
+    # STRONG: 80+ score is enough — don't require forecast_aligned too
+    # (the forecast module is noisy on shorter timeframes; combined
+    # score >=80 already means multiple lanes agreed).
+    if c >= 80.0:
         return "STRONG"
     if c >= 65.0:
         return "STANDARD"
@@ -583,14 +586,19 @@ def analyze(symbol: str, tf: str, loaders: dict | None = None) -> dict:
         agree_4h = (side_4h == side)
         agree_1d = (side_1d == side)
         if agree_4h and agree_1d:
-            mtf_bonus = 20.0
+            mtf_bonus = 20.0       # Both higher TFs agree → big boost
+        elif agree_4h or agree_1d:
+            mtf_bonus = 8.0        # One higher TF agrees → small boost
         elif (not agree_4h) and side_4h != "NEUTRAL":
-            mtf_bonus = -30.0
+            # Adverse 4h — small penalty (was -30/-60 which obliterated
+            # valid contrarian signals). Capped at -15 even in adverse
+            # regime so a strong setup still surfaces.
+            mtf_bonus = -10.0
             reg_name = (regime.get("regime") or "").upper()
             if reg_name == "BEAR" and side == "LONG":
-                mtf_bonus = -60.0
+                mtf_bonus = -15.0
             if reg_name == "BULL" and side == "SHORT":
-                mtf_bonus = -60.0
+                mtf_bonus = -15.0
 
     # Apply MTF bonus in the direction of `side` (positive bonus boosts the
     # conviction toward 100; negative bonus pulls back to 50).
@@ -602,8 +610,14 @@ def analyze(symbol: str, tf: str, loaders: dict | None = None) -> dict:
         directional = directional_raw
     directional = float(np.clip(directional, -100.0, 100.0))
 
-    # Layer 5: map signed directional to 0-100 conviction
-    score_100 = 50.0 + (directional / 2.0)
+    # Layer 5: map signed directional to 0-100 conviction.
+    # AMPLIFIED 1.8x — the weighted-lane sum rarely exceeds ±20 even
+    # with strong signals because every lane weight is a fraction
+    # summing to ~1.0. Multiplying by 1.8 maps directional 17 → score
+    # 80 (STRONG), directional 28 → score 100 (clipped). The previous
+    # formula (50 + directional/2) pinned everything to 50-60 LOW
+    # regardless of actual signal strength.
+    score_100 = 50.0 + directional * 1.8
     score_100 = float(np.clip(score_100, 0.0, 100.0))
 
     # Layer 6: regime tilt (±8 cap per task #37)
