@@ -19,25 +19,51 @@ class BinanceError(RuntimeError):
     """Raised when no Binance endpoint could satisfy a request."""
 
 
-def _get(path: str, params: dict | None = None) -> object:
-    """GET a Binance endpoint, trying each base URL until one responds."""
+def _get(path: str, params: dict | None = None,
+         max_attempts: int = 4) -> object:
+    """GET a Binance endpoint with rate-limit handling.
+
+    On HTTP 418 (IP banned briefly) or 429 (rate-limited), waits with
+    exponential backoff (1s -> 2s -> 4s) and retries. Cycles through
+    base URLs on each attempt so a rate-limited mirror gets skipped.
+    """
     global _active_base
     bases = config.BINANCE_BASES
     if _active_base:  # try the known-good base first
         bases = [_active_base] + [b for b in bases if b != _active_base]
 
     last_err: Exception | None = None
-    for base in bases:
-        try:
-            resp = _session.get(base + path, params=params,
-                                timeout=config.HTTP_TIMEOUT)
-            if resp.status_code == 200:
-                _active_base = base
-                return resp.json()
-            last_err = BinanceError(f"{base}{path} -> HTTP {resp.status_code}")
-        except requests.RequestException as exc:  # network / timeout
-            last_err = exc
-        time.sleep(0.2)
+    for attempt in range(max_attempts):
+        for base in bases:
+            try:
+                resp = _session.get(base + path, params=params,
+                                    timeout=config.HTTP_TIMEOUT)
+                if resp.status_code == 200:
+                    _active_base = base
+                    return resp.json()
+                # 418 = IP banned briefly; 429 = rate-limited.
+                # Sleep longer, then retry this attempt loop on the
+                # OUTER iteration (so we don't burn through bases).
+                if resp.status_code in (418, 429):
+                    last_err = BinanceError(
+                        f"{base}{path} -> HTTP {resp.status_code} "
+                        f"(rate-limited, attempt {attempt+1}/{max_attempts})")
+                    break  # break base loop, sleep+retry on attempt loop
+                last_err = BinanceError(
+                    f"{base}{path} -> HTTP {resp.status_code}")
+            except requests.RequestException as exc:  # network / timeout
+                last_err = exc
+            time.sleep(0.2)
+        else:
+            # All bases tried for this attempt and none returned 200.
+            # If it wasn't a rate-limit, no point retrying — fall through.
+            if last_err and "rate-limited" not in str(last_err):
+                break
+        # Rate-limit hit on this attempt — exponential backoff.
+        # Binance 418s need ~10-30s to clear; be patient.
+        if attempt < max_attempts - 1:
+            backoff = 2.0 * (2 ** attempt)  # 2s, 4s, 8s, 16s
+            time.sleep(backoff)
     raise BinanceError(f"All Binance endpoints failed for {path}: {last_err}")
 
 

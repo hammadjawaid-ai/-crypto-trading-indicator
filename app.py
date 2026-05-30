@@ -8385,9 +8385,16 @@ if active_section == "🤖 24/7 Agent":
         return watchlist_agent.analyze_portfolio()
 
     @st.cache_data(ttl=180, show_spinner=False)
-    def load_premium_picks(_cache_version: int = 1):
-        """3-min cached premium-pick scan across the rest of Binance."""
-        return premium_picks_agent.scan_premium_picks()
+    def load_premium_picks(_cache_version: int = 2):
+        """3-min cached premium-pick scan across the rest of Binance.
+
+        Lowered min_conviction 85 -> 75. The 85 floor was too strict for
+        BEAR/CHOP regimes — board was perpetually empty. 75 still maps
+        to STRONG+ tier (per the conviction tier formula) so picks
+        remain genuinely premium.
+        """
+        return premium_picks_agent.scan_premium_picks(
+            scan_n=200, min_conviction=75, max_picks=10)
 
     # ---- Small render helpers (kept local — no other section uses them) --
     def _agent_conviction_color(tier: str) -> tuple[str, str]:
