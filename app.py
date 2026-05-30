@@ -827,6 +827,11 @@ st.markdown(
 # --- Paper trading bot state file (lives next to app.py, gitignored) ------
 PAPER_BOT_FILE = Path(__file__).resolve().parent / ".paper_bot.json"
 
+# --- 24/7 Agent bot state file — SEPARATE from paper_bot so the agent
+# section has its own open positions + closed-trade history that doesn't
+# pollute (or get polluted by) the Paper Trader.
+AGENT_BOT_FILE = Path(__file__).resolve().parent / ".agent_bot.json"
+
 
 # --- Colour palette for signal labels --------------------------------------
 LABEL_COLORS = {
@@ -8548,45 +8553,40 @@ if active_section == "🤖 24/7 Agent":
     def _render_open_button(symbol: str, base: str, side: str,
                             plan: dict, conviction: float,
                             key_prefix: str) -> None:
-        """Open-paper-position button — works on EVERY card now.
-
-        The conviction tier badge on each card tells the user the quality
-        of the signal; the user decides whether to size up. R:R / `valid`
-        flag still warns the user when the plan is marginal.
+        """Open trade button — writes to the 24/7 Agent's OWN state file
+        (.agent_bot.json) so the agent's history is independent of the
+        Paper Trader. Conviction tier on the card tells the user
+        signal quality; R:R warning shows when the plan is marginal.
         """
         f = _plan_fields(plan)
         if not _has_plan(plan):
             st.caption("📥 button unavailable — no trade plan generated.")
             return
         if side not in ("LONG", "SHORT"):
-            # NEUTRAL on consensus but plan side may still be valid (we
-            # default NEUTRAL plans to LONG/SHORT in coin_deep_analyzer).
             side = f["side"] or "LONG"
-        rr_warning = (
-            "⚠️ Marginal R:R (<1.5) — speculative entry."
-            if f["rr"] < 1.5 else "")
-        if rr_warning:
-            st.caption(rr_warning)
+        if f["rr"] < 1.5:
+            st.caption("⚠️ Marginal R:R (<1.5) — speculative entry.")
         if st.button(
-                f"📥 Open {side} paper position",
+                f"📥 Open {side} trade",
                 key=f"{key_prefix}_open_{symbol}",
                 use_container_width=False):
             try:
-                pb_state = paper_bot.load_state(PAPER_BOT_FILE)
+                ag_state = paper_bot.load_state(AGENT_BOT_FILE)
                 alert = _open_plan_as_alert(
                     symbol, base, side, plan, conviction)
                 pos = paper_bot.open_position(
-                    pb_state, alert, alert["entry_low"])
-                paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                    ag_state, alert, alert["entry_low"])
+                paper_bot.save_state(AGENT_BOT_FILE, ag_state)
                 if pos:
                     st.success(
                         f"Opened {side} {symbol} at "
-                        f"{alert['entry_low']:g}.")
+                        f"{alert['entry_low']:g} · saved to 24/7 "
+                        "Agent history.")
                 else:
                     st.warning(
-                        "Position not opened — Paper Trader rejected "
-                        "(likely existing position or insufficient "
-                        "margin). Check the Paper Trader tab.")
+                        "Position not opened — 24/7 Agent already has "
+                        "a position in this symbol, or balance is "
+                        "insufficient.")
             except Exception as exc:
                 st.error(f"Open failed: {exc}")
 
@@ -8598,14 +8598,18 @@ if active_section == "🤖 24/7 Agent":
                           key_prefix: str) -> None:
         """The expanded "full picture" view inside each collapsible card."""
 
-        # --- 1. Chart — pan + scroll-zoom enabled, 1h candles + plan lines
+        # --- 1. Chart — 1-YEAR daily history so the user can read the full
+        # context (was 1h / ~100 bars, too zoomed in). Pan + scroll-zoom
+        # enabled for navigation. The trade plan lines + S/R zones overlay
+        # on top so entries/stops/TPs are anchored to real price action.
         chart_loaded = False
         try:
-            chart_df = binance_client.get_klines(symbol, "1h")
+            # 365 daily bars = 1 year. Falls back to whatever Binance has.
+            chart_df = binance_client.get_klines(symbol, "1d", limit=365)
             chart_df = indicators.enrich(chart_df)
             fig = agent_charts.build_compact_chart(
                 chart_df, trade_plan=plan, sr_zones=sr_zones,
-                height=320)
+                height=420, max_bars=365)
             st.plotly_chart(
                 fig, use_container_width=True,
                 key=f"{key_prefix}_chart_{symbol}",
@@ -8622,8 +8626,8 @@ if active_section == "🤖 24/7 Agent":
 
         if chart_loaded:
             st.caption(
-                "💡 Drag to pan · scroll to zoom · "
-                "double-click to reset")
+                "📅 1-year daily chart · 💡 Drag to pan · "
+                "scroll to zoom · double-click to reset")
 
         # --- 2. Per-TF breakdown
         st.markdown("#### 📊 Per-timeframe breakdown")
@@ -8727,19 +8731,139 @@ if active_section == "🤖 24/7 Agent":
     # ---- The auto-refreshing fragment ------------------------------------
     @st.fragment(run_every=180)
     def _agent_section():
-        # ===== SUBSECTION A — Your Portfolio (20 coins) ====================
-        st.markdown("### 💎 Your Portfolio (20 coins)")
-        st.caption(
-            "Each coin shows a one-line summary — **click to expand for "
-            "full deep analysis**: chart with pan/scroll-zoom, per-TF "
-            "breakdown, candle formation, top drivers, and a full trade "
-            "plan with entry / SL / TP1 / TP2. **📥 button on every "
-            "card** — conviction tier tells you the quality.")
+        # Load all data ONCE so the Best Trades sub-board, the Portfolio
+        # cards and the Premium Picks can all see the same scan results.
         try:
             reports = load_watchlist()
         except Exception as exc:
             st.error(f"Portfolio scan failed: {exc}")
             reports = []
+        try:
+            premium_picks_data = load_premium_picks()
+        except Exception:
+            premium_picks_data = []
+
+        # ===== SUB-BOARD: 🏆 BEST TRADES (≥80 conviction) ==================
+        # Aggregates HIGH-conviction signals from BOTH the portfolio AND
+        # premium picks into one openable board — mirrors the BEST TRADES
+        # NOW pattern from the Paper Trader.
+        best_trades: list[dict] = []
+        for rep in reports:
+            cons = rep.get("consensus") or {}
+            try:
+                score = float(cons.get("score") or 0)
+            except Exception:
+                score = 0.0
+            if score < 80 or rep.get("unavailable"):
+                continue
+            # Pull strongest-TF plan + sr (same logic as below)
+            per_tf = rep.get("per_tf") or {}
+            plan = None
+            for _tf in ("4h", "1h", "1d", "15m"):
+                cand = per_tf.get(_tf) or {}
+                if isinstance(cand, dict) and cand.get("trade_plan"):
+                    plan = cand.get("trade_plan"); break
+            sr_zones = None
+            for _tf in ("1h", "4h", "1d", "15m"):
+                cand = per_tf.get(_tf) or {}
+                if isinstance(cand, dict) and cand.get(
+                        "support_resistance"):
+                    sr_zones = cand.get("support_resistance"); break
+            best_trades.append({
+                "source": "portfolio",
+                "symbol": rep.get("symbol"),
+                "base": rep.get("base"),
+                "side": str(cons.get("side") or "NEUTRAL").upper(),
+                "tier": str(cons.get("tier") or "").upper(),
+                "score": score,
+                "price_now": rep.get("price_now"),
+                "pct_24h": rep.get("pct_24h"),
+                "plan": plan,
+                "sr_zones": sr_zones,
+                "per_tf": per_tf,
+                "top_signal": rep.get("top_signal") or "",
+                "forming": bool(rep.get("forecast_forming")),
+                "conviction": float(
+                    cons.get("confidence") or score),
+            })
+        for pk in premium_picks_data or []:
+            try:
+                score = float(pk.get("conviction_score") or 0)
+            except Exception:
+                score = 0.0
+            if score < 80:
+                continue
+            best_trades.append({
+                "source": "premium",
+                "symbol": pk.get("symbol"),
+                "base": pk.get("base")
+                or (pk.get("symbol") or "").replace("USDT", ""),
+                "side": str(pk.get("side") or "NEUTRAL").upper(),
+                "tier": str(pk.get("tier") or "STRONG").upper(),
+                "score": score,
+                "price_now": pk.get("price_now"),
+                "pct_24h": pk.get("pct_24h"),
+                "plan": pk.get("trade_plan") or {},
+                "sr_zones": None,
+                "per_tf": {},
+                "top_signal": (pk.get("top_3_reasons") or [""])[0],
+                "forming": False,
+                "conviction": score,
+            })
+        # Sort high-to-low by score.
+        best_trades.sort(key=lambda x: x["score"], reverse=True)
+
+        st.markdown(
+            "<div style='display:flex;align-items:center;gap:12px;"
+            "margin-top:6px;margin-bottom:8px'>"
+            "<span style='font-size:1.4rem;font-weight:900;"
+            "background:linear-gradient(135deg,#ffd700,#ff006e,#8b5cf6);"
+            "-webkit-background-clip:text;-webkit-text-fill-color:"
+            "transparent;background-clip:text;letter-spacing:-0.02em'>"
+            "🏆 BEST TRADES (≥80 conviction)</span>"
+            f"<span style='color:#aab;font-size:0.84rem'>"
+            f"{len(best_trades)} signals firing · click 📥 to open</span>"
+            "</div>",
+            unsafe_allow_html=True)
+        if not best_trades:
+            st.info(
+                "No high-conviction trades (≥80) right now. Scroll "
+                "down to see the full 20-coin portfolio analysis + "
+                "any premium picks below.")
+        else:
+            for bt in best_trades:
+                _f = _plan_fields(bt["plan"])
+                bt_title = (
+                    f"{_tier_emoji(bt['tier'])} **{bt['base']}** "
+                    f"· {_side_emoji(bt['side'])} {bt['side']} "
+                    f"· {bt['tier']} {bt['score']:.0f} "
+                    f"· {('$%.4f' % bt['price_now']) if bt['price_now'] else '—'} "
+                    f"· {_plan_summary(bt['plan'])}")
+                with st.expander(bt_title, expanded=False):
+                    _render_deep_view(
+                        symbol=bt["symbol"], base=bt["base"],
+                        side=bt["side"], tier=bt["tier"],
+                        score=bt["score"], per_tf=bt["per_tf"],
+                        top_signal=bt["top_signal"],
+                        forming=bt["forming"], plan=bt["plan"],
+                        sr_zones=bt["sr_zones"],
+                        conviction=bt["conviction"],
+                        key_prefix=f"agent_bt_{bt['source']}")
+        st.markdown(
+            "<div style='height:1px;background:linear-gradient(90deg,"
+            "transparent,rgba(255,255,255,0.10),transparent);"
+            "margin:18px 0'></div>",
+            unsafe_allow_html=True)
+
+        # ===== SUBSECTION A — Your Portfolio (20 coins) ====================
+        st.markdown("### 💎 Your Portfolio (20 coins)")
+        st.caption(
+            "**Every coin in your watchlist with deep analysis.** Click "
+            "any to expand: 1-year daily chart with pan/scroll-zoom, "
+            "per-TF breakdown (15m/1h/4h/1d), candle formation, top "
+            "drivers, full trade plan (entry/SL/TP1/TP2). 📥 button on "
+            "every card — opens trade in **this section's history**, "
+            "separate from Paper Trader.")
 
         if not reports:
             st.info("Portfolio scan returned no data — try refreshing in a "
@@ -8940,6 +9064,128 @@ if active_section == "🤖 24/7 Agent":
                         else (plan or {}).get("side") or "LONG",
                         plan or {}, float(conviction),
                         key_prefix="agent_pp")
+
+        # =================================================================
+        # SECTION C — 24/7 Agent's OWN open positions + history
+        # (separate from Paper Trader — uses AGENT_BOT_FILE state)
+        # =================================================================
+        st.markdown("---")
+        ag_state = paper_bot.load_state(AGENT_BOT_FILE)
+        ag_open = ag_state.get("open") or []
+        ag_closed = ag_state.get("closed") or []
+        ag_starting = float(ag_state.get("starting_balance") or 20000)
+        ag_balance = float(ag_state.get("balance") or ag_starting)
+        ag_realised = sum(
+            float(c.get("pnl_usd") or 0) for c in ag_closed)
+        # Mark-to-market unrealised P&L on open positions.
+        ag_unreal = 0.0
+        for op in ag_open:
+            try:
+                sym_op = op.get("symbol")
+                side_op = (op.get("side") or "LONG").upper()
+                entry_op = float(op.get("entry") or 0)
+                qty_op = float(op.get("qty") or 0)
+                cur_px = binance_client.get_ticker_price(sym_op) or entry_op
+                if side_op == "LONG":
+                    ag_unreal += (cur_px - entry_op) * qty_op
+                else:
+                    ag_unreal += (entry_op - cur_px) * qty_op
+            except Exception:
+                pass
+
+        st.markdown("### 📊 24/7 Agent — your trades")
+        st.caption(
+            "Trades opened from THIS section. Separate from the "
+            "Paper Trader's history.")
+        stat_cols = st.columns(4)
+        stat_cols[0].metric("Balance", f"${ag_balance:,.2f}",
+                            delta=f"${ag_balance - ag_starting:+,.2f}")
+        stat_cols[1].metric("Realised P&L", f"${ag_realised:+,.2f}")
+        stat_cols[2].metric("Unrealised P&L", f"${ag_unreal:+,.2f}")
+        stat_cols[3].metric("Open / Closed",
+                            f"{len(ag_open)} / {len(ag_closed)}")
+
+        # ----- Open positions (live) -----
+        if ag_open:
+            st.markdown("#### 🔄 Open positions")
+            for op in ag_open:
+                sym_op = op.get("symbol", "?")
+                side_op = (op.get("side") or "LONG").upper()
+                entry_op = float(op.get("entry") or 0)
+                stop_op = float(op.get("stop") or 0)
+                tgt_op = float(op.get("target") or 0)
+                qty_op = float(op.get("qty") or 0)
+                try:
+                    cur_px = (
+                        binance_client.get_ticker_price(sym_op)
+                        or entry_op)
+                except Exception:
+                    cur_px = entry_op
+                pnl = (
+                    (cur_px - entry_op) * qty_op if side_op == "LONG"
+                    else (entry_op - cur_px) * qty_op)
+                pnl_pct = (
+                    (cur_px / entry_op - 1) * 100 if side_op == "LONG"
+                    else (entry_op / cur_px - 1) * 100) if entry_op else 0
+                pnl_color = "#2ed47a" if pnl >= 0 else "#ff5c5c"
+                with st.container(border=True):
+                    cols = st.columns([2, 1.4, 1.4, 1.6, 1.2])
+                    cols[0].markdown(
+                        f"**{op.get('base', sym_op)}** · {sym_op}<br>"
+                        f"<span style='color:#aab;font-size:0.85rem'>"
+                        f"{side_op} · qty {qty_op:.4f}</span>",
+                        unsafe_allow_html=True)
+                    cols[1].markdown(
+                        f"Entry<br><b>{entry_op:g}</b>",
+                        unsafe_allow_html=True)
+                    cols[2].markdown(
+                        f"Mark<br><b>{cur_px:g}</b>",
+                        unsafe_allow_html=True)
+                    cols[3].markdown(
+                        f"P&L<br><b style='color:{pnl_color}'>"
+                        f"${pnl:+,.2f} ({pnl_pct:+.2f}%)</b>",
+                        unsafe_allow_html=True)
+                    if cols[4].button(
+                            "✖ Close",
+                            key=f"agent_close_{sym_op}",
+                            use_container_width=True):
+                        try:
+                            closed = paper_bot.close_position_at(
+                                ag_state, sym_op, cur_px,
+                                "manual_close_agent")
+                            paper_bot.save_state(AGENT_BOT_FILE,
+                                                  ag_state)
+                            if closed:
+                                st.success(
+                                    f"Closed {side_op} {sym_op} at "
+                                    f"{cur_px:g} · P&L "
+                                    f"${closed.get('pnl_usd', 0):+,.2f}")
+                                st.rerun()
+                        except Exception as exc:
+                            st.error(f"Close failed: {exc}")
+        else:
+            st.caption("No open positions yet — click 📥 on any "
+                       "card above to open one.")
+
+        # ----- Closed history -----
+        if ag_closed:
+            st.markdown(
+                f"#### 📜 Closed trades ({len(ag_closed)})")
+            import pandas as pd
+            rows = []
+            for c in ag_closed[-50:][::-1]:  # last 50, newest first
+                rows.append({
+                    "Symbol": c.get("symbol", "?"),
+                    "Side": (c.get("side") or "?").upper(),
+                    "Entry": f"{float(c.get('entry') or 0):g}",
+                    "Exit": f"{float(c.get('exit_price') or 0):g}",
+                    "P&L $": f"{float(c.get('pnl_usd') or 0):+,.2f}",
+                    "P&L %": f"{float(c.get('pnl_pct') or 0):+.2f}%",
+                    "Reason": c.get("close_reason", "—"),
+                })
+            st.dataframe(
+                pd.DataFrame(rows), use_container_width=True,
+                hide_index=True)
 
     _agent_section()
 

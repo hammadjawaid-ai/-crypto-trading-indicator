@@ -30,3 +30,13 @@ screenshot*.png
 
 # Live trading bot state — your REAL trades on Bybit, machine-specific
 .live_bot.json
+
+# 24/7 Agent bot state — separate paper history for the agent section
+.agent_bot.json
+
+# Local test scratch files
+.symbol_test.py
+.watchlist_test.py
+.premium_test.py
+.plan_test.py
+.commit_msg.tmp

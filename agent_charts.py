@@ -277,6 +277,7 @@ def build_compact_chart(
     trade_plan: dict | None = None,
     sr_zones: Any = None,
     height: int = 220,
+    max_bars: int = 120,
 ) -> go.Figure:
     """Build a compact candlestick chart for an agent card.
 
@@ -313,8 +314,8 @@ def build_compact_chart(
         missing = ", ".join(sorted(required - set(df.columns)))
         return _empty_figure(f"missing columns: {missing}", height)
 
-    # Use the most recent bars only — compact card view.
-    plot = df.tail(120)
+    # Use the most recent bars — caller controls how many via `max_bars`.
+    plot = df.tail(max_bars)
 
     fig = make_subplots(
         rows=2, cols=1, shared_xaxes=True,
