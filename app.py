@@ -8400,6 +8400,17 @@ if active_section == "🤖 24/7 Agent":
         return premium_picks_agent.scan_premium_picks(
             scan_n=200, min_conviction=80, max_picks=10)
 
+    # CRITICAL: chart kline fetches must be cached or the page hangs.
+    # Without caching, every page render fans out 30+ uncached
+    # binance_client.get_klines() calls in parallel (expanders render
+    # their body even when collapsed). 600s TTL = 10 min (daily candles
+    # don't need to be fresher than that).
+    @st.cache_data(ttl=600, show_spinner=False)
+    def _load_chart_klines(symbol: str, interval: str = "1d",
+                           limit: int = 365):
+        df = binance_client.get_klines(symbol, interval, limit=limit)
+        return indicators.enrich(df)
+
     # ---- Small render helpers (kept local — no other section uses them) --
     def _agent_conviction_color(tier: str) -> tuple[str, str]:
         """Map a conviction tier to (background, foreground) hex colours.
@@ -8598,15 +8609,12 @@ if active_section == "🤖 24/7 Agent":
                           key_prefix: str) -> None:
         """The expanded "full picture" view inside each collapsible card."""
 
-        # --- 1. Chart — 1-YEAR daily history so the user can read the full
-        # context (was 1h / ~100 bars, too zoomed in). Pan + scroll-zoom
-        # enabled for navigation. The trade plan lines + S/R zones overlay
-        # on top so entries/stops/TPs are anchored to real price action.
+        # --- 1. Chart — 1-YEAR daily history. Uses _load_chart_klines
+        # (cached 10 min) so 30+ simultaneous expander bodies don't melt
+        # the page on first render.
         chart_loaded = False
         try:
-            # 365 daily bars = 1 year. Falls back to whatever Binance has.
-            chart_df = binance_client.get_klines(symbol, "1d", limit=365)
-            chart_df = indicators.enrich(chart_df)
+            chart_df = _load_chart_klines(symbol, "1d", 365)
             fig = agent_charts.build_compact_chart(
                 chart_df, trade_plan=plan, sr_zones=sr_zones,
                 height=420, max_bars=365)
@@ -8992,15 +9000,16 @@ if active_section == "🤖 24/7 Agent":
                     f"· {plan_summary}")
 
                 with st.expander(title, expanded=False):
-                    # Chart
+                    # Chart — use the SAME cached 1-year daily loader so
+                    # the page stays responsive even with 30+ expanders.
                     chart_loaded = False
                     try:
-                        chart_df = binance_client.get_klines(sym, "1h")
-                        chart_df = indicators.enrich(chart_df)
+                        chart_df = _load_chart_klines(sym, "1d", 365)
                         fig = agent_charts.build_compact_chart(
                             chart_df,
                             trade_plan=plan if plan else None,
-                            sr_zones=None, height=280)
+                            sr_zones=None, height=320,
+                            max_bars=365)
                         st.plotly_chart(
                             fig, use_container_width=True,
                             key=f"agent_pp_chart_{sym}",
@@ -9178,10 +9187,11 @@ if active_section == "🤖 24/7 Agent":
                     "Symbol": c.get("symbol", "?"),
                     "Side": (c.get("side") or "?").upper(),
                     "Entry": f"{float(c.get('entry') or 0):g}",
-                    "Exit": f"{float(c.get('exit_price') or 0):g}",
+                    # paper_bot writes "exit" + "exit_reason" (not _price / _reason)
+                    "Exit": f"{float(c.get('exit') or 0):g}",
                     "P&L $": f"{float(c.get('pnl_usd') or 0):+,.2f}",
                     "P&L %": f"{float(c.get('pnl_pct') or 0):+.2f}%",
-                    "Reason": c.get("close_reason", "—"),
+                    "Reason": c.get("exit_reason", "—"),
                 })
             st.dataframe(
                 pd.DataFrame(rows), use_container_width=True,
