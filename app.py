@@ -8509,8 +8509,10 @@ if active_section == "🤖 24/7 Agent":
         "🤖 24/7 Agent · deep analysis on your portfolio + "
         "premium picks from Binance")
     st.caption(
-        "Auto-refresh every 5 minutes. Multi-timeframe "
-        "(15m / 1h / 4h / 1d) conviction scoring across all major signals.")
+        "Auto-refresh every 5 minutes. Multi-timeframe conviction "
+        "scoring on **1h + 4h** across all major signals. **Your 20 "
+        "portfolio coins are the priority** — Binance is tried first, "
+        "Bybit as fallback for the slow/rate-limited cases.")
 
     # ---- Cached loaders ---------------------------------------------------
     # TTL = 900s (15 min) — significantly LONGER than the 300s fragment
@@ -8864,31 +8866,30 @@ if active_section == "🤖 24/7 Agent":
     # ---- The auto-refreshing fragment (5-min cadence per user) ----------
     @st.fragment(run_every=300)
     def _agent_section():
-        # Load all data ONCE so the Best Trades sub-board, the Portfolio
-        # cards and the Premium Picks can all see the same scan results.
-        # Visible spinner — cold scan is ~110s and the user previously
-        # thought the page was broken when it was just running the scan.
+        # Load PORTFOLIO data first — this is the user's top priority.
+        # Cold scan is ~40s with the leaner TF set (1h + 4h only); cached
+        # 15 min after. Premium picks load lazily AFTER portfolio renders
+        # so the user sees their watchlist as fast as possible.
         with st.spinner(
-                "🔍 Scanning 20 portfolio coins across 3 timeframes "
-                "(this takes ~60-90s on first load; cached for 15 min "
-                "after)..."):
+                "🔍 Scanning your 20 portfolio coins on 1h + 4h "
+                "(~30-40s on first load; cached 15 min after)..."):
             try:
                 reports = load_watchlist()
             except Exception as exc:
                 st.error(f"Portfolio scan failed: {exc}")
                 reports = []
-        with st.spinner(
-                "🌐 Scanning top 200 Binance coins for premium picks "
-                "(~30s on first load)..."):
-            try:
-                premium_picks_data = load_premium_picks()
-            except Exception:
-                premium_picks_data = []
+        # Premium picks are SECONDARY (rest of Binance) — load them but
+        # silently fall through if Binance is rate-limited. Cached 15 min.
+        try:
+            premium_picks_data = load_premium_picks()
+        except Exception:
+            premium_picks_data = []
 
-        # ===== SUB-BOARD: 🏆 BEST TRADES (≥80 conviction) ==================
-        # Aggregates HIGH-conviction signals from BOTH the portfolio AND
-        # premium picks into one openable board — mirrors the BEST TRADES
-        # NOW pattern from the Paper Trader.
+        # ===== SUB-BOARD: 🏆 BEST FROM PORTFOLIO (≥75 conviction) ==========
+        # PORTFOLIO-ONLY by design — per user "top priorities of coin
+        # analysis is my coins that I mentioned, else its useless".
+        # Premium-pick non-portfolio picks live in their own section
+        # further down so they never crowd out the user's watchlist.
         best_trades: list[dict] = []
         for rep in reports:
             cons = rep.get("consensus") or {}
@@ -8896,9 +8897,11 @@ if active_section == "🤖 24/7 Agent":
                 score = float(cons.get("score") or 0)
             except Exception:
                 score = 0.0
-            if score < 80 or rep.get("unavailable"):
+            # Lowered floor 80 -> 75 so the user usually sees SOMETHING
+            # firing from their portfolio (was perpetually empty in
+            # weak-conviction markets).
+            if score < 75 or rep.get("unavailable"):
                 continue
-            # Pull strongest-TF plan + sr (same logic as below)
             per_tf = rep.get("per_tf") or {}
             plan = None
             for _tf in ("4h", "1h", "1d", "15m"):
@@ -8928,31 +8931,6 @@ if active_section == "🤖 24/7 Agent":
                 "conviction": float(
                     cons.get("confidence") or score),
             })
-        for pk in premium_picks_data or []:
-            try:
-                score = float(pk.get("conviction_score") or 0)
-            except Exception:
-                score = 0.0
-            if score < 80:
-                continue
-            best_trades.append({
-                "source": "premium",
-                "symbol": pk.get("symbol"),
-                "base": pk.get("base")
-                or (pk.get("symbol") or "").replace("USDT", ""),
-                "side": str(pk.get("side") or "NEUTRAL").upper(),
-                "tier": str(pk.get("tier") or "STRONG").upper(),
-                "score": score,
-                "price_now": pk.get("price_now"),
-                "pct_24h": pk.get("pct_24h"),
-                "plan": pk.get("trade_plan") or {},
-                "sr_zones": None,
-                "per_tf": {},
-                "top_signal": (pk.get("top_3_reasons") or [""])[0],
-                "forming": False,
-                "conviction": score,
-            })
-        # Sort high-to-low by score.
         best_trades.sort(key=lambda x: x["score"], reverse=True)
 
         st.markdown(
@@ -8962,16 +8940,17 @@ if active_section == "🤖 24/7 Agent":
             "background:linear-gradient(135deg,#ffd700,#ff006e,#8b5cf6);"
             "-webkit-background-clip:text;-webkit-text-fill-color:"
             "transparent;background-clip:text;letter-spacing:-0.02em'>"
-            "🏆 BEST TRADES (≥80 conviction)</span>"
+            "🏆 BEST FROM YOUR PORTFOLIO</span>"
             f"<span style='color:#aab;font-size:0.84rem'>"
-            f"{len(best_trades)} signals firing · click 📥 to open</span>"
+            f"{len(best_trades)} of 20 firing at ≥75 · click 📥 to open</span>"
             "</div>",
             unsafe_allow_html=True)
         if not best_trades:
             st.info(
-                "No high-conviction trades (≥80) right now. Scroll "
-                "down to see the full 20-coin portfolio analysis + "
-                "any premium picks below.")
+                "No portfolio coin is firing ≥75 conviction right now. "
+                "All 20 coins still listed below — scan them to see "
+                "which are closest to triggering. Premium picks (rest "
+                "of Binance) at the bottom.")
         else:
             for bt in best_trades:
                 _f = _plan_fields(bt["plan"])
@@ -9002,10 +8981,10 @@ if active_section == "🤖 24/7 Agent":
         st.caption(
             "**Every coin in your watchlist with deep analysis.** Click "
             "any to expand: 1-year daily chart with pan/scroll-zoom, "
-            "per-TF breakdown (15m/1h/4h/1d), candle formation, top "
-            "drivers, full trade plan (entry/SL/TP1/TP2). 📥 button on "
-            "every card — opens trade in **this section's history**, "
-            "separate from Paper Trader.")
+            "per-TF breakdown (1h / 4h), candle formation, top drivers, "
+            "full trade plan (entry/SL/TP1/TP2). 📥 button on every "
+            "card — opens trade in **this section's history**, separate "
+            "from Paper Trader.")
 
         if not reports:
             st.info("Portfolio scan returned no data — try refreshing in a "
@@ -9248,7 +9227,7 @@ if active_section == "🤖 24/7 Agent":
         stat_cols[3].metric("Open / Closed",
                             f"{len(ag_open)} / {len(ag_closed)}")
 
-        # ----- Open positions (live) -----
+        # ----- Open positions (live, with chart) -----
         if ag_open:
             st.markdown("#### 🔄 Open positions")
             for op in ag_open:
@@ -9257,6 +9236,7 @@ if active_section == "🤖 24/7 Agent":
                 entry_op = float(op.get("entry") or 0)
                 stop_op = float(op.get("stop") or 0)
                 tgt_op = float(op.get("target") or 0)
+                tgt2_op = float(op.get("target_2") or 0)
                 qty_op = float(op.get("qty") or 0)
                 try:
                     cur_px = (
@@ -9272,6 +9252,7 @@ if active_section == "🤖 24/7 Agent":
                     else (entry_op / cur_px - 1) * 100) if entry_op else 0
                 pnl_color = "#2ed47a" if pnl >= 0 else "#ff5c5c"
                 with st.container(border=True):
+                    # ROW 1 — metrics
                     cols = st.columns([2, 1.4, 1.4, 1.6, 1.2])
                     cols[0].markdown(
                         f"**{op.get('base', sym_op)}** · {sym_op}<br>"
@@ -9306,6 +9287,44 @@ if active_section == "🤖 24/7 Agent":
                                 st.rerun()
                         except Exception as exc:
                             st.error(f"Close failed: {exc}")
+
+                    # ROW 2 — Paper-Trader-style chart with entry/SL/TP1/TP2
+                    # lines. Uses the cached chart kline loader so this
+                    # stays fast across re-renders.
+                    try:
+                        op_chart_df = _agent_load_chart_klines(
+                            sym_op, "1d", 365)
+                        if op_chart_df is not None and len(op_chart_df) > 0:
+                            op_plan = {
+                                "side": side_op,
+                                "entry": entry_op,
+                                "stop": stop_op,
+                                "tp1": tgt_op,
+                                "tp2": tgt2_op,
+                            }
+                            op_fig = agent_charts.build_compact_chart(
+                                op_chart_df, trade_plan=op_plan,
+                                sr_zones=None, height=260, max_bars=365)
+                            st.plotly_chart(
+                                op_fig, use_container_width=True,
+                                key=f"agent_pos_chart_{sym_op}",
+                                config={
+                                    "scrollZoom": True,
+                                    "displayModeBar": True,
+                                    "displaylogo": False,
+                                    "modeBarButtonsToRemove": [
+                                        "select2d", "lasso2d",
+                                        "autoScale2d"],
+                                })
+                            st.caption(
+                                f"📅 1-year daily chart · Entry "
+                                f"`{entry_op:g}` · SL `{stop_op:g}` · "
+                                f"TP1 `{tgt_op:g}`"
+                                + (f" · TP2 `{tgt2_op:g}`"
+                                   if tgt2_op > 0 else "")
+                                + " · drag to pan · scroll to zoom")
+                    except Exception as exc:
+                        st.caption(f"Chart unavailable: {exc}")
         else:
             st.caption("No open positions yet — click 📥 on any "
                        "card above to open one.")

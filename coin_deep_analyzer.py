@@ -764,9 +764,9 @@ def analyze(symbol: str, tf: str, loaders: dict | None = None) -> dict:
 # ---------------------------------------------------------------------------
 # Public API — multi-TF aggregation
 # ---------------------------------------------------------------------------
-_MULTI_TFS: tuple[str, ...] = ("1h", "4h", "1d")
+_MULTI_TFS: tuple[str, ...] = ("1h", "4h")
 _TF_BLEND_WEIGHTS: dict[str, float] = {
-    "1h": 0.35, "4h": 0.35, "1d": 0.30,
+    "1h": 0.50, "4h": 0.50,
 }
 
 

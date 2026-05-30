@@ -51,11 +51,12 @@ PORTFOLIO_COINS: list[str] = [
 ]
 
 # Timeframes scanned per coin. Matches the four-TF strip the design uses.
-# 15m dropped from the scan — too noisy (intra-hour swings flip the
-# side every few minutes) AND it was the slowest contributor to the
-# cold-cache scan time (was 110s w/ 4 TFs, now ~75-80s with 3). Users
-# typically open trades on 1h+ anyway.
-_TIMEFRAMES: tuple[str, ...] = ("1h", "4h", "1d")
+# Down to 1h + 4h only. Original was 4 TFs (15m/1h/4h/1d); 15m was
+# noise, 1d was slow + only changes once a day. The 1-year daily
+# CHART (displayed under each card) gives the user the daily context
+# visually. 1h + 4h are the actionable trading timeframes — keeping
+# just those cuts cold-scan time another ~33% (60s -> 40s).
+_TIMEFRAMES: tuple[str, ...] = ("1h", "4h")
 
 # TF weights for the blended consensus — same shape used everywhere else
 # in the codebase (early_momentum.aggregate_scores, forecast.predict_one),

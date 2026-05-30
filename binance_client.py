@@ -124,19 +124,86 @@ def get_ticker_price(symbol: str) -> float | None:
         return None
 
 
+_BYBIT_TF = {
+    "1m": "1", "3m": "3", "5m": "5", "15m": "15", "30m": "30",
+    "1h": "60", "2h": "120", "4h": "240", "6h": "360",
+    "12h": "720", "1d": "D", "1w": "W",
+}
+
+
+def _bybit_klines(symbol: str, interval: str, limit: int) -> pd.DataFrame:
+    """Fallback klines fetch via Bybit's public v5 endpoint.
+
+    No auth required. Returns a DataFrame matching the Binance get_klines
+    output shape — same columns, same UTC datetime index, so callers
+    don't need to special-case the source. Taker_base is NOT available on
+    Bybit's kline endpoint, so we approximate it as volume * 0.5 (neutral
+    buy-pressure assumption) — the only downstream consumer (CVD
+    derivation in indicators.enrich) will produce a neutral signal when
+    we don't know the real split, which is safer than crashing.
+    """
+    tf = _BYBIT_TF.get(interval)
+    if tf is None:
+        raise BinanceError(f"Bybit fallback: interval {interval} unsupported")
+    url = "https://api.bybit.com/v5/market/kline"
+    params = {
+        "category": "linear", "symbol": symbol,
+        "interval": tf, "limit": min(int(limit), 1000),
+    }
+    resp = _session.get(url, params=params, timeout=config.HTTP_TIMEOUT)
+    if resp.status_code != 200:
+        raise BinanceError(
+            f"Bybit fallback HTTP {resp.status_code} for {symbol}")
+    data = (resp.json() or {}).get("result", {}).get("list") or []
+    if not data:
+        raise BinanceError(f"Bybit fallback: no klines for {symbol}")
+    # Bybit returns NEWEST first; reverse to oldest-first (Binance order).
+    data = list(reversed(data))
+    rows = []
+    for row in data:
+        try:
+            o, h, l, c, v = (float(row[1]), float(row[2]), float(row[3]),
+                             float(row[4]), float(row[5]))
+            qv = float(row[6]) if len(row) > 6 else v * c
+            rows.append({
+                "open_time": pd.to_datetime(int(row[0]), unit="ms", utc=True),
+                "open": o, "high": h, "low": l, "close": c,
+                "volume": v, "quote_volume": qv,
+                "trades": 0.0,
+                # Approximate taker_base — see docstring.
+                "taker_base": v * 0.5,
+            })
+        except (ValueError, IndexError, TypeError):
+            continue
+    if not rows:
+        raise BinanceError(f"Bybit fallback: malformed data for {symbol}")
+    df = pd.DataFrame(rows).set_index("open_time")
+    num = ["open", "high", "low", "close", "volume", "quote_volume",
+           "trades", "taker_base"]
+    return df[num]
+
+
 def get_klines(symbol: str, interval: str,
                limit: int = config.KLINE_LIMIT) -> pd.DataFrame:
     """Return OHLCV candles for a symbol/interval as a DataFrame.
 
+    Tries Binance first; falls back to Bybit's public v5 endpoint if
+    Binance is rate-limited or unavailable. Same return shape regardless
+    of source.
+
     Index is the candle open time (UTC). Columns: open, high, low, close,
     volume, quote_volume, trades.
     """
-    raw = _get(
-        "/api/v3/klines",
-        {"symbol": symbol, "interval": interval, "limit": limit},
-    )
-    if not raw:
-        raise BinanceError(f"No klines for {symbol} {interval}")
+    try:
+        raw = _get(
+            "/api/v3/klines",
+            {"symbol": symbol, "interval": interval, "limit": limit},
+        )
+        if not raw:
+            raise BinanceError(f"No klines for {symbol} {interval}")
+    except BinanceError:
+        # Binance failed (rate-limit, network, etc.) — try Bybit.
+        return _bybit_klines(symbol, interval, limit)
 
     cols = [
         "open_time", "open", "high", "low", "close", "volume",
