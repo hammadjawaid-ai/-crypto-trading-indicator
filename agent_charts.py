@@ -75,8 +75,16 @@ def _resolve_ema_columns(df: pd.DataFrame) -> dict[str, str]:
     return mapping
 
 
-def _apply_dark_theme(fig: go.Figure, height: int) -> None:
-    """Apply the shared dark-theme look-and-feel."""
+def _apply_dark_theme(fig: go.Figure, height: int,
+                      enable_zoom_controls: bool = True) -> None:
+    """Apply the shared dark-theme look-and-feel.
+
+    enable_zoom_controls: when True (default), adds:
+      - dragmode='pan' (more intuitive than 'zoom' on touch + scroll)
+      - mouse-wheel zoom (via xaxis fixedrange=False)
+      - crosshair spikes that follow the cursor
+      - clean hover tooltip
+    """
     fig.update_layout(
         template="plotly_dark",
         height=height,
@@ -87,13 +95,26 @@ def _apply_dark_theme(fig: go.Figure, height: int) -> None:
         showlegend=False,
         xaxis_rangeslider_visible=False,
         hovermode="x unified",
+        # User-friendly zoom: drag pans, scroll zooms, double-click resets.
+        dragmode="pan" if enable_zoom_controls else "zoom",
     )
-    fig.update_xaxes(
-        gridcolor=GRID_COLOR, zeroline=False, showspikes=False,
-        showline=False)
-    fig.update_yaxes(
-        gridcolor=GRID_COLOR, zeroline=False, showspikes=False,
-        showline=False)
+    # Crosshair spikes — visible vertical/horizontal cursor lines that make
+    # reading the chart at a specific time / price natural.
+    x_kwargs = dict(
+        gridcolor=GRID_COLOR, zeroline=False,
+        showline=False, fixedrange=False)
+    y_kwargs = dict(
+        gridcolor=GRID_COLOR, zeroline=False,
+        showline=False, fixedrange=False, side="right")
+    if enable_zoom_controls:
+        x_kwargs.update(
+            showspikes=True, spikemode="across", spikesnap="cursor",
+            spikecolor="#5b8eff", spikethickness=1, spikedash="dot")
+        y_kwargs.update(
+            showspikes=True, spikemode="across", spikesnap="cursor",
+            spikecolor="#5b8eff", spikethickness=1, spikedash="dot")
+    fig.update_xaxes(**x_kwargs)
+    fig.update_yaxes(**y_kwargs)
 
 
 def _add_hline(

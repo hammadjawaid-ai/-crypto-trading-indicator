@@ -8385,16 +8385,15 @@ if active_section == "🤖 24/7 Agent":
         return watchlist_agent.analyze_portfolio()
 
     @st.cache_data(ttl=180, show_spinner=False)
-    def load_premium_picks(_cache_version: int = 2):
+    def load_premium_picks(_cache_version: int = 3):
         """3-min cached premium-pick scan across the rest of Binance.
 
-        Lowered min_conviction 85 -> 75. The 85 floor was too strict for
-        BEAR/CHOP regimes — board was perpetually empty. 75 still maps
-        to STRONG+ tier (per the conviction tier formula) so picks
-        remain genuinely premium.
+        min_conviction = 80 — per user. Stays in the STRONG+ tier so
+        picks remain genuinely premium, but doesn't perpetually empty
+        the board in BEAR / CHOP regimes the way 85 did.
         """
         return premium_picks_agent.scan_premium_picks(
-            scan_n=200, min_conviction=75, max_picks=10)
+            scan_n=200, min_conviction=80, max_picks=10)
 
     # ---- Small render helpers (kept local — no other section uses them) --
     def _agent_conviction_color(tier: str) -> tuple[str, str]:
@@ -8448,61 +8447,294 @@ if active_section == "🤖 24/7 Agent":
             parts.append(_render_chip(label, bg, fg))
         return "".join(parts)
 
-    def _valid_trade_plan(plan: dict | None) -> bool:
-        if not isinstance(plan, dict):
-            return False
-        try:
-            entry = float(plan.get("entry") or 0)
-            stop = float(plan.get("stop") or 0)
-            target = float(plan.get("target") or plan.get("target_1") or 0)
-            return entry > 0 and stop > 0 and target > 0
-        except Exception:
-            return False
+    def _plan_fields(plan: dict | None) -> dict:
+        """Normalise a trade plan dict to consistent field names.
 
-    def _plan_line(plan: dict) -> str:
-        """Compact entry / stop / target / R:R line for a card."""
+        Accepts both the coin_deep_analyzer shape (entry/stop/tp1/tp2) and
+        the legacy alert shape (entry_low/stop/target/target_2). Returns
+        {entry, stop, tp1, tp2, rr, side, valid_rr (bool)} with safe
+        defaults.
+        """
         if not isinstance(plan, dict):
-            return ""
+            return {"entry": 0.0, "stop": 0.0, "tp1": 0.0, "tp2": 0.0,
+                    "rr": 0.0, "side": "", "valid_rr": False}
         try:
-            entry = float(plan.get("entry") or 0)
+            entry = float(plan.get("entry") or plan.get("entry_low") or 0)
             stop = float(plan.get("stop") or 0)
-            target = float(plan.get("target") or plan.get("target_1") or 0)
+            tp1 = float(plan.get("tp1") or plan.get("target")
+                        or plan.get("target_1") or 0)
+            tp2 = float(plan.get("tp2") or plan.get("target_2") or 0)
         except Exception:
-            return ""
+            return {"entry": 0.0, "stop": 0.0, "tp1": 0.0, "tp2": 0.0,
+                    "rr": 0.0, "side": "", "valid_rr": False}
         rr = plan.get("rr") or plan.get("risk_reward")
-        if rr is None and entry > 0 and stop > 0 and target > 0:
+        if rr is None and entry > 0 and stop > 0 and tp1 > 0:
             risk = abs(entry - stop)
-            reward = abs(target - entry)
+            reward = abs(tp1 - entry)
             rr = (reward / risk) if risk > 0 else 0.0
         try:
             rr_val = float(rr) if rr is not None else 0.0
         except Exception:
             rr_val = 0.0
+        return {
+            "entry": entry, "stop": stop, "tp1": tp1, "tp2": tp2,
+            "rr": rr_val, "side": str(plan.get("side") or ""),
+            "valid_rr": rr_val >= 1.0 and entry > 0 and stop > 0
+            and tp1 > 0,
+        }
+
+    def _has_plan(plan: dict | None) -> bool:
+        f = _plan_fields(plan)
+        return f["entry"] > 0 and f["stop"] > 0 and f["tp1"] > 0
+
+    def _plan_summary(plan: dict | None) -> str:
+        """One-line summary for collapsed expander title."""
+        f = _plan_fields(plan)
+        if not _has_plan(plan):
+            return "no plan"
+        # Pct off entry for SL / TP for at-a-glance reading
+        entry = f["entry"]
+        sl_pct = ((f["stop"] - entry) / entry * 100) if entry else 0.0
+        tp1_pct = ((f["tp1"] - entry) / entry * 100) if entry else 0.0
+        tp2_pct = ((f["tp2"] - entry) / entry * 100) if entry else 0.0
+        tp2_part = (f" · TP2 {tp2_pct:+.2f}%" if f["tp2"] > 0 else "")
         return (
-            f"Entry {entry:g} · Stop {stop:g} · Target {target:g} "
-            f"· R:R {rr_val:.2f}")
+            f"Entry {entry:g} · SL {sl_pct:+.2f}% · "
+            f"TP1 {tp1_pct:+.2f}%{tp2_part} · R:R {f['rr']:.2f}")
 
     def _open_plan_as_alert(symbol: str, base: str, side: str,
                             plan: dict, conviction: float) -> dict:
-        """Convert a deep-analyzer plan into a paper_bot alert dict."""
+        """Convert a deep-analyzer plan into a paper_bot alert dict.
+
+        Maps coin_deep_analyzer's tp1/tp2 -> paper_bot's target/target_2.
+        """
+        f = _plan_fields(plan)
         return {
             "symbol": symbol,
             "base": base,
             "side": side,
-            "entry_low": float(plan.get("entry") or 0),
-            "stop": float(plan.get("stop") or 0),
-            "target": float(plan.get("target")
-                            or plan.get("target_1") or 0),
-            "target_2": float(plan.get("target_2") or 0),
+            "entry_low": f["entry"],
+            "stop": f["stop"],
+            "target": f["tp1"],
+            "target_2": f["tp2"] if f["tp2"] > 0 else 0.0,
             "confidence": int(round(float(conviction or 0))),
-            "rr": float(plan.get("rr") or plan.get("risk_reward") or 0.0),
+            "rr": f["rr"],
         }
+
+    # ---- Tier emoji prefixes for the expander titles (more scannable) ----
+    def _tier_emoji(tier: str) -> str:
+        t = str(tier or "").upper()
+        return {
+            "MAX": "🟣",
+            "HIGH": "🔴",
+            "STRONG": "🟢",
+            "STANDARD": "🔵",
+            "LOW": "🟡",
+            "WEAK": "🟡",
+        }.get(t, "⚪")
+
+    def _side_emoji(side: str) -> str:
+        s = str(side or "").upper()
+        return "🟢" if s == "LONG" else "🩸" if s == "SHORT" else "⚪"
+
+    def _strength_bar(score: float) -> str:
+        """ASCII strength bar — used in the collapsed title for quick read."""
+        try:
+            n = max(0, min(10, int(round(float(score) / 10))))
+        except Exception:
+            n = 5
+        return "▰" * n + "▱" * (10 - n)
+
+    def _render_open_button(symbol: str, base: str, side: str,
+                            plan: dict, conviction: float,
+                            key_prefix: str) -> None:
+        """Open-paper-position button — works on EVERY card now.
+
+        The conviction tier badge on each card tells the user the quality
+        of the signal; the user decides whether to size up. R:R / `valid`
+        flag still warns the user when the plan is marginal.
+        """
+        f = _plan_fields(plan)
+        if not _has_plan(plan):
+            st.caption("📥 button unavailable — no trade plan generated.")
+            return
+        if side not in ("LONG", "SHORT"):
+            # NEUTRAL on consensus but plan side may still be valid (we
+            # default NEUTRAL plans to LONG/SHORT in coin_deep_analyzer).
+            side = f["side"] or "LONG"
+        rr_warning = (
+            "⚠️ Marginal R:R (<1.5) — speculative entry."
+            if f["rr"] < 1.5 else "")
+        if rr_warning:
+            st.caption(rr_warning)
+        if st.button(
+                f"📥 Open {side} paper position",
+                key=f"{key_prefix}_open_{symbol}",
+                use_container_width=False):
+            try:
+                pb_state = paper_bot.load_state(PAPER_BOT_FILE)
+                alert = _open_plan_as_alert(
+                    symbol, base, side, plan, conviction)
+                pos = paper_bot.open_position(
+                    pb_state, alert, alert["entry_low"])
+                paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                if pos:
+                    st.success(
+                        f"Opened {side} {symbol} at "
+                        f"{alert['entry_low']:g}.")
+                else:
+                    st.warning(
+                        "Position not opened — Paper Trader rejected "
+                        "(likely existing position or insufficient "
+                        "margin). Check the Paper Trader tab.")
+            except Exception as exc:
+                st.error(f"Open failed: {exc}")
+
+    def _render_deep_view(symbol: str, base: str, side: str,
+                          tier: str, score: float,
+                          per_tf: dict, top_signal: str,
+                          forming: bool, plan: dict | None,
+                          sr_zones: Any, conviction: float,
+                          key_prefix: str) -> None:
+        """The expanded "full picture" view inside each collapsible card."""
+
+        # --- 1. Chart — pan + scroll-zoom enabled, 1h candles + plan lines
+        chart_loaded = False
+        try:
+            chart_df = binance_client.get_klines(symbol, "1h")
+            chart_df = indicators.enrich(chart_df)
+            fig = agent_charts.build_compact_chart(
+                chart_df, trade_plan=plan, sr_zones=sr_zones,
+                height=320)
+            st.plotly_chart(
+                fig, use_container_width=True,
+                key=f"{key_prefix}_chart_{symbol}",
+                config={
+                    "scrollZoom": True,
+                    "displayModeBar": True,
+                    "displaylogo": False,
+                    "modeBarButtonsToRemove": [
+                        "select2d", "lasso2d", "autoScale2d"],
+                })
+            chart_loaded = True
+        except Exception as exc:
+            st.caption(f"Chart unavailable: {exc}")
+
+        if chart_loaded:
+            st.caption(
+                "💡 Drag to pan · scroll to zoom · "
+                "double-click to reset")
+
+        # --- 2. Per-TF breakdown
+        st.markdown("#### 📊 Per-timeframe breakdown")
+        tf_rows = []
+        for tf in ("15m", "1h", "4h", "1d"):
+            r = (per_tf or {}).get(tf) or {}
+            tf_side = str(r.get("side") or "—").upper()
+            tf_score = r.get("score") or r.get("conviction_score") or 0
+            tf_tier = str(r.get("tier") or r.get("confidence_tier")
+                          or "—").upper()
+            try:
+                tf_score_f = float(tf_score)
+            except Exception:
+                tf_score_f = 0.0
+            tf_rows.append({
+                "TF": tf,
+                "Side": tf_side,
+                "Score": f"{tf_score_f:.0f}",
+                "Tier": tf_tier,
+                "Strength": _strength_bar(tf_score_f),
+            })
+        st.table(tf_rows)
+
+        # --- 3. Drivers / candle formation — pull from the strongest TF
+        st.markdown("#### 🕯️ Candle formation & top drivers")
+        # Find a TF dict that has drivers/reasons
+        best_tf_dict = None
+        for tf in ("1h", "4h", "15m", "1d"):
+            r = (per_tf or {}).get(tf) or {}
+            if r.get("drivers") or r.get("reasons"):
+                best_tf_dict = r
+                break
+        if best_tf_dict:
+            drivers = best_tf_dict.get("drivers") or []
+            reasons = best_tf_dict.get("reasons") or []
+            if drivers:
+                st.caption("**Top drivers (1h):**")
+                for d in drivers[:5]:
+                    if isinstance(d, dict):
+                        lane = d.get("lane", "?")
+                        vote = d.get("vote", 0)
+                        note = d.get("note", "")
+                        st.markdown(
+                            f"- **{lane}** ({vote:+.1f}) — {note}")
+                    else:
+                        st.markdown(f"- {d}")
+            if reasons:
+                st.caption("**Why:**")
+                for r in reasons[:6]:
+                    st.markdown(f"- {r}")
+        else:
+            st.caption(
+                "No structured driver data available for this coin "
+                "right now.")
+
+        if top_signal:
+            st.caption(f"**Top signal:** {top_signal}")
+        if forming:
+            st.markdown(
+                _render_chip(
+                    "🔭 FORECAST FORMING — leading signals diverge "
+                    "from current trend",
+                    "rgba(245,166,35,0.18)", "#f5a623"),
+                unsafe_allow_html=True)
+
+        # --- 4. Trade plan — full detail
+        if plan and _has_plan(plan):
+            st.markdown("#### 🎯 Trade plan")
+            f = _plan_fields(plan)
+            entry = f["entry"]
+            sl_pct = (
+                (f["stop"] - entry) / entry * 100) if entry else 0.0
+            tp1_pct = (
+                (f["tp1"] - entry) / entry * 100) if entry else 0.0
+            tp2_pct = (
+                (f["tp2"] - entry) / entry * 100
+                if (entry and f["tp2"] > 0) else 0.0)
+            rr2 = 0.0
+            if entry > 0 and f["stop"] > 0:
+                risk = abs(entry - f["stop"])
+                if risk > 0 and f["tp2"] > 0:
+                    rr2 = abs(f["tp2"] - entry) / risk
+            st.markdown(
+                f"- **Side:** {side}  \n"
+                f"- **Entry:** `{entry:g}`  \n"
+                f"- **Stop:** `{f['stop']:g}` (`{sl_pct:+.2f}%`)  \n"
+                f"- **TP1:** `{f['tp1']:g}` (`{tp1_pct:+.2f}%`) — "
+                f"R:R **{f['rr']:.2f}**"
+                + (f"  \n- **TP2:** `{f['tp2']:g}` (`{tp2_pct:+.2f}%`) — "
+                   f"R:R **{rr2:.2f}**"
+                   if f["tp2"] > 0 else ""))
+        else:
+            st.caption("No trade plan available.")
+
+        # --- 5. Open button
+        _render_open_button(
+            symbol, base, side if side in ("LONG", "SHORT")
+            else (plan or {}).get("side") or "LONG",
+            plan or {}, conviction, key_prefix)
 
     # ---- The auto-refreshing fragment ------------------------------------
     @st.fragment(run_every=180)
     def _agent_section():
-        # ===== SUBSECTION A — Your Portfolio (19 coins) ====================
-        st.markdown("### 💎 Your Portfolio (19 coins)")
+        # ===== SUBSECTION A — Your Portfolio (20 coins) ====================
+        st.markdown("### 💎 Your Portfolio (20 coins)")
+        st.caption(
+            "Each coin shows a one-line summary — **click to expand for "
+            "full deep analysis**: chart with pan/scroll-zoom, per-TF "
+            "breakdown, candle formation, top drivers, and a full trade "
+            "plan with entry / SL / TP1 / TP2. **📥 button on every "
+            "card** — conviction tier tells you the quality.")
         try:
             reports = load_watchlist()
         except Exception as exc:
@@ -8528,130 +8760,68 @@ if active_section == "🤖 24/7 Agent":
                 forming = bool(rep.get("forecast_forming"))
                 unavailable = bool(rep.get("unavailable"))
 
-                # Card wrapper — visually consistent with other premium cards.
-                with st.container(border=True):
-                    head_cols = st.columns([2.6, 1.6, 1.6, 2.2])
-                    # 1. Coin + price + 24h
-                    try:
-                        price_str = (f"${float(price_now):,.4f}"
-                                     if price_now is not None else "—")
-                    except Exception:
-                        price_str = "—"
-                    try:
-                        pct_str = (f"{float(pct_24h):+.2f}%"
-                                   if pct_24h is not None else "—")
-                    except Exception:
-                        pct_str = "—"
-                    head_cols[0].markdown(
-                        f"**{base}** · {symbol}<br>"
-                        f"<span style='color:#cfd6e0;font-size:0.9rem'>"
-                        f"{price_str} · {pct_str}</span>",
-                        unsafe_allow_html=True)
+                # Pull plan + sr from the strongest TF available
+                plan = None
+                for _tf in ("4h", "1h", "1d", "15m"):
+                    cand = per_tf.get(_tf) or {}
+                    if isinstance(cand, dict) and cand.get("trade_plan"):
+                        plan = cand.get("trade_plan")
+                        break
+                sr_zones = None
+                for _tf in ("1h", "4h", "1d", "15m"):
+                    cand = per_tf.get(_tf) or {}
+                    if isinstance(cand, dict) and cand.get(
+                            "support_resistance"):
+                        sr_zones = cand.get("support_resistance")
+                        break
 
-                    # 2. Conviction badge
-                    bg_t, fg_t = _agent_conviction_color(tier)
-                    head_cols[1].markdown(
-                        _render_chip(f"{tier} · {float(score):.0f}",
-                                     bg_t, fg_t),
-                        unsafe_allow_html=True)
+                # Build the collapsed-title summary line
+                try:
+                    score_f = float(score)
+                except Exception:
+                    score_f = 50.0
+                try:
+                    price_str = (f"${float(price_now):,.4f}"
+                                 if price_now is not None else "—")
+                except Exception:
+                    price_str = "—"
+                try:
+                    pct_f = float(pct_24h) if pct_24h is not None else 0.0
+                    pct_str = f"{pct_f:+.2f}%"
+                except Exception:
+                    pct_str = "—"
 
-                    # 3. Side chip
-                    bg_s, fg_s = _agent_side_color(side)
-                    head_cols[2].markdown(
-                        _render_chip(side, bg_s, fg_s),
-                        unsafe_allow_html=True)
+                plan_summary = _plan_summary(plan)
+                forming_flag = " 🔭" if forming else ""
+                title = (
+                    f"{_tier_emoji(tier)} **{base}** "
+                    f"· {_side_emoji(side)} {side} "
+                    f"· {tier} {score_f:.0f} "
+                    f"· {price_str} ({pct_str}){forming_flag} "
+                    f"· {plan_summary}")
 
-                    # 4. Per-TF chips
-                    head_cols[3].markdown(
-                        _per_tf_chip_row(per_tf), unsafe_allow_html=True)
-
+                with st.expander(title, expanded=False):
                     if unavailable:
-                        st.caption(
-                            f"⚠️ {symbol} unavailable on Binance — skipping "
-                            "deep analysis.")
+                        st.warning(
+                            f"⚠️ {symbol} unavailable on Binance right "
+                            f"now — deep analysis skipped.")
                         continue
-
-                    if forming:
-                        st.markdown(
-                            _render_chip(
-                                "🔭 FORECAST FORMING — early entry signal",
-                                "rgba(245,166,35,0.18)", "#f5a623"),
-                            unsafe_allow_html=True)
-
-                    if top_signal:
-                        st.caption(f"Top signal: {top_signal}")
-
-                    # Trade plan — prefer the canonical engine's plan when
-                    # available (sits on the strongest TF). Falls back to
-                    # the 1h plan if the canonical block wasn't returned.
-                    plan = None
-                    components = (per_tf.get("1h") or {}).get(
-                        "components") if isinstance(
-                            per_tf.get("1h"), dict) else None
-                    # canonical engine stores plan + sr on the per-TF dict
-                    for _tf in ("4h", "1h", "1d", "15m"):
-                        cand = per_tf.get(_tf) or {}
-                        if isinstance(cand, dict) and cand.get("trade_plan"):
-                            plan = cand.get("trade_plan")
-                            break
-                    sr_zones = None
-                    for _tf in ("1h", "4h", "1d", "15m"):
-                        cand = per_tf.get(_tf) or {}
-                        if isinstance(cand, dict) and cand.get(
-                                "support_resistance"):
-                            sr_zones = cand.get("support_resistance")
-                            break
-
-                    # Compact chart from the 1h candle frame.
-                    try:
-                        chart_df = binance_client.get_klines(symbol, "1h")
-                        chart_df = indicators.enrich(chart_df)
-                        fig = agent_charts.build_compact_chart(
-                            chart_df, trade_plan=plan, sr_zones=sr_zones,
-                            height=240)
-                        st.plotly_chart(
-                            fig, use_container_width=True,
-                            key=f"agent_wl_chart_{symbol}")
-                    except Exception as exc:
-                        st.caption(f"Chart unavailable: {exc}")
-
-                    plan_ok = _valid_trade_plan(plan)
-                    if plan_ok:
-                        st.caption(_plan_line(plan or {}))
-
-                    # 📥 Open button — STRONG+ and a valid plan only.
-                    open_tiers = {"STRONG", "HIGH", "MAX"}
-                    if tier in open_tiers and plan_ok and side in (
-                            "LONG", "SHORT"):
-                        btn_key = f"agent_wl_open_{symbol}"
-                        if st.button(
-                                "📥 Open paper position", key=btn_key,
-                                use_container_width=False):
-                            try:
-                                pb_state = paper_bot.load_state(
-                                    PAPER_BOT_FILE)
-                                alert = _open_plan_as_alert(
-                                    symbol, base, side, plan or {},
-                                    consensus.get("confidence")
-                                    or float(score))
-                                pos = paper_bot.open_position(
-                                    pb_state, alert, alert["entry_low"])
-                                paper_bot.save_state(PAPER_BOT_FILE,
-                                                    pb_state)
-                                if pos:
-                                    st.success(
-                                        f"Opened {side} {symbol} at "
-                                        f"{alert['entry_low']:g}.")
-                                else:
-                                    st.warning(
-                                        "Position not opened — check the "
-                                        "Paper Trader for an existing "
-                                        "position or invalid plan.")
-                            except Exception as exc:
-                                st.error(f"Open failed: {exc}")
+                    _render_deep_view(
+                        symbol=symbol, base=base, side=side,
+                        tier=tier, score=score_f,
+                        per_tf=per_tf, top_signal=top_signal,
+                        forming=forming, plan=plan,
+                        sr_zones=sr_zones,
+                        conviction=float(
+                            consensus.get("confidence") or score_f),
+                        key_prefix="agent_wl")
 
         # ===== SUBSECTION B — Premium Picks (rest of Binance) ==============
         st.markdown("### 🌐 Premium Picks (rest of Binance)")
+        st.caption(
+            "Top 10 picks from the **top-200 Binance USDT-perp** universe "
+            "outside your portfolio. Conviction ≥**80** floor. Empty if "
+            "nothing meets the bar.")
         try:
             picks = load_premium_picks()
         except Exception as exc:
@@ -8661,7 +8831,7 @@ if active_section == "🤖 24/7 Agent":
         if not picks:
             st.info(
                 "No premium picks right now — system is waiting for "
-                "conviction ≥85 setups outside your portfolio.")
+                "conviction ≥80 setups outside your portfolio.")
         else:
             for pk in picks[:10]:
                 sym = pk.get("symbol") or ""
@@ -8674,91 +8844,102 @@ if active_section == "🤖 24/7 Agent":
                 plan = pk.get("trade_plan") or {}
                 reasons = pk.get("top_3_reasons") or []
 
-                with st.container(border=True):
-                    cols = st.columns([2.4, 1.4, 1.4, 2.4])
-                    try:
-                        price_str = (f"${float(price_now):,.4f}"
-                                     if price_now else "—")
-                    except Exception:
-                        price_str = "—"
-                    try:
-                        pct_str = f"{float(pct_24h):+.2f}%"
-                    except Exception:
-                        pct_str = "—"
-                    cols[0].markdown(
-                        f"**{base}** · {sym}<br>"
-                        f"<span style='color:#cfd6e0;font-size:0.9rem'>"
-                        f"{price_str} · {pct_str}</span>",
-                        unsafe_allow_html=True)
+                try:
+                    score_f = float(conviction)
+                except Exception:
+                    score_f = 0.0
+                try:
+                    price_str = (f"${float(price_now):,.4f}"
+                                 if price_now else "—")
+                except Exception:
+                    price_str = "—"
+                try:
+                    pct_f = float(pct_24h) if pct_24h else 0.0
+                    pct_str = f"{pct_f:+.2f}%"
+                except Exception:
+                    pct_str = "—"
 
-                    bg_t, fg_t = _agent_conviction_color(tier or "STRONG")
-                    cols[1].markdown(
-                        _render_chip(
-                            f"{tier or 'STRONG'} · "
-                            f"{float(conviction):.0f}",
-                            bg_t, fg_t),
-                        unsafe_allow_html=True)
-                    bg_s, fg_s = _agent_side_color(side)
-                    cols[2].markdown(
-                        _render_chip(side, bg_s, fg_s),
-                        unsafe_allow_html=True)
-                    # No per-TF chip row here — premium picks are scanned
-                    # on a single timeframe (1h by default) so the chip
-                    # column shows the headline conviction + side instead.
-                    cols[3].markdown(
-                        _render_chip(
-                            f"Top: {reasons[0]}" if reasons
-                            else "Premium pick",
-                            "rgba(255,255,255,0.06)", "#cfd6e0"),
-                        unsafe_allow_html=True)
+                plan_summary = _plan_summary(plan)
+                title = (
+                    f"{_tier_emoji(tier)} **{base}** "
+                    f"· {_side_emoji(side)} {side} "
+                    f"· {tier} {score_f:.0f} "
+                    f"· {price_str} ({pct_str}) "
+                    f"· {plan_summary}")
 
-                    # Compact 1h chart for the premium pick.
+                with st.expander(title, expanded=False):
+                    # Chart
+                    chart_loaded = False
                     try:
                         chart_df = binance_client.get_klines(sym, "1h")
                         chart_df = indicators.enrich(chart_df)
                         fig = agent_charts.build_compact_chart(
-                            chart_df, trade_plan=plan if plan else None,
-                            sr_zones=None, height=200)
+                            chart_df,
+                            trade_plan=plan if plan else None,
+                            sr_zones=None, height=280)
                         st.plotly_chart(
                             fig, use_container_width=True,
-                            key=f"agent_pp_chart_{sym}")
+                            key=f"agent_pp_chart_{sym}",
+                            config={
+                                "scrollZoom": True,
+                                "displayModeBar": True,
+                                "displaylogo": False,
+                                "modeBarButtonsToRemove": [
+                                    "select2d", "lasso2d", "autoScale2d"],
+                            })
+                        chart_loaded = True
                     except Exception as exc:
                         st.caption(f"Chart unavailable: {exc}")
 
-                    plan_ok = _valid_trade_plan(plan)
-                    if plan_ok:
-                        st.caption(_plan_line(plan))
-                    if reasons:
-                        st.caption(" · ".join(str(r) for r in reasons[:3]))
+                    if chart_loaded:
+                        st.caption(
+                            "💡 Drag to pan · scroll to zoom · "
+                            "double-click to reset")
 
-                    open_tiers = {"STRONG", "HIGH", "MAX"}
-                    if tier in open_tiers and plan_ok and side in (
-                            "LONG", "SHORT"):
-                        btn_key = f"agent_pp_open_{sym}"
-                        if st.button(
-                                "📥 Open paper position", key=btn_key,
-                                use_container_width=False):
-                            try:
-                                pb_state = paper_bot.load_state(
-                                    PAPER_BOT_FILE)
-                                alert = _open_plan_as_alert(
-                                    sym, base, side, plan,
-                                    float(conviction))
-                                pos = paper_bot.open_position(
-                                    pb_state, alert, alert["entry_low"])
-                                paper_bot.save_state(PAPER_BOT_FILE,
-                                                    pb_state)
-                                if pos:
-                                    st.success(
-                                        f"Opened {side} {sym} at "
-                                        f"{alert['entry_low']:g}.")
-                                else:
-                                    st.warning(
-                                        "Position not opened — check the "
-                                        "Paper Trader for an existing "
-                                        "position or invalid plan.")
-                            except Exception as exc:
-                                st.error(f"Open failed: {exc}")
+                    if reasons:
+                        st.markdown("#### 🕯️ Why this fired")
+                        for r in reasons[:5]:
+                            st.markdown(f"- {r}")
+
+                    # Trade plan detail
+                    if plan and _has_plan(plan):
+                        st.markdown("#### 🎯 Trade plan")
+                        f = _plan_fields(plan)
+                        entry = f["entry"]
+                        sl_pct = (
+                            (f["stop"] - entry) / entry * 100
+                            if entry else 0.0)
+                        tp1_pct = (
+                            (f["tp1"] - entry) / entry * 100
+                            if entry else 0.0)
+                        tp2_pct = (
+                            (f["tp2"] - entry) / entry * 100
+                            if (entry and f["tp2"] > 0) else 0.0)
+                        rr2 = 0.0
+                        if entry > 0 and f["stop"] > 0:
+                            risk = abs(entry - f["stop"])
+                            if risk > 0 and f["tp2"] > 0:
+                                rr2 = abs(f["tp2"] - entry) / risk
+                        st.markdown(
+                            f"- **Side:** {side}  \n"
+                            f"- **Entry:** `{entry:g}`  \n"
+                            f"- **Stop:** `{f['stop']:g}` "
+                            f"(`{sl_pct:+.2f}%`)  \n"
+                            f"- **TP1:** `{f['tp1']:g}` "
+                            f"(`{tp1_pct:+.2f}%`) — R:R "
+                            f"**{f['rr']:.2f}**"
+                            + (f"  \n- **TP2:** `{f['tp2']:g}` "
+                               f"(`{tp2_pct:+.2f}%`) — R:R "
+                               f"**{rr2:.2f}**"
+                               if f["tp2"] > 0 else ""))
+
+                    # Open button
+                    _render_open_button(
+                        sym, base,
+                        side if side in ("LONG", "SHORT")
+                        else (plan or {}).get("side") or "LONG",
+                        plan or {}, float(conviction),
+                        key_prefix="agent_pp")
 
     _agent_section()
 

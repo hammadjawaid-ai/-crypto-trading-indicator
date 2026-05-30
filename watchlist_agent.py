@@ -47,7 +47,7 @@ import indicators
 PORTFOLIO_COINS: list[str] = [
     "BTC", "ETH", "SOL", "INJ", "WLD", "FET", "AVAX", "LINK", "UNI",
     "RENDER", "SUI", "XRP", "ADA", "VIRTUAL", "TAO", "INIT", "NEAR",
-    "KERNEL", "KAITO",
+    "KERNEL", "KAITO", "DASH",
 ]
 
 # Timeframes scanned per coin. Matches the four-TF strip the design uses.

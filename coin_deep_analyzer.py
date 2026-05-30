@@ -403,16 +403,22 @@ def _format_reasons(side: str,
 # ---------------------------------------------------------------------------
 # Trade plan — anchored to support_resistance + ATR per the spec.
 # ---------------------------------------------------------------------------
-def _build_trade_plan(df: Any, side: str, sr: dict) -> dict | None:
-    """Compute entry / stop / TP1 / TP2 / R:R for the conviction side.
+def _build_trade_plan(df: Any, side: str, sr: dict,
+                      directional_raw: float = 0.0) -> dict | None:
+    """Compute entry / stop / TP1 / TP2 / R:R.
 
-    LONG: stop = max(swing_low_1h - 0.5*ATR, nearest_support * 0.997)
-          tp1  = min(nearest_resistance * 0.997, entry + 3*ATR)
+    LONG: stop = max(swing_low - 0.5*ATR, nearest_support * 0.997)
+          tp1  = min(nearest_resistance * 0.997, entry + 2*ATR)
+          tp2  = entry + 3.5*ATR
     SHORT: mirrored.
-    Returns None for NEUTRAL. R:R floor 1.2 to be considered valid.
+
+    For NEUTRAL: ALWAYS produces a speculative plan using the directional_raw
+    bias (positive=LONG, negative=SHORT, exactly 0 defaults to LONG). The
+    user wanted every coin to have an openable card — the conviction tier
+    badge already communicates that it's a low-conviction signal.
+    R:R floor 1.0 (was 1.2) — speculative plans are tagged invalid=true
+    but still returned with valid:false so the UI can warn the user.
     """
-    if side not in ("LONG", "SHORT"):
-        return None
     if df is None or len(df) < 30:
         return None
     try:
@@ -423,6 +429,10 @@ def _build_trade_plan(df: Any, side: str, sr: dict) -> dict | None:
             return None
     except Exception:
         return None
+    # Coerce NEUTRAL to a directional choice. Default to LONG when truly
+    # flat — the user can ignore the card or toggle direction manually.
+    if side not in ("LONG", "SHORT"):
+        side = "SHORT" if directional_raw < -2.0 else "LONG"
 
     swing_lookback = min(50, len(df) - 1)
     recent = df.iloc[-swing_lookback:]
@@ -437,6 +447,12 @@ def _build_trade_plan(df: Any, side: str, sr: dict) -> dict | None:
     sup_price = float(near_sup.get("price") or 0.0)
     res_price = float(near_res.get("price") or 0.0)
 
+    # Minimum R:R enforced — TP1 is pushed out to at least 1.5x risk so
+    # the trade is mathematically worth taking. If nearest S/R is closer
+    # than that, treat it as a "pause level" and put TP1 further.
+    MIN_RR_TP1 = 1.5
+    MIN_RR_TP2 = 2.5
+
     if side == "LONG":
         # Stop: furthest of (swing low - 0.5 ATR) and (nearest support * 0.997)
         candidate_stop_swing = swing_low - 0.5 * atr_val
@@ -445,13 +461,18 @@ def _build_trade_plan(df: Any, side: str, sr: dict) -> dict | None:
         # Stop must be below entry; if not, fall back to ATR-based stop.
         if stop >= entry:
             stop = entry - 1.5 * atr_val
-        # Target: nearest resistance * 0.997, capped at entry + 3 ATR.
-        sr_target = (res_price * 0.997) if res_price > 0 else (entry + 3 * atr_val)
-        tp1 = min(sr_target, entry + 3.0 * atr_val)
-        if tp1 <= entry:
-            tp1 = entry + 1.8 * atr_val
-        tp2 = entry + 3.0 * atr_val
         risk = entry - stop
+        # TP1: respect resistance level OR enforce min R:R 1.5, whichever
+        # gives the user a worthwhile trade. If resistance is close, use
+        # ATR-based 1.5x risk target instead — it's better to set an
+        # achievable goal beyond the noise than wait for a too-near level.
+        tp1_min = entry + MIN_RR_TP1 * risk
+        if res_price > 0 and res_price * 0.997 > tp1_min:
+            tp1 = res_price * 0.997
+        else:
+            tp1 = tp1_min
+        # TP2: 2.5x risk OR next zone beyond TP1, whichever is further.
+        tp2 = max(entry + MIN_RR_TP2 * risk, tp1 + 0.8 * atr_val)
         reward = tp1 - entry
     else:  # SHORT
         candidate_stop_swing = swing_high + 0.5 * atr_val
@@ -459,18 +480,21 @@ def _build_trade_plan(df: Any, side: str, sr: dict) -> dict | None:
         stop = min(candidate_stop_swing, candidate_stop_sr)
         if stop <= entry:
             stop = entry + 1.5 * atr_val
-        sr_target = (sup_price * 1.003) if sup_price > 0 else (entry - 3 * atr_val)
-        tp1 = max(sr_target, entry - 3.0 * atr_val)
-        if tp1 >= entry:
-            tp1 = entry - 1.8 * atr_val
-        tp2 = entry - 3.0 * atr_val
         risk = stop - entry
+        tp1_min = entry - MIN_RR_TP1 * risk
+        if sup_price > 0 and sup_price * 1.003 < tp1_min:
+            tp1 = sup_price * 1.003
+        else:
+            tp1 = tp1_min
+        tp2 = min(entry - MIN_RR_TP2 * risk, tp1 - 0.8 * atr_val)
         reward = entry - tp1
 
     if risk <= 0 or not np.isfinite(risk):
         return None
     rr = float(reward / risk) if risk > 0 else 0.0
-    valid = rr >= 1.2 and reward > 0
+    # `valid` flag — UI uses it to decorate cards. R:R >= 1.5 = solid plan,
+    # 1.0-1.5 = marginal (we still return it so the user can override).
+    valid = rr >= 1.5 and reward > 0
 
     return {
         "side": side,
@@ -672,8 +696,11 @@ def analyze(symbol: str, tf: str, loaders: dict | None = None) -> dict:
     elif side == "SHORT" and fc_word == "bearish":
         forecast_aligned = True
 
-    # Layer 11: trade plan
-    plan = _build_trade_plan(df, side, sr)
+    # Layer 11: trade plan — always built (NEUTRAL falls back to LONG
+    # or SHORT based on directional_raw sign). Card UI uses plan["valid"]
+    # to render a "marginal R:R" warning when ≥1.0 but <1.5.
+    plan = _build_trade_plan(df, side, sr,
+                             directional_raw=float(directional_raw))
 
     # Drivers + breakdown
     drivers_full = sorted(
