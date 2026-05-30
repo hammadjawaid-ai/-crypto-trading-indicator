@@ -561,9 +561,16 @@ def analyze(symbol: str, tf: str, loaders: dict | None = None) -> dict:
     directional_raw = float(sum(v for v, _ in weighted_lanes.values()))
     directional_raw = float(np.clip(directional_raw, -100.0, 100.0))
 
-    if directional_raw > 5.0:
+    # Widen the LONG/SHORT thresholds — was ±5 which is way too tight
+    # with the 1.8x score amplification. A directional of 6 only means
+    # "slightly bullish weighted vote across 10 lanes" (avg vote per
+    # lane of 0.6) — that's noise, not a directional signal. Bumping
+    # to ±10 means at least one lane is voting modestly directional
+    # OR multiple lanes are agreeing softly. Anything below stays
+    # NEUTRAL, which is the honest read.
+    if directional_raw > 10.0:
         side = "LONG"
-    elif directional_raw < -5.0:
+    elif directional_raw < -10.0:
         side = "SHORT"
     else:
         side = "NEUTRAL"
@@ -659,10 +666,15 @@ def analyze(symbol: str, tf: str, loaders: dict | None = None) -> dict:
     if mtf_bonus < 0:
         confidence = max(0, confidence - 15)
 
-    # Layer 9: bull/bear label + ignited flag
-    if score_100 >= 60.0:
+    # Layer 9: bull/bear label + ignited flag.
+    # Widened thresholds 60/40 -> 70/30 — at 60/40 with the 1.8x score
+    # amplification, a coin only needed +5.5 directional to be labeled
+    # "Bullish". User reported "every coin shows Bullish" because the
+    # threshold was too easy to clear. 70/30 means a coin needs +11
+    # directional (or actual STRONG-tier score) to be labeled Bullish.
+    if score_100 >= 70.0:
         bull_bear = "Bullish"
-    elif score_100 <= 40.0:
+    elif score_100 <= 30.0:
         bull_bear = "Bearish"
     else:
         bull_bear = "Neutral"
@@ -833,9 +845,12 @@ def analyze_multi_tf(symbol: str,
         bump = min(15, max(0, (count["SHORT"] - 1) * 5))
     blended_with_consensus = float(np.clip(blended + bump, 0.0, 100.0))
 
-    if blended_with_consensus >= 60.0:
+    # Widened 60/40 -> 65/35 for the same reason as bull_bear above —
+    # too many coins flipped to LONG/SHORT on weak signal because the
+    # 1.8x amplification + regime tilt easily pushed scores past 60.
+    if blended_with_consensus >= 65.0:
         side = "LONG"
-    elif blended_with_consensus <= 40.0:
+    elif blended_with_consensus <= 35.0:
         side = "SHORT"
     else:
         side = "NEUTRAL"
