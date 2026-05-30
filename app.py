@@ -1515,17 +1515,84 @@ def run_pattern_scout(interval: str, scan_n: int = 50,
     return results
 
 
+def _bybit_klines(symbol: str, interval: str = "1d",
+                  limit: int = 365):
+    """Pull klines from Bybit's public v5 endpoint as a Binance fallback.
+
+    Bybit interval mapping: 1m/3m/5m/15m/30m → "1"/"3"/"5"/"15"/"30",
+    1h → "60", 2h → "120", 4h → "240", 6h → "360", 12h → "720",
+    1d → "D", 1w → "W".
+    Returns a DataFrame indexed by timestamp with columns
+    [open, high, low, close, volume] matching binance_client.get_klines.
+    """
+    import requests as _req
+    BYBIT_TF = {
+        "1m": "1", "3m": "3", "5m": "5", "15m": "15", "30m": "30",
+        "1h": "60", "2h": "120", "4h": "240", "6h": "360",
+        "12h": "720", "1d": "D", "1w": "W",
+    }
+    tf = BYBIT_TF.get(interval, "D")
+    url = "https://api.bybit.com/v5/market/kline"
+    params = {
+        "category": "linear", "symbol": symbol,
+        "interval": tf, "limit": min(int(limit), 1000),
+    }
+    r = _req.get(url, params=params, timeout=10)
+    r.raise_for_status()
+    data = (r.json() or {}).get("result", {}).get("list") or []
+    if not data:
+        raise RuntimeError(f"Bybit returned no klines for {symbol}")
+    # Bybit returns NEWEST first; we need oldest first. Columns:
+    # [start, open, high, low, close, volume, turnover]
+    data = list(reversed(data))
+    rows = []
+    for row in data:
+        try:
+            rows.append({
+                "open_time": pd.to_datetime(
+                    int(row[0]), unit="ms", utc=True),
+                "open": float(row[1]),
+                "high": float(row[2]),
+                "low": float(row[3]),
+                "close": float(row[4]),
+                "volume": float(row[5]),
+            })
+        except (ValueError, IndexError, TypeError):
+            continue
+    if not rows:
+        raise RuntimeError(f"Bybit returned malformed data for {symbol}")
+    df = pd.DataFrame(rows).set_index("open_time")
+    return df
+
+
 @st.cache_data(ttl=600, show_spinner=False)
 def _agent_load_chart_klines(symbol: str, interval: str = "1d",
                              limit: int = 365):
     """Module-scope cached kline loader for the 24/7 Agent charts.
 
-    Moved out of the section closure (it was being re-defined and
-    cache-reset every time the user navigated to the section). Now
-    persists across navigations.
+    Tries Binance FIRST (proven path) — falls back to Bybit if Binance
+    is rate-limited / unavailable. Returns an enriched DataFrame or an
+    empty DataFrame if BOTH sources fail (caller handles fallback).
     """
-    df = binance_client.get_klines(symbol, interval, limit=limit)
-    return indicators.enrich(df)
+    # Try Binance first
+    try:
+        df = binance_client.get_klines(symbol, interval, limit=limit)
+        if df is not None and len(df) > 0:
+            return indicators.enrich(df)
+    except Exception:
+        pass
+
+    # Fall back to Bybit (free public v5 endpoint, no auth required)
+    try:
+        df = _bybit_klines(symbol, interval, limit)
+        if df is not None and len(df) > 0:
+            return indicators.enrich(df)
+    except Exception:
+        pass
+
+    # Both sources failed — return empty DataFrame so chart shows
+    # "no data" rather than raising.
+    return pd.DataFrame()
 
 
 @st.cache_data(ttl=600, show_spinner=False)
