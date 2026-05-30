@@ -4834,11 +4834,11 @@ if active_section == "🧪 Paper Trader":
                  "counter-trend setups require >= 85), long and short.")
         live_mode = c4.checkbox(
             "🔴 Live", value=True, key="pb_live",
-            help="Auto-refresh every 3 minutes so the page stays "
+            help="Auto-refresh every 5 minutes so the page stays "
                  "active, scanner cache (120s) refreshes between "
                  "loads, and new patterns / picks surface "
                  "automatically without you reloading. Pattern Scout "
-                 "(10-min cache) re-scans every 3-4 cycles. Default ON.")
+                 "(10-min cache) re-scans every 2 cycles. Default ON.")
         if c5.button("🔄 Reset", type="secondary",
                      use_container_width=True):
             paper_bot.reset(PAPER_BOT_FILE, new_balance, new_risk)
@@ -8387,15 +8387,14 @@ if active_section == "🧪 Paper Trader":
                "win in the current regime; real-money results will be a "
                "little worse. Educational only, not financial advice.")
 
-    # ---- Live mode — only the 10-min hard refresh now -------------------
+    # ---- Live mode — 5-minute full refresh ------------------------------
     # The Bank stats and Open positions sections already update in place
     # every 10s via st.fragment — no full page reload needed for live P&L.
-    # Live mode triggers a 3-minute full page refresh — the sweet spot
-    # between freshness and not hammering the API. Cadence:
+    # Live mode triggers a 5-minute full page refresh (per user). Cadence:
     #   - Live fragments (P&L, positions): every 10 sec
-    #   - Full page reload: every 180 sec
-    #   - Scanner cache (120s) hits fresh on every other reload
-    #   - Pattern Scout cache (600s) refreshes every ~3-4 reloads
+    #   - Full page reload: every 300 sec
+    #   - Scanner cache (120s) hits fresh on every refresh
+    #   - Pattern Scout cache (600s) refreshes every other reload
     if live_mode:
         # Visual indicator with pulsing dot so user knows live mode is on
         st.markdown(
@@ -8408,11 +8407,11 @@ if active_section == "🧪 Paper Trader":
             "<span style='color:#ff3d57;font-size:0.78rem;font-weight:700'>"
             "🔴 LIVE MODE</span>"
             "<span style='color:#aab;font-size:0.78rem'>"
-            "page auto-refreshes every 3 min · Pattern Scout re-scans every "
+            "page auto-refreshes every 5 min · Pattern Scout re-scans every "
             "10 min · live position P&amp;L updates every 10s</span>"
             "</div>",
             unsafe_allow_html=True)
-        _inject_autorefresh(180)
+        _inject_autorefresh(300)
 
 
 # ===========================================================================
@@ -8430,21 +8429,21 @@ if active_section == "🤖 24/7 Agent":
         "🤖 24/7 Agent · deep analysis on your portfolio + "
         "premium picks from Binance")
     st.caption(
-        "Auto-refresh every 3 minutes. Multi-timeframe "
+        "Auto-refresh every 5 minutes. Multi-timeframe "
         "(15m / 1h / 4h / 1d) conviction scoring across all major signals.")
 
-    # ---- Cached loaders (3-minute TTL matches the fragment cadence) -------
+    # ---- Cached loaders (5-minute TTL matches the fragment cadence) -------
     # The cache_version arg is purely a cache-busting handle — bump it from
     # the UI if/when we want to force a fresh scan without waiting for the
     # TTL.
-    @st.cache_data(ttl=180, show_spinner=False)
+    @st.cache_data(ttl=300, show_spinner=False)
     def load_watchlist(_cache_version: int = 1):
-        """3-min cached deep scan over the 19 portfolio coins."""
+        """5-min cached deep scan over the 20 portfolio coins."""
         return watchlist_agent.analyze_portfolio()
 
-    @st.cache_data(ttl=180, show_spinner=False)
+    @st.cache_data(ttl=300, show_spinner=False)
     def load_premium_picks(_cache_version: int = 3):
-        """3-min cached premium-pick scan across the rest of Binance.
+        """5-min cached premium-pick scan across the rest of Binance.
 
         min_conviction = 80 — per user. Stays in the STRONG+ tier so
         picks remain genuinely premium, but doesn't perpetually empty
@@ -8789,8 +8788,8 @@ if active_section == "🤖 24/7 Agent":
             else (plan or {}).get("side") or "LONG",
             plan or {}, conviction, key_prefix)
 
-    # ---- The auto-refreshing fragment ------------------------------------
-    @st.fragment(run_every=180)
+    # ---- The auto-refreshing fragment (5-min cadence per user) ----------
+    @st.fragment(run_every=300)
     def _agent_section():
         # Load all data ONCE so the Best Trades sub-board, the Portfolio
         # cards and the Premium Picks can all see the same scan results.
