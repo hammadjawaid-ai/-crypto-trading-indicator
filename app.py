@@ -8210,52 +8210,105 @@ if active_section == "🧪 Paper Trader":
                 "</div>",
                 unsafe_allow_html=True)
             st.caption(
-                "Coins where reversal pre-conditions are forming "
-                "(approach to level, RSI extreme, volume waning, body "
-                "shrinkage, EMA extension, CVD divergence, intra-bar "
-                "rejection). **Watch these** — when the actual candle "
-                "prints, the coin moves into **BEST TRADES NOW** above.")
+                "Coins where reversal pre-conditions are forming. Each "
+                "line shows the **directional prediction** — bullish or "
+                "bearish, expected move, time window, and the R:R if the "
+                "trigger fires. **Bet on the pattern early** here, or "
+                "wait for the trigger candle (appears in BEST TRADES NOW "
+                "above).")
             for _sf in _sf_top:
                 _sf_side = _sf["side"]
                 _sf_color = ("#ff3d57" if _sf_side == "SHORT"
                              else "#00e676")
-                _sf_emoji = "🩸" if _sf_side == "SHORT" else "🟢"
                 _sf_tier = ("STRONG" if _sf["score"] >= 80 else "WATCH")
                 _sf_tier_color = ("#ff9500" if _sf["score"] >= 80
                                   else "#5b8eff")
-                _sf_watch = ("bearish reversal (shooting star, evening "
-                             "star, engulfing)" if _sf_side == "SHORT"
-                             else "bullish reversal (hammer, morning "
-                                  "star, engulfing)")
-                _sf_pct = _sf.get("pct_24h", 0)
+
+                # ===== BUILD THE DIRECTIONAL PREDICTION ==================
+                _sf_price = float(_sf.get("price") or 0)
+                _sf_pct = float(_sf.get("pct_24h") or 0)
+                _sf_target = float(_sf.get("target") or 0)  # TP1
+                _sf_entry = float(_sf.get("entry") or _sf_price)
+                _sf_stop = float(_sf.get("stop") or 0)
+                _sf_rr = float(_sf.get("rr") or 0)
+                _sf_cm = int(_sf.get("conditions_met") or 0)
+
+                # Predicted move % from current price -> target
+                if _sf_price > 0 and _sf_target > 0:
+                    _sf_move_pct = (
+                        (_sf_target - _sf_price) / _sf_price * 100)
+                else:
+                    _sf_move_pct = 0.0
+
+                # Time-to-trigger band based on how many conditions are
+                # already met (more conditions = closer to firing)
+                if _sf_cm >= 6:
+                    _sf_window = "1-2 bars"
+                elif _sf_cm == 5:
+                    _sf_window = "1-3 bars"
+                elif _sf_cm == 4:
+                    _sf_window = "2-5 bars"
+                else:
+                    _sf_window = "3-7 bars"
+
+                # Bull/Bear scenario phrasing
+                if _sf_side == "SHORT":
+                    _sf_scenario_label = "🩸 BEARISH"
+                    _sf_scenario_text = (
+                        f"price rejected at resistance → expect drop to "
+                        f"<b>${_sf_target:.4g}</b> "
+                        f"(<b>{_sf_move_pct:+.2f}%</b>) within "
+                        f"<b>{_sf_window}</b>")
+                else:
+                    _sf_scenario_label = "🟢 BULLISH"
+                    _sf_scenario_text = (
+                        f"price bounced at support → expect rally to "
+                        f"<b>${_sf_target:.4g}</b> "
+                        f"(<b>{_sf_move_pct:+.2f}%</b>) within "
+                        f"<b>{_sf_window}</b>")
+
                 _sf_pct_color = ("#2ed47a" if _sf_pct > 0
                                  else "#ff5c5c" if _sf_pct < 0
                                  else "#888")
+
+                # ===== RENDER — two-line compact card =====================
                 st.markdown(
-                    f"<div style='display:flex;align-items:center;"
-                    f"gap:8px;flex-wrap:wrap;padding:6px 12px;"
+                    # ---- Line 1: header chips ----
+                    f"<div style='padding:8px 12px;"
                     f"background:rgba(255,255,255,0.02);"
                     f"border:1px solid rgba(91,142,255,0.10);"
                     f"border-radius:8px;margin-bottom:4px'>"
+                    f"<div style='display:flex;align-items:center;"
+                    f"gap:8px;flex-wrap:wrap;margin-bottom:6px'>"
                     f"<span style='font-weight:800;font-size:0.94rem;"
                     f"min-width:60px'>{_sf['base']}</span>"
                     f"<span style='background:{_sf_color};color:#06121f;"
-                    f"padding:2px 8px;border-radius:5px;font-size:"
-                    f"0.7rem;font-weight:800'>{_sf_emoji} "
-                    f"{_sf_side} forming</span>"
+                    f"padding:2px 10px;border-radius:5px;font-size:"
+                    f"0.72rem;font-weight:800'>"
+                    f"{_sf_scenario_label}</span>"
                     f"<span style='background:{_sf_tier_color}33;"
                     f"color:{_sf_tier_color};padding:2px 8px;"
                     f"border-radius:5px;font-size:0.7rem;font-weight:"
                     f"700'>🔭 {_sf_tier} · {_sf['score']:.0f}</span>"
                     f"<span style='color:#aab;font-size:0.74rem'>"
-                    f"{_sf['conditions_met']}/7 conditions</span>"
+                    f"{_sf_cm}/7 conditions</span>"
                     f"<span style='color:#888;font-size:0.74rem'>·</span>"
                     f"<span style='color:#888;font-size:0.74rem'>"
-                    f"${_sf['price']:.4g} · "
+                    f"${_sf_price:.4g} · "
                     f"<span style='color:{_sf_pct_color}'>"
                     f"{_sf_pct:+.2f}%</span></span>"
-                    f"<span style='flex:1;color:#888;font-size:0.72rem;"
-                    f"text-align:right'>watch for: {_sf_watch}</span>"
+                    + (f"<span style='color:#888;font-size:0.74rem'>·</span>"
+                       f"<span style='color:#aab;font-size:0.74rem;"
+                       f"font-weight:600'>R:R if fires "
+                       f"<b style='color:#2ed47a'>{_sf_rr:.2f}</b></span>"
+                       if _sf_rr > 0 else "")
+                    + f"</div>"
+                    # ---- Line 2: directional prediction ----
+                    f"<div style='color:#cfd6e0;font-size:0.78rem;"
+                    f"line-height:1.5'>"
+                    f"<b style='color:{_sf_color}'>Prediction:</b> "
+                    f"{_sf_scenario_text}"
+                    f"</div>"
                     f"</div>",
                     unsafe_allow_html=True)
 
