@@ -79,13 +79,27 @@ def save_state(path: Path, state: dict) -> None:
         pass
 
 
-def reset(path: Path, starting_balance: float, risk_pct: float) -> dict:
-    """Wipe the paper account and start over with new settings."""
+def reset(path: Path, starting_balance: float, risk_pct: float,
+          *, preserve_history: bool = True) -> dict:
+    """Reset balance and start over with new settings.
+
+    PRESERVES the closed-trade history by default (per user — the
+    historical record should never be wiped just because the user
+    reset the bank). Set preserve_history=False to wipe everything
+    including history (the old "true clean slate" behaviour).
+
+    Open positions are still cleared on reset — anything open before
+    is dropped (use check_weekly_reset / restore_last_reset to move
+    open positions through the rollover with full audit instead).
+    """
+    prev = load_state(path)
+    closed_history = list(prev.get("closed") or []) if preserve_history else []
     s = json.loads(json.dumps(DEFAULT_STATE))
     s["balance"] = float(starting_balance)
     s["starting_balance"] = float(starting_balance)
     s["risk_per_trade_pct"] = float(risk_pct)
     s["started_at"] = time.time()
+    s["closed"] = closed_history    # <-- preserved by default
     save_state(path, s)
     return s
 

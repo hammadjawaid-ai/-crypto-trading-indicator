@@ -4924,6 +4924,98 @@ if active_section == "🧪 Paper Trader":
             paper_bot.reset(PAPER_BOT_FILE, new_balance, new_risk)
             st.rerun()
 
+        # 💾 Backup / restore — Streamlit Cloud rebuilds wipe the
+        # gitignored .paper_bot.json file. This pair of controls lets
+        # the user export their state to a JSON file (browser download)
+        # and re-upload it after any wipe so the trade history persists
+        # across deploys without needing a database.
+        with st.expander("💾 Backup & restore (recommended after big trades)",
+                         expanded=False):
+            st.caption(
+                "Streamlit Cloud rebuilds reset the paper-bot state "
+                "file. **Download your state** after any meaningful "
+                "trading session, then **upload it back** if the page "
+                "ever shows a fresh account. Your closed-trade history "
+                "is the most important thing to preserve.")
+            _bk_dl_col, _bk_up_col = st.columns([1, 1])
+
+            # JSON state download (full backup)
+            try:
+                _bk_state_json = json.dumps(pb_state, indent=2)
+            except Exception:
+                _bk_state_json = "{}"
+            _bk_dl_col.download_button(
+                "⬇ Download full state (.json)",
+                data=_bk_state_json,
+                file_name="paper_bot_backup.json",
+                mime="application/json",
+                use_container_width=True,
+                key="pb_bk_download_json")
+
+            # CSV download (closed trades only — for spreadsheet analysis)
+            try:
+                import pandas as _bk_pd
+                _bk_csv = _bk_pd.DataFrame(
+                    pb_state.get("closed") or []).to_csv(index=False)
+            except Exception:
+                _bk_csv = ""
+            _bk_dl_col.download_button(
+                "⬇ Download closed-trade history (.csv)",
+                data=_bk_csv or "",
+                file_name="paper_bot_closed_trades.csv",
+                mime="text/csv",
+                use_container_width=True,
+                key="pb_bk_download_csv",
+                disabled=not bool(pb_state.get("closed")))
+
+            # JSON state restore (re-import from a previous download)
+            _bk_upload = _bk_up_col.file_uploader(
+                "Upload a previous state.json",
+                type=["json"], key="pb_bk_upload",
+                help="Restores balance + open positions + closed history "
+                     "from a previously-downloaded backup.")
+            if _bk_upload is not None:
+                try:
+                    _bk_loaded = json.loads(_bk_upload.getvalue().decode("utf-8"))
+                except Exception as exc:
+                    st.error(f"Could not parse uploaded JSON: {exc}")
+                    _bk_loaded = None
+                if _bk_loaded:
+                    if _bk_up_col.button(
+                            "✅ Restore from this file",
+                            key="pb_bk_restore_button",
+                            type="primary",
+                            use_container_width=True):
+                        # MERGE rather than overwrite — keep currently-open
+                        # positions if any, append closed trades, take the
+                        # higher balance.
+                        _now_open = pb_state.get("open") or []
+                        _new_open = _bk_loaded.get("open") or []
+                        _open_syms_now = {p.get("symbol") for p in _now_open}
+                        _merged_open = list(_now_open) + [
+                            p for p in _new_open
+                            if p.get("symbol") not in _open_syms_now]
+                        _merged_closed = list(_bk_loaded.get("closed") or [])
+                        # Append any current closed not in the backup
+                        _backup_exit_ids = {
+                            (c.get("symbol"), c.get("exit_at"))
+                            for c in _merged_closed}
+                        for c in (pb_state.get("closed") or []):
+                            if (c.get("symbol"),
+                                c.get("exit_at")) not in _backup_exit_ids:
+                                _merged_closed.append(c)
+                        pb_state["open"] = _merged_open
+                        pb_state["closed"] = _merged_closed
+                        pb_state["balance"] = max(
+                            float(pb_state.get("balance") or 0),
+                            float(_bk_loaded.get("balance") or 0))
+                        paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                        st.success(
+                            f"Restored · {len(_merged_open)} open · "
+                            f"{len(_merged_closed)} closed trades in "
+                            "history.")
+                        st.rerun()
+
         # ♻ Restore last reset — pulls back the open positions that were
         # force-closed by the most recent auto-reset. Use this if the
         # bot just auto-reset and wiped trades you still wanted open.
