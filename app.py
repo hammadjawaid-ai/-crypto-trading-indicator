@@ -8540,16 +8540,21 @@ if active_section == "🧪 Paper Trader":
             _bk_hunter = None
 
         if _rb_radar and _bk_hunter:
-            @st.cache_data(ttl=600, show_spinner=False)
-            def _pt_load_rebound(_v: int = 1):
+            # Smaller scan_n than before — rebound 150→80, breakout 300→150
+            # — to make the on-click scan complete in ~30s instead of 90s.
+            # Universe still wide enough to catch what we care about
+            # (top 80 covers all major + top mid-caps; top 150 for breakout
+            # still reaches into mid-cap territory).
+            @st.cache_data(ttl=900, show_spinner=False)
+            def _pt_load_rebound(_v: int = 2):
                 return _rb_radar.scan_for_rebounds(
-                    scan_n=150, min_score=70.0,
+                    scan_n=80, min_score=70.0,
                     min_drawdown_pct=5.0, max_picks=12)
 
-            @st.cache_data(ttl=900, show_spinner=False)
-            def _pt_load_breakout(_v: int = 1):
+            @st.cache_data(ttl=1800, show_spinner=False)
+            def _pt_load_breakout(_v: int = 2):
                 return _bk_hunter.scan_for_breakouts(
-                    scan_n=300, min_score=70.0,
+                    scan_n=150, min_score=70.0,
                     max_seven_day_chg=50.0,
                     min_volume_usd=5_000_000.0, max_picks=12)
 
@@ -8590,6 +8595,11 @@ if active_section == "🧪 Paper Trader":
                     st.error(f"Open failed: {exc}")
 
             # ----- 🔁 REBOUND HUNTER (15m + 1h) -----
+            # Lazy-loaded — the scan does NOT auto-run on every Paper
+            # Trader page render. User clicks "Run scan" to trigger,
+            # result is cached 15 min after that. This is the single
+            # biggest Paper Trader speed-up: the eager Hunter scans
+            # were adding ~60-90s to every cold page load.
             with st.expander(
                     "🔁 **REBOUND HUNTER** — first 5-7% of "
                     "bearish→bullish rebounds (15m + 1h)",
@@ -8601,11 +8611,23 @@ if active_section == "🧪 Paper Trader":
                     "candle. Fires when 15m AND 1h both ≥60, blended "
                     "≥70, coin ≥5% off recent high. Honest hit rate "
                     "~55-65%.")
-                try:
-                    reb_picks = _pt_load_rebound()
-                except Exception as exc:
-                    st.error(f"Rebound scan failed: {exc}")
+                _reb_key = "pt_hunters_reb_scanned"
+                if not st.session_state.get(_reb_key, False):
+                    st.caption(
+                        "ℹ Click below to run the scan (top 80 coins, "
+                        "~30s). Cached 15 min after first scan.")
+                    if st.button("🔍 Run Rebound scan",
+                                 key="pt_hunters_reb_btn"):
+                        st.session_state[_reb_key] = True
+                        st.rerun()
                     reb_picks = []
+                else:
+                    try:
+                        with st.spinner("Scanning top 80 for rebounds..."):
+                            reb_picks = _pt_load_rebound()
+                    except Exception as exc:
+                        st.error(f"Rebound scan failed: {exc}")
+                        reb_picks = []
                 if not reb_picks:
                     st.caption(
                         "No rebound setups firing right now — needs "
@@ -8666,24 +8688,37 @@ if active_section == "🧪 Paper Trader":
                                     "Why: " + " · ".join(
                                         p["reasons"][:3]))
 
-            # ----- 🚀 BREAKOUT HUNTER (4h, top 300 universe) -----
+            # ----- 🚀 BREAKOUT HUNTER (4h, top 150 universe) -----
+            # Same lazy-load pattern as REBOUND — only scan on click.
             with st.expander(
                     "🚀 **BREAKOUT HUNTER** — pre-pump coil scanner "
-                    "(top 300, PORTAL-style runners)",
+                    "(top 150, PORTAL-style runners)",
                     expanded=False):
                 st.caption(
                     "Hunts BB-squeeze + hidden accumulation + OI/"
                     "funding surge + TTM squeeze + higher-low + cup-"
-                    "and-handle. Top 300 USDT-perp universe (covers "
+                    "and-handle. Top 150 USDT-perp universe (covers "
                     "mid-caps where 100%+ runs originate). Filters: "
                     "≥$5M daily volume, ≤50% 7-day gain. Honest hit "
                     "rate ~30-40% but asymmetric upside (hits run "
                     "20-100%+).")
-                try:
-                    bk_picks = _pt_load_breakout()
-                except Exception as exc:
-                    st.error(f"Breakout scan failed: {exc}")
+                _bk_key = "pt_hunters_bk_scanned"
+                if not st.session_state.get(_bk_key, False):
+                    st.caption(
+                        "ℹ Click below to run the scan (top 150 coins, "
+                        "~45s). Cached 30 min after first scan.")
+                    if st.button("🔍 Run Breakout scan",
+                                 key="pt_hunters_bk_btn"):
+                        st.session_state[_bk_key] = True
+                        st.rerun()
                     bk_picks = []
+                else:
+                    try:
+                        with st.spinner("Scanning top 150 for coils..."):
+                            bk_picks = _pt_load_breakout()
+                    except Exception as exc:
+                        st.error(f"Breakout scan failed: {exc}")
+                        bk_picks = []
                 if not bk_picks:
                     st.caption(
                         "No breakout coils firing — coil patterns "
