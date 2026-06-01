@@ -1,4 +1,4 @@
-"""Crypto Trading Indicator — Streamlit dashboard.
+"""Crypto Trading Indicator â€” Streamlit dashboard.
 
 Run with:  streamlit run app.py
 """
@@ -49,7 +49,7 @@ import oracle
 import orderflow
 import live_broker as lb
 import paper_bot
-# 24/7 Agent section modules — deep multi-TF analysis on the portfolio +
+# 24/7 Agent section modules â€” deep multi-TF analysis on the portfolio +
 # premium picks from the rest of Binance, with shared chart builders.
 import coin_deep_analyzer
 import watchlist_agent
@@ -63,7 +63,7 @@ import tv_analysis
 
 st.set_page_config(
     page_title="Crypto Trading Indicator",
-    page_icon="📈",
+    page_icon="ðŸ“ˆ",
     layout="wide",
 )
 
@@ -133,7 +133,7 @@ st.markdown(
         max-width: 1500px;
     }
 
-    /* === Typography — bolder, more dramatic ====================== */
+    /* === Typography â€” bolder, more dramatic ====================== */
     h1, h2, h3, h4 {
         color: var(--text-primary);
         letter-spacing: -0.022em;
@@ -228,7 +228,7 @@ st.markdown(
         font-weight: 600;
     }
 
-    /* === Panels (st.container border) — glass effect ============ */
+    /* === Panels (st.container border) â€” glass effect ============ */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background: var(--bg-card);
         backdrop-filter: blur(10px);
@@ -241,7 +241,7 @@ st.markdown(
         border-color: var(--border-strong);
     }
 
-    /* === Tabs — accent underline ================================ */
+    /* === Tabs â€” accent underline ================================ */
     [data-testid="stTabs"] [data-baseweb="tab-list"] {
         gap: 6px;
         border-bottom: 1px solid var(--border-subtle);
@@ -265,7 +265,7 @@ st.markdown(
         box-shadow: 0 -3px 12px rgba(0, 212, 255, 0.15) inset;
     }
 
-    /* === Sidebar — slightly darker for depth ==================== */
+    /* === Sidebar â€” slightly darker for depth ==================== */
     [data-testid="stSidebar"] {
         background:
             linear-gradient(180deg,
@@ -281,7 +281,7 @@ st.markdown(
         background-clip: text;
     }
 
-    /* === Buttons — premium electric-blue accent ================= */
+    /* === Buttons â€” premium electric-blue accent ================= */
     .stButton button {
         border-radius: 11px;
         font-weight: 600;
@@ -360,7 +360,7 @@ st.markdown(
         overflow: hidden;
     }
 
-    /* === Progress bars — electric blue ========================== */
+    /* === Progress bars â€” electric blue ========================== */
     [data-testid="stProgress"] div[role="progressbar"] {
         background: rgba(150, 180, 255, 0.06);
         border-radius: 5px;
@@ -382,7 +382,7 @@ st.markdown(
         color: var(--accent-primary);
     }
 
-    /* === Dividers — subtle gradient ============================= */
+    /* === Dividers â€” subtle gradient ============================= */
     hr {
         border: none;
         height: 1px;
@@ -404,7 +404,7 @@ st.markdown(
     ::-webkit-scrollbar-track { background: transparent; }
 
     /* ============================================================
-       HERO REGIME BANNER — premium glass card
+       HERO REGIME BANNER â€” premium glass card
        ============================================================ */
     .regime-hero {
         background:
@@ -500,7 +500,7 @@ st.markdown(
         letter-spacing: -0.015em;
     }
 
-    /* === Bias bars — glowing electric ============================ */
+    /* === Bias bars â€” glowing electric ============================ */
     .bias-bar {
         display: flex;
         align-items: center;
@@ -537,7 +537,7 @@ st.markdown(
         font-family: 'Space Grotesk', 'Inter', sans-serif;
     }
 
-    /* === Pick cards — direction-coded with glow ================== */
+    /* === Pick cards â€” direction-coded with glow ================== */
     .pick-card-long {
         border-left: 3px solid var(--success);
     }
@@ -591,7 +591,7 @@ st.markdown(
         animation: glow-accent 2.5s ease-in-out infinite;
     }
 
-    /* === Toasts / alerts — accent border ======================== */
+    /* === Toasts / alerts â€” accent border ======================== */
     [data-testid="stAlert"] {
         background: var(--bg-card) !important;
         border: 1px solid var(--border-soft) !important;
@@ -609,7 +609,7 @@ st.markdown(
     }
 
     /* ============================================================
-       PREMIUM PICK CARDS — Linear/Vercel/Stripe-grade
+       PREMIUM PICK CARDS â€” Linear/Vercel/Stripe-grade
        Multi-layer depth, gradient borders, glass effect,
        animated hover sweep, subtle glow.
        ============================================================ */
@@ -685,7 +685,7 @@ st.markdown(
         opacity: 1;
     }
 
-    /* Animated sweep on hover — a thin diagonal light streak */
+    /* Animated sweep on hover â€” a thin diagonal light streak */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background-size: 100% 100%, 100% 100%, 100% 100%;
     }
@@ -708,7 +708,7 @@ st.markdown(
         letter-spacing: -0.01em;
     }
 
-    /* === Better chip designs — premium gradient borders ========= */
+    /* === Better chip designs â€” premium gradient borders ========= */
     /* Use inset shadow for depth on chips */
     [data-testid="stMarkdownContainer"] span[style*="border-radius"][style*="background"] {
         box-shadow:
@@ -719,7 +719,7 @@ st.markdown(
         letter-spacing: 0.01em !important;
     }
 
-    /* === Open Trade button — premium CTA inside cards =========== */
+    /* === Open Trade button â€” premium CTA inside cards =========== */
     /* Buttons inside pick cards get the gradient treatment */
     div[data-testid="stVerticalBlockBorderWrapper"] .stButton button {
         background: linear-gradient(135deg,
@@ -764,8 +764,8 @@ st.markdown(
     }
 
     /* === Container-level emphasis on PREMIUM cards ============== */
-    /* When a card contains 🏆 PREMIUM chip, give the whole card
-       a golden tinge. Detected via :has() — modern browsers only. */
+    /* When a card contains ðŸ† PREMIUM chip, give the whole card
+       a golden tinge. Detected via :has() â€” modern browsers only. */
     div[data-testid="stVerticalBlockBorderWrapper"]:has(span[style*="ffd700"]) {
         border-color: rgba(255, 215, 0, 0.25) !important;
         background:
@@ -798,7 +798,7 @@ st.markdown(
 
     /* === Status badge for SHORT side cards (red tinge) ========== */
     div[data-testid="stVerticalBlockBorderWrapper"]:has(span[style*="ff5c5c"][style*="#06121f"]),
-    div[data-testid="stVerticalBlockBorderWrapper"]:has(span[style*="🩸"]) {
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(span[style*="ðŸ©¸"]) {
         border-left: 3px solid var(--danger);
     }
 
@@ -827,7 +827,7 @@ st.markdown(
 # --- Paper trading bot state file (lives next to app.py, gitignored) ------
 PAPER_BOT_FILE = Path(__file__).resolve().parent / ".paper_bot.json"
 
-# --- 24/7 Agent bot state file — SEPARATE from paper_bot so the agent
+# --- 24/7 Agent bot state file â€” SEPARATE from paper_bot so the agent
 # section has its own open positions + closed-trade history that doesn't
 # pollute (or get polluted by) the Paper Trader.
 AGENT_BOT_FILE = Path(__file__).resolve().parent / ".agent_bot.json"
@@ -864,16 +864,16 @@ def load_klines(symbol: str, interval: str) -> pd.DataFrame:
 @st.cache_data(ttl=600, show_spinner=False)
 def compute_multi_tf_setups_forming(scan_n: int = 30,
                                     _cache_version: int = 1) -> list:
-    """Multi-timeframe Setups Forming watchlist — scans coins on 15m,
+    """Multi-timeframe Setups Forming watchlist â€” scans coins on 15m,
     1h, and 4h simultaneously. Surfaces coins where the SAME direction
     is forming on MULTIPLE timeframes (genuine money-flow signal).
 
     Why this works: a single-TF setup may be noise. But when 15m AND
     1h AND 4h ALL show approaching-reversal conditions on the same
-    side, that's broad-market positioning shift — institutional money
+    side, that's broad-market positioning shift â€” institutional money
     rotating. Professional traders watch this.
 
-    Returns list of dicts with per-TF scores. NO TRADE PLANS, NO BUTTONS —
+    Returns list of dicts with per-TF scores. NO TRADE PLANS, NO BUTTONS â€”
     pure intelligence layer for the user to watch and act on the actual
     fire candle when it prints.
     """
@@ -902,7 +902,7 @@ def compute_multi_tf_setups_forming(scan_n: int = 30,
             except Exception:
                 per_tf[tf] = {"score": 50, "side": "NEUTRAL", "conditions": 0}
 
-        # Count timeframes where conditions are forming (≥ 3/7 met)
+        # Count timeframes where conditions are forming (â‰¥ 3/7 met)
         # AND the side is same direction
         long_tfs = [tf for tf, d in per_tf.items()
                     if d["conditions"] >= 3 and d["side"] == "LONG"]
@@ -944,19 +944,19 @@ def compute_unified_best_picks(interval: str, scan_n: int = 50,
                                _cache_version: int = 1) -> list:
     """Unified ranking of the BEST picks across all sources, deduplicated
     by symbol. Highest tier wins per coin. Shown in the top-of-board
-    "🏆 Best Trades Now" section so user doesn't have to dig through
+    "ðŸ† Best Trades Now" section so user doesn't have to dig through
     7 different sections to find what to trade.
 
     Tier priority (highest first):
-      S (priority 100): ⚡ CONVERGENCE — backtested +6.8pp uplift, validated
-      A (priority 85):  🎯 PATTERN SCOUT STRONG (score ≥ 80)
-      B (priority 70):  🔭 SETUPS FORMING STRONG WATCH (score ≥ 80)
-      C (priority 55):  🎯 PATTERN SCOUT WATCH (score 65-79)
-      D (priority 40):  🔭 SETUPS FORMING WATCH (score 60-79)
+      S (priority 100): âš¡ CONVERGENCE â€” backtested +6.8pp uplift, validated
+      A (priority 85):  ðŸŽ¯ PATTERN SCOUT STRONG (score â‰¥ 80)
+      B (priority 70):  ðŸ”­ SETUPS FORMING STRONG WATCH (score â‰¥ 80)
+      C (priority 55):  ðŸŽ¯ PATTERN SCOUT WATCH (score 65-79)
+      D (priority 40):  ðŸ”­ SETUPS FORMING WATCH (score 60-79)
 
-    Returns top 8 sorted by tier × score.
+    Returns top 8 sorted by tier Ã— score.
     """
-    picks_by_sym = {}  # symbol → pick dict (best-tier wins)
+    picks_by_sym = {}  # symbol â†’ pick dict (best-tier wins)
 
     # === S-TIER: Convergence (validated edge) =========================
     try:
@@ -965,7 +965,7 @@ def compute_unified_best_picks(interval: str, scan_n: int = 50,
             sym = cv["symbol"]
             picks_by_sym[sym] = {
                 "tier": "S",
-                "tier_label": "⚡ CONVERGENCE",
+                "tier_label": "âš¡ CONVERGENCE",
                 "tier_color": "#ffd700",
                 "tier_gradient": "linear-gradient(135deg,#ffd700,#ff006e,#8b5cf6)",
                 "priority": 100,
@@ -988,7 +988,7 @@ def compute_unified_best_picks(interval: str, scan_n: int = 50,
     except Exception:
         pass
 
-    # === A-TIER: Pattern Scout STRONG (score ≥ 80) ====================
+    # === A-TIER: Pattern Scout STRONG (score â‰¥ 80) ====================
     try:
         scout_list = run_pattern_scout(interval, scan_n)
         for ps in scout_list:
@@ -999,7 +999,7 @@ def compute_unified_best_picks(interval: str, scan_n: int = 50,
                 continue  # only STRONG into top picks
             picks_by_sym[sym] = {
                 "tier": "A",
-                "tier_label": "🎯 STRONG PATTERN",
+                "tier_label": "ðŸŽ¯ STRONG PATTERN",
                 "tier_color": "#00d4ff",
                 "tier_gradient": "linear-gradient(135deg,#00d4ff,#5b8eff)",
                 "priority": 85,
@@ -1022,7 +1022,7 @@ def compute_unified_best_picks(interval: str, scan_n: int = 50,
     except Exception:
         pass
 
-    # === B-TIER: Setups Forming STRONG WATCH (≥ 80) ===================
+    # === B-TIER: Setups Forming STRONG WATCH (â‰¥ 80) ===================
     try:
         approach_list = run_reversal_approach_scan(interval, scan_n=30)
         for ar in approach_list:
@@ -1033,7 +1033,7 @@ def compute_unified_best_picks(interval: str, scan_n: int = 50,
                 continue
             picks_by_sym[sym] = {
                 "tier": "B",
-                "tier_label": "🔭 SETUP FORMING",
+                "tier_label": "ðŸ”­ SETUP FORMING",
                 "tier_color": "#ff9500",
                 "tier_gradient": "linear-gradient(135deg,#ff9500,#ffcc66)",
                 "priority": 70,
@@ -1066,7 +1066,7 @@ def compute_unified_best_picks(interval: str, scan_n: int = 50,
                 continue
             picks_by_sym[sym] = {
                 "tier": "C",
-                "tier_label": "🎯 WATCH",
+                "tier_label": "ðŸŽ¯ WATCH",
                 "tier_color": "#5b8eff",
                 "tier_gradient": "linear-gradient(135deg,#5b8eff,#8b5cf6)",
                 "priority": 55,
@@ -1099,23 +1099,23 @@ def compute_unified_best_picks(interval: str, scan_n: int = 50,
 @st.cache_data(ttl=600, show_spinner=False)
 def compute_convergence_picks(interval: str, scan_n: int = 50,
                               _cache_version: int = 2) -> list:
-    """⚡ CONVERGENCE — the highest-conviction picks across the system.
+    """âš¡ CONVERGENCE â€” the highest-conviction picks across the system.
 
     Cross-references multiple INDEPENDENT signals on the same coin:
-      1. Pattern Scout confirmed fire (validated edge — 60-75% win)
+      1. Pattern Scout confirmed fire (validated edge â€” 60-75% win)
       2. Setups Forming pre-conditions (leading indicator)
-      3. Market Regime alignment (BULL → LONG, BEAR → SHORT)
+      3. Market Regime alignment (BULL â†’ LONG, BEAR â†’ SHORT)
       4. 4h trend gate (refuse signals that fight the higher-TF trend)
       5. BTC correlation check (refuse LONG alts when BTC dumps -3%+ in 4h)
 
     Score formula:
       base = pattern_scout.score
-      + 15 if Setups Forming had ≥4 conditions met same side
+      + 15 if Setups Forming had â‰¥4 conditions met same side
       + 10 if regime composite aligned with side
       + 10 if 4h trend supports side
       - 25 if BTC adverse correlation (LONG with BTC dumping)
 
-    Only picks scoring ≥ 88 surface as CONVERGENCE. Expected fire rate:
+    Only picks scoring â‰¥ 88 surface as CONVERGENCE. Expected fire rate:
     0-3 per day in most market conditions. Rarity is the edge.
     """
     try:
@@ -1150,7 +1150,7 @@ def compute_convergence_picks(interval: str, scan_n: int = 50,
 
     # --- NEW: BTC-ETH-SOL majors alignment check ---
     # If all three top majors are showing same-direction signals in
-    # Pattern Scout, that's broad-market agreement → bonus for picks
+    # Pattern Scout, that's broad-market agreement â†’ bonus for picks
     # matching that direction.
     btc_dir = scout_by_sym.get("BTCUSDT", {}).get("side", "NEUTRAL")
     eth_dir = scout_by_sym.get("ETHUSDT", {}).get("side", "NEUTRAL")
@@ -1193,7 +1193,7 @@ def compute_convergence_picks(interval: str, scan_n: int = 50,
             bonus += 10
             reasons.append(f"regime SHORT-friendly ({regime_composite:.0f})")
 
-        # 3. 4h trend gate — check pick's own 4h
+        # 3. 4h trend gate â€” check pick's own 4h
         try:
             df_4h = binance_client.get_klines(sym, "4h")
             df_4h = indicators.enrich(df_4h)
@@ -1212,11 +1212,11 @@ def compute_convergence_picks(interval: str, scan_n: int = 50,
             elif (side == "LONG" and price_4h < ema50_4h
                   and not ema_rising):
                 penalty += 15
-                reasons.append("⚠ 4h trend opposes LONG")
+                reasons.append("âš  4h trend opposes LONG")
             elif (side == "SHORT" and price_4h > ema50_4h
                   and ema_rising):
                 penalty += 15
-                reasons.append("⚠ 4h trend opposes SHORT")
+                reasons.append("âš  4h trend opposes SHORT")
         except Exception:
             pass
 
@@ -1224,29 +1224,29 @@ def compute_convergence_picks(interval: str, scan_n: int = 50,
         if side == "LONG" and btc_4h_change <= -3.0:
             penalty += 25
             reasons.append(
-                f"⚠ BTC dumping {btc_4h_change:.1f}% 4h "
+                f"âš  BTC dumping {btc_4h_change:.1f}% 4h "
                 "(alts likely follow)")
         elif side == "SHORT" and btc_4h_change >= 3.0:
             penalty += 25
             reasons.append(
-                f"⚠ BTC pumping +{btc_4h_change:.1f}% 4h "
+                f"âš  BTC pumping +{btc_4h_change:.1f}% 4h "
                 "(SHORT may get squeezed)")
 
         # 5. NEW: Funding rate extreme filter
         # When funding is heavily one-sided, crowd is positioned hard
-        # — opposite direction has squeeze risk
+        # â€” opposite direction has squeeze risk
         funding = all_funding.get(sym)
         if funding is not None:
             funding_pct = funding * 100  # convert to %
             if side == "LONG" and funding_pct >= 0.08:
                 penalty += 20
                 reasons.append(
-                    f"⚠ funding {funding_pct:+.3f}% (crowded longs, "
+                    f"âš  funding {funding_pct:+.3f}% (crowded longs, "
                     "squeeze risk)")
             elif side == "SHORT" and funding_pct <= -0.08:
                 penalty += 20
                 reasons.append(
-                    f"⚠ funding {funding_pct:+.3f}% (crowded shorts, "
+                    f"âš  funding {funding_pct:+.3f}% (crowded shorts, "
                     "squeeze risk)")
             elif side == "LONG" and funding_pct <= -0.03:
                 bonus += 5
@@ -1289,7 +1289,7 @@ def run_reversal_approach_scan(interval: str, scan_n: int = 30,
                                _cache_version: int = 2) -> list:
     """Scan top N coins for coins APPROACHING reversal conditions.
 
-    Leading-indicator scan — finds coins where pre-shooting-star or
+    Leading-indicator scan â€” finds coins where pre-shooting-star or
     pre-hammer conditions are forming (3+ of 7 pre-conditions met).
     Now ALSO generates an anticipatory trade plan so the user can
     open the trade directly from the Setups Forming card.
@@ -1385,25 +1385,25 @@ def run_reversal_approach_scan(interval: str, scan_n: int = 30,
 @st.cache_data(ttl=600, show_spinner=False)
 def run_pattern_scout(interval: str, scan_n: int = 50,
                       _cache_version: int = 6) -> list:
-    """Universal Pattern Scout — scans top N coins for high-conviction
+    """Universal Pattern Scout â€” scans top N coins for high-conviction
     setups across all validated-edge patterns, INDEPENDENT of the
     alerts.build_alerts() gate.
 
     `_cache_version`: bump this when changing the function logic to
     force cache invalidation. Streamlit @st.cache_data doesn't auto-
-    invalidate on code changes — only when args change. v3 = added LONG
+    invalidate on code changes â€” only when args change. v3 = added LONG
     trade plan validation guard so SHORT-direction plans never leak
     into the card display.
 
     Per user feedback: the picks board only surfaces coins that pass
     CONF_ALERT=72. Coins with strong individual patterns (V-bottom,
     long_patterns, morning star, hammer-at-support) but lower scanner
-    confidence never appear. This helper surfaces them — AND now also
+    confidence never appear. This helper surfaces them â€” AND now also
     generates a full trade plan (entry/stop/TP1/TP2) for each pick so
-    the user can open the trade with a 📥 button directly from the
+    the user can open the trade with a ðŸ“¥ button directly from the
     Pattern Scout cards.
 
-    Cached 10 min — scan of 50 coins × klines fetch + patterns +
+    Cached 10 min â€” scan of 50 coins Ã— klines fetch + patterns +
     trade plan takes 30-60 sec but the cache keeps repeated visits fast.
     """
     try:
@@ -1455,7 +1455,7 @@ def run_pattern_scout(interval: str, scan_n: int = 50,
                         trade_plan = _candidate_plan
             except Exception:
                 pass
-            # ATR fallback — side-aware
+            # ATR fallback â€” side-aware
             if trade_plan is None:
                 try:
                     last = df.iloc[-1]
@@ -1519,9 +1519,9 @@ def _bybit_klines(symbol: str, interval: str = "1d",
                   limit: int = 365):
     """Pull klines from Bybit's public v5 endpoint as a Binance fallback.
 
-    Bybit interval mapping: 1m/3m/5m/15m/30m → "1"/"3"/"5"/"15"/"30",
-    1h → "60", 2h → "120", 4h → "240", 6h → "360", 12h → "720",
-    1d → "D", 1w → "W".
+    Bybit interval mapping: 1m/3m/5m/15m/30m â†’ "1"/"3"/"5"/"15"/"30",
+    1h â†’ "60", 2h â†’ "120", 4h â†’ "240", 6h â†’ "360", 12h â†’ "720",
+    1d â†’ "D", 1w â†’ "W".
     Returns a DataFrame indexed by timestamp with columns
     [open, high, low, close, volume] matching binance_client.get_klines.
     """
@@ -1570,7 +1570,7 @@ def _agent_load_chart_klines(symbol: str, interval: str = "1d",
                              limit: int = 365):
     """Module-scope cached kline loader for the 24/7 Agent charts.
 
-    Tries Binance FIRST (proven path) — falls back to Bybit if Binance
+    Tries Binance FIRST (proven path) â€” falls back to Bybit if Binance
     is rate-limited / unavailable. Returns an enriched DataFrame or an
     empty DataFrame if BOTH sources fail (caller handles fallback).
     """
@@ -1590,7 +1590,7 @@ def _agent_load_chart_klines(symbol: str, interval: str = "1d",
     except Exception:
         pass
 
-    # Both sources failed — return empty DataFrame so chart shows
+    # Both sources failed â€” return empty DataFrame so chart shows
     # "no data" rather than raising.
     return pd.DataFrame()
 
@@ -1688,7 +1688,7 @@ def load_early_momentum(symbol: str, interval: str) -> dict:
     try:
         df = binance_client.get_klines(symbol, interval)
         df = indicators.enrich(df)
-        # 4h context — pull only if primary TF != 4h to avoid double work.
+        # 4h context â€” pull only if primary TF != 4h to avoid double work.
         ctx_df = None
         if interval != "4h":
             try:
@@ -1710,13 +1710,13 @@ def load_rs_vs_btc(symbol: str, interval: str) -> dict:
     """Compute relative strength of `symbol` vs BTC on `interval`.
 
     Pulls both alt and BTC klines (both will hit the regular kline
-    cache — no extra cost beyond the first BTC fetch per scan tick)
+    cache â€” no extra cost beyond the first BTC fetch per scan tick)
     and returns the RS score dict. Phase B addition: surfaces
     "this coin is out-performing BTC" as a leading rotation signal
     on the picks board.
     """
     if symbol == "BTCUSDT":
-        # BTC vs itself is meaningless — return neutral so the chip
+        # BTC vs itself is meaningless â€” return neutral so the chip
         # never fires on BTC and the picks board doesn't mislead.
         return {"score": 50.0, "side": "NEUTRAL", "rs_z": 0.0,
                 "rs_blended": 0.0, "windows": {}, "detail": "BTC vs BTC (N/A)"}
@@ -1731,7 +1731,7 @@ def load_rs_vs_btc(symbol: str, interval: str) -> dict:
 
 
 # --- Phase C / E / F cached helpers ---------------------------------------
-# All of these are pure display layers — they DO NOT feed live_broker,
+# All of these are pure display layers â€” they DO NOT feed live_broker,
 # auto_trade_gate, or is_premium_tradeable. Live trading behaves identically
 # before/after these adds.
 
@@ -1775,7 +1775,7 @@ def load_market_regime() -> dict:
     BULL regime should get a boost. This module gives us the regime
     state, and regime_tilt() applies the proper directional weighting.
 
-    10-minute cache — regime changes slowly. The market_regime module's
+    10-minute cache â€” regime changes slowly. The market_regime module's
     own breadth cache adds another 30-min layer underneath.
     """
     try:
@@ -1788,7 +1788,7 @@ def load_market_regime() -> dict:
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def load_btc_regime() -> dict:
-    """Phase E: BTC.D + ETH/BTC alt-season regime. Hourly cache —
+    """Phase E: BTC.D + ETH/BTC alt-season regime. Hourly cache â€”
     regime data is slow-moving."""
     try:
         return btc_dominance.regime()
@@ -1799,7 +1799,7 @@ def load_btc_regime() -> dict:
 
 @st.cache_data(ttl=21600, show_spinner=False)
 def load_macro_regime() -> dict:
-    """Phase E: FRED macro overlay (DXY + M2 + real yields). 6h cache —
+    """Phase E: FRED macro overlay (DXY + M2 + real yields). 6h cache â€”
     macro data updates slowly and FRED has rate limits."""
     try:
         return fred_macro.regime()
@@ -1811,7 +1811,7 @@ def load_macro_regime() -> dict:
 @st.cache_data(ttl=config.MARKET_CACHE_TTL, show_spinner=False)
 def load_cup_and_handle(symbol: str) -> dict:
     """Phase F: weekly cup-and-handle pattern detector. Cached at the
-    regular market TTL — weekly patterns don't change inside 2 minutes."""
+    regular market TTL â€” weekly patterns don't change inside 2 minutes."""
     try:
         weekly = binance_client.get_klines(symbol, "1w")
         return cup_and_handle.score(weekly)
@@ -1822,7 +1822,7 @@ def load_cup_and_handle(symbol: str) -> dict:
 
 @st.cache_data(ttl=21600, show_spinner=False)
 def load_tokenomics(symbol: str) -> dict:
-    """Phase F: tokenomics dilution-risk score. 6h cache — supply data
+    """Phase F: tokenomics dilution-risk score. 6h cache â€” supply data
     is slow-moving."""
     try:
         return tokenomics_unlocks.score(symbol)
@@ -1834,7 +1834,7 @@ def load_tokenomics(symbol: str) -> dict:
 @st.cache_data(ttl=600, show_spinner=False)
 def load_spot_long_score(symbol: str, interval: str = "1d") -> dict:
     """Compute the long-term spot score for one symbol on the chosen
-    timeframe (default 1d — user feedback was that weekly was too slow
+    timeframe (default 1d â€” user feedback was that weekly was too slow
     and 1d/3d/1w trends are more actionable).
 
     The underlying math is bar-count-relative so it works on any
@@ -1890,7 +1890,7 @@ def scan_market(symbols: tuple[str, ...], interval: str,
 
 @st.cache_data(ttl=config.MARKET_CACHE_TTL, show_spinner=False)
 def forecast_market(symbols: tuple[str, ...]) -> pd.DataFrame:
-    """Per-coin multi-horizon forecast — blends the per-timeframe technical
+    """Per-coin multi-horizon forecast â€” blends the per-timeframe technical
     read with the comprehensive Breakout Radar read (news catalysts, the
     macro / geopolitical backdrop, volume ignition, social heat and funding).
     See forecast.py."""
@@ -1955,7 +1955,7 @@ def btc_outlook_now(btc_change_24h: float, alt_median_24h: float) -> dict:
     except Exception:
         mcap_change = None
 
-    # News fusion — BTC-specific + macro/political + general crypto mood.
+    # News fusion â€” BTC-specific + macro/political + general crypto mood.
     news_payload = None
     try:
         nd = load_news()
@@ -2020,7 +2020,7 @@ def load_news() -> pd.DataFrame:
 
 @st.cache_data(ttl=config.NEWS_CACHE_TTL, show_spinner=False)
 def load_impactful_news() -> list[dict]:
-    """The headlines that are MOVING the tape right now — used by the BTC
+    """The headlines that are MOVING the tape right now â€” used by the BTC
     banner's 'Why this is happening' panel and the live news notifications."""
     try:
         return news_impact.detect_impactful(load_news())
@@ -2050,7 +2050,7 @@ def load_derivatives(symbol: str, interval: str) -> dict | None:
 
 @st.cache_data(ttl=300, show_spinner=False)
 def htf_trend(symbol: str) -> str:
-    """Higher-timeframe (weekly) trend filter for a coin — 'Up' / 'Down'
+    """Higher-timeframe (weekly) trend filter for a coin â€” 'Up' / 'Down'
     / 'Sideways'. Genuinely INDEPENDENT of the per-TF scoring the
     scanner and forecast already weight (those look at 15m / 1h / 4h,
     never 1w). Trading WITH the weekly trend has materially better
@@ -2095,11 +2095,11 @@ def is_premium_tradeable(
     All FIVE conditions must hold:
       1. Scanner conf >= 90 (top-tier signal strength)
       2. Forecast aligned 3/3 AND direction matches setup side
-      3. Radar stage is COILED or FRESH (NOT EXTENDED — no chasing)
+      3. Radar stage is COILED or FRESH (NOT EXTENDED â€” no chasing)
       4. Live R:R from current price >= 1.3 (green entry zone)
       5. Weekly trend is NOT counter (aligned or neutral both ok)
 
-    Returns True only when ALL are satisfied — the "sure shot" criteria
+    Returns True only when ALL are satisfied â€” the "sure shot" criteria
     the user defined. Most days zero setups pass; some days one or two.
     """
     if int(scanner_conf or 0) < 90:
@@ -2123,7 +2123,7 @@ def is_premium_tradeable(
 
 @st.cache_data(ttl=5, show_spinner=False)
 def live_price(symbol: str) -> float | None:
-    """Fast 5-second-cached live price for one symbol — used by the Paper
+    """Fast 5-second-cached live price for one symbol â€” used by the Paper
     Trader so open-position cards reflect near-real-time price between
     full scanner refreshes. Falls back to None if the endpoint fails."""
     return binance_client.get_ticker_price(symbol)
@@ -2172,7 +2172,7 @@ def load_stock_social() -> dict | None:
 # --- Formatting helpers ----------------------------------------------------
 def fmt_price(value: float) -> str:
     if value is None:
-        return "—"
+        return "â€”"
     if value >= 100:
         return f"${value:,.2f}"
     if value >= 1:
@@ -2181,13 +2181,13 @@ def fmt_price(value: float) -> str:
 
 
 def fmt_volume(value: float) -> str:
-    """Human-readable money amount — billions / millions / thousands.
+    """Human-readable money amount â€” billions / millions / thousands.
 
     Avoids the '$0.0B' problem where dividing every coin by a billion hides
     anything that does not trade in the billions.
     """
     if value is None or value != value:   # None or NaN
-        return "—"
+        return "â€”"
     if value >= 1e9:
         return f"${value / 1e9:.2f}B"
     if value >= 1e6:
@@ -2304,7 +2304,7 @@ def _analysis_sections(agg: dict, detail: dict, per_tf: dict,
     adx, regime = detail.get("adx"), detail["regime"]
     if adx is not None:
         if regime == "Trending":
-            t += (f"ADX at {adx:.0f} confirms a genuine trend — "
+            t += (f"ADX at {adx:.0f} confirms a genuine trend â€” "
                   f"trend-following signals are reliable and targets can be "
                   f"held toward the second take-profit.")
         elif regime == "Ranging":
@@ -2312,15 +2312,15 @@ def _analysis_sections(agg: dict, detail: dict, per_tf: dict,
                   f"choppy, so favour mean-reversion, bank profit earlier "
                   f"and distrust breakouts.")
         else:
-            t += (f"ADX at {adx:.0f} shows a developing — not yet "
-                  f"established — trend; wait for confirmation.")
+            t += (f"ADX at {adx:.0f} shows a developing â€” not yet "
+                  f"established â€” trend; wait for confirmation.")
     secs.append(("Trend & market structure", t))
 
     r = detail["rsi"]
     m = (f"Entry timing reads {agg['action_label']} "
          f"(score {agg['action_score']:+.0f}). RSI at {r:.0f} is "
-         + ("overbought — a pullback is increasingly likely" if r >= 70
-            else "oversold — a bounce is increasingly likely" if r <= 30
+         + ("overbought â€” a pullback is increasingly likely" if r >= 70
+            else "oversold â€” a bounce is increasingly likely" if r <= 30
             else "in positive-momentum territory" if r >= 55
             else "in weak-momentum territory" if r <= 45 else "neutral")
          + ". ")
@@ -2331,7 +2331,7 @@ def _analysis_sections(agg: dict, detail: dict, per_tf: dict,
 
     flow = flow_snap.get("flow")
     if flow:
-        o = (f"Right now {flow['pressure'].lower()} — {flow['buy_pct']:.0f}% "
+        o = (f"Right now {flow['pressure'].lower()} â€” {flow['buy_pct']:.0f}% "
              f"of the last {flow['trades']:,} trades by value were aggressive "
              f"buys (${flow['buy_quote']:,.0f} bought vs "
              f"${flow['sell_quote']:,.0f} sold). ")
@@ -2343,10 +2343,10 @@ def _analysis_sections(agg: dict, detail: dict, per_tf: dict,
     dv = detail.get("derivatives")
     if dv and dv.get("funding") is not None:
         f = dv["funding"]
-        d = (f"Perpetual funding is {f * 100:+.3f}% — "
+        d = (f"Perpetual funding is {f * 100:+.3f}% â€” "
              + ("longs are crowded and over-paying, a contrarian warning"
                 if f >= config.FUNDING_HOT
-                else "shorts are crowded — squeeze fuel for a move higher"
+                else "shorts are crowded â€” squeeze fuel for a move higher"
                 if f <= -config.FUNDING_HOT
                 else "balanced, with no leverage extreme") + ". ")
         if dv.get("long_short_ratio") is not None:
@@ -2358,13 +2358,13 @@ def _analysis_sections(agg: dict, detail: dict, per_tf: dict,
     if lc_metrics and lc_metrics.get("sentiment") is not None:
         sv = lc_metrics["sentiment"]
         s = (f"LunarCrush social: Galaxy Score "
-             f"{lc_metrics.get('galaxy_score', '—')}, sentiment {sv:.0f}% "
+             f"{lc_metrics.get('galaxy_score', 'â€”')}, sentiment {sv:.0f}% "
              f"positive")
         if lc_metrics.get("alt_rank") is not None:
             s += f", AltRank #{lc_metrics['alt_rank']:,.0f}"
         s += (". Social attention is "
               + ("supportive of the move." if sv >= 55
-                 else "weak or negative — a headwind." if sv <= 45
+                 else "weak or negative â€” a headwind." if sv <= 45
                  else "neutral."))
         secs.append(("Social sentiment", s))
 
@@ -2372,7 +2372,7 @@ def _analysis_sections(agg: dict, detail: dict, per_tf: dict,
         secs.append((
             "TradingView cross-check",
             f"TradingView's independent engine rates this "
-            f"{tv_rating['recommendation']} — {tv_rating['buy']} buy, "
+            f"{tv_rating['recommendation']} â€” {tv_rating['buy']} buy, "
             f"{tv_rating['neutral']} neutral and {tv_rating['sell']} sell "
             f"indicators (oscillators {tv_rating['oscillators']}, moving "
             f"averages {tv_rating['moving_averages']})."))
@@ -2386,9 +2386,9 @@ def _analysis_sections(agg: dict, detail: dict, per_tf: dict,
         "Across timeframes",
         f"{longs} of {len(per_tf)} timeframes lean long and {shorts} lean "
         f"short ({tf_list}). " + (
-            "All timeframes agree — this is a higher-conviction setup."
+            "All timeframes agree â€” this is a higher-conviction setup."
             if aligned else
-            "Timeframes disagree — lower conviction; trade smaller or wait "
+            "Timeframes disagree â€” lower conviction; trade smaller or wait "
             "for them to align.")))
     return secs
 
@@ -2399,30 +2399,30 @@ def _action_steps(plan: dict | None, agg: dict,
     """Concrete, numbered trading actions for the current setup."""
     if not plan:
         steps = [
-            "The composite signal is NEUTRAL — there is no high-probability "
+            "The composite signal is NEUTRAL â€” there is no high-probability "
             "trade right now, so do not force one.",
-            "Wait for the directional bias and entry timing to agree — both "
+            "Wait for the directional bias and entry timing to agree â€” both "
             "clearly bullish, or both clearly bearish.",
         ]
         if nearest_sup:
-            steps.append(f"Watch support at {fmt_price(nearest_sup)} — a "
+            steps.append(f"Watch support at {fmt_price(nearest_sup)} â€” a "
                          f"clean bounce there could set up a long.")
         if nearest_res:
-            steps.append(f"Watch resistance at {fmt_price(nearest_res)} — a "
+            steps.append(f"Watch resistance at {fmt_price(nearest_res)} â€” a "
                          f"clear rejection there could set up a short.")
         return steps
 
     side = plan["side"]
     other = "short" if side == "LONG" else "long"
     steps = [
-        f"Trade {side} only — ignore {other} setups while this bias holds.",
+        f"Trade {side} only â€” ignore {other} setups while this bias holds.",
         f"Place a limit {side} order in the entry zone "
-        f"{fmt_price(plan['entry_low'])} – {fmt_price(plan['entry_high'])}; "
+        f"{fmt_price(plan['entry_low'])} â€“ {fmt_price(plan['entry_high'])}; "
         f"do not chase price outside that zone.",
     ]
     if side == "LONG" and nearest_sup:
         steps.append(f"Best entries are near support {fmt_price(nearest_sup)} "
-                     f"— a pullback there gives a tighter, safer stop.")
+                     f"â€” a pullback there gives a tighter, safer stop.")
     if side == "SHORT" and nearest_res:
         steps.append(f"Best entries are near resistance "
                      f"{fmt_price(nearest_res)}.")
@@ -2430,24 +2430,24 @@ def _action_steps(plan: dict | None, agg: dict,
         f"As soon as you are filled, set a stop-loss at "
         f"{fmt_price(plan['stop_loss'])} ({plan['risk_pct']:.2f}% away, placed "
         f"on {plan.get('stop_basis', 'volatility')}). A candle close beyond it "
-        f"invalidates the trade — exit, no exceptions.",
+        f"invalidates the trade â€” exit, no exceptions.",
         f"Scale out: ~40% at Target 1 {fmt_price(plan['take_profit'])} "
         f"({plan['risk_reward']:.1f}R), ~35% at Target 2 "
         f"{fmt_price(plan['take_profit_2'])} ({plan['risk_reward_2']:.1f}R), "
         f"the rest at Target 3 {fmt_price(plan['take_profit_3'])} "
         f"({plan['risk_reward_3']:.1f}R). Each target is a real swing level.",
         "Once Target 1 fills, move the stop to your entry price "
-        "(break-even) — the rest of the trade is then risk-free.",
+        "(break-even) â€” the rest of the trade is then risk-free.",
     ]
     if plan.get("mode") == "spot":
         steps.append(
-            f"Spot sizing — buy ≈{plan.get('position_pct', 0):.0f}% of your "
+            f"Spot sizing â€” buy â‰ˆ{plan.get('position_pct', 0):.0f}% of your "
             f"account capital so a stop-out costs only "
             f"~{signals.RISK_PER_TRADE_PCT:g}% of the account (no leverage).")
     else:
         steps.append(
-            f"Futures sizing — ≈{plan.get('leverage', 1):g}× leverage on a "
-            f"≈{plan.get('position_pct', 0):.0f}% margin allocation; a stop-out "
+            f"Futures sizing â€” â‰ˆ{plan.get('leverage', 1):g}Ã— leverage on a "
+            f"â‰ˆ{plan.get('position_pct', 0):.0f}% margin allocation; a stop-out "
             f"then costs ~{signals.RISK_PER_TRADE_PCT:g}% of the account.")
     return steps
 
@@ -2469,37 +2469,37 @@ def _trade_decision(row, timeframe: str) -> dict:
     else:
         decision, color = "SELL / AVOID", "#ff5c5c"
 
-    base = {"15m": "a few hours (intraday)", "1h": "1–3 days",
+    base = {"15m": "a few hours (intraday)", "1h": "1â€“3 days",
             "4h": "several days to ~2 weeks",
             "1d": "several weeks to months"}.get(timeframe, "a few days")
     if regime == "Trending":
-        hold = f"{base} — trend intact; hold while the structure holds"
+        hold = f"{base} â€” trend intact; hold while the structure holds"
     elif regime == "Ranging":
-        hold = f"shorter than {base} — ranging market, bank profit quickly"
+        hold = f"shorter than {base} â€” ranging market, bank profit quickly"
     else:
         hold = base
 
     if decision in ("BUY", "ACCUMULATE") and isinstance(plan, dict):
-        when = (f"Enter on a pullback into {fmt_price(plan['entry_low'])}–"
+        when = (f"Enter on a pullback into {fmt_price(plan['entry_low'])}â€“"
                 f"{fmt_price(plan['entry_high'])}, stop "
                 f"{fmt_price(plan['stop_loss'])}.")
     elif decision == "BUY":
-        when = "Momentum is live — enter now or on the first shallow dip."
+        when = "Momentum is live â€” enter now or on the first shallow dip."
     elif decision == "HOLD / WAIT":
-        when = "No clean setup — wait for a stronger signal before buying."
+        when = "No clean setup â€” wait for a stronger signal before buying."
     else:
         when = "Avoid new longs; trim or exit existing exposure."
 
     if score >= 15 and isinstance(plan, dict):
-        outlook = (f"Bullish bias — scope toward "
+        outlook = (f"Bullish bias â€” scope toward "
                    f"{fmt_price(plan['take_profit'])} while price holds "
                    f"above {fmt_price(plan['stop_loss'])}.")
     elif score <= -15 and isinstance(plan, dict):
-        outlook = (f"Bearish bias — downside risk toward "
+        outlook = (f"Bearish bias â€” downside risk toward "
                    f"{fmt_price(plan['take_profit'])} while price stays "
                    f"below {fmt_price(plan['stop_loss'])}.")
     else:
-        outlook = ("Rangebound / no directional edge — wait for a breakout "
+        outlook = ("Rangebound / no directional edge â€” wait for a breakout "
                    "or a stronger signal before acting.")
     return {"decision": decision, "color": color, "hold": hold,
             "when": when, "outlook": outlook}
@@ -2517,17 +2517,17 @@ def render_action_plan(plan: dict, regime: str, confidence: int,
     mat = plan.get("maturity") or {}
     mat_color = {"EARLY": "#34c759", "RE-RUN": "#6e8bff",
                  "EXTENDED": "#ff8a3d"}.get(mat.get("stage"), "#8e8e93")
-    mat_label = {"EARLY": "EARLY — room to run",
-                 "RE-RUN": "RE-RUN SETUP — second-leg entry",
-                 "EXTENDED": "EXTENDED — move already ran"}.get(
+    mat_label = {"EARLY": "EARLY â€” room to run",
+                 "RE-RUN": "RE-RUN SETUP â€” second-leg entry",
+                 "EXTENDED": "EXTENDED â€” move already ran"}.get(
                      mat.get("stage"), "MOVE STAGE UNKNOWN")
     risk_unit = signals.RISK_PER_TRADE_PCT
     with st.container(border=True):
         st.markdown(
-            f"<h4 style='margin:0 0 6px 0'>📋 Action Plan &nbsp;"
+            f"<h4 style='margin:0 0 6px 0'>ðŸ“‹ Action Plan &nbsp;"
             f"<span style='color:{accent}'>{side} {coin}</span>"
             f"<span style='float:right;color:#888;font-size:0.8rem'>"
-            f"{mode.upper()} · regime: {regime}</span></h4>",
+            f"{mode.upper()} Â· regime: {regime}</span></h4>",
             unsafe_allow_html=True)
         if mat:
             st.markdown(
@@ -2535,16 +2535,16 @@ def render_action_plan(plan: dict, regime: str, confidence: int,
                 f"{mat_color};padding:6px 11px;border-radius:4px;"
                 f"margin:2px 0 12px 0'>"
                 f"<b style='color:{mat_color}'>{mat_label}</b>"
-                f"<span style='color:#888'> · {mat.get('confidence', 0)}% "
+                f"<span style='color:#888'> Â· {mat.get('confidence', 0)}% "
                 f"confidence</span><br><span style='font-size:0.85rem;"
                 f"color:#bbb'>{mat.get('note', '')}</span></div>",
                 unsafe_allow_html=True)
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Entry zone", fmt_price(plan["entry"]),
-                  f"{fmt_price(plan['entry_low'])} – "
+                  f"{fmt_price(plan['entry_low'])} â€“ "
                   f"{fmt_price(plan['entry_high'])}")
         c2.metric("Stop loss", fmt_price(plan["stop_loss"]),
-                  f"-{plan['risk_pct']:.2f}% · {plan.get('stop_basis', '')}")
+                  f"-{plan['risk_pct']:.2f}% Â· {plan.get('stop_basis', '')}")
         c3.metric("Target 1", fmt_price(plan["take_profit"]),
                   f"{plan['risk_reward']:.1f}R")
         c4.metric("Target 2", fmt_price(plan["take_profit_2"]),
@@ -2556,30 +2556,30 @@ def render_action_plan(plan: dict, regime: str, confidence: int,
         lev = plan.get("leverage", 1.0)
         if mode == "spot":
             t2.markdown(
-                f"**Position sizing** — risking **{risk_unit:g}%** of your "
+                f"**Position sizing** â€” risking **{risk_unit:g}%** of your "
                 f"account: with the stop **{plan['risk_pct']:.2f}%** away, buy "
-                f"**≈{pos:.0f}%** of account capital (spot, no leverage). "
+                f"**â‰ˆ{pos:.0f}%** of account capital (spot, no leverage). "
                 f"R:R is built from real swing structure, so a wider stop "
-                f"gives a smaller position — that is why every coin differs.")
+                f"gives a smaller position â€” that is why every coin differs.")
         else:
             t2.markdown(
-                f"**Position sizing** — risking **{risk_unit:g}%** of account: "
-                f"suggested **{lev:g}× leverage** on a margin allocation of "
-                f"**≈{pos:.0f}%** of account. Leverage scales with signal "
+                f"**Position sizing** â€” risking **{risk_unit:g}%** of account: "
+                f"suggested **{lev:g}Ã— leverage** on a margin allocation of "
+                f"**â‰ˆ{pos:.0f}%** of account. Leverage scales with signal "
                 f"confidence and is capped on volatile (wide-stop) coins, so "
-                f"each coin gets its own size — never a copy-paste.")
+                f"each coin gets its own size â€” never a copy-paste.")
         st.caption(plan["regime_fit"])
-        st.progress(int(confidence), text=f"Signal confidence · {confidence}%")
+        st.progress(int(confidence), text=f"Signal confidence Â· {confidence}%")
 
         market = ("tradeable on Spot or Futures" if side == "LONG"
-                  else "tradeable on Futures / Margin only — you cannot "
+                  else "tradeable on Futures / Margin only â€” you cannot "
                        "short on a spot account")
         st.caption(f"This is a {side} setup, {market}.")
-        st.markdown("**✅ Trading actions — follow in order**")
+        st.markdown("**âœ… Trading actions â€” follow in order**")
         for _i, _step in enumerate(
                 _action_steps(plan, agg, nearest_sup, nearest_res), 1):
             st.markdown(f"{_i}. {_step}")
-        st.caption("Educational walkthrough — not financial advice. Price "
+        st.caption("Educational walkthrough â€” not financial advice. Price "
                    "can gap straight through stops in fast markets.")
 
 
@@ -2587,7 +2587,7 @@ def render_orderflow(snap: dict) -> None:
     """Render the live order-flow panel (recent trades + book depth)."""
     flow, book = snap.get("flow"), snap.get("book")
     with st.container(border=True):
-        st.markdown("#### 🟢🔴 Live Order Flow")
+        st.markdown("#### ðŸŸ¢ðŸ”´ Live Order Flow")
         if flow:
             st.markdown(pressure_bar(flow["buy_pct"]), unsafe_allow_html=True)
             f1, f2, f3 = st.columns(3)
@@ -2596,7 +2596,7 @@ def render_orderflow(snap: dict) -> None:
             f3.metric("Net flow", f"${flow['net_quote']:,.0f}",
                       flow["pressure"])
             st.caption(f"Last {flow['trades']:,} executed trades over "
-                       f"~{flow['window_seconds'] / 60:.1f} min · "
+                       f"~{flow['window_seconds'] / 60:.1f} min Â· "
                        f"{flow['pressure']}.")
             if flow["large_trades"]:
                 lt = pd.DataFrame([
@@ -2615,7 +2615,7 @@ def render_orderflow(snap: dict) -> None:
         else:
             st.caption("Live trade feed unavailable for this symbol.")
         if book:
-            st.markdown(f"**Order book** · ±{config.DEPTH_BAND_PCT:.1f}% band")
+            st.markdown(f"**Order book** Â· Â±{config.DEPTH_BAND_PCT:.1f}% band")
             b1, b2, b3 = st.columns(3)
             b1.metric("Bid depth", f"${book['bid_quote']:,.0f}")
             b2.metric("Ask depth", f"${book['ask_quote']:,.0f}")
@@ -2623,8 +2623,8 @@ def render_orderflow(snap: dict) -> None:
             sup, res = book.get("support"), book.get("resistance")
             if sup and res:
                 st.caption(
-                    f"{book['verdict']} · nearest support wall "
-                    f"{fmt_price(sup['price'])} (${sup['quote']:,.0f}) · "
+                    f"{book['verdict']} Â· nearest support wall "
+                    f"{fmt_price(sup['price'])} (${sup['quote']:,.0f}) Â· "
                     f"resistance wall {fmt_price(res['price'])} "
                     f"(${res['quote']:,.0f}).")
 
@@ -2633,7 +2633,7 @@ def render_history(symbol: str, df1d, ticker_row, detail: dict,
                    levels: tuple) -> None:
     """Render the price-history, key-levels and trend-context panel."""
     with st.container(border=True):
-        st.markdown("#### 📜 Price History & Key Levels")
+        st.markdown("#### ðŸ“œ Price History & Key Levels")
         price = detail["price"]
         cols = st.columns(4)
         if ticker_row is not None:
@@ -2656,12 +2656,12 @@ def render_history(symbol: str, df1d, ticker_row, detail: dict,
         lv = st.columns(2)
         lv[0].metric(
             "Nearest support",
-            fmt_price(nearest_sup) if nearest_sup else "—",
+            fmt_price(nearest_sup) if nearest_sup else "â€”",
             f"{(nearest_sup / price - 1) * 100:+.2f}% away"
             if nearest_sup else None, delta_color="off")
         lv[1].metric(
             "Nearest resistance",
-            fmt_price(nearest_res) if nearest_res else "—",
+            fmt_price(nearest_res) if nearest_res else "â€”",
             f"{(nearest_res / price - 1) * 100:+.2f}% away"
             if nearest_res else None, delta_color="off")
 
@@ -2676,17 +2676,17 @@ def render_history(symbol: str, df1d, ticker_row, detail: dict,
         if df1d is not None and not pd.isna(df1d["ema_trend"].iloc[-1]):
             above = price >= df1d["ema_trend"].iloc[-1]
             bits.append(("above" if above else "below")
-                        + " the 200-day EMA — long-term "
+                        + " the 200-day EMA â€” long-term "
                         + ("uptrend" if above else "downtrend"))
         if detail.get("atr_pct"):
             bits.append(f"volatility {detail['atr_pct']}% ATR")
-        st.caption(" · ".join(bits))
+        st.caption(" Â· ".join(bits))
 
 
 def render_lunarcrush(metrics: dict | None, base_asset: str) -> None:
     """Render the LunarCrush social-intelligence panel."""
     with st.container(border=True):
-        st.markdown("#### 🌙 LunarCrush Social Intelligence")
+        st.markdown("#### ðŸŒ™ LunarCrush Social Intelligence")
         if metrics is None:
             if not lunarcrush.is_configured():
                 st.info(
@@ -2699,7 +2699,7 @@ def render_lunarcrush(metrics: dict | None, base_asset: str) -> None:
                 st.caption(
                     f"No LunarCrush data for {base_asset}. Your API key is "
                     f"loaded, but the LunarCrush API needs an **active "
-                    f"Individual (or higher) subscription** — a free account "
+                    f"Individual (or higher) subscription** â€” a free account "
                     f"returns no data. Activate a plan at lunarcrush.com.")
             return
 
@@ -2711,7 +2711,7 @@ def render_lunarcrush(metrics: dict | None, base_asset: str) -> None:
                     confidence_gauge(float(gs), suffix=""),
                     use_container_width=True,
                     config={"displayModeBar": False})
-                st.caption("Galaxy Score — combined social + market "
+                st.caption("Galaxy Score â€” combined social + market "
                            "health (0-100)")
             else:
                 st.caption("Galaxy Score unavailable")
@@ -2724,7 +2724,7 @@ def render_lunarcrush(metrics: dict | None, base_asset: str) -> None:
                          if ar_prev is not None else None)
                 mc[0].metric(
                     "AltRank", f"#{ar:,.0f}", delta,
-                    help="Combined price + social rank — lower is better")
+                    help="Combined price + social rank â€” lower is better")
             sent = metrics.get("sentiment")
             if sent is not None:
                 mc[1].metric("Social sentiment", f"{sent:.0f}%",
@@ -2735,7 +2735,7 @@ def render_lunarcrush(metrics: dict | None, base_asset: str) -> None:
             iv = metrics.get("interactions_24h")
             if iv is not None:
                 mc[1].metric("Interactions 24h", f"{iv:,.0f}")
-        st.caption("Source: LunarCrush — social data aggregated from "
+        st.caption("Source: LunarCrush â€” social data aggregated from "
                    "X/Twitter and other platforms.")
 
 
@@ -2748,7 +2748,7 @@ def render_bottom_line(agg: dict, detail: dict, per_tf: dict,
         "Trend & momentum",
         "bull" if agg["bias_score"] > 8
         else "bear" if agg["bias_score"] < -8 else "neutral",
-        f"{agg['bias_label']} bias · {agg['action_label']} timing"))
+        f"{agg['bias_label']} bias Â· {agg['action_label']} timing"))
     if tv_rating:
         reads.append((
             "TradingView", "bull" if tv_rating["score"] > 10
@@ -2772,7 +2772,7 @@ def render_bottom_line(agg: dict, detail: dict, per_tf: dict,
         reads.append((
             "Social (LunarCrush)", "bull" if s >= 60
             else "bear" if s <= 40 else "neutral",
-            f"Galaxy {lc_metrics.get('galaxy_score', '—')} · "
+            f"Galaxy {lc_metrics.get('galaxy_score', 'â€”')} Â· "
             f"sentiment {s:.0f}%"))
 
     bulls = sum(1 for _, s, _ in reads if s == "bull")
@@ -2780,15 +2780,15 @@ def render_bottom_line(agg: dict, detail: dict, per_tf: dict,
     score, conf = agg["score"], detail["confidence"]
 
     if score >= 30 and bulls >= bears:
-        head, col = "Bullish — the edge favours longs", "#2ed47a"
+        head, col = "Bullish â€” the edge favours longs", "#2ed47a"
     elif score <= -30 and bears >= bulls:
-        head, col = "Bearish — the edge favours shorts", "#ff5c5c"
+        head, col = "Bearish â€” the edge favours shorts", "#ff5c5c"
     elif abs(score) < 15 or abs(bulls - bears) <= 1:
-        head, col = "Mixed / Neutral — no clear edge, stand aside", "#c9a227"
+        head, col = "Mixed / Neutral â€” no clear edge, stand aside", "#c9a227"
     elif score > 0:
-        head, col = "Leaning bullish — partial confirmation only", "#7bd88f"
+        head, col = "Leaning bullish â€” partial confirmation only", "#7bd88f"
     else:
-        head, col = "Leaning bearish — partial confirmation only", "#ff8a7a"
+        head, col = "Leaning bearish â€” partial confirmation only", "#ff8a7a"
 
     dot = {"bull": "#2ed47a", "bear": "#ff5c5c", "neutral": "#8b8d98"}
     with st.container(border=True):
@@ -2798,8 +2798,8 @@ def render_bottom_line(agg: dict, detail: dict, per_tf: dict,
             f"<div style='font-size:1.35rem;font-weight:800;color:{col};"
             f"margin:3px 0 4px 0'>{head}</div>"
             f"<div style='color:#8b8d98;font-size:0.85rem'>"
-            f"{bulls} bullish · {bears} bearish signals · composite score "
-            f"{score:+.0f} · {conf}% confidence</div>",
+            f"{bulls} bullish Â· {bears} bearish signals Â· composite score "
+            f"{score:+.0f} Â· {conf}% confidence</div>",
             unsafe_allow_html=True)
         rows = "".join(
             f"<div style='display:flex;gap:9px;align-items:center;"
@@ -2811,7 +2811,7 @@ def render_bottom_line(agg: dict, detail: dict, per_tf: dict,
         st.markdown(rows, unsafe_allow_html=True)
 
         st.markdown("---")
-        st.markdown("**🔬 Detailed analysis**")
+        st.markdown("**ðŸ”¬ Detailed analysis**")
         for _heading, _text in _analysis_sections(
                 agg, detail, per_tf, tv_rating, flow_snap, lc_metrics):
             st.markdown(f"**{_heading}.** {_text}")
@@ -2820,12 +2820,12 @@ def render_bottom_line(agg: dict, detail: dict, per_tf: dict,
         plan = detail.get("trade_plan")
         if plan and abs(score) >= 15:
             st.caption(
-                f"Expert read — act on the {plan['side']} plan below only "
+                f"Expert read â€” act on the {plan['side']} plan below only "
                 f"once price reaches the entry zone and the timing signal "
                 f"agrees; otherwise wait. Always keep the stop.")
         else:
             st.caption(
-                "Expert read — signals conflict or are weak; the "
+                "Expert read â€” signals conflict or are weak; the "
                 "highest-probability action right now is to wait for "
                 "alignment rather than force a trade.")
 
@@ -2833,10 +2833,10 @@ def render_bottom_line(agg: dict, detail: dict, per_tf: dict,
 def render_lunarcrush_leaderboard(rows: list) -> None:
     """Render a LunarCrush social leaderboard across the major coins."""
     with st.container(border=True):
-        st.markdown("#### 🌙 LunarCrush Social Leaderboard")
+        st.markdown("#### ðŸŒ™ LunarCrush Social Leaderboard")
         if not rows:
             if not lunarcrush.is_configured():
-                st.info("LunarCrush is not configured — add your API key to "
+                st.info("LunarCrush is not configured â€” add your API key to "
                         "the `.env` file to enable social intelligence.")
             else:
                 st.caption("LunarCrush data is unavailable right now.")
@@ -2856,7 +2856,7 @@ def render_lunarcrush_leaderboard(rows: list) -> None:
         c1, c2, c3 = st.columns(3)
         c1.metric("Coins tracked", len(coins))
         c2.metric("Top Galaxy Score",
-                  f"{top['symbol']} · {top['galaxy_score']:.0f}")
+                  f"{top['symbol']} Â· {top['galaxy_score']:.0f}")
         if sents:
             c3.metric("Avg social sentiment",
                       f"{sum(sents) / len(sents):.0f}%")
@@ -2866,7 +2866,7 @@ def render_lunarcrush_leaderboard(rows: list) -> None:
         df = pd.DataFrame([{
             "Coin": r["symbol"],
             "Galaxy": r["galaxy_score"],
-            "Galaxy Δ": (round(r["galaxy_score"] - r["galaxy_score_previous"],
+            "Galaxy Î”": (round(r["galaxy_score"] - r["galaxy_score_previous"],
                                1)
                          if r.get("galaxy_score_previous") is not None
                          else None),
@@ -2887,19 +2887,19 @@ def render_lunarcrush_leaderboard(rows: list) -> None:
                     "Sentiment", min_value=0, max_value=100, format="%d%%"),
                 "24h %": st.column_config.NumberColumn(
                     "24h %", format="%.2f%%"),
-                "Galaxy Δ": st.column_config.NumberColumn(
-                    "Galaxy Δ", format="%+.1f"),
+                "Galaxy Î”": st.column_config.NumberColumn(
+                    "Galaxy Î”", format="%+.1f"),
             })
-        st.caption("Ranked by Galaxy Score — LunarCrush's 0-100 social + "
-                   "market health metric — among the top 150 coins by market "
-                   "cap. AltRank: lower is better. Galaxy Δ is the change vs "
+        st.caption("Ranked by Galaxy Score â€” LunarCrush's 0-100 social + "
+                   "market health metric â€” among the top 150 coins by market "
+                   "cap. AltRank: lower is better. Galaxy Î” is the change vs "
                    "the previous reading.")
 
 
 def breakout_accent(row: dict) -> str:
     """Pick the accent colour for a Breakout Radar card."""
     if row["chasing_risk"]:
-        return "#e0a92b"                       # amber — extended / chasing risk
+        return "#e0a92b"                       # amber â€” extended / chasing risk
     if row["dir_word"] == "BULLISH":
         return "#2ed47a"
     if row["dir_word"] == "BEARISH":
@@ -2915,7 +2915,7 @@ def render_breakout_card(row: dict, rank: int) -> None:
     ignite = (
         "&nbsp;<span style='background:rgba(255,138,43,0.16);"
         "border:1px solid rgba(255,138,43,0.55);color:#ff9d3d;padding:3px 9px;"
-        "border-radius:7px;font-size:0.68rem;font-weight:800'>🔥 VOLUME "
+        "border-radius:7px;font-size:0.68rem;font-weight:800'>ðŸ”¥ VOLUME "
         "SURGING</span>" if row.get("ignited") else "")
     with st.container(border=True):
         st.markdown(
@@ -2928,8 +2928,8 @@ def render_breakout_card(row: dict, rank: int) -> None:
             f"border-radius:7px;font-size:0.72rem;font-weight:800;"
             f"letter-spacing:0.03em'>{row['verdict']}</span>{ignite}</div>"
             f"<div style='color:#8b8d98;font-size:0.82rem;font-weight:600'>"
-            f"radar score {row['opportunity']:.0f}/100 · "
-            f"{row['confidence']}% confidence · "
+            f"radar score {row['opportunity']:.0f}/100 Â· "
+            f"{row['confidence']}% confidence Â· "
             f"signal {strength['label'].lower()} ({strength['score']})"
             f"</div></div>",
             unsafe_allow_html=True)
@@ -2939,8 +2939,8 @@ def render_breakout_card(row: dict, rank: int) -> None:
                 "<div style='background:rgba(224,169,43,0.12);"
                 "border:1px solid rgba(224,169,43,0.45);border-radius:9px;"
                 "padding:7px 12px;margin:8px 0;font-size:0.84rem;"
-                "color:#e9c66b;font-weight:600'>⚠️ This coin has already made "
-                "its big move — it is too late to enter safely. Don't chase "
+                "color:#e9c66b;font-weight:600'>âš ï¸ This coin has already made "
+                "its big move â€” it is too late to enter safely. Don't chase "
                 "it: wait for it to pull back, or just manage a position you "
                 "already hold.</div>",
                 unsafe_allow_html=True)
@@ -2950,25 +2950,25 @@ def render_breakout_card(row: dict, rank: int) -> None:
         m[1].metric("1h", f"{row['chg_1h']:+.2f}%")
         m[2].metric("24h", f"{row['chg_24h']:+.2f}%")
         m[3].metric("24h Vol", fmt_volume(row.get("quoteVolume")),
-                    help="24h traded value — a liquidity check")
+                    help="24h traded value â€” a liquidity check")
         m[4].metric("Surge", f"{row['vol_peak']:.1f}x",
                     help="Peak recent volume vs its 20-candle average")
         m[5].metric("RSI", f"{row['rsi']:.0f}")
 
         st.progress(min(int(row["opportunity"]), 100),
-                    text=f"🎯 Radar score {row['opportunity']:.0f}/100  ·  "
+                    text=f"ðŸŽ¯ Radar score {row['opportunity']:.0f}/100  Â·  "
                          f"{_STAGE_WORD.get(row['stage'], row['stage'])}")
 
-        st.markdown(f"**Why it's on the radar** — {md_safe(row['summary'])}")
-        st.markdown(f"**📰 News** — {md_safe(row['news_read'])}")
-        st.caption(f"⏱️ Timing — {row['window']} · {row['regime_4h']} backdrop")
+        st.markdown(f"**Why it's on the radar** â€” {md_safe(row['summary'])}")
+        st.markdown(f"**ðŸ“° News** â€” {md_safe(row['news_read'])}")
+        st.caption(f"â±ï¸ Timing â€” {row['window']} Â· {row['regime_4h']} backdrop")
 
         # --- Entry & exit plan, shown prominently in the card body ---------
-        st.markdown(f"**🎯 The play** — {md_safe(idea['play'])}")
+        st.markdown(f"**ðŸŽ¯ The play** â€” {md_safe(idea['play'])}")
         if idea["side"] != "EITHER":
             tc = st.columns(4)
             tc[0].metric("Entry zone", md_safe(
-                f"{fmt_price(idea['entry_low'])} – "
+                f"{fmt_price(idea['entry_low'])} â€“ "
                 f"{fmt_price(idea['entry_high'])}"))
             tc[1].metric("Stop loss", fmt_price(idea["stop"]))
             tc[2].metric("Exit 1", fmt_price(idea["target_1"]))
@@ -2978,9 +2978,9 @@ def render_breakout_card(row: dict, rank: int) -> None:
             tc[0].metric("Long trigger", fmt_price(row["win_high"]))
             tc[1].metric("Short trigger", fmt_price(row["win_low"]))
             tc[2].metric("Stay flat inside", md_safe(
-                f"{fmt_price(row['win_low'])} – "
+                f"{fmt_price(row['win_low'])} â€“ "
                 f"{fmt_price(row['win_high'])}"))
-        st.caption(f"Exit plan — {md_safe(idea['exit_note'])}")
+        st.caption(f"Exit plan â€” {md_safe(idea['exit_note'])}")
 
         chips = ""
         for d in row["drivers"]:
@@ -3002,13 +3002,13 @@ def render_breakout_card(row: dict, rank: int) -> None:
                       f"</span>")
         st.markdown(chips, unsafe_allow_html=True)
 
-        with st.expander("🔬 Full breakdown — every signal explained"):
+        with st.expander("ðŸ”¬ Full breakdown â€” every signal explained"):
             for d in row["drivers"]:
                 tag = (f"{d['score']:+d}" if d["signed"]
                        else f"{d['score']} / 100")
-                st.markdown(f"- **{d['force']}** ({tag}) — "
+                st.markdown(f"- **{d['force']}** ({tag}) â€” "
                             f"{md_safe(d['note'])}")
-        st.caption("Educational — algorithmic detection, not financial "
+        st.caption("Educational â€” algorithmic detection, not financial "
                    "advice. Fast moves can gap straight through stops.")
 
 
@@ -3017,7 +3017,7 @@ _STAGE_WORD = {"COILED": "Building Up", "FRESH": "Just Started",
 
 
 def breakout_side_table(df_side: pd.DataFrame, side: str) -> None:
-    """Render a compact ranked table for one side — 'UP' (long) or 'DOWN'
+    """Render a compact ranked table for one side â€” 'UP' (long) or 'DOWN'
     (short). Entry and Target are computed for that side's trade."""
     if df_side.empty:
         st.caption("No coins on this side right now.")
@@ -3038,14 +3038,14 @@ def breakout_side_table(df_side: pd.DataFrame, side: str) -> None:
     tbl = pd.DataFrame({
         "Coin": df_side["base"],
         "Status": df_side.apply(
-            lambda r: ("🔥 " if r["ignited"] else "")
+            lambda r: ("ðŸ”¥ " if r["ignited"] else "")
             + _STAGE_WORD.get(r["stage"], r["stage"]), axis=1),
         "Score": df_side["opportunity"],
         "Confidence": df_side["confidence"],
         "Entry": df_side.apply(lambda r: fmt_price(_entry(r)), axis=1),
         "Target": df_side.apply(lambda r: fmt_price(_target(r)), axis=1),
         "24h Vol": (df_side["quoteVolume"].map(fmt_volume)
-                    if "quoteVolume" in df_side.columns else "—"),
+                    if "quoteVolume" in df_side.columns else "â€”"),
     })
     st.dataframe(
         tbl, use_container_width=True, hide_index=True,
@@ -3053,7 +3053,7 @@ def breakout_side_table(df_side: pd.DataFrame, side: str) -> None:
         column_config={
             "Score": st.column_config.ProgressColumn(
                 "Score", min_value=0, max_value=100, format="%d",
-                help="0-100 radar rank — higher is a stronger setup"),
+                help="0-100 radar rank â€” higher is a stronger setup"),
             "Confidence": st.column_config.NumberColumn(
                 "Confidence", format="%d%%",
                 help="How sure the engine is of the direction"),
@@ -3061,14 +3061,14 @@ def breakout_side_table(df_side: pd.DataFrame, side: str) -> None:
 
 
 def render_oracle_answer(result: dict) -> None:
-    """Render the Oracle's answer — a headline panel plus matching cards."""
+    """Render the Oracle's answer â€” a headline panel plus matching cards."""
     accent = {"bullish": "#2ed47a", "bearish": "#ff5c5c",
               "mixed": "#e0a92b", "empty": "#8b8d98"}.get(
                   result.get("tone", "mixed"), "#6e8bff")
     with st.container(border=True):
         st.markdown(
             f"<div style='font-size:0.72rem;letter-spacing:0.09em;"
-            f"color:#8b8d98;font-weight:700'>🤖 THE ORACLE SAYS</div>"
+            f"color:#8b8d98;font-weight:700'>ðŸ¤– THE ORACLE SAYS</div>"
             f"<div style='font-size:1.22rem;font-weight:800;color:{accent};"
             f"margin:4px 0 6px 0'>{md_safe(result['headline'])}</div>"
             f"<div style='color:#c9cbd4;font-size:0.9rem'>"
@@ -3083,11 +3083,11 @@ def render_oracle_answer(result: dict) -> None:
 def render_buy_zone_board(radar: pd.DataFrame, backdrop: dict,
                           mcap_map: dict) -> None:
     """Render the bullish-accumulation buy-zone board."""
-    st.markdown("### 🟢 Bullish Buy Zones — where to accumulate")
+    st.markdown("### ðŸŸ¢ Bullish Buy Zones â€” where to accumulate")
     zones = oracle.buy_zones(radar, mcap_map)
     if zones is None or zones.empty:
         st.info("No clean bullish accumulation setups on the radar right "
-                "now — nothing is coiled or freshly breaking to the upside. "
+                "now â€” nothing is coiled or freshly breaking to the upside. "
                 "Try the other horizon, or check back after the next "
                 "candles close.")
         return
@@ -3095,24 +3095,24 @@ def render_buy_zone_board(radar: pd.DataFrame, backdrop: dict,
     if backdrop:
         score = backdrop.get("score", 0) or 0
         tape = ("a tailwind for these longs" if score >= 22
-                else "a headwind — size these down" if score <= -22
+                else "a headwind â€” size these down" if score <= -22
                 else "broadly neutral for these longs")
-        st.caption(f"🌍 **Worldwide backdrop** — {backdrop.get('label', '—')}: "
+        st.caption(f"ðŸŒ **Worldwide backdrop** â€” {backdrop.get('label', 'â€”')}: "
                    f"{backdrop.get('note', '')}. That is {tape}.")
 
     table = pd.DataFrame({
         "Coin": zones["base"],
         "Signal": zones.apply(
-            lambda r: f"{r['strength_label']} · {r['strength']:.0f}", axis=1),
+            lambda r: f"{r['strength_label']} Â· {r['strength']:.0f}", axis=1),
         "Status": zones.apply(
-            lambda r: ("🔥 " if r["ignited"] else "")
+            lambda r: ("ðŸ”¥ " if r["ignited"] else "")
             + _STAGE_WORD.get(r["stage"], r["stage"]), axis=1),
         "Buy zone": zones.apply(
-            lambda r: f"{fmt_price(r['buy_low'])} – {fmt_price(r['buy_high'])}",
+            lambda r: f"{fmt_price(r['buy_low'])} â€“ {fmt_price(r['buy_high'])}",
             axis=1),
         "Trigger": zones["trigger"].map(fmt_price),
         "Stop": zones["bz_stop"].map(
-            lambda v: fmt_price(v) if v is not None and v == v else "—"),
+            lambda v: fmt_price(v) if v is not None and v == v else "â€”"),
         "Target 1": zones.apply(
             lambda r: f"{fmt_price(r['bz_t1'])}  (+{r['bz_gain1']:.1f}%)",
             axis=1),
@@ -3123,13 +3123,13 @@ def render_buy_zone_board(radar: pd.DataFrame, backdrop: dict,
             lambda r: f"{fmt_price(r['bz_t3'])}  (+{r['bz_gain3']:.1f}%)",
             axis=1),
         "R : R": zones.apply(
-            lambda r: (f"{r['bz_rr1']:.1f}–{r['bz_rr3']:.1f}"
-                       if r['bz_rr1'] > 0 else "—"), axis=1),
+            lambda r: (f"{r['bz_rr1']:.1f}â€“{r['bz_rr3']:.1f}"
+                       if r['bz_rr1'] > 0 else "â€”"), axis=1),
         "Score": zones["opportunity"],
         "Conf": zones["confidence"],
         "Cap tier": zones["cap_tier"],
         "Circulating": zones["circ_pct"].map(
-            lambda v: f"{v:.0f}%" if v is not None and v == v else "—"),
+            lambda v: f"{v:.0f}%" if v is not None and v == v else "â€”"),
     })
     st.dataframe(
         table, use_container_width=True, hide_index=True,
@@ -3137,43 +3137,43 @@ def render_buy_zone_board(radar: pd.DataFrame, backdrop: dict,
         column_config={
             "Score": st.column_config.ProgressColumn(
                 "Score", min_value=0, max_value=100, format="%d",
-                help="Radar opportunity rank — rewards early, coiled setups."),
+                help="Radar opportunity rank â€” rewards early, coiled setups."),
             "Conf": st.column_config.NumberColumn(
                 "Conf", format="%d%%",
                 help="How sure the engine is of the bullish direction."),
             "Signal": st.column_config.TextColumn(
                 "Signal",
-                help="Signal strength — the breadth and force of the ~11 "
+                help="Signal strength â€” the breadth and force of the ~11 "
                      "detection signals backing this breakout "
                      "(Weak / Moderate / Strong / Very Strong, 0-100). "
                      "Trade the strongest rows first."),
             "R : R": st.column_config.TextColumn(
                 "R : R",
                 help="Reward-to-risk from the buy zone, Target 1 through "
-                     "Target 3 — e.g. '1.8–5.4' means Target 1 pays 1.8x "
+                     "Target 3 â€” e.g. '1.8â€“5.4' means Target 1 pays 1.8x "
                      "the risked amount and Target 3 pays 5.4x."),
             "Circulating": st.column_config.TextColumn(
                 "Circulating",
-                help="Circulating supply as a % of max supply — a high % "
+                help="Circulating supply as a % of max supply â€” a high % "
                      "means little future dilution; a low % means many "
                      "tokens are still to be unlocked."),
         })
     st.caption(
-        "**How to use this** — **Signal** is how forcefully the breakout is "
+        "**How to use this** â€” **Signal** is how forcefully the breakout is "
         "backed: how many of the ~11 detection forces (volume, momentum, "
-        "order flow, trend, strength vs BTC, social, news…) pull the same "
-        "way, and how hard — trade the **Strong** and **Very Strong** rows "
+        "order flow, trend, strength vs BTC, social, newsâ€¦) pull the same "
+        "way, and how hard â€” trade the **Strong** and **Very Strong** rows "
         "first. The **Buy zone** is where to accumulate: inside the range "
         "for *Building Up* coins (positioned **before** the break), the "
         "retest of the broken level for *Just Started* coins. A clean "
         "candle close above the **Trigger** confirms the move; always set "
         "the **Stop**. **R : R** is reward-to-risk measured from the buy "
-        "zone — the three targets carry +% gains; only take rows where "
+        "zone â€” the three targets carry +% gains; only take rows where "
         "Target 1 already pays more than 1.0x the risk. A low "
         "**Circulating** % flags dilution as more tokens unlock. "
-        "Educational only — not financial advice.")
+        "Educational only â€” not financial advice.")
 
-    st.markdown("#### 📋 Top 3 — full read & trade plan")
+    st.markdown("#### ðŸ“‹ Top 3 â€” full read & trade plan")
     for _i, (_, _r) in enumerate(zones.head(3).iterrows(), 1):
         render_breakout_card(_r.to_dict(), _i)
 
@@ -3182,19 +3182,19 @@ def _render_alert_setup(s: dict, is_new: bool) -> None:
     """One high-confidence setup line inside the Trade Alerts strip."""
     color = "#2ed47a" if s["side"] == "LONG" else "#ff5c5c"
     word = "BULLISH" if s["side"] == "LONG" else "BEARISH"
-    proof = " · ".join(s["proof"]) if s["proof"] else "multiple signals aligned"
-    new_tag = " 🆕" if is_new else ""
+    proof = " Â· ".join(s["proof"]) if s["proof"] else "multiple signals aligned"
+    new_tag = " ðŸ†•" if is_new else ""
     st.markdown(
         f"<div style='border-left:3px solid {color};padding:6px 11px;"
         f"margin:6px 0;background:{color}14;border-radius:5px'>"
         f"<span style='font-weight:800'>{s['base']}</span> "
-        f"<span style='color:{color};font-weight:800'>{word}</span> · "
-        f"{s['confidence']}% confidence · R:R {s['rr']:.1f}{new_tag}<br>"
-        f"<span style='font-size:0.8rem;color:#aab'>proof — "
+        f"<span style='color:{color};font-weight:800'>{word}</span> Â· "
+        f"{s['confidence']}% confidence Â· R:R {s['rr']:.1f}{new_tag}<br>"
+        f"<span style='font-size:0.8rem;color:#aab'>proof â€” "
         f"{md_safe(proof)}</span><br>"
         f"<span style='font-size:0.8rem;color:#889'>entry "
-        f"{fmt_price(s['entry_low'])}–{fmt_price(s['entry_high'])} · stop "
-        f"{fmt_price(s['stop'])} · target {fmt_price(s['target'])}</span>"
+        f"{fmt_price(s['entry_low'])}â€“{fmt_price(s['entry_high'])} Â· stop "
+        f"{fmt_price(s['stop'])} Â· target {fmt_price(s['target'])}</span>"
         f"</div>",
         unsafe_allow_html=True)
 
@@ -3202,17 +3202,17 @@ def _render_alert_setup(s: dict, is_new: bool) -> None:
 def _render_alert_surge(s: dict, is_new: bool) -> None:
     """One volume-surge line inside the Trade Alerts strip."""
     chg = s.get("change_24h")
-    chg_txt = (f" · {chg:+.1f}% 24h" if chg is not None and chg == chg else "")
+    chg_txt = (f" Â· {chg:+.1f}% 24h" if chg is not None and chg == chg else "")
     lab = s["label"]
     lab_col = ("#2ed47a" if "LONG" in lab else "#ff5c5c" if "SHORT" in lab
                else "#8b8d98")
-    new_tag = " 🆕" if is_new else ""
+    new_tag = " ðŸ†•" if is_new else ""
     st.markdown(
         f"<div style='padding:5px 11px;margin:6px 0;background:#1a1c24;"
         f"border-radius:5px;border:1px solid #ff8a3d44'>"
-        f"🔥 <span style='font-weight:800'>{s['base']}</span> — volume "
-        f"<span style='color:#ff9d3d;font-weight:800'>{s['vol_ratio']:.1f}×</span>"
-        f" average{chg_txt} · <span style='color:{lab_col};font-weight:700'>"
+        f"ðŸ”¥ <span style='font-weight:800'>{s['base']}</span> â€” volume "
+        f"<span style='color:#ff9d3d;font-weight:800'>{s['vol_ratio']:.1f}Ã—</span>"
+        f" average{chg_txt} Â· <span style='color:{lab_col};font-weight:700'>"
         f"{lab}</span>{new_tag}</div>",
         unsafe_allow_html=True)
 
@@ -3270,7 +3270,7 @@ def _inject_browser_alerts(items: list[dict], refresh_secs: int,
     in the background.
 
     De-duplication is client-side (localStorage under `key`), so it survives
-    the auto-refresh — a full page reload resets Python state, but the
+    the auto-refresh â€” a full page reload resets Python state, but the
     browser remembers what it has already notified about and never repeats
     itself. The very first load only seeds that memory; it never fires a
     burst. A distinct `key` keeps separate alert streams independent."""
@@ -3282,7 +3282,7 @@ def _inject_browser_alerts(items: list[dict], refresh_secs: int,
 
 
 def render_alerts(merged: pd.DataFrame, timeframe: str) -> None:
-    """Global Trade Alerts strip — the few high-confidence setups and volume
+    """Global Trade Alerts strip â€” the few high-confidence setups and volume
     surges worth acting on for the *currently selected* timeframe, each shown
     with its proof, plus toast pop-ups when a brand-new one appears."""
     data = alerts.build_alerts(merged, timeframe)
@@ -3299,51 +3299,51 @@ def render_alerts(merged: pd.DataFrame, timeframe: str) -> None:
     seen_all[timeframe] = ({s["symbol"] for s in setups}
                            | {"vol:" + s["symbol"] for s in surges})
 
-    # Toast only genuinely new alerts — never on the first visit (which would
+    # Toast only genuinely new alerts â€” never on the first visit (which would
     # pop the whole board at once).
     if not first_visit:
         for s in [x for x in setups if x["symbol"] in new_setup_syms][:3]:
-            st.toast(f"{s['base']} — {s['side']} setup, "
-                     f"{s['confidence']}% confidence", icon="🚨")
+            st.toast(f"{s['base']} â€” {s['side']} setup, "
+                     f"{s['confidence']}% confidence", icon="ðŸš¨")
         for s in [x for x in surges if x["symbol"] in new_surge_syms][:2]:
-            st.toast(f"{s['base']} — volume surging {s['vol_ratio']:.1f}×",
-                     icon="🔊")
+            st.toast(f"{s['base']} â€” volume surging {s['vol_ratio']:.1f}Ã—",
+                     icon="ðŸ”Š")
 
     with st.container(border=True):
         st.markdown(
             f"<div style='display:flex;justify-content:space-between;"
             f"align-items:baseline'><span style='font-size:1.06rem;"
-            f"font-weight:800'>🚨 Trade Alerts</span>"
+            f"font-weight:800'>ðŸš¨ Trade Alerts</span>"
             f"<span style='color:#8b8d98;font-size:0.8rem;font-weight:600'>"
-            f"{timeframe} timeframe · {trade_mode.upper()} mode</span></div>",
+            f"{timeframe} timeframe Â· {trade_mode.upper()} mode</span></div>",
             unsafe_allow_html=True)
 
         if not setups and not surges:
             st.info(
                 f"No high-confidence setup on the **{timeframe}** timeframe "
-                f"right now — nothing crosses the bar to act on. That is a "
+                f"right now â€” nothing crosses the bar to act on. That is a "
                 f"valid, useful answer: wait, don't force a trade.")
         else:
             ac1, ac2 = st.columns(2)
             with ac1:
-                st.markdown(f"**🟢 High-confidence setups** ({len(setups)})")
+                st.markdown(f"**ðŸŸ¢ High-confidence setups** ({len(setups)})")
                 if not setups:
                     st.caption("None clear the confidence bar right now.")
                 for s in setups[:5]:
                     _render_alert_setup(s, s["symbol"] in new_setup_syms)
             with ac2:
-                st.markdown(f"**🔥 Volume surging** ({len(surges)})")
+                st.markdown(f"**ðŸ”¥ Volume surging** ({len(surges)})")
                 if not surges:
                     st.caption("No coin's volume is surging right now.")
                 for s in surges[:6]:
                     _render_alert_surge(s, s["symbol"] in new_surge_syms)
 
         st.caption(
-            f"Alerts are built only from **{timeframe}** data — 15m, 1h, 4h "
+            f"Alerts are built only from **{timeframe}** data â€” 15m, 1h, 4h "
             f"and 1d each have their own setups, so a coin can be a buy on "
             f"one timeframe and not another; that is expected, not a glitch. "
             f"A setup that stays on this list across refreshes is more "
-            f"trustworthy than one that just appeared. 🆕 marks alerts new "
+            f"trustworthy than one that just appeared. ðŸ†• marks alerts new "
             f"since you last looked; pop-ups fire when a fresh one lands.")
 
     # Browser desktop notifications + background auto-refresh (opt-in).
@@ -3353,18 +3353,18 @@ def render_alerts(merged: pd.DataFrame, timeframe: str) -> None:
             bullish = s["side"] == "LONG"
             notify_items.append({
                 "id": f"{s['symbol']}:{s['side']}",
-                "title": (f"{'🟢' if bullish else '🔴'} {s['base']} "
+                "title": (f"{'ðŸŸ¢' if bullish else 'ðŸ”´'} {s['base']} "
                           f"{'BULLISH' if bullish else 'BEARISH'} setup"),
-                "body": (f"{s['confidence']}% confidence · R:R "
-                         f"{s['rr']:.1f} · {timeframe} · entry "
-                         f"{fmt_price(s['entry_low'])}–"
+                "body": (f"{s['confidence']}% confidence Â· R:R "
+                         f"{s['rr']:.1f} Â· {timeframe} Â· entry "
+                         f"{fmt_price(s['entry_low'])}â€“"
                          f"{fmt_price(s['entry_high'])}"),
             })
         for s in surges:
             notify_items.append({
                 "id": f"vol:{s['symbol']}",
-                "title": f"🔥 {s['base']} volume surge",
-                "body": (f"Volume {s['vol_ratio']:.1f}× average · "
+                "title": f"ðŸ”¥ {s['base']} volume surge",
+                "body": (f"Volume {s['vol_ratio']:.1f}Ã— average Â· "
                          f"{timeframe} timeframe"),
             })
         _inject_browser_alerts(notify_items, alert_every * 60)
@@ -3372,19 +3372,19 @@ def render_alerts(merged: pd.DataFrame, timeframe: str) -> None:
 
 def render_forecast(fc_df: pd.DataFrame) -> None:
     """Render the multi-timeframe forecast board with its alert callout."""
-    st.subheader("🔮 Multi-Timeframe Forecast")
+    st.subheader("ðŸ”® Multi-Timeframe Forecast")
     st.caption(
         "Where each coin is projected to head over the next 15m, 1h and 4h "
         "candle. Each call fuses that timeframe's own technicals with the "
-        "Breakout Radar read — news catalysts, the macro / geopolitical "
+        "Breakout Radar read â€” news catalysts, the macro / geopolitical "
         "backdrop, volume ignition, social heat and funding. A forecast is "
         "a probabilistic lean with an expected move sized from the "
-        "timeframe's ATR — not a guaranteed price.")
+        "timeframe's ATR â€” not a guaranteed price.")
     if fc_df is None or fc_df.empty:
-        st.warning("No forecast data right now — try refreshing.")
+        st.warning("No forecast data right now â€” try refreshing.")
         return
 
-    # --- Forecast alerts — aligned, high-conviction calls ------------------
+    # --- Forecast alerts â€” aligned, high-conviction calls ------------------
     fa = alerts.build_forecast_alerts(fc_df)
     prev = st.session_state.get("forecast_seen")
     first_visit = prev is None
@@ -3393,37 +3393,37 @@ def render_forecast(fc_df: pd.DataFrame) -> None:
     st.session_state["forecast_seen"] = {a["symbol"] for a in fa}
     for a in [x for x in fa if x["symbol"] in new_syms][:3]:
         st.toast(f"Forecast: {a['base']} {a['outlook'].lower()} across "
-                 f"15m / 1h / 4h ({a['confidence']}%)", icon="🔮")
+                 f"15m / 1h / 4h ({a['confidence']}%)", icon="ðŸ”®")
 
     with st.container(border=True):
-        st.markdown("**🚨 Forecast Alerts** — coins projected the same way "
+        st.markdown("**ðŸš¨ Forecast Alerts** â€” coins projected the same way "
                     "across all three horizons with strong confidence")
         if not fa:
             st.caption("No coin is aligned across 15m, 1h and 4h with strong "
-                       "confidence right now — the tape is mixed; wait.")
+                       "confidence right now â€” the tape is mixed; wait.")
         else:
             for a in fa[:6]:
                 color = "#2ed47a" if a["outlook"] == "Bullish" else "#ff5c5c"
-                fire = " &nbsp;🔥 volume igniting" if a["ignited"] else ""
-                tag = " 🆕" if a["symbol"] in new_syms else ""
+                fire = " &nbsp;ðŸ”¥ volume igniting" if a["ignited"] else ""
+                tag = " ðŸ†•" if a["symbol"] in new_syms else ""
                 st.markdown(
                     f"<div style='border-left:3px solid {color};"
                     f"padding:5px 11px;margin:5px 0;background:{color}14;"
                     f"border-radius:5px'><b>{a['base']}</b> "
                     f"<span style='color:{color};font-weight:800'>"
-                    f"{a['outlook'].upper()}</span> across 15m / 1h / 4h · "
-                    f"{a['confidence']}% confidence · 4h move "
+                    f"{a['outlook'].upper()}</span> across 15m / 1h / 4h Â· "
+                    f"{a['confidence']}% confidence Â· 4h move "
                     f"<b>{a['proj_4h_pct']:+.2f}%</b>{fire}{tag}</div>",
                     unsafe_allow_html=True)
 
-    # Browser desktop notifications for forecast alerts — only when the user
+    # Browser desktop notifications for forecast alerts â€” only when the user
     # has Desktop alerts switched on. Own localStorage key, no extra refresh.
     if alerts_on and fa:
         _inject_browser_alerts(
             [{"id": f"fc:{a['symbol']}:{a['outlook']}",
-              "title": f"🔮 {a['base']} — {a['outlook']} forecast",
-              "body": (f"Aligned across 15m / 1h / 4h · {a['confidence']}% "
-                       f"confidence · 4h move {a['proj_4h_pct']:+.2f}%")}
+              "title": f"ðŸ”® {a['base']} â€” {a['outlook']} forecast",
+              "body": (f"Aligned across 15m / 1h / 4h Â· {a['confidence']}% "
+                       f"confidence Â· 4h move {a['proj_4h_pct']:+.2f}%")}
              for a in fa],
             0, key="ti_notified_forecast")
 
@@ -3436,24 +3436,24 @@ def render_forecast(fc_df: pd.DataFrame) -> None:
         f"horizons**, **{aligned_down}** projected **down across all "
         f"three**. The full board is below, ranked by total expected move.")
 
-    arrow = {"Up": "▲", "Down": "▼", "Sideways": "▬"}
+    arrow = {"Up": "â–²", "Down": "â–¼", "Sideways": "â–¬"}
 
     def cell(h: dict | None) -> str:
         if not h:
-            return "—"
-        return f"{arrow.get(h['direction'], '·')} {h['move_pct']:+.2f}%"
+            return "â€”"
+        return f"{arrow.get(h['direction'], 'Â·')} {h['move_pct']:+.2f}%"
 
     rows = []
     for _, r in fc_df.iterrows():
         hz = r["horizons"] or {}
         h4 = hz.get("4h")
         rows.append({
-            "Coin": ("🔥 " if r["ignited"] else "") + r["base"],
+            "Coin": ("ðŸ”¥ " if r["ignited"] else "") + r["base"],
             "Price now": fmt_price(r["price"]),
             "Next 15m": cell(hz.get("15m")),
             "Next 1h": cell(hz.get("1h")),
             "Next 4h": cell(hz.get("4h")),
-            "Projected 4h": fmt_price(h4["projected"]) if h4 else "—",
+            "Projected 4h": fmt_price(h4["projected"]) if h4 else "â€”",
             "Outlook": r["outlook_word"],
             "Conf": int(r["confidence"]),
             "_lean": float(r["net_lean"]),
@@ -3463,11 +3463,11 @@ def render_forecast(fc_df: pd.DataFrame) -> None:
 
     def _cell_color(v):
         if isinstance(v, str):
-            if v.startswith("▲"):
+            if v.startswith("â–²"):
                 return "color:#2ed47a;font-weight:700"
-            if v.startswith("▼"):
+            if v.startswith("â–¼"):
                 return "color:#ff5c5c;font-weight:700"
-            if v.startswith("▬"):
+            if v.startswith("â–¬"):
                 return "color:#8b8d98"
         return ""
 
@@ -3489,27 +3489,27 @@ def render_forecast(fc_df: pd.DataFrame) -> None:
                      "bonus when all three agree."),
         })
 
-    with st.expander("📋 Why these forecasts — news, key drivers & backdrop"):
+    with st.expander("ðŸ“‹ Why these forecasts â€” news, key drivers & backdrop"):
         bd = fc_df.iloc[0].get("backdrop_label", "")
         if bd:
-            st.markdown(f"🌍 **Macro / geopolitical backdrop** — {md_safe(bd)}")
+            st.markdown(f"ðŸŒ **Macro / geopolitical backdrop** â€” {md_safe(bd)}")
         ranked = fc_df.reindex(
             fc_df["net_lean"].abs().sort_values(ascending=False).index)
         for _, r in ranked.head(6).iterrows():
-            drivers = " · ".join(r["drivers"]) if r["drivers"] else "—"
+            drivers = " Â· ".join(r["drivers"]) if r["drivers"] else "â€”"
             news = r["news_read"] or "no specific news catalyst"
-            fire = " · 🔥 volume igniting" if r["ignited"] else ""
+            fire = " Â· ðŸ”¥ volume igniting" if r["ignited"] else ""
             st.markdown(
-                f"**{r['base']}** — {r['outlook_word']} "
+                f"**{r['base']}** â€” {r['outlook_word']} "
                 f"({r['confidence']}%){fire}  \n"
                 f"Key drivers: {md_safe(drivers)}  \n"
                 f"News: {md_safe(news)}")
 
     st.caption(
-        "Each cell shows the projected direction (▲ up · ▼ down · ▬ "
+        "Each cell shows the projected direction (â–² up Â· â–¼ down Â· â–¬ "
         "sideways) and the expected NET move for that candle. The call "
         "fuses the timeframe's technicals with news, the macro backdrop, "
-        "volume ignition, social heat and funding — every input tilts the "
+        "volume ignition, social heat and funding â€” every input tilts the "
         "read within bounds, none overrides it. 'Projected 4h' applies the "
         "4h expected move to the current price. Probabilistic projections, "
         "not guarantees. Educational only, not financial advice.")
@@ -3517,7 +3517,7 @@ def render_forecast(fc_df: pd.DataFrame) -> None:
 
 def _relative_time(dt) -> str:
     """Return a short 'X min ago' / 'X h ago' / 'X d ago' string from a
-    datetime — used by the news-impact panel to show how fresh each
+    datetime â€” used by the news-impact panel to show how fresh each
     headline is. Falls back to '' when the input is missing/invalid."""
     if dt is None:
         return ""
@@ -3543,7 +3543,7 @@ def _relative_time(dt) -> str:
 
 
 def _inject_autorefresh(seconds: int) -> None:
-    """Reload the whole app after `seconds` — used for the live forecast."""
+    """Reload the whole app after `seconds` â€” used for the live forecast."""
     components.html(
         "<script>(function(){var P=window.parent||window;"
         "if(!P.__tiFcReload){P.__tiFcReload=1;setTimeout(function(){"
@@ -3553,11 +3553,11 @@ def _inject_autorefresh(seconds: int) -> None:
 
 def render_btc_outlook(o: dict,
                        impactful_news: list[dict] | None = None) -> None:
-    """Prominent BTC 24h Outlook banner — shown above every tab. BTC leads the
+    """Prominent BTC 24h Outlook banner â€” shown above every tab. BTC leads the
     market; the banner tells the user which way it leans, with the evidence
     and the caution flags surfaced so they can size accordingly. When
     `impactful_news` is supplied, a 'Why this is happening' panel shows the
-    headlines moving the tape — and new ones fire toasts and desktop
+    headlines moving the tape â€” and new ones fire toasts and desktop
     notifications when Desktop alerts is enabled."""
     if not o:
         return
@@ -3571,15 +3571,15 @@ def render_btc_outlook(o: dict,
             f"<div style='display:flex;justify-content:space-between;"
             f"align-items:center;flex-wrap:wrap;gap:8px'>"
             f"<div><span style='font-size:1.08rem;font-weight:800'>"
-            f"₿ BTC — Next 24 Hours</span> &nbsp;"
+            f"â‚¿ BTC â€” Next 24 Hours</span> &nbsp;"
             f"<span style='background:{color};color:#06121f;padding:4px 13px;"
             f"border-radius:7px;font-size:0.78rem;font-weight:800;"
             f"letter-spacing:0.04em'>{label}</span></div>"
             f"<div style='color:#8b8d98;font-size:0.85rem;font-weight:600'>"
-            f"{o.get('confidence', 0)}% confidence · "
+            f"{o.get('confidence', 0)}% confidence Â· "
             f"{o.get('aligned_categories', 0)}/"
-            f"{o.get('total_categories', 0)} categories agree · "
-            f"expected range ±{o.get('expected_range_pct', 0):.1f}%"
+            f"{o.get('total_categories', 0)} categories agree Â· "
+            f"expected range Â±{o.get('expected_range_pct', 0):.1f}%"
             f"</div></div>"
             f"<div style='color:{color};font-size:0.94rem;font-weight:700;"
             f"margin:6px 0 4px 0'>{md_safe(o.get('takeaway', ''))}</div>",
@@ -3594,7 +3594,7 @@ def render_btc_outlook(o: dict,
                 f"border:1px solid #1f2330'>"
                 f"<div style='font-size:0.74rem;letter-spacing:0.10em;"
                 f"color:#8b8d98;font-weight:800;margin-bottom:5px'>"
-                f"🧭 WHAT THIS MEANS</div>"
+                f"ðŸ§­ WHAT THIS MEANS</div>"
                 f"<div style='color:#d8dae3;font-size:0.9rem;"
                 f"line-height:1.55'>{md_safe(briefing['summary'])}</div>"
                 + (f"<div style='font-size:0.78rem;color:#9aa0b4;"
@@ -3608,7 +3608,7 @@ def render_btc_outlook(o: dict,
                 f"<div style='color:#cfd2dc;font-size:0.86rem;"
                 f"margin:5px 0;padding-left:18px;text-indent:-18px;"
                 f"line-height:1.5'>"
-                f"<span style='color:#6e8bff;font-weight:800'>→</span> "
+                f"<span style='color:#6e8bff;font-weight:800'>â†’</span> "
                 f"{md_safe(step)}</div>"
                 for step in briefing["next_steps"])
             st.markdown(
@@ -3617,11 +3617,11 @@ def render_btc_outlook(o: dict,
                 f"border-radius:5px'>"
                 f"<div style='font-size:0.74rem;letter-spacing:0.10em;"
                 f"color:#6e8bff;font-weight:800;margin-bottom:6px'>"
-                f"📋 NEXT STEPS — HOW TO TRADE IT</div>"
+                f"ðŸ“‹ NEXT STEPS â€” HOW TO TRADE IT</div>"
                 f"{steps_html}</div>",
                 unsafe_allow_html=True)
 
-        # --- WHY THIS IS HAPPENING — high-impact headlines moving the tape
+        # --- WHY THIS IS HAPPENING â€” high-impact headlines moving the tape
         if impactful_news:
             # Toast + browser-notification dedup tracking.
             prev_titles = st.session_state.get("impactful_seen")
@@ -3632,20 +3632,20 @@ def render_btc_outlook(o: dict,
                          if not first_visit else [])
             st.session_state["impactful_seen"] = current_titles
             for it in new_items[:3]:
-                icon = ("📈" if it["direction"] == "Bullish"
-                        else "📉" if it["direction"] == "Bearish"
-                        else "📰")
-                st.toast(f"{it['direction'].upper()} impact news — "
+                icon = ("ðŸ“ˆ" if it["direction"] == "Bullish"
+                        else "ðŸ“‰" if it["direction"] == "Bearish"
+                        else "ðŸ“°")
+                st.toast(f"{it['direction'].upper()} impact news â€” "
                          f"{it['title'][:90]}", icon=icon)
 
             items_html = ""
-            # Cap to 5 — keep the panel focused on the highest-impact news,
+            # Cap to 5 â€” keep the panel focused on the highest-impact news,
             # not flooded with marginal mentions.
             for it in impactful_news[:5]:
                 dir_color = {"Bullish": "#2ed47a",
                              "Bearish": "#ff5c5c"}.get(
                                  it["direction"], "#e0a92b")
-                fresh_tag = (" 🆕" if it["title"] in
+                fresh_tag = (" ðŸ†•" if it["title"] in
                              {x["title"] for x in new_items} else "")
                 kw_chip = ""
                 if it.get("keywords"):
@@ -3654,7 +3654,7 @@ def render_btc_outlook(o: dict,
                                f"font-size:0.7rem;margin-left:6px'>"
                                f"{it['keywords'][0]}</span>")
                 time_ago = _relative_time(it.get("published"))
-                time_chip = (f" · <span style='color:#6e8bff'>{time_ago}</span>"
+                time_chip = (f" Â· <span style='color:#6e8bff'>{time_ago}</span>"
                              if time_ago else "")
                 link = it.get("link") or ""
                 if link:
@@ -3673,8 +3673,8 @@ def render_btc_outlook(o: dict,
                     f"<span style='color:{dir_color};font-weight:800'>"
                     f"{it['direction'].upper()}</span>{kw_chip} "
                     f"<span style='color:#9aa0b4;font-size:0.76rem'>"
-                    f"· {md_safe(it.get('source', ''))} "
-                    f"· impact {it['score']:.2f}{time_chip}</span>"
+                    f"Â· {md_safe(it.get('source', ''))} "
+                    f"Â· impact {it['score']:.2f}{time_chip}</span>"
                     f"{fresh_tag}<br>{title_html}</div>")
             st.markdown(
                 f"<div style='background:#0e1118;border-left:3px solid "
@@ -3682,7 +3682,7 @@ def render_btc_outlook(o: dict,
                 f"border-radius:5px'>"
                 f"<div style='font-size:0.74rem;letter-spacing:0.10em;"
                 f"color:#e0a92b;font-weight:800;margin-bottom:6px'>"
-                f"📰 WHY THIS IS HAPPENING — high-impact news right now</div>"
+                f"ðŸ“° WHY THIS IS HAPPENING â€” high-impact news right now</div>"
                 f"{items_html}</div>",
                 unsafe_allow_html=True)
 
@@ -3692,8 +3692,8 @@ def render_btc_outlook(o: dict,
             if alerts_on:
                 _inject_browser_alerts(
                     [{"id": f"news:{it['title'][:80]}",
-                      "title": f"📰 {it['direction']} impact news",
-                      "body": (f"{it['title']} — "
+                      "title": f"ðŸ“° {it['direction']} impact news",
+                      "body": (f"{it['title']} â€” "
                                f"{it.get('source', '')}")}
                      for it in impactful_news[:8]],
                     0, key="ti_notified_news")
@@ -3702,10 +3702,10 @@ def render_btc_outlook(o: dict,
             st.markdown(
                 f"<div style='background:#e0a92b1f;border-left:3px solid "
                 f"#e0a92b;padding:5px 11px;margin:4px 0;border-radius:4px;"
-                f"font-size:0.85rem'>⚠️ {md_safe(flag)}</div>",
+                f"font-size:0.85rem'>âš ï¸ {md_safe(flag)}</div>",
                 unsafe_allow_html=True)
         if o.get("strategies"):
-            with st.expander("🎯 Trading strategies currently firing on BTC"):
+            with st.expander("ðŸŽ¯ Trading strategies currently firing on BTC"):
                 st.caption(
                     "Classic technical patterns the engine sees right now. "
                     "Confirming patterns add a small confidence bonus; "
@@ -3718,11 +3718,11 @@ def render_btc_outlook(o: dict,
                     st.markdown(
                         f"- **{md_safe(s.get('name', ''))}** on "
                         f"<span style='color:#bbb'>"
-                        f"{md_safe(s.get('tf', ''))}</span> — "
+                        f"{md_safe(s.get('tf', ''))}</span> â€” "
                         f"<span style='color:{sc};font-weight:700'>"
                         f"{direction}</span>", unsafe_allow_html=True)
         if o.get("drivers"):
-            with st.expander("Full drivers — what's pulling BTC each way"):
+            with st.expander("Full drivers â€” what's pulling BTC each way"):
                 for d in o["drivers"]:
                     lean = float(d.get("lean", 0))
                     lc = ("#2ed47a" if lean > 0.05
@@ -3731,8 +3731,8 @@ def render_btc_outlook(o: dict,
                     st.markdown(
                         f"- **{d.get('force', '')}** "
                         f"<span style='color:{lc}'>(category "
-                        f"{d.get('category', '—')}, lean {lean:+.2f}, "
-                        f"weight {d.get('weight', 0)})</span> — "
+                        f"{d.get('category', 'â€”')}, lean {lean:+.2f}, "
+                        f"weight {d.get('weight', 0)})</span> â€” "
                         f"{md_safe(d.get('note', ''))}",
                         unsafe_allow_html=True)
 
@@ -3740,10 +3740,10 @@ def render_btc_outlook(o: dict,
 # ===========================================================================
 # Sidebar
 # ===========================================================================
-st.sidebar.title("📈 Crypto Indicator")
-st.sidebar.caption("Live technical analysis & sentiment — Binance USDT pairs")
+st.sidebar.title("ðŸ“ˆ Crypto Indicator")
+st.sidebar.caption("Live technical analysis & sentiment â€” Binance USDT pairs")
 
-# --- Persistent state — survives full page refresh via URL query params --
+# --- Persistent state â€” survives full page refresh via URL query params --
 _qp = st.query_params
 _qp_tf = _qp.get("tf", config.DEFAULT_TIMEFRAME)
 if _qp_tf not in config.TIMEFRAMES:
@@ -3754,19 +3754,16 @@ if _qp_mode not in ("Futures", "Spot"):
 
 # Section navigation lives on the LEFT side as the user requested.
 SECTIONS = [
-    "🔍 Market Scanner", "🔮 Forecast", "🚀 Breakout Radar",
-    "🤖 Ask the Oracle", "🪙 Coin Analysis", "📰 News & Sentiment",
-    "🧭 Decision Mode", "🧪 Paper Trader", "💸 Live Trading",
-    "💎 Spot Long-Term", "🤖 24/7 Agent",
-    # === EXPERIMENTAL — isolated from the rest. Revert with: ===
-    # git reset --hard stable-pre-rebound-breakout
-    "🔬 Hunters (experimental)",
+    "ðŸ” Market Scanner", "ðŸ”® Forecast", "ðŸš€ Breakout Radar",
+    "ðŸ¤– Ask the Oracle", "ðŸª™ Coin Analysis", "ðŸ“° News & Sentiment",
+    "ðŸ§­ Decision Mode", "ðŸ§ª Paper Trader", "ðŸ’¸ Live Trading",
+    "ðŸ’Ž Spot Long-Term", "ðŸ¤– 24/7 Agent",
 ]
 _qp_section = _qp.get("section", SECTIONS[0])
 if _qp_section not in SECTIONS:
     _qp_section = SECTIONS[0]
 active_section = st.sidebar.radio(
-    "📂 Section", SECTIONS, index=SECTIONS.index(_qp_section),
+    "ðŸ“‚ Section", SECTIONS, index=SECTIONS.index(_qp_section),
     help="Switch between the dashboard's sections. Your choice persists "
          "across page refreshes.")
 
@@ -3779,8 +3776,8 @@ timeframe = st.sidebar.selectbox(
 trade_mode_label = st.sidebar.radio(
     "Trade mode", ["Futures", "Spot"], horizontal=True,
     index=["Futures", "Spot"].index(_qp_mode),
-    help="Futures — trades both long & short, sizes leverage from "
-         "conviction. Spot — long-only (no shorting), no leverage, "
+    help="Futures â€” trades both long & short, sizes leverage from "
+         "conviction. Spot â€” long-only (no shorting), no leverage, "
          "wider swing-horizon targets and stops.")
 trade_mode = trade_mode_label.lower()
 
@@ -3792,10 +3789,10 @@ st.query_params["section"] = active_section
 top_n = st.sidebar.slider("Coins to track", 10, config.TOP_N, config.TOP_N, 5)
 
 alerts_on = st.sidebar.checkbox(
-    "🔔 Desktop alerts", value=False,
+    "ðŸ”” Desktop alerts", value=False,
     help="Browser desktop notifications for new high-confidence setups and "
          "volume surges. Keep this dashboard tab open and allow "
-         "notifications when the browser asks — the page auto-refreshes so "
+         "notifications when the browser asks â€” the page auto-refreshes so "
          "it keeps scanning in the background.")
 alert_every = 5
 if alerts_on:
@@ -3803,16 +3800,16 @@ if alerts_on:
         "Check for new signals every", [3, 5, 10], index=1,
         format_func=lambda m: f"{m} minutes")
     st.sidebar.caption(
-        f"🔔 Desktop alerts ON — re-scanning every {alert_every} min. Keep "
+        f"ðŸ”” Desktop alerts ON â€” re-scanning every {alert_every} min. Keep "
         f"this tab open (a background tab is fine); allow notifications when "
         f"the browser prompts.")
 
-if st.sidebar.button("🔄 Refresh data", use_container_width=True):
+if st.sidebar.button("ðŸ”„ Refresh data", use_container_width=True):
     st.cache_data.clear()
     st.rerun()
 
 st.sidebar.caption(
-    f"Updated {datetime.now(timezone.utc):%H:%M:%S} UTC · "
+    f"Updated {datetime.now(timezone.utc):%H:%M:%S} UTC Â· "
     f"market cache {config.MARKET_CACHE_TTL}s")
 st.sidebar.info(
     "Educational tool. Signals are algorithmic, not financial advice. "
@@ -3820,12 +3817,12 @@ st.sidebar.info(
 
 
 # ===========================================================================
-# Header — global market sentiment
+# Header â€” global market sentiment
 # ===========================================================================
 st.markdown(
     """
     <div style='display:flex;align-items:center;gap:14px;margin:0 0 14px 0'>
-      <div style='font-size:2.2rem;line-height:1'>📈</div>
+      <div style='font-size:2.2rem;line-height:1'>ðŸ“ˆ</div>
       <div>
         <div style='font-size:1.95rem;font-weight:800;letter-spacing:-0.025em;
              background:linear-gradient(90deg,#6e8bff,#9d8bff);
@@ -3872,7 +3869,7 @@ hcol1, hcol2, hcol3, hcol4 = st.columns(4)
 
 if fg:
     delta = fg["value"] - (fg["yesterday"] or fg["value"])
-    hcol1.metric("Fear & Greed", f"{fg['value']} · {fg['label']}",
+    hcol1.metric("Fear & Greed", f"{fg['value']} Â· {fg['label']}",
                  f"{delta:+d} vs yesterday")
 else:
     hcol1.metric("Fear & Greed", "unavailable")
@@ -3885,7 +3882,7 @@ else:
 
 if crypto_soc:
     hcol3.metric("Crypto Social Mood", crypto_soc["mood"],
-                 f"{crypto_soc['sentiment']:.0f}% positive · LunarCrush")
+                 f"{crypto_soc['sentiment']:.0f}% positive Â· LunarCrush")
 elif not news_df.empty:
     _cm = news_mod.category_mood(news_df, "Crypto")
     hcol3.metric("Crypto News Mood", _cm["mood"], f"{_cm['score']:+.2f} avg")
@@ -3894,7 +3891,7 @@ else:
 
 if stock_soc:
     hcol4.metric("Equities Social Mood", stock_soc["mood"],
-                 f"{stock_soc['sentiment']:.0f}% positive · LunarCrush")
+                 f"{stock_soc['sentiment']:.0f}% positive Â· LunarCrush")
 elif not news_df.empty:
     _mm = news_mod.category_mood(news_df, "Macro / Politics")
     hcol4.metric("Macro News Mood", _mm["mood"], f"{_mm['score']:+.2f} avg")
@@ -3905,12 +3902,12 @@ if glob:
     _eth = glob.get("eth_dominance") or 0.0
     _eth_txt = f" / ETH {_eth:.1f}%" if _eth else ""
     st.caption(
-        f"Total crypto market cap ${glob['market_cap_usd'] / 1e12:.2f}T · "
-        f"24h volume ${glob['volume_usd'] / 1e9:.0f}B · "
-        f"BTC {glob['btc_dominance']:.1f}%{_eth_txt} dominance · "
-        f"via {glob.get('source', '—')}")
+        f"Total crypto market cap ${glob['market_cap_usd'] / 1e12:.2f}T Â· "
+        f"24h volume ${glob['volume_usd'] / 1e9:.0f}B Â· "
+        f"BTC {glob['btc_dominance']:.1f}%{_eth_txt} dominance Â· "
+        f"via {glob.get('source', 'â€”')}")
 
-# --- BTC 24h Outlook — the headline directional read above every tab --------
+# --- BTC 24h Outlook â€” the headline directional read above every tab --------
 try:
     _bo_tickers = load_top_symbols(top_n)
     _btc_row = _bo_tickers[_bo_tickers["symbol"] == "BTCUSDT"]
@@ -3929,12 +3926,12 @@ try:
 except Exception:
     pass  # never let the BTC banner block the rest of the dashboard
 
-# --- Global Trade Alerts strip — high-confidence setups & volume surges,
+# --- Global Trade Alerts strip â€” high-confidence setups & volume surges,
 # computed for the selected timeframe and shown above every tab. -------------
 _alert_merged = pd.DataFrame()    # so later tabs can rely on it being defined
 try:
     _alert_tickers = load_top_symbols(top_n)
-    with st.spinner(f"Scanning {len(_alert_tickers)} coins for alerts…"):
+    with st.spinner(f"Scanning {len(_alert_tickers)} coins for alertsâ€¦"):
         _alert_scan = scan_market(
             tuple(_alert_tickers["symbol"]), timeframe, trade_mode)
     _alert_merged = _alert_scan.merge(
@@ -3960,14 +3957,14 @@ prices: dict[str, float] = {}
 if not _alert_merged.empty:
     prices = dict(zip(_alert_merged["symbol"], _alert_merged["price"]))
 
-# Section is selected from the sidebar radio above — no horizontal tab bar.
+# Section is selected from the sidebar radio above â€” no horizontal tab bar.
 
 
 # ===========================================================================
-# Tab 1 — Market Scanner
+# Tab 1 â€” Market Scanner
 # ===========================================================================
-if active_section == "🔍 Market Scanner":
-    st.subheader(f"Market Scanner · {timeframe} timeframe")
+if active_section == "ðŸ” Market Scanner":
+    st.subheader(f"Market Scanner Â· {timeframe} timeframe")
     st.caption(f"Top {top_n} USDT pairs by 24h volume, ranked by signal score.")
 
     try:
@@ -3976,11 +3973,11 @@ if active_section == "🔍 Market Scanner":
         st.error(f"Could not load Binance market data: {exc}")
         st.stop()
 
-    with st.spinner(f"Analysing {len(tickers)} coins on {timeframe}…"):
+    with st.spinner(f"Analysing {len(tickers)} coins on {timeframe}â€¦"):
         scan_df = scan_market(tuple(tickers["symbol"]), timeframe, trade_mode)
 
     if scan_df.empty:
-        st.warning("No analysis results — try refreshing.")
+        st.warning("No analysis results â€” try refreshing.")
     else:
         merged = scan_df.merge(
             tickers[["symbol", "priceChangePercent", "quoteVolume"]],
@@ -3993,7 +3990,7 @@ if active_section == "🔍 Market Scanner":
         except Exception:
             tv_map = {}
         merged["tv"] = merged["symbol"].map(
-            lambda s: tv_map.get(s, {}).get("recommendation", "—").upper())
+            lambda s: tv_map.get(s, {}).get("recommendation", "â€”").upper())
 
         # LunarCrush Galaxy Score for every coin (one request; skipped when
         # no API key is configured).
@@ -4024,7 +4021,7 @@ if active_section == "🔍 Market Scanner":
             "RSI": merged["rsi"],
             "Regime": merged["regime"],
             "Funding": merged["funding"].map(
-                lambda f: f"{f * 100:+.3f}%" if pd.notna(f) else "—"),
+                lambda f: f"{f * 100:+.3f}%" if pd.notna(f) else "â€”"),
         })
         if lc_top:
             table["Galaxy"] = merged["symbol"].map(
@@ -4051,18 +4048,18 @@ if active_section == "🔍 Market Scanner":
             "Bias = directional positioning (LONG / SHORT). "
             "Action = entry timing (BUY / SELL / NEUTRAL). "
             "TradingView = TradingView's own rating, an independent "
-            "cross-check. Score blends bias & action: -100 bearish → "
+            "cross-check. Score blends bias & action: -100 bearish â†’ "
             "+100 bullish. Funding positive means longs pay shorts.")
 
-        st.markdown("### 🎯 Live Trade Signals")
-        st.caption(f"High-conviction setups on the {timeframe} timeframe — "
+        st.markdown("### ðŸŽ¯ Live Trade Signals")
+        st.caption(f"High-conviction setups on the {timeframe} timeframe â€” "
                    f"entry zone, protective stop and scale-out targets.")
         sig = merged[merged["trade_plan"].apply(
             lambda p: isinstance(p, dict))]
         sig = sig[sig["confidence"] >= 55].sort_values(
             "confidence", ascending=False)
         if sig.empty:
-            st.info("No high-conviction setups right now — the market is "
+            st.info("No high-conviction setups right now â€” the market is "
                     "mostly neutral on this timeframe. Try another timeframe "
                     "or check back after the next candles close.")
         else:
@@ -4070,14 +4067,14 @@ if active_section == "🔍 Market Scanner":
                 "Coin": r["symbol"].replace("USDT", ""),
                 "Direction": r["trade_plan"]["side"],
                 "Move": (r["trade_plan"].get("maturity") or {}).get(
-                    "stage", "—"),
-                "Entry zone": f"{fmt_price(r['trade_plan']['entry_low'])} – "
+                    "stage", "â€”"),
+                "Entry zone": f"{fmt_price(r['trade_plan']['entry_low'])} â€“ "
                               f"{fmt_price(r['trade_plan']['entry_high'])}",
                 "Stop loss": fmt_price(r["trade_plan"]["stop_loss"]),
                 "Target 1": fmt_price(r["trade_plan"]["take_profit"]),
                 "Target 2": fmt_price(r["trade_plan"]["take_profit_2"]),
                 "Target 3": fmt_price(r["trade_plan"]["take_profit_3"]),
-                "R : R": f"{r['trade_plan']['risk_reward']:.1f}–"
+                "R : R": f"{r['trade_plan']['risk_reward']:.1f}â€“"
                          f"{r['trade_plan']['risk_reward_3']:.1f}R",
                 "Confidence": r["confidence"],
             } for _, r in sig.head(20).iterrows()])
@@ -4093,21 +4090,21 @@ if active_section == "🔍 Market Scanner":
                         "Confidence", format="%d%%"),
                 })
             st.caption(
-                "How to trade a signal — place a **limit order** in the "
+                "How to trade a signal â€” place a **limit order** in the "
                 "entry zone, set a **stop-market** order at the stop loss, "
                 "and exit in two parts: close ~50% at Target 1, the rest at "
                 "Target 2, moving the stop to break-even once Target 1 fills. "
                 "Open the Coin Analysis tab for the full plan and "
-                "step-by-step order guide. Educational only — not financial "
+                "step-by-step order guide. Educational only â€” not financial "
                 "advice.")
 
 
 # ===========================================================================
-# Tab 2 — Forecast
+# Tab 2 â€” Forecast
 # ===========================================================================
-if active_section == "🔮 Forecast":
+if active_section == "ðŸ”® Forecast":
     _fc_live = st.checkbox(
-        "🔴 Live forecast — keep it auto-refreshing every 5 min",
+        "ðŸ”´ Live forecast â€” keep it auto-refreshing every 5 min",
         value=False, key="forecast_live",
         help="Re-runs the forecast on an interval so the predictions and "
              "their alerts stay current without you refreshing the page.")
@@ -4115,7 +4112,7 @@ if active_section == "🔮 Forecast":
         _fc_tickers = load_top_symbols(top_n)
         _fc_syms = tuple(_fc_tickers["symbol"].head(40))
         with st.spinner(f"Forecasting {len(_fc_syms)} coins across "
-                        f"15m / 1h / 4h with full news & macro context…"):
+                        f"15m / 1h / 4h with full news & macro contextâ€¦"):
             _fc_df = forecast_market(_fc_syms)
         render_forecast(_fc_df)
     except Exception as exc:
@@ -4125,27 +4122,27 @@ if active_section == "🔮 Forecast":
 
 
 # ===========================================================================
-# Tab 3 — Breakout Radar
+# Tab 3 â€” Breakout Radar
 # ===========================================================================
-if active_section == "🚀 Breakout Radar":
-    st.subheader("🚀 Breakout Radar — predict the next coins to blow out")
+if active_section == "ðŸš€ Breakout Radar":
+    st.subheader("ðŸš€ Breakout Radar â€” predict the next coins to blow out")
     st.caption(
         "A self-contained intelligence engine. It scans every coin across "
         "three charts and fuses price action, volume surges, volatility, "
         "live buying/selling, the bigger trend, strength versus Bitcoin, "
         "futures funding, social attention and fresh news into one plain "
-        "verdict — set inside the overall market mood. It tells you which "
+        "verdict â€” set inside the overall market mood. It tells you which "
         "coins look ready to move and **how early you are**: coins that "
         "haven't moved yet (the safest entries), coins just starting to move, "
         "and coins that have already run (too late to chase).")
 
     hz_label = st.radio(
-        "Horizon", ["⚡ Imminent — next 15m–4h move  (scans 15m · 1h · 4h)",
-                    "📅 Next 24 hours  (scans 1h · 4h · 1d)"],
+        "Horizon", ["âš¡ Imminent â€” next 15mâ€“4h move  (scans 15m Â· 1h Â· 4h)",
+                    "ðŸ“… Next 24 hours  (scans 1h Â· 4h Â· 1d)"],
         horizontal=True, label_visibility="collapsed")
-    horizon = "24h" if hz_label.startswith("📅") else "imminent"
-    tf_note = ("1h · 4h · 1d charts" if horizon == "24h"
-               else "15m · 1h · 4h charts")
+    horizon = "24h" if hz_label.startswith("ðŸ“…") else "imminent"
+    tf_note = ("1h Â· 4h Â· 1d charts" if horizon == "24h"
+               else "15m Â· 1h Â· 4h charts")
 
     try:
         b_tickers = load_top_symbols(top_n)
@@ -4154,12 +4151,12 @@ if active_section == "🚀 Breakout Radar":
         st.stop()
 
     try:
-        with st.spinner(f"Scanning {len(b_tickers)} coins across {tf_note}…"):
+        with st.spinner(f"Scanning {len(b_tickers)} coins across {tf_note}â€¦"):
             radar, backdrop = scan_breakouts(
                 tuple(b_tickers["symbol"]), horizon)
     except Exception as exc:
         import traceback as _tb
-        st.error(f"The Breakout Radar hit an error — "
+        st.error(f"The Breakout Radar hit an error â€” "
                  f"{type(exc).__name__}: {exc}")
         with st.expander("Technical details"):
             st.code(_tb.format_exc())
@@ -4171,7 +4168,7 @@ if active_section == "🚀 Breakout Radar":
             b_tickers[["symbol", "quoteVolume"]], on="symbol", how="left")
 
     if radar.empty:
-        st.warning("No analysis available right now — try refreshing.")
+        st.warning("No analysis available right now â€” try refreshing.")
     else:
         bd_color = {"Risk-on": "#2ed47a", "Risk-off": "#ff5c5c"}.get(
             backdrop["label"], "#e0a92b")
@@ -4180,16 +4177,16 @@ if active_section == "🚀 Breakout Radar":
             f"rgba(255,255,255,0.07);border-left:3px solid {bd_color};"
             f"border-radius:10px;padding:10px 15px;margin:2px 0 14px 0'>"
             f"<span style='font-size:0.7rem;letter-spacing:0.09em;"
-            f"color:#8b8d98;font-weight:700'>MARKET BACKDROP — THE TAPE EVERY "
+            f"color:#8b8d98;font-weight:700'>MARKET BACKDROP â€” THE TAPE EVERY "
             f"SETUP SITS INSIDE</span><br>"
             f"<span style='font-size:1.08rem;font-weight:800;color:{bd_color}'>"
             f"{backdrop['label']}</span>"
-            f"<span style='color:#8b8d98;font-size:0.84rem'> &nbsp;·&nbsp; "
-            f"score {backdrop['score']:+.0f} &nbsp;·&nbsp; "
+            f"<span style='color:#8b8d98;font-size:0.84rem'> &nbsp;Â·&nbsp; "
+            f"score {backdrop['score']:+.0f} &nbsp;Â·&nbsp; "
             f"{backdrop['note']}</span><br>"
             f"<span style='color:#9aa0b4;font-size:0.79rem'>Bullish setups get "
             f"a small tailwind when the tape is risk-on and a headwind when "
-            f"it is risk-off — and the reverse for shorts. It tilts the "
+            f"it is risk-off â€” and the reverse for shorts. It tilts the "
             f"scores, never overrides them.</span></div>",
             unsafe_allow_html=True)
 
@@ -4200,75 +4197,75 @@ if active_section == "🚀 Breakout Radar":
         fresh = int((shortlist["stage"] == "FRESH").sum())
         extended = int((shortlist["stage"] == "EXTENDED").sum())
         # Split by the direction score's sign so every coin is a long or a
-        # short call — no coin is left without a decision.
+        # short call â€” no coin is left without a decision.
         up_df = shortlist[shortlist["direction"] >= 0]
         down_df = shortlist[shortlist["direction"] < 0]
 
         k1, k2, k3, k4 = st.columns(4)
-        k1.metric("🔋 Building Up", loading,
-                  help="Hasn't moved yet — the earliest, safest entries")
-        k2.metric("🚀 Just Started", fresh,
-                  help="Already moving but still early — room to run")
-        k3.metric("⚠️ Already Ran", extended,
-                  help="Move mostly done — too late, risky to chase")
-        k4.metric("🟢 Long / 🔴 Short", f"{len(up_df)} / {len(down_df)}")
+        k1.metric("ðŸ”‹ Building Up", loading,
+                  help="Hasn't moved yet â€” the earliest, safest entries")
+        k2.metric("ðŸš€ Just Started", fresh,
+                  help="Already moving but still early â€” room to run")
+        k3.metric("âš ï¸ Already Ran", extended,
+                  help="Move mostly done â€” too late, risky to chase")
+        k4.metric("ðŸŸ¢ Long / ðŸ”´ Short", f"{len(up_df)} / {len(down_df)}")
 
         st.caption(
             "**The summary above counts the 30 coins by status.** "
-            "🔋 **Building Up** = coiled, has not moved yet — the earliest and "
-            "safest entry. 🚀 **Just Started** = the move just began, still "
-            "early. ⚠️ **Already Ran** = the move is mostly done — too late, "
+            "ðŸ”‹ **Building Up** = coiled, has not moved yet â€” the earliest and "
+            "safest entry. ðŸš€ **Just Started** = the move just began, still "
+            "early. âš ï¸ **Already Ran** = the move is mostly done â€” too late, "
             "risky to chase.")
 
         # --- The decision board: LONG vs SHORT ----------------------------
-        st.markdown("### 🎯 Top 30 coins — your long / short decision board")
+        st.markdown("### ðŸŽ¯ Top 30 coins â€” your long / short decision board")
         bc, sc = st.columns(2)
         with bc:
             st.markdown(
-                f"<h4 style='color:#2ed47a;border-color:#2ed47a'>🟢 GO LONG "
+                f"<h4 style='color:#2ed47a;border-color:#2ed47a'>ðŸŸ¢ GO LONG "
                 f"&nbsp;<span style='font-size:0.8rem;color:#8b8d98'>"
-                f"buy — price likely to rise ({len(up_df)})</span></h4>",
+                f"buy â€” price likely to rise ({len(up_df)})</span></h4>",
                 unsafe_allow_html=True)
             breakout_side_table(up_df, "UP")
         with sc:
             st.markdown(
-                f"<h4 style='color:#ff5c5c;border-color:#ff5c5c'>🔴 GO SHORT "
+                f"<h4 style='color:#ff5c5c;border-color:#ff5c5c'>ðŸ”´ GO SHORT "
                 f"&nbsp;<span style='font-size:0.8rem;color:#8b8d98'>"
-                f"sell — price likely to fall ({len(down_df)})</span></h4>",
+                f"sell â€” price likely to fall ({len(down_df)})</span></h4>",
                 unsafe_allow_html=True)
             breakout_side_table(down_df, "DOWN")
         st.caption(
-            "**How to read this:** coins on the **left → open a LONG** (buy, "
-            "betting price goes up); coins on the **right → open a SHORT** "
+            "**How to read this:** coins on the **left â†’ open a LONG** (buy, "
+            "betting price goes up); coins on the **right â†’ open a SHORT** "
             "(sell, betting price goes down). **Entry** = the price to act at, "
             "**Target** = the first place to take profit. Prefer high "
             "**Score** and high **Confidence**; **Building Up** is the safest "
-            "timing, **Already Ran** is the riskiest. 🔥 = volume surging. "
+            "timing, **Already Ran** is the riskiest. ðŸ”¥ = volume surging. "
             "Full plan and reasoning for every coin below.")
 
         st.divider()
 
         # --- Full read & trade plan per coin ------------------------------
-        st.markdown("### 📋 Full read & trade plan for each coin")
+        st.markdown("### ðŸ“‹ Full read & trade plan for each coin")
         fc1, fc2 = st.columns([3, 2])
         stage_flt = fc1.radio(
-            "Status", ["All", "🔋 Building up", "🚀 Just started",
-                       "⚠️ Already ran"],
+            "Status", ["All", "ðŸ”‹ Building up", "ðŸš€ Just started",
+                       "âš ï¸ Already ran"],
             horizontal=True, label_visibility="collapsed")
         dir_flt = fc2.radio(
-            "Direction", ["Long & short", "🟢 Long only", "🔴 Short only"],
+            "Direction", ["Long & short", "ðŸŸ¢ Long only", "ðŸ”´ Short only"],
             horizontal=True, label_visibility="collapsed")
 
         view = shortlist
-        if stage_flt.startswith("🔋"):
+        if stage_flt.startswith("ðŸ”‹"):
             view = view[view["stage"] == "COILED"]
-        elif stage_flt.startswith("🚀"):
+        elif stage_flt.startswith("ðŸš€"):
             view = view[view["stage"] == "FRESH"]
-        elif stage_flt.startswith("⚠️"):
+        elif stage_flt.startswith("âš ï¸"):
             view = view[view["stage"] == "EXTENDED"]
-        if dir_flt.startswith("🟢"):
+        if dir_flt.startswith("ðŸŸ¢"):
             view = view[view["direction"] >= 0]
-        elif dir_flt.startswith("🔴"):
+        elif dir_flt.startswith("ðŸ”´"):
             view = view[view["direction"] < 0]
 
         if view.empty:
@@ -4277,31 +4274,31 @@ if active_section == "🚀 Breakout Radar":
             for _, r in view.iterrows():
                 render_breakout_card(r.to_dict(), int(r.name) + 1)
 
-        st.caption("The radar is algorithmic — it flags where the conditions "
+        st.caption("The radar is algorithmic â€” it flags where the conditions "
                    "for a violent move are stacking up; it does not promise "
                    "one will happen. Educational only, not financial advice.")
 
 
 # ===========================================================================
-# Tab 4 — Ask the Oracle
+# Tab 4 â€” Ask the Oracle
 # ===========================================================================
-if active_section == "🤖 Ask the Oracle":
-    st.subheader("🤖 Ask the Oracle — your trading-desk analyst")
+if active_section == "ðŸ¤– Ask the Oracle":
+    st.subheader("ðŸ¤– Ask the Oracle â€” your trading-desk analyst")
     st.caption(
-        "Ask in plain English which coin is next to blow out — up or down — "
+        "Ask in plain English which coin is next to blow out â€” up or down â€” "
         "and the Oracle answers straight from the live Breakout Radar. Below, "
         "a curated board of bullish coins with concrete buy zones, read "
         "against circulating supply and the worldwide market backdrop.")
 
     o_hz_label = st.radio(
         "Horizon",
-        ["⚡ Imminent — next 15m–4h move", "📅 Next 24 hours"],
+        ["âš¡ Imminent â€” next 15mâ€“4h move", "ðŸ“… Next 24 hours"],
         horizontal=True, label_visibility="collapsed", key="oracle_horizon")
-    o_horizon = "24h" if o_hz_label.startswith("📅") else "imminent"
+    o_horizon = "24h" if o_hz_label.startswith("ðŸ“…") else "imminent"
 
     try:
         o_tickers = load_top_symbols(top_n)
-        with st.spinner("Scanning the market for the Oracle…"):
+        with st.spinner("Scanning the market for the Oracleâ€¦"):
             o_radar, o_backdrop = scan_breakouts(
                 tuple(o_tickers["symbol"]), o_horizon)
         if not o_radar.empty:
@@ -4319,14 +4316,14 @@ if active_section == "🤖 Ask the Oracle":
         except Exception:
             o_mcap_map = {}
 
-    st.markdown("#### 💬 Ask anything")
+    st.markdown("#### ðŸ’¬ Ask anything")
     o_question = st.text_input(
         "Your question", value="",
         placeholder="e.g. Which coin is about to blow out?",
         label_visibility="collapsed", key="oracle_question")
-    st.caption("Try: “which coin is next for a bullish blowout?” · "
-               "“safest long right now” · “what about SOL?” · "
-               "“show me the next breakdown” · “volume igniting”")
+    st.caption("Try: â€œwhich coin is next for a bullish blowout?â€ Â· "
+               "â€œsafest long right nowâ€ Â· â€œwhat about SOL?â€ Â· "
+               "â€œshow me the next breakdownâ€ Â· â€œvolume ignitingâ€")
 
     o_presets = ["Next bullish blowout", "Next bearish blowout",
                  "Safest long now", "Volume igniting"]
@@ -4339,20 +4336,20 @@ if active_section == "🤖 Ask the Oracle":
     if o_question:
         render_oracle_answer(oracle.answer(o_question, o_radar, o_backdrop))
     else:
-        st.caption("Ask a question above, or tap a quick button — the Oracle "
+        st.caption("Ask a question above, or tap a quick button â€” the Oracle "
                    "replies instantly from the live radar.")
 
     st.divider()
     render_buy_zone_board(o_radar, o_backdrop, o_mcap_map)
-    st.caption("The Oracle reads only the live Breakout Radar — no "
+    st.caption("The Oracle reads only the live Breakout Radar â€” no "
                "predictions beyond what the engine sees. Educational only, "
                "not financial advice.")
 
 
 # ===========================================================================
-# Tab 5 — Coin Analysis
+# Tab 5 â€” Coin Analysis
 # ===========================================================================
-if active_section == "🪙 Coin Analysis":
+if active_section == "ðŸª™ Coin Analysis":
     try:
         tickers = load_top_symbols(top_n)
     except Exception as exc:
@@ -4371,7 +4368,7 @@ if active_section == "🪙 Coin Analysis":
     except Exception:
         lc_metrics = None
 
-    # Multi-timeframe analysis — derivatives and social sentiment feed every
+    # Multi-timeframe analysis â€” derivatives and social sentiment feed every
     # timeframe's signal.
     per_tf: dict[str, dict] = {}
     enriched_by_tf: dict[str, pd.DataFrame] = {}
@@ -4423,28 +4420,28 @@ if active_section == "🪙 Coin Analysis":
     render_bottom_line(agg, detail, per_tf, tv_rating, flow_snap, lc_metrics)
 
     st.markdown(
-        f"### {symbol.replace('USDT', ' / USDT')} — multi-timeframe verdict")
+        f"### {symbol.replace('USDT', ' / USDT')} â€” multi-timeframe verdict")
     vc1, vc2, vc3, vc4 = st.columns([1.1, 1.1, 1.1, 1.3])
     with vc1:
-        st.caption("DIRECTIONAL BIAS — which side to hold")
+        st.caption("DIRECTIONAL BIAS â€” which side to hold")
         st.markdown(label_badge(agg["bias_label"]), unsafe_allow_html=True)
-        st.caption(f"Score {agg['bias_score']:+.0f} · trend · MACD · derivatives")
+        st.caption(f"Score {agg['bias_score']:+.0f} Â· trend Â· MACD Â· derivatives")
     with vc2:
-        st.caption("ENTRY ACTION — whether to act now")
+        st.caption("ENTRY ACTION â€” whether to act now")
         st.markdown(label_badge(agg["action_label"]), unsafe_allow_html=True)
-        st.caption(f"Score {agg['action_score']:+.0f} · RSI · Stoch · Bollinger")
+        st.caption(f"Score {agg['action_score']:+.0f} Â· RSI Â· Stoch Â· Bollinger")
     with vc3:
-        st.caption(f"TRADINGVIEW — independent rating ({detail_tf})")
+        st.caption(f"TRADINGVIEW â€” independent rating ({detail_tf})")
         if tv_rating:
             st.markdown(label_badge(tv_rating["recommendation"].upper()),
                         unsafe_allow_html=True)
-            st.caption(f"{tv_rating['buy']} buy · {tv_rating['neutral']} "
-                       f"neutral · {tv_rating['sell']} sell")
+            st.caption(f"{tv_rating['buy']} buy Â· {tv_rating['neutral']} "
+                       f"neutral Â· {tv_rating['sell']} sell")
         else:
             st.markdown(label_badge("NEUTRAL"), unsafe_allow_html=True)
             st.caption("rating unavailable")
     with vc4:
-        st.caption(f"SIGNAL CONFIDENCE — {detail_tf}")
+        st.caption(f"SIGNAL CONFIDENCE â€” {detail_tf}")
         st.plotly_chart(confidence_gauge(detail["confidence"]),
                         use_container_width=True,
                         config={"displayModeBar": False})
@@ -4454,8 +4451,8 @@ if active_section == "🪙 Coin Analysis":
     _bd_bull = sum(1 for b in detail["breakdown"] if b["signal"] == "Bullish")
     _bd_bear = sum(1 for b in detail["breakdown"] if b["signal"] == "Bearish")
     st.caption(
-        f"🔗 **Confluence** — {_tf_long}/{len(per_tf)} timeframes lean long, "
-        f"{_tf_short} lean short · on {detail_tf}: {_bd_bull} bullish / "
+        f"ðŸ”— **Confluence** â€” {_tf_long}/{len(per_tf)} timeframes lean long, "
+        f"{_tf_short} lean short Â· on {detail_tf}: {_bd_bull} bullish / "
         f"{_bd_bear} bearish across {len(detail['breakdown'])} indicators. "
         f"Bias and timing are scored separately, so a long bias can still "
         f"pair with a 'wait' on entry.")
@@ -4467,16 +4464,16 @@ if active_section == "🪙 Coin Analysis":
     else:
         with st.container(border=True):
             if trade_mode == "spot" and "SHORT" in detail["label"]:
-                st.markdown("#### 📋 Action Plan — NO SPOT TRADE")
+                st.markdown("#### ðŸ“‹ Action Plan â€” NO SPOT TRADE")
                 st.info(
                     f"The {detail_tf} bias is bearish ({detail['label']}). "
-                    f"Spot is long-only — there is no trade to take here. "
+                    f"Spot is long-only â€” there is no trade to take here. "
                     f"Switch to Futures mode to see the short setup, or wait "
                     f"for the bias to turn bullish for a spot buy.")
             else:
-                st.markdown("#### 📋 Action Plan — STAND ASIDE")
+                st.markdown("#### ðŸ“‹ Action Plan â€” STAND ASIDE")
                 st.info(
-                    f"No high-conviction setup on the {detail_tf} timeframe — "
+                    f"No high-conviction setup on the {detail_tf} timeframe â€” "
                     f"the composite signal is NEUTRAL. Wait for directional "
                     f"bias and entry timing to align before committing risk.")
 
@@ -4492,7 +4489,7 @@ if active_section == "🪙 Coin Analysis":
     render_lunarcrush(lc_metrics, base_asset)
 
     # ---- Live, interactive TradingView chart -----------------------------
-    st.markdown(f"#### 📈 Live TradingView chart · {detail_tf}")
+    st.markdown(f"#### ðŸ“ˆ Live TradingView chart Â· {detail_tf}")
     tradingview_chart(symbol, detail_tf)
 
     # ---- Per-timeframe signal cards --------------------------------------
@@ -4502,7 +4499,7 @@ if active_section == "🪙 Coin Analysis":
         with col:
             if tf in per_tf:
                 a = per_tf[tf]
-                st.markdown(f"**{tf}** · _{a['regime']}_")
+                st.markdown(f"**{tf}** Â· _{a['regime']}_")
                 st.markdown(f"Bias {label_badge(a['bias_label'])}",
                             unsafe_allow_html=True)
                 st.markdown(f"Action {label_badge(a['action_label'])}",
@@ -4518,7 +4515,7 @@ if active_section == "🪙 Coin Analysis":
     left, right = st.columns([2, 1])
 
     with left:
-        st.markdown(f"#### Indicator chart · {detail_tf}")
+        st.markdown(f"#### Indicator chart Â· {detail_tf}")
         plot = edf.tail(120)
         fig = make_subplots(
             rows=3, cols=1, shared_xaxes=True,
@@ -4564,11 +4561,11 @@ if active_section == "🪙 Coin Analysis":
             xaxis_rangeslider_visible=False, showlegend=False,
             template="plotly_dark")
         st.plotly_chart(fig, use_container_width=True)
-        st.caption("Price panel: candles · EMA fast/slow · VWAP (dashed "
-                   "magenta) · Bollinger Bands. Lower panels: RSI & volume.")
+        st.caption("Price panel: candles Â· EMA fast/slow Â· VWAP (dashed "
+                   "magenta) Â· Bollinger Bands. Lower panels: RSI & volume.")
 
     with right:
-        st.markdown(f"#### Signal detail · {detail_tf}")
+        st.markdown(f"#### Signal detail Â· {detail_tf}")
         b1, b2 = st.columns(2)
         b1.caption("Directional bias")
         b1.markdown(label_badge(detail["bias_label"]), unsafe_allow_html=True)
@@ -4578,11 +4575,11 @@ if active_section == "🪙 Coin Analysis":
         m1, m2 = st.columns(2)
         m1.metric("Bias score", f"{detail['bias_score']:+.0f}")
         m2.metric("Action score", f"{detail['action_score']:+.0f}")
-        m1.metric("ADX · trend strength",
-                  f"{detail['adx']}" if detail["adx"] is not None else "—",
+        m1.metric("ADX Â· trend strength",
+                  f"{detail['adx']}" if detail["adx"] is not None else "â€”",
                   detail["regime"])
         m2.metric("Volatility (ATR)",
-                  f"{detail['atr_pct']}%" if detail['atr_pct'] else "—")
+                  f"{detail['atr_pct']}%" if detail['atr_pct'] else "â€”")
 
         bd = pd.DataFrame(detail["breakdown"])
         bd_view = pd.DataFrame({
@@ -4608,7 +4605,7 @@ if active_section == "🪙 Coin Analysis":
             t1.metric("Oscillators", tv_rating["oscillators"])
             t2.metric("Moving averages", tv_rating["moving_averages"])
             st.caption(
-                f"TradingView consensus **{tv_rating['recommendation']}** — "
+                f"TradingView consensus **{tv_rating['recommendation']}** â€” "
                 f"{tv_rating['buy']} buy / {tv_rating['neutral']} neutral / "
                 f"{tv_rating['sell']} sell indicators.")
 
@@ -4622,13 +4619,13 @@ if active_section == "🪙 Coin Analysis":
             if dv.get("oi_change_pct") is not None:
                 d1.metric("Open interest trend", f"{dv['oi_change_pct']:+.1f}%")
             st.caption("Perpetual funding, trader long/short ratio and "
-                       "open-interest trend — leverage & positioning context.")
+                       "open-interest trend â€” leverage & positioning context.")
 
 
 # ===========================================================================
-# Tab 6 — News & Sentiment
+# Tab 6 â€” News & Sentiment
 # ===========================================================================
-if active_section == "📰 News & Sentiment":
+if active_section == "ðŸ“° News & Sentiment":
     st.subheader("Market Sentiment & Live News")
 
     sleft, sright = st.columns([1, 2])
@@ -4665,7 +4662,7 @@ if active_section == "📰 News & Sentiment":
                 fill="tozeroy", fillcolor="rgba(74,144,217,0.15)"))
             line.update_layout(
                 height=260, margin=dict(l=10, r=10, t=30, b=10),
-                title="Fear & Greed — last 30 days",
+                title="Fear & Greed â€” last 30 days",
                 template="plotly_dark", yaxis_range=[0, 100])
             st.plotly_chart(line, use_container_width=True)
 
@@ -4686,7 +4683,7 @@ if active_section == "📰 News & Sentiment":
         for col, cat in zip(mcols, cats):
             mood = news_mod.category_mood(news_df, cat)
             col.metric(cat, mood["mood"],
-                       f"{mood['score']:+.2f} · {mood['count']} stories")
+                       f"{mood['score']:+.2f} Â· {mood['count']} stories")
 
         st.divider()
 
@@ -4700,7 +4697,7 @@ if active_section == "📰 News & Sentiment":
         if mood_filter != "All":
             view = view[view["mood"] == mood_filter]
 
-        st.caption(f"{len(view)} stories · newest first")
+        st.caption(f"{len(view)} stories Â· newest first")
         for _, row in view.head(60).iterrows():
             color = MOOD_COLORS.get(row["mood"], "#888")
             when = row["published"].strftime("%b %d %H:%M UTC")
@@ -4711,15 +4708,15 @@ if active_section == "📰 News & Sentiment":
                 f"style='font-weight:600;text-decoration:none;color:inherit'>"
                 f"{row['title']}</a><br>"
                 f"<span style='color:#888;font-size:0.8rem'>"
-                f"{row['source']} · {row['category']} · {when} · "
+                f"{row['source']} Â· {row['category']} Â· {when} Â· "
                 f"<span style='color:{color}'>{row['mood']} "
                 f"({row['sentiment']:+.2f})</span></span></div>",
                 unsafe_allow_html=True)
 
-    # --- Social buzz (Reddit) — free, ToS-compliant stand-in for X --------
+    # --- Social buzz (Reddit) â€” free, ToS-compliant stand-in for X --------
     st.divider()
-    st.subheader("Social Buzz · Reddit")
-    st.caption("Retail/social sentiment from Reddit — a free, "
+    st.subheader("Social Buzz Â· Reddit")
+    st.caption("Retail/social sentiment from Reddit â€” a free, "
                "Terms-of-Service-compliant alternative to X/Twitter, which no "
                "longer offers free data access. Mood is upvote-weighted.")
 
@@ -4736,9 +4733,9 @@ if active_section == "📰 News & Sentiment":
         for col, cat in zip(sm_cols, scats):
             mood = social_mod.social_mood(social_df, cat)
             col.metric(f"{cat} buzz", mood["mood"],
-                       f"{mood['score']:+.2f} · {mood['count']} posts")
+                       f"{mood['score']:+.2f} Â· {mood['count']} posts")
 
-        st.caption(f"{len(social_df)} hot posts · most-upvoted first")
+        st.caption(f"{len(social_df)} hot posts Â· most-upvoted first")
         for _, row in social_df.sort_values(
                 "upvotes", ascending=False).head(40).iterrows():
             color = MOOD_COLORS.get(row["mood"], "#888")
@@ -4750,20 +4747,20 @@ if active_section == "📰 News & Sentiment":
                 f"style='font-weight:600;text-decoration:none;color:inherit'>"
                 f"{row['title']}</a><br>"
                 f"<span style='color:#888;font-size:0.8rem'>"
-                f"{row['source']} · ▲{row['upvotes']:,} · "
-                f"{row['comments']:,} comments · {when} · "
+                f"{row['source']} Â· â–²{row['upvotes']:,} Â· "
+                f"{row['comments']:,} comments Â· {when} Â· "
                 f"<span style='color:{color}'>{row['mood']} "
                 f"({row['sentiment']:+.2f})</span></span></div>",
                 unsafe_allow_html=True)
 
 
 # ===========================================================================
-# Tab 7 — Decision Mode
+# Tab 7 â€” Decision Mode
 # ===========================================================================
-if active_section == "🧭 Decision Mode":
-    st.subheader("🧭 Decision Mode — Top 30 Coins")
+if active_section == "ðŸ§­ Decision Mode":
+    st.subheader("ðŸ§­ Decision Mode â€” Top 30 Coins")
     st.caption(f"Buy / hold / sell calls for the 30 strongest opportunities "
-               f"right now — ranked on a blend of signal strength, social "
+               f"right now â€” ranked on a blend of signal strength, social "
                f"sentiment, recent performance and market size, on the "
                f"{timeframe} timeframe. Each call includes entry timing, "
                f"hold horizon, an outlook and the data behind it.")
@@ -4776,7 +4773,7 @@ if active_section == "🧭 Decision Mode":
         d_scan = pd.DataFrame()
 
     if d_scan.empty:
-        st.warning("No analysis available right now — try refreshing.")
+        st.warning("No analysis available right now â€” try refreshing.")
     else:
         d_merged = d_scan.merge(
             d_tickers[["symbol", "priceChangePercent", "quoteVolume"]],
@@ -4833,7 +4830,7 @@ if active_section == "🧭 Decision Mode":
                     f"font-size:0.8rem;font-weight:800'>{dec['decision']}"
                     f"</span><span style='float:right;color:#8b8d98;"
                     f"font-size:0.8rem;font-weight:600'>composite "
-                    f"{r['score']:+.0f} · {r['confidence']}% confidence"
+                    f"{r['score']:+.0f} Â· {r['confidence']}% confidence"
                     f"</span></h4>", unsafe_allow_html=True)
 
                 m = st.columns(6)
@@ -4841,39 +4838,39 @@ if active_section == "🧭 Decision Mode":
                 m[1].metric("24h", f"{r['priceChangePercent']:+.2f}%")
                 m[2].metric("24h volume", fmt_volume(r["quoteVolume"]))
                 m[3].metric("RSI", r["rsi"])
-                m[4].metric("TradingView", tv.get("recommendation", "—"))
+                m[4].metric("TradingView", tv.get("recommendation", "â€”"))
                 _sent = lc.get("sentiment")
                 m[5].metric("Social sentiment",
-                            f"{_sent:.0f}%" if _sent is not None else "—")
+                            f"{_sent:.0f}%" if _sent is not None else "â€”")
 
-                st.markdown(f"**Decision:** {dec['decision']} · "
+                st.markdown(f"**Decision:** {dec['decision']} Â· "
                             f"**when to open:** {dec['when']}")
                 st.markdown(f"**Hold duration:** {dec['hold']}")
-                st.markdown(f"**Read:** {r['bias_label']} bias · "
-                            f"{r['action_label']} timing · {r['regime']} "
+                st.markdown(f"**Read:** {r['bias_label']} bias Â· "
+                            f"{r['action_label']} timing Â· {r['regime']} "
                             f"market regime")
                 _plan = r.get("trade_plan")
                 if isinstance(_plan, dict):
                     st.markdown(
                         f"**Trade levels:** entry "
-                        f"{fmt_price(_plan['entry_low'])}–"
-                        f"{fmt_price(_plan['entry_high'])} · stop "
-                        f"{fmt_price(_plan['stop_loss'])} · targets "
+                        f"{fmt_price(_plan['entry_low'])}â€“"
+                        f"{fmt_price(_plan['entry_high'])} Â· stop "
+                        f"{fmt_price(_plan['stop_loss'])} Â· targets "
                         f"{fmt_price(_plan['take_profit'])} / "
-                        f"{fmt_price(_plan['take_profit_2'])} · "
+                        f"{fmt_price(_plan['take_profit_2'])} Â· "
                         f"R:R {_plan['risk_reward']:.1f}")
-                st.caption("📈 Prediction — " + dec["outlook"])
+                st.caption("ðŸ“ˆ Prediction â€” " + dec["outlook"])
 
-        st.caption("Decisions are algorithmic — derived from technicals, "
+        st.caption("Decisions are algorithmic â€” derived from technicals, "
                    "derivatives, live order flow and social data. "
                    "Educational only, not financial advice.")
 
 
 # ===========================================================================
-# Tab 8 — Paper Trader (bot that tests the signals with virtual money)
+# Tab 8 â€” Paper Trader (bot that tests the signals with virtual money)
 # ===========================================================================
-if active_section == "🧪 Paper Trader":
-    st.subheader("🧪 Paper Trading Bot")
+if active_section == "ðŸ§ª Paper Trader":
+    st.subheader("ðŸ§ª Paper Trading Bot")
     st.caption(
         "Open trades on any coin from the left panel, or let the bot "
         "auto-trade from high-confidence alerts. The bot manages stops "
@@ -4900,7 +4897,7 @@ if active_section == "🧪 Paper Trader":
         paper_bot.save_state(PAPER_BOT_FILE, pb_state)
 
     # ---- Settings (collapsed so the trade UI is the focus) ---------------
-    with st.expander("⚙️ Settings — balance, risk, leverage, auto-trade, live, reset"):
+    with st.expander("âš™ï¸ Settings â€” balance, risk, leverage, auto-trade, live, reset"):
         c1, c2, c3, c4, c5 = st.columns([1.2, 1.2, 1.3, 1.1, 1.1])
         new_balance = c1.number_input(
             "Starting balance ($)", min_value=100.0, max_value=1_000_000.0,
@@ -4911,28 +4908,28 @@ if active_section == "🧪 Paper Trader":
             float(pb_state.get("risk_per_trade_pct") or 1.0), 0.25,
             key="pb_risk")
         auto_trade = c3.checkbox(
-            "🟢 Auto-trade from alerts", value=False, key="pb_auto",
+            "ðŸŸ¢ Auto-trade from alerts", value=False, key="pb_auto",
             help="When on, each scan the agent opens new positions for "
                  "every high-confidence trade alert (>= 72% confidence, "
                  "counter-trend setups require >= 85), long and short.")
         live_mode = c4.checkbox(
-            "🔴 Live", value=True, key="pb_live",
+            "ðŸ”´ Live", value=True, key="pb_live",
             help="Auto-refresh every 5 minutes so the page stays "
                  "active, scanner cache (120s) refreshes between "
                  "loads, and new patterns / picks surface "
                  "automatically without you reloading. Pattern Scout "
                  "(10-min cache) re-scans every 2 cycles. Default ON.")
-        if c5.button("🔄 Reset", type="secondary",
+        if c5.button("ðŸ”„ Reset", type="secondary",
                      use_container_width=True):
             paper_bot.reset(PAPER_BOT_FILE, new_balance, new_risk)
             st.rerun()
 
-        # 💾 Backup / restore — Streamlit Cloud rebuilds wipe the
+        # ðŸ’¾ Backup / restore â€” Streamlit Cloud rebuilds wipe the
         # gitignored .paper_bot.json file. This pair of controls lets
         # the user export their state to a JSON file (browser download)
         # and re-upload it after any wipe so the trade history persists
         # across deploys without needing a database.
-        with st.expander("💾 Backup & restore (recommended after big trades)",
+        with st.expander("ðŸ’¾ Backup & restore (recommended after big trades)",
                          expanded=False):
             st.caption(
                 "Streamlit Cloud rebuilds reset the paper-bot state "
@@ -4948,14 +4945,14 @@ if active_section == "🧪 Paper Trader":
             except Exception:
                 _bk_state_json = "{}"
             _bk_dl_col.download_button(
-                "⬇ Download full state (.json)",
+                "â¬‡ Download full state (.json)",
                 data=_bk_state_json,
                 file_name="paper_bot_backup.json",
                 mime="application/json",
                 use_container_width=True,
                 key="pb_bk_download_json")
 
-            # CSV download (closed trades only — for spreadsheet analysis)
+            # CSV download (closed trades only â€” for spreadsheet analysis)
             try:
                 import pandas as _bk_pd
                 _bk_csv = _bk_pd.DataFrame(
@@ -4963,7 +4960,7 @@ if active_section == "🧪 Paper Trader":
             except Exception:
                 _bk_csv = ""
             _bk_dl_col.download_button(
-                "⬇ Download closed-trade history (.csv)",
+                "â¬‡ Download closed-trade history (.csv)",
                 data=_bk_csv or "",
                 file_name="paper_bot_closed_trades.csv",
                 mime="text/csv",
@@ -4985,11 +4982,11 @@ if active_section == "🧪 Paper Trader":
                     _bk_loaded = None
                 if _bk_loaded:
                     if _bk_up_col.button(
-                            "✅ Restore from this file",
+                            "âœ… Restore from this file",
                             key="pb_bk_restore_button",
                             type="primary",
                             use_container_width=True):
-                        # MERGE rather than overwrite — keep currently-open
+                        # MERGE rather than overwrite â€” keep currently-open
                         # positions if any, append closed trades, take the
                         # higher balance.
                         _now_open = pb_state.get("open") or []
@@ -5014,23 +5011,23 @@ if active_section == "🧪 Paper Trader":
                             float(_bk_loaded.get("balance") or 0))
                         paper_bot.save_state(PAPER_BOT_FILE, pb_state)
                         st.success(
-                            f"Restored · {len(_merged_open)} open · "
+                            f"Restored Â· {len(_merged_open)} open Â· "
                             f"{len(_merged_closed)} closed trades in "
                             "history.")
                         st.rerun()
 
-        # ♻ Restore last reset — pulls back the open positions that were
+        # â™» Restore last reset â€” pulls back the open positions that were
         # force-closed by the most recent auto-reset. Use this if the
         # bot just auto-reset and wiped trades you still wanted open.
-        with st.expander("♻ Restore positions from last reset",
+        with st.expander("â™» Restore positions from last reset",
                          expanded=False):
             st.caption(
                 "If the auto-reset just fired and wiped your open "
                 "positions, click below to re-open the most recent "
                 "reset batch using their ORIGINAL entry / SL / TP. "
                 "Refunds the reset-time P&L from the balance. "
-                "Idempotent — safe to click more than once.")
-            if st.button("♻ Restore last reset batch",
+                "Idempotent â€” safe to click more than once.")
+            if st.button("â™» Restore last reset batch",
                          key="pb_restore_last_reset"):
                 info = paper_bot.restore_last_reset(pb_state)
                 paper_bot.save_state(PAPER_BOT_FILE, pb_state)
@@ -5041,11 +5038,11 @@ if active_section == "🧪 Paper Trader":
                     st.success(
                         f"Restored {restored} position"
                         f"{'s' if restored != 1 else ''} from the "
-                        f"last reset · {skipped} skipped (already open)"
-                        + (f" · {len(errors)} errors" if errors else ""))
+                        f"last reset Â· {skipped} skipped (already open)"
+                        + (f" Â· {len(errors)} errors" if errors else ""))
                 elif skipped > 0:
                     st.info(
-                        f"Nothing to restore — {skipped} positions "
+                        f"Nothing to restore â€” {skipped} positions "
                         "from the last reset are already open.")
                 else:
                     st.info(
@@ -5053,16 +5050,16 @@ if active_section == "🧪 Paper Trader":
                         "closed-trade history. Nothing to restore.")
                 if errors:
                     for e in errors:
-                        st.caption(f"⚠ {e}")
+                        st.caption(f"âš  {e}")
                 st.rerun()
-        # Futures-style sizing controls (row 2 — added 2026-05-25 per
+        # Futures-style sizing controls (row 2 â€” added 2026-05-25 per
         # user request for leverage trading + max notional cap).
         cf1, cf2 = st.columns([1, 1])
         new_leverage = cf1.slider(
-            "Leverage (×)", 1.0, 10.0,
+            "Leverage (Ã—)", 1.0, 10.0,
             float(pb_state.get("leverage") or 3.0), 0.5,
             key="pb_leverage",
-            help="Margin multiplier. With $5k notional at 3× leverage, "
+            help="Margin multiplier. With $5k notional at 3Ã— leverage, "
                  "margin used = $1,667. Stronger signals can deploy "
                  "more leverage if you raise this; lower it for safety.")
         new_max_notional = cf2.number_input(
@@ -5081,18 +5078,18 @@ if active_section == "🧪 Paper Trader":
 
         # EARLY MOMENTUM filter REMOVED 2026-05-30. It was an A/B test
         # toggle that caused recurring "empty picks board" confusion.
-        # With the new Pattern Scout + 💎 SURE SHOT + long_patterns
+        # With the new Pattern Scout + ðŸ’Ž SURE SHOT + long_patterns
         # architecture, this filter is obsolete:
         #   - SURE SHOT already requires Pattern Scout confirmation
         #   - long_patterns provides validated LONG-side edge (67% @ 48b)
-        #   - early_momentum LONG component backtested 38% win — kept
+        #   - early_momentum LONG component backtested 38% win â€” kept
         #     only as a SHORT-side signal (which works at 71% win)
         # Force off in state so existing users don't inherit the filter.
         pb_state["em_filter_on"] = False
 
     # ---- Helpers used in this section ------------------------------------
     def _hold_horizon(tf):
-        """Suggested holding period — capped at 1-2 days per user preference.
+        """Suggested holding period â€” capped at 1-2 days per user preference.
 
         The agent is a short-term swing/intraday trader; positions are not
         intended to be held longer than ~2 days regardless of timeframe."""
@@ -5102,7 +5099,7 @@ if active_section == "🧪 Paper Trader":
                 "1d": "1-2 days"}.get(tf, "1-2 days")
 
     def _strength_label(conf):
-        """Confidence → (label, colour) for a signal-strength badge."""
+        """Confidence â†’ (label, colour) for a signal-strength badge."""
         if conf >= 80:
             return ("Very Strong", "#0b8a3e")
         if conf >= 70:
@@ -5123,7 +5120,7 @@ if active_section == "🧪 Paper Trader":
         return pos
 
     def _render_position_chart(symbol, side, entry, stop, target, cur_price):
-        """Mini chart for one open position — recent 1h price line with
+        """Mini chart for one open position â€” recent 1h price line with
         Entry / Stop / Target levels and a live-price dot."""
         try:
             kdf = load_klines(symbol, "1h").tail(72)
@@ -5163,7 +5160,7 @@ if active_section == "🧪 Paper Trader":
             config={"displayModeBar": False})
 
     # ------------------------------------------------------------------
-    # Live-updating fragments — these refresh IN PLACE every 10 seconds
+    # Live-updating fragments â€” these refresh IN PLACE every 10 seconds
     # without reloading the whole page. They each re-read paper-bot state
     # from disk so a Close action or weekly reset is reflected immediately.
     # ------------------------------------------------------------------
@@ -5190,21 +5187,21 @@ if active_section == "🧪 Paper Trader":
 
         bc = st.columns(5)
         bc[0].metric(
-            "💰 Bank balance", f"${bal:,.2f}",
+            "ðŸ’° Bank balance", f"${bal:,.2f}",
             f"{realized_pct:+.2f}% since start",
             help="Realised cash. Updates only when a trade closes.")
         bc[1].metric(
             "Available", f"${available:,.2f}",
             f"-${margin_used:,.0f} in trades" if margin_used > 0
             else "all free",
-            help="Free to deploy — bank balance minus locked margin.")
-        unr_arrow = "↑" if unreal >= 0 else "↓"
+            help="Free to deploy â€” bank balance minus locked margin.")
+        unr_arrow = "â†‘" if unreal >= 0 else "â†“"
         bc[2].metric(
             "Unrealised P&L", f"${unreal:+,.2f}",
             f"{unr_arrow} from open positions",
             help="Live mark-to-market across open positions.")
         bc[3].metric(
-            "📊 Equity", f"${equity:,.2f}",
+            "ðŸ“Š Equity", f"${equity:,.2f}",
             f"${realized:+,.0f} realised",
             help="Bank balance + unrealised P&L.")
         bc[4].metric(
@@ -5223,14 +5220,14 @@ if active_section == "🧪 Paper Trader":
         sc[0].metric("Trades closed", st_stats["trades"])
         sc[1].metric("Win rate",
                      f"{st_stats['win_rate']:.0f}%"
-                     if st_stats["trades"] else "—")
+                     if st_stats["trades"] else "â€”")
         sc[2].metric("Best trade",
                      f"{st_stats['best_trade']:+.2f}%"
-                     if st_stats["trades"] else "—")
+                     if st_stats["trades"] else "â€”")
         sc[3].metric("Worst trade",
                      f"{st_stats['worst_trade']:+.2f}%"
-                     if st_stats["trades"] else "—")
-        sc[4].metric("⏰ Resets in", _reset_txt,
+                     if st_stats["trades"] else "â€”")
+        sc[4].metric("â° Resets in", _reset_txt,
                      f"to ${start_bal:,.0f}",
                      help=(f"Auto-restores to ${start_bal:,.0f} every "
                            f"{paper_bot.WEEKLY_RESET_DAYS} days."))
@@ -5250,14 +5247,14 @@ if active_section == "🧪 Paper Trader":
         # Evaluate stops/targets on every fragment tick with live prices.
         closed_now = paper_bot.evaluate(state, live_p)
         for c in closed_now:
-            emoji = "✅" if c["pnl_usd"] > 0 else "❌"
+            emoji = "âœ…" if c["pnl_usd"] > 0 else "âŒ"
             st.toast(
-                f"{emoji} {c['base']} closed at {c['exit_reason']} · "
-                f"{c['pnl_pct']:+.2f}%", icon="🧪")
+                f"{emoji} {c['base']} closed at {c['exit_reason']} Â· "
+                f"{c['pnl_pct']:+.2f}%", icon="ðŸ§ª")
         if closed_now:
             paper_bot.save_state(PAPER_BOT_FILE, state)
 
-        st.markdown(f"### 📂 Open positions ({len(state['open'])})")
+        st.markdown(f"### ðŸ“‚ Open positions ({len(state['open'])})")
         if not state["open"]:
             st.info(
                 "No open positions. Use the panel on the left to open a "
@@ -5305,11 +5302,11 @@ if active_section == "🧪 Paper Trader":
                              * 50)
                             if stop_v != entry_v else 50)
             health = int(max(0, min(100, prog)))
-            hold_txt = p.get("hold_horizon") or "—"
+            hold_txt = p.get("hold_horizon") or "â€”"
             str_label = p.get("strength_label", "")
-            be_badge = (" · ✓ break-even"
+            be_badge = (" Â· âœ“ break-even"
                         if p.get("break_even_set") else "")
-            lev_txt = f" · {lev_v}× lev" if lev_v > 1 else ""
+            lev_txt = f" Â· {lev_v}Ã— lev" if lev_v > 1 else ""
 
             with st.container(border=True):
                 info_col, pnl_col, btn_col = st.columns([2.4, 1.8, 0.8])
@@ -5322,13 +5319,13 @@ if active_section == "🧪 Paper Trader":
                     f"{p['side']}</span></div>"
                     f"<div style='color:#d5d7e0;font-size:0.84rem;"
                     f"margin:3px 0'>"
-                    f"<b>{qty_v:.6f} {p['base']}</b> · "
+                    f"<b>{qty_v:.6f} {p['base']}</b> Â· "
                     f"notional <b>${notional_v:,.2f}</b>{lev_txt}</div>"
                     f"<div style='color:#8b8d98;font-size:0.78rem'>"
-                    f"Entry {fmt_price(entry_v)} · Stop "
-                    f"{fmt_price(stop_v)} · Target {fmt_price(target_v)}"
-                    f" · hold: {hold_txt}"
-                    + (f" · {str_label}" if str_label else "")
+                    f"Entry {fmt_price(entry_v)} Â· Stop "
+                    f"{fmt_price(stop_v)} Â· Target {fmt_price(target_v)}"
+                    f" Â· hold: {hold_txt}"
+                    + (f" Â· {str_label}" if str_label else "")
                     + be_badge + "</div>",
                     unsafe_allow_html=True)
                 pnl_col.markdown(
@@ -5339,7 +5336,7 @@ if active_section == "🧪 Paper Trader":
                     f"${unreal_pos:+,.2f}</div>"
                     f"<div style='text-align:right;color:{color};"
                     f"font-size:0.78rem;font-weight:700;margin-top:1px'>"
-                    f"{pct_from_entry:+.2f}% from entry · "
+                    f"{pct_from_entry:+.2f}% from entry Â· "
                     f"{unreal_pct_pos:+.2f}% balance</div>",
                     unsafe_allow_html=True)
                 if btn_col.button(
@@ -5349,20 +5346,20 @@ if active_section == "🧪 Paper Trader":
                         state, p["symbol"], cur, reason="manual")
                     if cl:
                         paper_bot.save_state(PAPER_BOT_FILE, state)
-                        emoji = "✅" if cl["pnl_usd"] > 0 else "❌"
+                        emoji = "âœ…" if cl["pnl_usd"] > 0 else "âŒ"
                         st.toast(
-                            f"{emoji} Closed {cl['base']} · "
-                            f"{cl['pnl_pct']:+.2f}%", icon="🧪")
+                            f"{emoji} Closed {cl['base']} Â· "
+                            f"{cl['pnl_pct']:+.2f}%", icon="ðŸ§ª")
                         st.rerun(scope="fragment")
                 st.progress(health, text=(
-                    f"🎯 {health}% toward target"
+                    f"ðŸŽ¯ {health}% toward target"
                     if health >= 50
-                    else f"⚠️ {100 - health}% toward stop"))
+                    else f"âš ï¸ {100 - health}% toward stop"))
                 _render_position_chart(
                     p["symbol"], p["side"],
                     entry_v, stop_v, target_v, cur)
 
-    # Apply latest settings — only adopt new balance on a fresh book.
+    # Apply latest settings â€” only adopt new balance on a fresh book.
     pb_state["risk_per_trade_pct"] = float(new_risk)
     if not pb_state.get("closed") and not pb_state.get("open"):
         pb_state["starting_balance"] = float(new_balance)
@@ -5386,10 +5383,10 @@ if active_section == "🧪 Paper Trader":
     # ---- ALWAYS evaluate stops/targets first (with live prices) ----------
     just_closed = paper_bot.evaluate(pb_state, prices)
     for c in just_closed:
-        emoji = "✅" if c["pnl_usd"] > 0 else "❌"
+        emoji = "âœ…" if c["pnl_usd"] > 0 else "âŒ"
         st.toast(
-            f"{emoji} {c['base']} closed at {c['exit_reason']} · "
-            f"{c['pnl_pct']:+.2f}%", icon="🧪")
+            f"{emoji} {c['base']} closed at {c['exit_reason']} Â· "
+            f"{c['pnl_pct']:+.2f}%", icon="ðŸ§ª")
 
     # ---- Auto-trade from alerts ------------------------------------------
     # `auto_ad` is built once at module scope (right after the alerts
@@ -5413,12 +5410,12 @@ if active_section == "🧪 Paper Trader":
     # ---- Breakout Radar lookup (catches COILED pre-explosion setups) ----
     # Independent signal engine: looks at volume ignition, coil/expansion,
     # taker order flow, OBV accumulation, multi-TF trend, news/social
-    # catalyst — and grades each coin by STAGE:
-    #   COILED   — loaded but NOT fired yet (predictive low-risk entry)
-    #   FRESH    — early breakout, room left to run
-    #   EXTENDED — move spent, chase risk
+    # catalyst â€” and grades each coin by STAGE:
+    #   COILED   â€” loaded but NOT fired yet (predictive low-risk entry)
+    #   FRESH    â€” early breakout, room left to run
+    #   EXTENDED â€” move spent, chase risk
     # This is the closest honest tool for "early signals on coins about
-    # to explode" — wired into the picks score so COILED setups rise.
+    # to explode" â€” wired into the picks score so COILED setups rise.
     try:
         _radar_syms = tuple(_fc_tickers_bot["symbol"].head(40))
         _radar_df, _radar_backdrop = scan_breakouts(
@@ -5431,9 +5428,9 @@ if active_section == "🧪 Paper Trader":
 
     def _mark_premium(setup: dict) -> dict:
         """Mark setups that QUALIFY for PREMIUM (conf >= 80 + forecast
-        aligned 3/3 + direction matches). Does NOT change the target —
+        aligned 3/3 + direction matches). Does NOT change the target â€”
         paper trader defaults to TP1 for ALL setups. The mark just lets
-        the card render a second "🏆 TP2" button as an OPT-IN deeper
+        the card render a second "ðŸ† TP2" button as an OPT-IN deeper
         target the user can click when they explicitly want it.
 
         Per user feedback 2026-05-25: auto-promoting to TP2 caused too
@@ -5453,19 +5450,19 @@ if active_section == "🧪 Paper Trader":
         if not confirms:
             return setup
         marked = dict(setup)
-        marked["premium_eligible"] = True   # for the 🏆 TP2 button + chip
+        marked["premium_eligible"] = True   # for the ðŸ† TP2 button + chip
         return marked
 
     if auto_trade:
         for setup in auto_ad["setups"]:
             _setup_conf = int(setup.get("confidence", 0) or 0)
-            # Auto-trade floor matches CONF_ALERT (72) — anything weaker
+            # Auto-trade floor matches CONF_ALERT (72) â€” anything weaker
             # never makes the setups list anyway, but keep the explicit
             # gate so a future CONF_ALERT change doesn't silently let
             # weak setups auto-fire.
             if _setup_conf < 72:
                 continue
-            # Higher-TF trend filter — skip counter-trend setups unless the
+            # Higher-TF trend filter â€” skip counter-trend setups unless the
             # signal is very strong (>=85). Trading against the weekly
             # trend has worse statistics than going with it.
             _setup_trend = htf_trend(setup["symbol"])
@@ -5473,18 +5470,18 @@ if active_section == "🧪 Paper Trader":
             if _setup_align == "counter" and _setup_conf < 85:
                 continue
             # Default to TP1 for all setups. PREMIUM-eligible setups
-            # ADDITIONALLY get the chase-TP2 trailing — if price hits
+            # ADDITIONALLY get the chase-TP2 trailing â€” if price hits
             # TP1, the stop moves up to TP1 (locking in the win) and
             # the target extends to TP2 so the trade can ride further
             # when the trend is still strong. Strictly better than
-            # fixed TP1 — never worse, sometimes +1R better.
+            # fixed TP1 â€” never worse, sometimes +1R better.
             _setup_for_open = _mark_premium(setup)
             if _setup_for_open.get("premium_eligible"):
                 _setup_for_open = dict(_setup_for_open)
                 _setup_for_open["chase_tp2_eligible"] = True
             # Strength-based notional scaling. The notional cap from
             # settings is multiplied by a factor derived from the
-            # setup's scanner confidence — strong signals deploy
+            # setup's scanner confidence â€” strong signals deploy
             # closer to the user's cap, weaker ones get a smaller
             # position. Auto-trade has no easy access to the combined
             # score here, so use raw scanner conf as the proxy
@@ -5498,12 +5495,12 @@ if active_section == "🧪 Paper Trader":
             if opened:
                 _enrich_position(opened,
                                  setup.get("confidence", 0), timeframe)
-                _icon = ("🏆" if _setup_for_open.get("chase_tp2_eligible")
-                         else "🧪")
+                _icon = ("ðŸ†" if _setup_for_open.get("chase_tp2_eligible")
+                         else "ðŸ§ª")
                 st.toast(
-                    f"📥 Auto-opened {opened['side']} {opened['base']} "
+                    f"ðŸ“¥ Auto-opened {opened['side']} {opened['base']} "
                     f"@ {fmt_price(opened['entry'])}"
-                    + (" → TP1 (chase TP2 active)"
+                    + (" â†’ TP1 (chase TP2 active)"
                        if _setup_for_open.get("chase_tp2_eligible")
                        else ""),
                     icon=_icon)
@@ -5527,15 +5524,15 @@ if active_section == "🧪 Paper Trader":
     _reset_info = paper_bot.check_weekly_reset(pb_state, prices)
     if _reset_info["reset"]:
         st.success(
-            f"⏰ Weekly reset! Balance restored to "
+            f"â° Weekly reset! Balance restored to "
             f"${pb_state['starting_balance']:,.0f}. "
             f"{len(_reset_info['closed_at_reset'])} open position(s) "
-            f"were closed at market — the closed-trades history is "
+            f"were closed at market â€” the closed-trades history is "
             f"preserved so you can review the previous period.")
 
     paper_bot.save_state(PAPER_BOT_FILE, pb_state)
 
-    # ---- Bank + trade stats — LIVE fragment (updates in place every 10s)
+    # ---- Bank + trade stats â€” LIVE fragment (updates in place every 10s)
     _live_paper_stats()
 
     st.divider()
@@ -5544,16 +5541,16 @@ if active_section == "🧪 Paper Trader":
     left_col, right_col = st.columns([1, 2])
 
     with left_col:
-        st.markdown("### 📥 Open a trade")
+        st.markdown("### ðŸ“¥ Open a trade")
         if _alert_merged.empty:
-            st.info("Scan data not ready — refresh and try again.")
+            st.info("Scan data not ready â€” refresh and try again.")
         else:
             _syms = sorted(_alert_merged["symbol"].unique().tolist())
             _open_syms = {p["symbol"] for p in pb_state["open"]}
             _avail = [s for s in _syms if s not in _open_syms]
             if not _avail:
                 st.warning("You already have a position in every tracked "
-                           "coin — close one before opening another.")
+                           "coin â€” close one before opening another.")
             else:
                 _sel = st.selectbox(
                     "Coin", _avail,
@@ -5581,7 +5578,7 @@ if active_section == "🧪 Paper Trader":
                     f"border-radius:6px;margin:6px 0 10px 0;"
                     f"border:1px solid #1f2330'>"
                     f"<div style='font-size:0.7rem;color:#8b8d98;"
-                    f"letter-spacing:0.08em;font-weight:700'>LIVE PRICE · "
+                    f"letter-spacing:0.08em;font-weight:700'>LIVE PRICE Â· "
                     f"{_sel.replace('USDT','')}/USDT</div>"
                     f"<div style='display:flex;align-items:baseline;"
                     f"gap:10px;flex-wrap:wrap'>"
@@ -5629,8 +5626,8 @@ if active_section == "🧪 Paper Trader":
                 else:
                     _stop_pct = _target_pct = _rr = 0.0
                 st.caption(
-                    f"Stop **{_stop_pct:.2f}%** away · Target "
-                    f"**{_target_pct:.2f}%** away · R:R **{_rr:.2f}**")
+                    f"Stop **{_stop_pct:.2f}%** away Â· Target "
+                    f"**{_target_pct:.2f}%** away Â· R:R **{_rr:.2f}**")
 
                 # ---- Leverage (futures only) ------------------------------
                 if trade_mode == "futures":
@@ -5638,7 +5635,7 @@ if active_section == "🧪 Paper Trader":
                         "Leverage", 1, 10, 1, key="pb_open_leverage")
                 else:
                     _leverage = 1
-                    st.caption("Spot mode — no leverage (1×)")
+                    st.caption("Spot mode â€” no leverage (1Ã—)")
 
                 # ---- Sizing method ----------------------------------------
                 _sizing = st.radio(
@@ -5698,7 +5695,7 @@ if active_section == "🧪 Paper Trader":
                 if trade_mode == "futures" and _leverage > 1:
                     _summary_lines.append(
                         f"Margin required: <b>${_margin:,.2f}</b> "
-                        f"(at {_leverage}× leverage)")
+                        f"(at {_leverage}Ã— leverage)")
                 _summary_lines.extend([
                     f"Risk if stopped: <b style='color:#ff5c5c'>"
                     f"${_risk_dollars_final:,.2f}</b> "
@@ -5706,7 +5703,7 @@ if active_section == "🧪 Paper Trader":
                     f"Reward if target: <b style='color:#2ed47a'>"
                     f"${_potential_profit:,.2f}</b> "
                     f"({_profit_pct:.2f}% of balance)",
-                    f"R:R = <b>{_rr:.2f}R</b> · Suggested hold: "
+                    f"R:R = <b>{_rr:.2f}R</b> Â· Suggested hold: "
                     f"<b>{_hold_horizon(timeframe)}</b>",
                 ])
                 st.markdown(
@@ -5715,7 +5712,7 @@ if active_section == "🧪 Paper Trader":
                     f"margin:8px 0'>"
                     f"<div style='font-size:0.7rem;color:#6e8bff;"
                     f"letter-spacing:0.08em;font-weight:800;"
-                    f"margin-bottom:6px'>📊 LIVE ORDER SUMMARY</div>"
+                    f"margin-bottom:6px'>ðŸ“Š LIVE ORDER SUMMARY</div>"
                     f"<div style='color:#d5d7e0;font-size:0.85rem;"
                     f"line-height:1.6'>" + "<br>".join(_summary_lines)
                     + "</div></div>", unsafe_allow_html=True)
@@ -5736,7 +5733,7 @@ if active_section == "🧪 Paper Trader":
                         "Take profit must be BELOW entry for a SHORT trade.")
                 if _qty <= 0:
                     _warnings.append(
-                        "Position size is zero — adjust sizing inputs.")
+                        "Position size is zero â€” adjust sizing inputs.")
                 if _margin > _available:
                     _warnings.append(
                         f"Margin required (${_margin:,.0f}) exceeds your "
@@ -5744,15 +5741,15 @@ if active_section == "🧪 Paper Trader":
                         f"trade or size down.")
                 if _risk_pct_final > 10:
                     _warnings.append(
-                        f"Risking {_risk_pct_final:.1f}% of balance — that "
+                        f"Risking {_risk_pct_final:.1f}% of balance â€” that "
                         "is aggressive; size down.")
                 for _w in _warnings:
-                    st.warning(f"⚠️ {_w}")
+                    st.warning(f"âš ï¸ {_w}")
 
                 # ---- Open button ------------------------------------------
                 _can_open = (not _warnings) and _qty > 0
                 _btn_label = (
-                    f"📥 Open {_side} {_sel.replace('USDT','')} "
+                    f"ðŸ“¥ Open {_side} {_sel.replace('USDT','')} "
                     f"@ {fmt_price(_entry)}")
                 if st.button(_btn_label, use_container_width=True,
                              type="primary", key="pb_open_btn",
@@ -5781,45 +5778,45 @@ if active_section == "🧪 Paper Trader":
                                          label_override="Manual")
                         paper_bot.save_state(PAPER_BOT_FILE, pb_state)
                         st.toast(
-                            f"📥 Opened {_side} {_opened['base']} @ "
-                            f"{fmt_price(_opened['entry'])} · qty "
-                            f"{_qty:.6f}", icon="🧪")
+                            f"ðŸ“¥ Opened {_side} {_opened['base']} @ "
+                            f"{fmt_price(_opened['entry'])} Â· qty "
+                            f"{_qty:.6f}", icon="ðŸ§ª")
                         st.rerun()
                     else:
                         st.error(
-                            "Could not open — already have a position in "
+                            "Could not open â€” already have a position in "
                             "this coin.")
 
     with right_col:
-        # ---- 🏆 BEST TRADES NOW — multi-layer conviction board ---------
+        # ---- ðŸ† BEST TRADES NOW â€” multi-layer conviction board ---------
         # The single source of truth for what to trade. Combines:
-        #   • Scanner conf (alerts engine multi-TF)
-        #   • Forecast alignment (1h + 4h + 1d horizons)
-        #   • Pattern Scout (backtested patterns: V-bottom, morning star,
+        #   â€¢ Scanner conf (alerts engine multi-TF)
+        #   â€¢ Forecast alignment (1h + 4h + 1d horizons)
+        #   â€¢ Pattern Scout (backtested patterns: V-bottom, morning star,
         #     long_patterns_aligned, hammers, engulfings)
-        #   • Setups Forming (pre-condition leading signals)
-        #   • CONVERGENCE meta-filter (validated +6.8pp uplift)
-        #   • SURE SHOT meta-filter (strict 88+ multi-confirm)
-        #   • Breakout Radar stage (COILED / FRESH / EXTENDED)
-        #   • Market Regime tilt (BULL/BEAR adaptive)
-        #   • Weekly trend + BTC Outlook + Move maturity
-        #   • Early Momentum (CVD, TTM, VWAP, SMC)
-        #   • Relative Strength vs BTC
-        #   • Derivatives Velocity (funding ROC + OI compression)
+        #   â€¢ Setups Forming (pre-condition leading signals)
+        #   â€¢ CONVERGENCE meta-filter (validated +6.8pp uplift)
+        #   â€¢ SURE SHOT meta-filter (strict 88+ multi-confirm)
+        #   â€¢ Breakout Radar stage (COILED / FRESH / EXTENDED)
+        #   â€¢ Market Regime tilt (BULL/BEAR adaptive)
+        #   â€¢ Weekly trend + BTC Outlook + Move maturity
+        #   â€¢ Early Momentum (CVD, TTM, VWAP, SMC)
+        #   â€¢ Relative Strength vs BTC
+        #   â€¢ Derivatives Velocity (funding ROC + OI compression)
         # Each card shows a CONVICTION tier (MAX / HIGH / STRONG /
         # STANDARD) so you instantly see WHICH layers stacked.
         st.markdown(
             "<div style='color:#aab;font-size:0.78rem;margin-top:8px;"
             "margin-bottom:2px'>"
-            "Three sections below — <b style='color:#ffd700'>TOP CONVICTION</b> "
-            "(confirmed signals) · <b style='color:#5b8eff'>EARLY SETUPS</b> "
-            "(anticipatory) · <b style='color:#8b5cf6'>SETUPS FORMING</b> "
-            "(intel watchlist). Click 📥 on any card to open."
+            "Three sections below â€” <b style='color:#ffd700'>TOP CONVICTION</b> "
+            "(confirmed signals) Â· <b style='color:#5b8eff'>EARLY SETUPS</b> "
+            "(anticipatory) Â· <b style='color:#8b5cf6'>SETUPS FORMING</b> "
+            "(intel watchlist). Click ðŸ“¥ on any card to open."
             "</div>",
             unsafe_allow_html=True)
 
-        # ---- 📊 Market Regime Banner — modern hero design --------------
-        # Critical adaptive layer. Backtested edges are regime-dependent —
+        # ---- ðŸ“Š Market Regime Banner â€” modern hero design --------------
+        # Critical adaptive layer. Backtested edges are regime-dependent â€”
         # a LONG signal that scored 38% win in a bear sample MAY score
         # 60%+ in a bull regime. The regime detector tilts every pick's
         # combined_score so LONGs surface in bull markets and SHORTs
@@ -5836,18 +5833,18 @@ if active_section == "🧪 Paper Trader":
             "UNKNOWN": "#8b8d98",
         }.get(_reg_lbl, "#8b8d98")
         _reg_emoji = {
-            "BULL": "🐂", "BEAR": "🐻", "TRANSITION": "🔁",
-            "CHOP": "💤", "UNKNOWN": "❓",
-        }.get(_reg_lbl, "❓")
+            "BULL": "ðŸ‚", "BEAR": "ðŸ»", "TRANSITION": "ðŸ”",
+            "CHOP": "ðŸ’¤", "UNKNOWN": "â“",
+        }.get(_reg_lbl, "â“")
 
         # Components for the stat row
         _reg_comps = _regime.get("components", {}) or {}
-        _daily_lbl = (_reg_comps.get("daily") or {}).get("label", "—")
-        _weekly_lbl = (_reg_comps.get("weekly") or {}).get("label", "—")
+        _daily_lbl = (_reg_comps.get("daily") or {}).get("label", "â€”")
+        _weekly_lbl = (_reg_comps.get("weekly") or {}).get("label", "â€”")
         _breadth_pct = (_reg_comps.get("breadth") or {}).get("pct_above", 50)
-        _vol_lbl = (_reg_comps.get("volatility") or {}).get("label", "—")
+        _vol_lbl = (_reg_comps.get("volatility") or {}).get("label", "â€”")
 
-        # Compact one-line regime pill (was a huge banner — user wanted
+        # Compact one-line regime pill (was a huge banner â€” user wanted
         # less noise).
         st.markdown(
             f"<div style='display:inline-flex;align-items:center;gap:10px;"
@@ -5856,20 +5853,20 @@ if active_section == "🧪 Paper Trader":
             f"border:1px solid {_reg_color}44;margin-bottom:14px'>"
             f"<span style='color:{_reg_color};font-weight:800;font-size:0.9rem'>"
             f"{_reg_emoji} {_reg_lbl}</span>"
-            f"<span style='color:#888;font-size:0.78rem'>·</span>"
+            f"<span style='color:#888;font-size:0.78rem'>Â·</span>"
             f"<span style='color:#2ed47a;font-size:0.78rem;font-weight:700'>"
             f"LONG {_reg_long_bias:.0f}</span>"
-            f"<span style='color:#888;font-size:0.78rem'>·</span>"
+            f"<span style='color:#888;font-size:0.78rem'>Â·</span>"
             f"<span style='color:#ff5c5c;font-size:0.78rem;font-weight:700'>"
             f"SHORT {_reg_short_bias:.0f}</span>"
-            f"<span style='color:#888;font-size:0.78rem'>·</span>"
+            f"<span style='color:#888;font-size:0.78rem'>Â·</span>"
             f"<span style='color:#aab;font-size:0.78rem'>"
             f"conf {_reg_conf:.0f}%</span>"
             f"</div>",
             unsafe_allow_html=True)
 
         # ====================================================================
-        # 🏆 BEST TRADES NOW — Unified ranked picks (S/A/B/C tiers)
+        # ðŸ† BEST TRADES NOW â€” Unified ranked picks (S/A/B/C tiers)
         # ====================================================================
         # Per user request: consolidate ALL discovery sections into ONE
         # ranked list, deduplicated by symbol. Highest tier wins per coin.
@@ -5881,12 +5878,12 @@ if active_section == "🧪 Paper Trader":
             _best_picks = []
 
         # ====================================================================
-        # 🔭 WHERE MONEY IS FORMING — Multi-Timeframe Watchlist
+        # ðŸ”­ WHERE MONEY IS FORMING â€” Multi-Timeframe Watchlist
         # ====================================================================
         # User-driven: professional traders watch SAME coin across multiple
         # timeframes (15m, 1h, 4h). When 2+ timeframes show same-direction
-        # setup forming, that's broad-market positioning shift — much
-        # stronger than a single TF signal. Pure WATCHLIST — no trade
+        # setup forming, that's broad-market positioning shift â€” much
+        # stronger than a single TF signal. Pure WATCHLIST â€” no trade
         # buttons. Watch for the actual fire candle, then act.
         # Multi-TF Watchlist expander REMOVED per user (too many segments).
         # The compute function still runs (cheap, cached 10 min) for any
@@ -5896,7 +5893,7 @@ if active_section == "🧪 Paper Trader":
                 "**The intelligence layer.** Coins where reversal setups "
                 "are forming on **2+ timeframes simultaneously** (15m, 1h, "
                 "and/or 4h). When multiple TFs agree, that's institutional "
-                "positioning shift, not noise. **NO TRADE BUTTONS** here — "
+                "positioning shift, not noise. **NO TRADE BUTTONS** here â€” "
                 "this is watchlist intelligence. Watch these coins, and "
                 "when the actual fire candle prints (caught by Bot's Top "
                 "Picks below), THAT'S the trade.")
@@ -5917,7 +5914,7 @@ if active_section == "🧪 Paper Trader":
                     _mtf_side = _mtf["side"]
                     _mtf_color = ("#ff3d57" if _mtf_side == "SHORT"
                                   else "#00e676")
-                    _mtf_emoji = "🩸" if _mtf_side == "SHORT" else "🟢"
+                    _mtf_emoji = "ðŸ©¸" if _mtf_side == "SHORT" else "ðŸŸ¢"
                     _mtf_pct = _mtf.get("pct_24h", 0)
                     _mtf_pct_color = ("#2ed47a" if _mtf_pct > 0
                                       else "#ff5c5c" if _mtf_pct < 0
@@ -5943,7 +5940,7 @@ if active_section == "🧪 Paper Trader":
                             f"color:{_tf_chip_color};padding:3px 10px;"
                             f"border-radius:6px;font-size:0.74rem;"
                             f"font-weight:700;margin-right:6px'>"
-                            f"{_tf} · {_tf_cond}/7"
+                            f"{_tf} Â· {_tf_cond}/7"
                             f"</span>")
                     with st.container(border=True):
                         st.markdown(
@@ -5963,9 +5960,9 @@ if active_section == "🧪 Paper Trader":
                             f"border-radius:6px;font-size:0.72rem;"
                             f"font-weight:800;box-shadow:0 0 8px "
                             f"rgba(91,142,255,0.4)'>"
-                            f"🔭 {_mtf['tf_count']}/3 TFs agree</span>"
+                            f"ðŸ”­ {_mtf['tf_count']}/3 TFs agree</span>"
                             f"<span style='color:#888;font-size:0.78rem'>"
-                            f"now ${_mtf['price']:.4g} · "
+                            f"now ${_mtf['price']:.4g} Â· "
                             f"<span style='color:{_mtf_pct_color}'>"
                             f"{_mtf_pct:+.2f}% 24h</span></span>"
                             f"</div>"
@@ -6004,7 +6001,7 @@ if active_section == "🧪 Paper Trader":
                               if _ds_start > 0 else 0)
         _ds_circuit_tripped = _ds_daily_loss_pct <= -3.0
         _ds_open_count = len(pb_state.get("open") or [])
-        # Concurrent-position cap removed per user — they want to open
+        # Concurrent-position cap removed per user â€” they want to open
         # as many positions as they like. The variables are kept defined
         # (set to safe defaults) so any leftover references in disabled
         # code blocks don't NameError.
@@ -6013,19 +6010,19 @@ if active_section == "🧪 Paper Trader":
 
         if _ds_circuit_tripped:
             st.error(
-                f"🛑 **DAILY LOSS CIRCUIT TRIPPED** · today's realised "
+                f"ðŸ›‘ **DAILY LOSS CIRCUIT TRIPPED** Â· today's realised "
                 f"P&L: **${_ds_today_pnl:,.2f}** ({_ds_daily_loss_pct:.2f}%) "
-                f"· auto-trade BLOCKED for 24h. Wait, don't force trades.")
+                f"Â· auto-trade BLOCKED for 24h. Wait, don't force trades.")
 
         # NOTE: BEST TRADES NOW + tier legend rendering REMOVED entirely.
         # The OLD Bot's Top Picks below (with PREMIUM, COILED, FRESH,
-        # aligned 3/3, RS LEADER chips and a 📥 button) is now the SOLE
+        # aligned 3/3, RS LEADER chips and a ðŸ“¥ button) is now the SOLE
         # primary action board. Per user: "too many segments, I get lost".
-        # Convergence picks are surfaced as a ⚡ chip on Bot's Top Picks
+        # Convergence picks are surfaced as a âš¡ chip on Bot's Top Picks
         # cards when they qualify (compute_convergence_picks set lookup).
-        if False:  # disabled — Bot's Top Picks is now the only board
+        if False:  # disabled â€” Bot's Top Picks is now the only board
             st.info("No high-conviction picks right now. The system is "
-                    "waiting for stronger signals. Check the **🔭 Browse "
+                    "waiting for stronger signals. Check the **ðŸ”­ Browse "
                     "all sources** expander below for lower-tier setups, "
                     "or check back in a few minutes.")
         if False:  # rendering also disabled (was the else: branch)
@@ -6033,7 +6030,7 @@ if active_section == "🧪 Paper Trader":
             for _bp in _best_picks:
                 _bp_side = _bp["side"]
                 _bp_side_color = "#00d4ff" if _bp_side == "LONG" else "#ff3d57"
-                _bp_side_emoji = "🟢" if _bp_side == "LONG" else "🩸"
+                _bp_side_emoji = "ðŸŸ¢" if _bp_side == "LONG" else "ðŸ©¸"
                 _bp_tier = _bp["tier"]
                 _bp_tier_label = _bp["tier_label"]
                 _bp_tier_gradient = _bp["tier_gradient"]
@@ -6052,7 +6049,7 @@ if active_section == "🧪 Paper Trader":
                     _bp_entry > 0 and _bp_stop > 0 and _bp_tgt > 0)
                 _bp_sid = f"bp_{_bp['symbol']}"
 
-                # Position size — conviction-scaled
+                # Position size â€” conviction-scaled
                 _bp_target_notional = 1000.0 + (
                     (_bp_score - 65) / 30.0) * 1500.0
                 _bp_target_notional = max(1000.0, min(2500.0, _bp_target_notional))
@@ -6087,14 +6084,14 @@ if active_section == "🧪 Paper Trader":
                         f"padding:6px 10px;background:rgba(255,215,0,0.06);"
                         f"border-radius:6px;border-left:2px solid #ffd700'>"
                         f"<b style='color:#ffd700'>Why this stacks:</b> "
-                        f"{' · '.join(_bp['reasons'])}"
+                        f"{' Â· '.join(_bp['reasons'])}"
                         f"</div>")
                 elif _bp_tier == "B" and _bp.get("conditions_met"):
                     _bp_reasons_html = (
                         f"<div style='color:#aab;font-size:0.78rem;"
                         f"margin-top:6px'>"
                         f"<b>{_bp['conditions_met']}/7</b> pre-conditions "
-                        f"met · anticipatory entry (lower win rate, "
+                        f"met Â· anticipatory entry (lower win rate, "
                         f"better entry)"
                         f"</div>")
 
@@ -6115,9 +6112,9 @@ if active_section == "🧪 Paper Trader":
                         f"color:#001122;padding:3px 12px;border-radius:"
                         f"7px;font-size:0.78rem;font-weight:800;"
                         f"box-shadow:0 0 10px {_bp_tier_color}55'>"
-                        f"{_bp_tier_label} · {_bp_score:.0f}</span>"
+                        f"{_bp_tier_label} Â· {_bp_score:.0f}</span>"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
-                        f"now ${_bp_cur:.4g} · "
+                        f"now ${_bp_cur:.4g} Â· "
                         f"<span style='color:{_bp_pct_color}'>"
                         f"{_bp_pct24h:+.2f}% 24h</span></span>"
                         f"</div>"
@@ -6127,10 +6124,10 @@ if active_section == "🧪 Paper Trader":
                         + (
                             f"<div style='color:#aab;font-size:0.80rem;"
                             f"margin-top:8px;line-height:1.6'>"
-                            f"entry <b>${_bp_entry:.4g}</b> · "
-                            f"stop <b>${_bp_stop:.4g}</b> · "
-                            f"TP1 <b>${_bp_tgt:.4g}</b> · "
-                            + (f"TP2 <b>${_bp_tgt2:.4g}</b> · "
+                            f"entry <b>${_bp_entry:.4g}</b> Â· "
+                            f"stop <b>${_bp_stop:.4g}</b> Â· "
+                            f"TP1 <b>${_bp_tgt:.4g}</b> Â· "
+                            + (f"TP2 <b>${_bp_tgt2:.4g}</b> Â· "
                                if _bp_tgt2 > 0 else "")
                             + f"R:R <b>{_bp_rr:.2f}</b></div>"
                             # Size preview
@@ -6139,23 +6136,23 @@ if active_section == "🧪 Paper Trader":
                             f"border-radius:8px;padding:8px 12px;"
                             f"margin-top:8px;color:#c8d2ed;"
                             f"font-size:0.78rem;line-height:1.6'>"
-                            f"<b style='color:#00d4ff'>📥 If you click NOW:</b> "
+                            f"<b style='color:#00d4ff'>ðŸ“¥ If you click NOW:</b> "
                             f"<b>{_bp_qty:.4f}</b> {_bp['base']} "
-                            f"{_bp_side.lower()} · notional "
-                            f"<b>${_bp_notional:,.0f}</b> · "
-                            f"<b>{_bp_lev:.0f}x</b> lev · "
-                            f"margin <b>${_bp_margin:,.0f}</b> · "
+                            f"{_bp_side.lower()} Â· notional "
+                            f"<b>${_bp_notional:,.0f}</b> Â· "
+                            f"<b>{_bp_lev:.0f}x</b> lev Â· "
+                            f"margin <b>${_bp_margin:,.0f}</b> Â· "
                             f"risk <b style='color:#ff5c5c'>"
-                            f"-${_bp_loss:,.2f}</b> · "
+                            f"-${_bp_loss:,.2f}</b> Â· "
                             f"profit <b style='color:#2ed47a'>"
                             f"+${_bp_profit:,.2f}</b>"
                             f"</div>"
                             if _bp_has_plan else
                             f"<div style='color:#e0a92b;font-size:0.78rem;"
-                            f"margin-top:8px'>⚠ Trade plan unavailable</div>"
+                            f"margin-top:8px'>âš  Trade plan unavailable</div>"
                         ),
                         unsafe_allow_html=True)
-                    # 📥 Open Trade — ONLY for S-tier (validated edge)
+                    # ðŸ“¥ Open Trade â€” ONLY for S-tier (validated edge)
                     # A/B/C tiers backtested NEGATIVE after costs, no button
                     _bp_can_open = (
                         _bp_has_plan
@@ -6170,31 +6167,31 @@ if active_section == "🧪 Paper Trader":
                             "No plan</div>",
                             unsafe_allow_html=True)
                     elif _bp_tier != "S":
-                        # A/B/C tiers — WATCH ONLY, no button
+                        # A/B/C tiers â€” WATCH ONLY, no button
                         _bp_btn.markdown(
                             "<div style='color:#e0a92b;font-size:0.65rem;"
                             "text-align:center;padding:6px;background:"
                             "rgba(224,169,43,0.08);border-radius:6px;"
                             "border:1px solid rgba(224,169,43,0.2)'>"
-                            "👁<br>WATCH<br>ONLY</div>",
+                            "ðŸ‘<br>WATCH<br>ONLY</div>",
                             unsafe_allow_html=True)
                     elif _ds_circuit_tripped:
                         _bp_btn.markdown(
                             "<div style='color:#ff5c5c;font-size:0.65rem;"
                             "text-align:center;padding:6px'>"
-                            "🛑<br>HALTED</div>",
+                            "ðŸ›‘<br>HALTED</div>",
                             unsafe_allow_html=True)
                     elif _ds_concurrent_full:
                         _bp_btn.markdown(
                             "<div style='color:#e0a92b;font-size:0.65rem;"
                             "text-align:center;padding:6px'>"
-                            "⚠<br>3/3<br>OPEN</div>",
+                            "âš <br>3/3<br>OPEN</div>",
                             unsafe_allow_html=True)
                     elif _bp_can_open:
                         if _bp_btn.button(
-                                "📥", key=f"pb_{_bp_sid}",
-                                help=(f"Open {_bp_side} {_bp['base']} · "
-                                      f"{_bp_tier_label} · score {_bp_score:.0f}"),
+                                "ðŸ“¥", key=f"pb_{_bp_sid}",
+                                help=(f"Open {_bp_side} {_bp['base']} Â· "
+                                      f"{_bp_tier_label} Â· score {_bp_score:.0f}"),
                                 use_container_width=True):
                             _bp_setup = {
                                 "symbol": _bp["symbol"],
@@ -6219,15 +6216,15 @@ if active_section == "🧪 Paper Trader":
                                     timeframe)
                                 paper_bot.save_state(PAPER_BOT_FILE, pb_state)
                                 st.toast(
-                                    f"🏆 Opened {_bp_side} "
+                                    f"ðŸ† Opened {_bp_side} "
                                     f"{_bp_opened['base']} @ "
-                                    f"{fmt_price(_bp_opened['entry'])} · "
+                                    f"{fmt_price(_bp_opened['entry'])} Â· "
                                     f"{_bp_tier_label} {_bp_score:.0f}",
-                                    icon="🏆")
+                                    icon="ðŸ†")
                                 st.rerun()
                             else:
                                 st.warning(
-                                    f"Could not open {_bp['base']} — "
+                                    f"Could not open {_bp['base']} â€” "
                                     "check balance/concurrency/already-open.")
 
         # Tier legend + divider also disabled (was for the killed
@@ -6239,16 +6236,16 @@ if active_section == "🧪 Paper Trader":
                 "padding:8px 12px;background:rgba(255,255,255,0.02);"
                 "border-radius:6px'>"
                 "<b>Tier legend:</b> "
-                "<span style='color:#ffd700'>⚡ CONVERGENCE</span> "
-                "<span style='color:#00d4ff'>🎯 STRONG PATTERN</span> "
-                "<span style='color:#ff9500'>🔭 SETUP FORMING</span> "
-                "<span style='color:#5b8eff'>🎯 WATCH</span>"
+                "<span style='color:#ffd700'>âš¡ CONVERGENCE</span> "
+                "<span style='color:#00d4ff'>ðŸŽ¯ STRONG PATTERN</span> "
+                "<span style='color:#ff9500'>ðŸ”­ SETUP FORMING</span> "
+                "<span style='color:#5b8eff'>ðŸŽ¯ WATCH</span>"
                 "</div>",
                 unsafe_allow_html=True)
 
         # ====================================================================
-        # ⚡ CONVERGENCE — collapsed by default. Convergence-qualified picks
-        # also surface as a ⚡ chip on Bot's Top Picks cards below.
+        # âš¡ CONVERGENCE â€” collapsed by default. Convergence-qualified picks
+        # also surface as a âš¡ chip on Bot's Top Picks cards below.
         # ====================================================================
         # The crown of the system. Surfaces picks where MULTIPLE independent
         # signals AGREE on the same coin + same direction:
@@ -6258,16 +6255,16 @@ if active_section == "🧪 Paper Trader":
         #   4. 4h trend supports the direction (not just 1h noise)
         #   5. BTC correlation doesn't fight the signal
         # Score threshold: 88 (very strict). Expected 0-3 fires per day.
-        # The rarity is the edge — when ALL signals agree, conviction is real.
+        # The rarity is the edge â€” when ALL signals agree, conviction is real.
         try:
             _convergence_picks = compute_convergence_picks(timeframe, scan_n=50)
         except Exception:
             _convergence_picks = []
-        # Build symbol set so Bot's Top Picks below can render a ⚡ chip
+        # Build symbol set so Bot's Top Picks below can render a âš¡ chip
         _convergence_syms = {p.get("symbol") for p in (_convergence_picks or [])}
-        # Standalone CONVERGENCE rendering DISABLED — convergence picks
+        # Standalone CONVERGENCE rendering DISABLED â€” convergence picks
         # still surface via their high combined_score in Bot's Top Picks
-        # and get a ⚡ CONVERGENCE chip there. Per user: no more duplicate
+        # and get a âš¡ CONVERGENCE chip there. Per user: no more duplicate
         # segments. Set to True to restore the standalone section.
         if False and _convergence_picks:
             st.markdown(
@@ -6277,23 +6274,23 @@ if active_section == "🧪 Paper Trader":
                 "background:linear-gradient(135deg,#ffd700,#ff006e,#8b5cf6);"
                 "-webkit-background-clip:text;-webkit-text-fill-color:"
                 "transparent;background-clip:text;letter-spacing:-0.02em'>"
-                "⚡ CONVERGENCE</span>"
+                "âš¡ CONVERGENCE</span>"
                 "<span style='color:#aab;font-size:0.84rem'>"
-                f"signals stacking · {len(_convergence_picks)} firing now</span>"
+                f"signals stacking Â· {len(_convergence_picks)} firing now</span>"
                 "</div>",
                 unsafe_allow_html=True)
             st.caption(
                 "**Highest-conviction picks across the entire signal stack.** "
-                "ALL of these conditions hold: ✅ Pattern Scout pattern fired, "
-                "✅ Setups Forming pre-warned, ✅ Market Regime aligned, "
-                "✅ 4h trend supports, ✅ BTC correlation favorable. "
+                "ALL of these conditions hold: âœ… Pattern Scout pattern fired, "
+                "âœ… Setups Forming pre-warned, âœ… Market Regime aligned, "
+                "âœ… 4h trend supports, âœ… BTC correlation favorable. "
                 "**Expected 0-3 per day.** Empty = nothing this strong. "
-                "Full = rare alignment of all validated edges — these are "
+                "Full = rare alignment of all validated edges â€” these are "
                 "the bets the system has the highest conviction in.")
             for _cv in _convergence_picks[:5]:
                 _cv_side = _cv.get("side", "LONG")
                 _cv_color = "#00d4ff" if _cv_side == "LONG" else "#ff3d57"
-                _cv_emoji = "🟢" if _cv_side == "LONG" else "🩸"
+                _cv_emoji = "ðŸŸ¢" if _cv_side == "LONG" else "ðŸ©¸"
                 _cv_entry = float(_cv.get("entry") or 0)
                 _cv_stop = float(_cv.get("stop") or 0)
                 _cv_tgt = float(_cv.get("target") or 0)
@@ -6305,7 +6302,7 @@ if active_section == "🧪 Paper Trader":
                                  else "#ff5c5c" if _cv_pct24h < 0
                                  else "#888")
                 _cv_sid = f"cv_{_cv['symbol']}"
-                # Position size — use Pattern Scout's $1k-$2.5k range
+                # Position size â€” use Pattern Scout's $1k-$2.5k range
                 _cv_score = _cv["convergence_score"]
                 _cv_target_notional = 1000.0 + (
                     (_cv_score - 65) / 30.0) * 1500.0
@@ -6335,7 +6332,7 @@ if active_section == "🧪 Paper Trader":
                         f"rgba(255,215,0,0.25);'>"
                         f"<div style='display:flex;align-items:center;"
                         f"gap:10px;flex-wrap:wrap;margin-bottom:8px'>"
-                        f"<span style='font-size:1.3rem;font-weight:800'>⚡</span>"
+                        f"<span style='font-size:1.3rem;font-weight:800'>âš¡</span>"
                         f"<span style='font-size:1.15rem;font-weight:800;"
                         f"font-family:Space Grotesk,Inter,sans-serif'>"
                         f"{_cv['base']}</span>"
@@ -6346,9 +6343,9 @@ if active_section == "🧪 Paper Trader":
                         f"#ffd700,#ff006e);color:#001122;padding:3px 14px;"
                         f"border-radius:7px;font-size:0.82rem;font-weight:"
                         f"800;box-shadow:0 0 12px rgba(255,215,0,0.5)'>"
-                        f"⚡ CONVERGENCE · {_cv_score:.0f}</span>"
+                        f"âš¡ CONVERGENCE Â· {_cv_score:.0f}</span>"
                         f"<span style='color:#aab;font-size:0.82rem'>"
-                        f"now ${_cv_cur:.4g} · "
+                        f"now ${_cv_cur:.4g} Â· "
                         f"<span style='color:{_cv_pct_color}'>"
                         f"{_cv_pct24h:+.2f}% 24h</span></span>"
                         f"</div>"
@@ -6356,15 +6353,15 @@ if active_section == "🧪 Paper Trader":
                         f"<div style='color:#c8d2ed;font-size:0.82rem;"
                         f"line-height:1.55;margin-bottom:10px'>"
                         f"<b style='color:#ffd700'>Why this is CONVERGENCE:</b><br>"
-                        f"{' · '.join(_cv.get('convergence_reasons', []))}"
+                        f"{' Â· '.join(_cv.get('convergence_reasons', []))}"
                         f"</div>"
                         # Trade plan
                         f"<div style='color:#aab;font-size:0.80rem;"
                         f"line-height:1.6;margin-top:8px'>"
-                        f"entry <b>${_cv_entry:.4g}</b> · "
-                        f"stop <b>${_cv_stop:.4g}</b> · "
-                        f"TP1 <b>${_cv_tgt:.4g}</b> · "
-                        + (f"TP2 <b>${_cv_tgt2:.4g}</b> · "
+                        f"entry <b>${_cv_entry:.4g}</b> Â· "
+                        f"stop <b>${_cv_stop:.4g}</b> Â· "
+                        f"TP1 <b>${_cv_tgt:.4g}</b> Â· "
+                        + (f"TP2 <b>${_cv_tgt2:.4g}</b> Â· "
                            if _cv_tgt2 > 0 else "")
                         + f"plan R:R <b>{_cv_rr:.2f}</b></div>"
                         # Size preview
@@ -6372,23 +6369,23 @@ if active_section == "🧪 Paper Trader":
                         f"border:1px solid rgba(255,215,0,0.15);"
                         f"border-radius:8px;padding:8px 12px;margin-top:8px;"
                         f"color:#c8d2ed;font-size:0.78rem;line-height:1.6'>"
-                        f"<b style='color:#ffd700'>📥 If you click NOW:</b> "
+                        f"<b style='color:#ffd700'>ðŸ“¥ If you click NOW:</b> "
                         f"<b>{_cv_qty:.4f}</b> {_cv['base']} "
-                        f"{_cv_side.lower()} · notional "
-                        f"<b>${_cv_notional:,.0f}</b> · "
-                        f"<b>{_cv_lev:.0f}x</b> lev · "
-                        f"margin <b>${_cv_margin:,.0f}</b> · "
+                        f"{_cv_side.lower()} Â· notional "
+                        f"<b>${_cv_notional:,.0f}</b> Â· "
+                        f"<b>{_cv_lev:.0f}x</b> lev Â· "
+                        f"margin <b>${_cv_margin:,.0f}</b> Â· "
                         f"risk <b style='color:#ff5c5c'>"
-                        f"-${_cv_loss:,.2f}</b> · "
+                        f"-${_cv_loss:,.2f}</b> Â· "
                         f"profit at TP <b style='color:#2ed47a'>"
                         f"+${_cv_profit:,.2f}</b>"
                         f"</div>"
                         f"</div>",
                         unsafe_allow_html=True)
-                    # 📥 Open trade
+                    # ðŸ“¥ Open trade
                     if _cv_btn_col.button(
-                            "📥", key=f"pb_{_cv_sid}",
-                            help=f"Open {_cv_side} {_cv['base']} — CONVERGENCE pick",
+                            "ðŸ“¥", key=f"pb_{_cv_sid}",
+                            help=f"Open {_cv_side} {_cv['base']} â€” CONVERGENCE pick",
                             use_container_width=True):
                         _cv_setup = {
                             "symbol": _cv["symbol"],
@@ -6413,15 +6410,15 @@ if active_section == "🧪 Paper Trader":
                                              timeframe)
                             paper_bot.save_state(PAPER_BOT_FILE, pb_state)
                             st.toast(
-                                f"⚡ Opened {_cv_side} "
+                                f"âš¡ Opened {_cv_side} "
                                 f"{_cv_opened['base']} @ "
-                                f"{fmt_price(_cv_opened['entry'])} · "
+                                f"{fmt_price(_cv_opened['entry'])} Â· "
                                 f"CONVERGENCE {_cv_score:.0f}",
-                                icon="⚡")
+                                icon="âš¡")
                             st.rerun()
                         else:
                             st.warning(
-                                f"Could not open {_cv['base']} — "
+                                f"Could not open {_cv['base']} â€” "
                                 "check balance/concurrency/already-open.")
             st.markdown(
                 "<div style='height:1px;background:linear-gradient(90deg,"
@@ -6429,7 +6426,7 @@ if active_section == "🧪 Paper Trader":
                 "margin:20px 0'></div>",
                 unsafe_allow_html=True)
 
-        # ---- 🔭 SETUPS FORMING — leading-indicator watchlist ----------
+        # ---- ðŸ”­ SETUPS FORMING â€” leading-indicator watchlist ----------
         # Predicts reversal candles (shooting stars / hammers) BEFORE
         # they print by detecting pre-conditions:
         #   1. Approach to resistance/support
@@ -6439,7 +6436,7 @@ if active_section == "🧪 Paper Trader":
         #   5. Extension from EMA20 (>1.5 ATR)
         #   6. Bearish/bullish CVD divergence
         #   7. Intra-bar rejection forming
-        # When 3+ conditions met → WATCH. 5+ → STRONG WATCH (reversal
+        # When 3+ conditions met â†’ WATCH. 5+ â†’ STRONG WATCH (reversal
         # likely within 1-5 bars).
         # HONEST CAVEAT: leading signals are less reliable than
         # confirmed candles (~40-55% vs ~60-65%). Use as a WATCHLIST.
@@ -6449,7 +6446,7 @@ if active_section == "🧪 Paper Trader":
                 "Coins where REVERSAL pre-conditions are forming. "
                 "By the time a shooting star or hammer prints, the "
                 "rejection already happened. This scan finds coins "
-                "approaching those setups — gives you a 1-5 bar "
+                "approaching those setups â€” gives you a 1-5 bar "
                 "head start. **Watchlist, not a trade signal.** When "
                 "the actual fire candle prints (caught by Pattern "
                 "Scout below), THAT's the trade.")
@@ -6467,12 +6464,12 @@ if active_section == "🧪 Paper Trader":
             else:
                 st.markdown(
                     f"**{len(_approach_results)} coins showing setup "
-                    f"formation · top 6 below:**")
+                    f"formation Â· top 6 below:**")
                 for _ar in _approach_top:
                     _ar_side = _ar["side"]
                     _ar_side_color = ("#ff3d57" if _ar_side == "SHORT"
                                       else "#00e676")
-                    _ar_side_emoji = "🩸" if _ar_side == "SHORT" else "🟢"
+                    _ar_side_emoji = "ðŸ©¸" if _ar_side == "SHORT" else "ðŸŸ¢"
                     _ar_tier = ("STRONG WATCH" if _ar["score"] >= 80
                                 else "WATCH")
                     _ar_tier_color = ("#ff9500" if _ar["score"] >= 80
@@ -6487,7 +6484,7 @@ if active_section == "🧪 Paper Trader":
                     _ar_rr = float(_ar.get("rr") or 0)
                     _ar_cur = float(_ar.get("price") or 0)
                     _ar_sid = f"ar_{_ar['symbol']}"
-                    # Position size — conviction-scaled $1k-$2.5k
+                    # Position size â€” conviction-scaled $1k-$2.5k
                     _ar_target_notional = 1000.0 + (
                         (_ar_score - 65) / 30.0) * 1500.0
                     _ar_target_notional = max(
@@ -6517,13 +6514,13 @@ if active_section == "🧪 Paper Trader":
                     # Build condition chips for the ones that hit
                     _cond_chips = ""
                     _condition_labels = {
-                        "approach": "📏 Approaching level",
-                        "rsi": "📊 RSI extreme",
-                        "vol_waning": "📉 Volume waning",
-                        "body_shrink": "🎢 Body shrinking",
-                        "extension": "🎯 EMA stretched",
-                        "cvd_div": "💱 CVD diverging",
-                        "intra_bar": "⚡ Live rejection",
+                        "approach": "ðŸ“ Approaching level",
+                        "rsi": "ðŸ“Š RSI extreme",
+                        "vol_waning": "ðŸ“‰ Volume waning",
+                        "body_shrink": "ðŸŽ¢ Body shrinking",
+                        "extension": "ðŸŽ¯ EMA stretched",
+                        "cvd_div": "ðŸ’± CVD diverging",
+                        "intra_bar": "âš¡ Live rejection",
                     }
                     for _ck, _cv_comp in _ar["components"].items():
                         if _cv_comp.get("hit"):
@@ -6552,10 +6549,10 @@ if active_section == "🧪 Paper Trader":
                             f"<span style='background:{_ar_tier_color}33;"
                             f"color:{_ar_tier_color};padding:2px 8px;"
                             f"border-radius:5px;font-size:0.72rem;"
-                            f"font-weight:700'>🔭 {_ar_tier} · "
+                            f"font-weight:700'>ðŸ”­ {_ar_tier} Â· "
                             f"{_ar_score:.0f}</span>"
                             f"<span style='color:#8b8d98;font-size:0.78rem'>"
-                            f"now ${_ar['price']:.4g} · "
+                            f"now ${_ar['price']:.4g} Â· "
                             f"{_ar['conditions_met']}/7 conditions</span>"
                             f"</div>"
                             # Condition chips
@@ -6565,10 +6562,10 @@ if active_section == "🧪 Paper Trader":
                                 f"<div style='color:#aab;font-size:0.80rem;"
                                 f"margin-top:10px;line-height:1.6'>"
                                 f"<b>Anticipatory entry:</b> "
-                                f"entry <b>${_ar_entry:.4g}</b> · "
-                                f"stop <b>${_ar_stop:.4g}</b> · "
-                                f"TP1 <b>${_ar_tgt:.4g}</b> · "
-                                + (f"TP2 <b>${_ar_tgt2:.4g}</b> · "
+                                f"entry <b>${_ar_entry:.4g}</b> Â· "
+                                f"stop <b>${_ar_stop:.4g}</b> Â· "
+                                f"TP1 <b>${_ar_tgt:.4g}</b> Â· "
+                                + (f"TP2 <b>${_ar_tgt2:.4g}</b> Â· "
                                    if _ar_tgt2 > 0 else "")
                                 + f"R:R <b>{_ar_rr:.2f}</b>"
                                 + f"</div>"
@@ -6577,30 +6574,30 @@ if active_section == "🧪 Paper Trader":
                                 f"border-radius:8px;padding:8px 12px;"
                                 f"margin-top:8px;color:#c8d2ed;"
                                 f"font-size:0.78rem;line-height:1.6'>"
-                                f"<b style='color:#5b8eff'>📥 If you click NOW:</b> "
+                                f"<b style='color:#5b8eff'>ðŸ“¥ If you click NOW:</b> "
                                 f"<b>{_ar_qty:.4f}</b> {_ar['base']} "
-                                f"{_ar_side.lower()} · "
-                                f"notional <b>${_ar_notional:,.0f}</b> · "
-                                f"<b>{_ar_lev:.0f}x</b> lev · "
-                                f"margin <b>${_ar_margin:,.0f}</b> · "
+                                f"{_ar_side.lower()} Â· "
+                                f"notional <b>${_ar_notional:,.0f}</b> Â· "
+                                f"<b>{_ar_lev:.0f}x</b> lev Â· "
+                                f"margin <b>${_ar_margin:,.0f}</b> Â· "
                                 f"risk <b style='color:#ff5c5c'>"
-                                f"-${_ar_loss:,.2f}</b> · "
+                                f"-${_ar_loss:,.2f}</b> Â· "
                                 f"profit <b style='color:#2ed47a'>"
                                 f"+${_ar_profit:,.2f}</b>"
                                 f"</div>"
                                 if _ar_has_plan else
                                 f"<div style='color:#e0a92b;font-size:0.78rem;"
-                                f"margin-top:8px'>⚠ No trade plan generated</div>"
+                                f"margin-top:8px'>âš  No trade plan generated</div>"
                             ),
                             unsafe_allow_html=True)
-                        # 📥 Open button — anticipatory entry (lower
+                        # ðŸ“¥ Open button â€” anticipatory entry (lower
                         # probability than confirmed signal, hence the
                         # WATCH tier instead of STRONG)
                         if _ar_has_plan:
                             if _ar_btn.button(
-                                    "📥", key=f"pb_{_ar_sid}",
+                                    "ðŸ“¥", key=f"pb_{_ar_sid}",
                                     help=(f"Open {_ar_side} {_ar['base']} "
-                                          f"ANTICIPATORY — Setups Forming "
+                                          f"ANTICIPATORY â€” Setups Forming "
                                           f"pick (leading signal, ~40-55% "
                                           f"win expected vs ~60% for "
                                           f"confirmed)"),
@@ -6629,23 +6626,23 @@ if active_section == "🧪 Paper Trader":
                                     paper_bot.save_state(PAPER_BOT_FILE,
                                                          pb_state)
                                     st.toast(
-                                        f"🔭 Opened {_ar_side} "
+                                        f"ðŸ”­ Opened {_ar_side} "
                                         f"{_ar_opened['base']} @ "
-                                        f"{fmt_price(_ar_opened['entry'])} · "
+                                        f"{fmt_price(_ar_opened['entry'])} Â· "
                                         f"Setups Forming",
-                                        icon="🔭")
+                                        icon="ðŸ”­")
                                     st.rerun()
                                 else:
                                     st.warning(
-                                        f"Could not open {_ar['base']} — "
+                                        f"Could not open {_ar['base']} â€” "
                                         "check balance/concurrency/already-open.")
 
-        # ---- 🎯 PATTERN SCOUT — scans 50 coins for validated patterns -
+        # ---- ðŸŽ¯ PATTERN SCOUT â€” scans 50 coins for validated patterns -
         # Independent of the alerts.build_alerts() CONF_ALERT=72 gate.
         # Surfaces coins where high-edge individual patterns fire but
         # may not have multi-TF aggregated confidence to make the
         # standard picks board. Cached 10 min so the scan only runs
-        # rarely. User explicitly asked for this — "you should read
+        # rarely. User explicitly asked for this â€” "you should read
         # through all 150+ Binance coins their patterns etc to indicate
         # me the best outcomes and top picks accordingly".
         # Pattern Scout expander REMOVED per user (too many segments).
@@ -6655,22 +6652,22 @@ if active_section == "🧪 Paper Trader":
             st.caption(
                 "Scans the top 50 coins for these **backtested-edge** "
                 "patterns INDEPENDENT of the regular picks gate: "
-                "🔄 V-bottom recovery (75% win @ 12bar), 🟢 long_patterns "
-                "aligned (67.4% win @ 48bar), 🌅 morning star + RSI<35 + "
-                "downtrend (60-75%), 🔨 hammer at confirmed support "
-                "(60-65%). 24h freshness filter active — coins already "
+                "ðŸ”„ V-bottom recovery (75% win @ 12bar), ðŸŸ¢ long_patterns "
+                "aligned (67.4% win @ 48bar), ðŸŒ… morning star + RSI<35 + "
+                "downtrend (60-75%), ðŸ”¨ hammer at confirmed support "
+                "(60-65%). 24h freshness filter active â€” coins already "
                 "+8% in 24h are downgraded so picks board surfaces EARLY "
                 "setups, not chases. Cached 10 minutes.")
             _scout = run_pattern_scout(timeframe, scan_n=50)
             _scout_top = sorted(_scout, key=lambda r: r["score"],
                                 reverse=True)[:6]
             if not _scout_top:
-                st.info("No coins scored ≥65 in the last scan. Either "
+                st.info("No coins scored â‰¥65 in the last scan. Either "
                         "the regime is genuinely quiet OR a fresh scan "
-                        "is loading — wait 30-60 sec and refresh.")
+                        "is loading â€” wait 30-60 sec and refresh.")
             else:
                 st.markdown(
-                    f"**Found {len(_scout)} qualifying setups · top 6 below:**")
+                    f"**Found {len(_scout)} qualifying setups Â· top 6 below:**")
                 for _sc in _scout_top:
                     _score = _sc["score"]
                     _color = ("#2ed47a" if _score >= 80
@@ -6687,28 +6684,28 @@ if active_section == "🧪 Paper Trader":
                     # signal type. SHORT-side patterns use red/orange palettes.
                     _badge_styles = {
                         "v_bottom_recovery": {
-                            "emoji": "🔄", "label": "V-BOTTOM",
+                            "emoji": "ðŸ”„", "label": "V-BOTTOM",
                             "win": "75%/12bar",
                             "gradient": "linear-gradient(135deg,#00d4ff,#ffd700)",
                             "text_color": "#001122",
                             "glow": "rgba(0,212,255,0.4)",
                         },
                         "long_patterns_aligned": {
-                            "emoji": "🟢", "label": "LONG PATTERNS",
+                            "emoji": "ðŸŸ¢", "label": "LONG PATTERNS",
                             "win": "67%/48bar",
                             "gradient": "linear-gradient(135deg,#0b8a3e,#34c759)",
                             "text_color": "#06121f",
                             "glow": "rgba(52,199,89,0.35)",
                         },
                         "morning_star": {
-                            "emoji": "🌅", "label": "MORNING STAR",
+                            "emoji": "ðŸŒ…", "label": "MORNING STAR",
                             "win": "60-75% w/ filters",
                             "gradient": "linear-gradient(135deg,#ff9500,#ffcc66)",
                             "text_color": "#1a0f00",
                             "glow": "rgba(255,149,0,0.35)",
                         },
                         "hammer_at_support": {
-                            "emoji": "🔨", "label": "HAMMER",
+                            "emoji": "ðŸ”¨", "label": "HAMMER",
                             "win": "60-65% at support",
                             "gradient": "linear-gradient(135deg,#5b8eff,#8b5cf6)",
                             "text_color": "#fff",
@@ -6716,21 +6713,21 @@ if active_section == "🧪 Paper Trader":
                         },
                         # SHORT-side patterns
                         "evening_star": {
-                            "emoji": "🌃", "label": "EVENING STAR",
+                            "emoji": "ðŸŒƒ", "label": "EVENING STAR",
                             "win": "mirror of morning",
                             "gradient": "linear-gradient(135deg,#d62845,#ff6b6b)",
                             "text_color": "#fff",
                             "glow": "rgba(255,107,107,0.35)",
                         },
                         "shooting_star_at_resistance": {
-                            "emoji": "💫", "label": "SHOOTING STAR",
+                            "emoji": "ðŸ’«", "label": "SHOOTING STAR",
                             "win": "at resistance",
                             "gradient": "linear-gradient(135deg,#8b00ff,#ff006e)",
                             "text_color": "#fff",
                             "glow": "rgba(255,0,110,0.35)",
                         },
                         "bearish_rsi_divergence": {
-                            "emoji": "📉", "label": "BEARISH RSI DIV",
+                            "emoji": "ðŸ“‰", "label": "BEARISH RSI DIV",
                             "win": "textbook reversal",
                             "gradient": "linear-gradient(135deg,#c93030,#e0a92b)",
                             "text_color": "#fff",
@@ -6741,7 +6738,7 @@ if active_section == "🧪 Paper Trader":
                     for _sig in _sc["signals"][:3]:
                         _sn = _sig["name"]
                         _style = _badge_styles.get(_sn, {
-                            "emoji": "📊", "label": _sn.upper(),
+                            "emoji": "ðŸ“Š", "label": _sn.upper(),
                             "win": "n/a",
                             "gradient": "rgba(0,212,255,0.10)",
                             "text_color": "#00d4ff",
@@ -6756,7 +6753,7 @@ if active_section == "🧪 Paper Trader":
                             f"box-shadow:0 0 8px {_style['glow']};"
                             f"display:inline-block;letter-spacing:0.02em'>"
                             f"{_style['emoji']} {_style['label']} "
-                            f"<span style='opacity:0.7'>· {_sig['score']:.0f}</span>"
+                            f"<span style='opacity:0.7'>Â· {_sig['score']:.0f}</span>"
                             f"</span>")
                     _pct_24h = _sc.get("pct_24h", 0)
                     _pct_color = ("#2ed47a" if _pct_24h > 0
@@ -6774,7 +6771,7 @@ if active_section == "🧪 Paper Trader":
                     _ps_has_plan = (_ps_entry > 0 and _ps_stop > 0
                                     and _ps_tgt > 0)
                     _ps_cur = _sc["price"]
-                    # Live R:R from current price — side-aware
+                    # Live R:R from current price â€” side-aware
                     if _ps_side_str == "LONG":
                         _ps_live_risk = ((_ps_cur - _ps_stop) / _ps_cur * 100
                                          if _ps_cur > 0 and _ps_stop > 0
@@ -6794,13 +6791,13 @@ if active_section == "🧪 Paper Trader":
                     # === CONVICTION-SCALED NOTIONAL SIZING ===
                     # User-set targets: $1000-$2500 typical, $3000 hard cap.
                     # Position size scales LINEARLY with conviction score:
-                    #   Score 65 (floor)  → target $1,000 notional
-                    #   Score 80 (mid)    → target $1,750 notional
-                    #   Score 95 (top)    → target $2,500 notional
-                    #   Hard ceiling      → $3,000 (no matter what)
+                    #   Score 65 (floor)  â†’ target $1,000 notional
+                    #   Score 80 (mid)    â†’ target $1,750 notional
+                    #   Score 95 (top)    â†’ target $2,500 notional
+                    #   Hard ceiling      â†’ $3,000 (no matter what)
                     # Risk-based qty still calculated but USED ONLY if it's
                     # LOWER than the target (e.g. very wide stop). This way
-                    # actual $ risk is always ≤ risk_per_trade_pct budget.
+                    # actual $ risk is always â‰¤ risk_per_trade_pct budget.
                     _ps_bal = float(pb_state.get("balance") or 0)
                     _ps_risk_pct = float(
                         pb_state.get("risk_per_trade_pct") or 1.0)
@@ -6848,10 +6845,10 @@ if active_section == "🧪 Paper Trader":
                             f"<span style='background:{_color};color:#06121f;"
                             f"padding:2px 10px;border-radius:5px;font-size:"
                             f"0.72rem;font-weight:800'>"
-                            f"🎯 {_tier} · {_score:.0f}</span>"
+                            f"ðŸŽ¯ {_tier} Â· {_score:.0f}</span>"
                             f"{_signal_chips}"
                             f"<span style='color:#8b8d98;font-size:0.78rem'>"
-                            f"now ${_ps_cur:.4g} · "
+                            f"now ${_ps_cur:.4g} Â· "
                             f"<span style='color:{_pct_color}'>"
                             f"{_pct_24h:+.2f}% 24h</span></span>"
                             f"</div>"
@@ -6859,19 +6856,19 @@ if active_section == "🧪 Paper Trader":
                             + (
                                 f"<div style='color:#aab;font-size:0.80rem;"
                                 f"margin-top:8px;line-height:1.6'>"
-                                f"entry <b>${_ps_entry:.4g}</b> · "
+                                f"entry <b>${_ps_entry:.4g}</b> Â· "
                                 f"stop <b>${_ps_stop:.4g}</b> "
                                 f"<span style='color:#ff5c5c'>"
-                                f"(-{abs(_ps_stop - _ps_entry) / _ps_entry * 100:.1f}%)</span> · "
+                                f"(-{abs(_ps_stop - _ps_entry) / _ps_entry * 100:.1f}%)</span> Â· "
                                 f"TP1 <b>${_ps_tgt:.4g}</b> "
                                 f"<span style='color:#2ed47a'>"
                                 f"(+{abs(_ps_tgt - _ps_entry) / _ps_entry * 100:.1f}%)</span>"
-                                + (f" · TP2 <b>${_ps_tgt2:.4g}</b> "
+                                + (f" Â· TP2 <b>${_ps_tgt2:.4g}</b> "
                                    f"<span style='color:#e0a92b'>"
                                    f"(+{abs(_ps_tgt2 - _ps_entry) / _ps_entry * 100:.1f}%)</span>"
                                    if _ps_tgt2 > 0 else "")
-                                + f" · plan R:R <b>{_ps_rr:.2f}</b>"
-                                + (f" · live R:R <b>{_ps_live_rr:.2f}</b>"
+                                + f" Â· plan R:R <b>{_ps_rr:.2f}</b>"
+                                + (f" Â· live R:R <b>{_ps_live_rr:.2f}</b>"
                                    if _ps_live_rr > 0 else "")
                                 + f"</div>"
                                 # Position-size preview box
@@ -6880,40 +6877,40 @@ if active_section == "🧪 Paper Trader":
                                 f"border-radius:8px;padding:8px 12px;"
                                 f"margin-top:8px;color:#c8d2ed;"
                                 f"font-size:0.78rem;line-height:1.6'>"
-                                f"<b style='color:#00d4ff'>📥 If you click NOW:</b> "
+                                f"<b style='color:#00d4ff'>ðŸ“¥ If you click NOW:</b> "
                                 f"<b>{_ps_qty:.4f}</b> {_sc['base']} "
-                                f"{_ps_side_str.lower()} · "
-                                f"notional <b>${_ps_notional:,.0f}</b> · "
-                                f"<b>{_ps_lev:.0f}x</b> lev · "
-                                f"margin <b>${_ps_margin:,.0f}</b> · "
+                                f"{_ps_side_str.lower()} Â· "
+                                f"notional <b>${_ps_notional:,.0f}</b> Â· "
+                                f"<b>{_ps_lev:.0f}x</b> lev Â· "
+                                f"margin <b>${_ps_margin:,.0f}</b> Â· "
                                 f"risk <b style='color:#ff5c5c'>"
-                                f"-${_ps_loss:,.2f}</b> · "
+                                f"-${_ps_loss:,.2f}</b> Â· "
                                 f"profit at TP <b style='color:#2ed47a'>"
-                                f"+${_ps_profit:,.2f}</b> · "
+                                f"+${_ps_profit:,.2f}</b> Â· "
                                 f"strength factor <b>{_ps_sf:.2f}</b>"
                                 f"</div>"
                                 if _ps_has_plan else
                                 f"<div style='color:#e0a92b;font-size:0.78rem;"
                                 f"margin-top:8px'>"
-                                f"⚠ Trade plan unavailable for this coin "
-                                f"(scanner couldn't generate one) — open "
+                                f"âš  Trade plan unavailable for this coin "
+                                f"(scanner couldn't generate one) â€” open "
                                 f"manually via Open a trade form on left."
                                 f"</div>"
                             )
                             + (
                                 f"<div style='color:#aab;font-size:0.76rem;"
                                 f"margin-top:6px'>"
-                                f"<b>Best signal:</b> {_sc['best_signal']} · "
+                                f"<b>Best signal:</b> {_sc['best_signal']} Â· "
                                 f"{_sc['signals'][0]['detail'][:100]}"
                                 f"</div>"
                             ),
                             unsafe_allow_html=True)
-                        # 📥 Open Trade button
+                        # ðŸ“¥ Open Trade button
                         if _ps_has_plan:
                             if _ps_btn_col.button(
-                                    "📥", key=f"pb_ps_{_ps_sid}",
+                                    "ðŸ“¥", key=f"pb_ps_{_ps_sid}",
                                     help=(f"Open {_ps_side_str} {_sc['base']} "
-                                          f"paper trade at TP1 — Pattern "
+                                          f"paper trade at TP1 â€” Pattern "
                                           f"Scout pick (validated edge, NOT "
                                           f"alerts-gated)"),
                                     use_container_width=True):
@@ -6941,18 +6938,18 @@ if active_section == "🧪 Paper Trader":
                                     paper_bot.save_state(PAPER_BOT_FILE,
                                                          pb_state)
                                     st.toast(
-                                        f"📥 Opened {_ps_side_str} "
+                                        f"ðŸ“¥ Opened {_ps_side_str} "
                                         f"{_ps_opened['base']} @ "
-                                        f"{fmt_price(_ps_opened['entry'])} · "
-                                        f"Pattern Scout · score {_score:.0f}",
-                                        icon="🎯")
+                                        f"{fmt_price(_ps_opened['entry'])} Â· "
+                                        f"Pattern Scout Â· score {_score:.0f}",
+                                        icon="ðŸŽ¯")
                                     st.rerun()
                                 else:
                                     st.warning(
-                                        f"Could not open {_sc['base']} — "
+                                        f"Could not open {_sc['base']} â€” "
                                         "check balance/concurrency/already-open.")
 
-        # Old "Adaptive unified picks board" caption removed — replaced
+        # Old "Adaptive unified picks board" caption removed â€” replaced
         # by the concise caption attached to the new BEST TRADES NOW
         # header above.
 
@@ -6964,7 +6961,7 @@ if active_section == "🧪 Paper Trader":
             """Combined strength score: scanner confidence + forecast bonus
             when the forecast confirms, minus a penalty when it disagrees.
 
-            Returns the RAW (uncapped) score — the caller caps to 99 for
+            Returns the RAW (uncapped) score â€” the caller caps to 99 for
             display but uses the raw value for ranking, so a conf-85 setup
             with full forecast boost (raw 113) ranks above a conf-72 setup
             with the same boost (raw 100) instead of tying at 99."""
@@ -6985,18 +6982,18 @@ if active_section == "🧪 Paper Trader":
                     score += 8        # all three horizons agree
                 if fc_conf >= 70:
                     score += 5        # high-confidence forecast
-                label = (f"forecast confirms · aligned 3/3"
+                label = (f"forecast confirms Â· aligned 3/3"
                          if aligned else f"forecast confirms")
             elif disagrees:
                 score -= 8
                 label = "forecast disagrees"
             else:
                 label = "forecast neutral"
-            return score, label    # uncapped — caller decides what to do
+            return score, label    # uncapped â€” caller decides what to do
 
         _open_syms = {p["symbol"] for p in pb_state["open"]}
         # Mark PREMIUM-eligible setups (for the chip and the optional TP2
-        # button). Target is NOT promoted here — TP1 stays the default.
+        # button). Target is NOT promoted here â€” TP1 stays the default.
         _all_picks = [_mark_premium(s) for s in auto_ad["setups"]
                       if s["symbol"] not in _open_syms]
 
@@ -7004,7 +7001,7 @@ if active_section == "🧪 Paper Trader":
         # Calls hit the underlying caches so this is near-free even
         # though the function isn't memoised itself. When BTC's read
         # is strongly directional, alt longs/shorts that align with it
-        # have a measurably higher win rate (real edge — the macro tide
+        # have a measurably higher win rate (real edge â€” the macro tide
         # matters more for alts than any single coin's technicals).
         _picks_btc: dict = {}
         try:
@@ -7019,7 +7016,7 @@ if active_section == "🧪 Paper Trader":
             "bullish", "bearish")
 
         # Score every candidate then re-rank by the combined score, with a
-        # weekly-trend bonus or penalty (with-trend = +5, counter = -8 — a
+        # weekly-trend bonus or penalty (with-trend = +5, counter = -8 â€” a
         # small, honest tilt, not a confidence-inflating multiplier).
         # IMPORTANT: store the RAW score (uncapped) so an excellent setup
         # truly ranks above a merely good one when both would otherwise
@@ -7056,7 +7053,7 @@ if active_section == "🧪 Paper Trader":
             # EARLY  = +6 (move just started, full room to target)
             # RE-RUN = 0  (continuation setup, partial room)
             # EXTENDED = -10 (move already extended, less room to run,
-            #                more likely to reverse — what the user is
+            #                more likely to reverse â€” what the user is
             #                experiencing on the trades that reverse).
             _mat = (s.get("maturity") or {})
             _mat_label = str(_mat.get("label") or "").upper()
@@ -7068,7 +7065,7 @@ if active_section == "🧪 Paper Trader":
             # --- Breakout Radar STAGE tilt (catches COILED pre-explosion)
             # The radar fuses 11 forces (volume ignition, coil
             # compression, taker flow, OBV, news, social, etc.) and
-            # produces a STAGE label (COILED / FRESH / EXTENDED) — the
+            # produces a STAGE label (COILED / FRESH / EXTENDED) â€” the
             # stage info is GENUINELY INDEPENDENT of the forecast
             # because the forecast only uses radar's DIRECTION signal,
             # not its stage classification.
@@ -7079,7 +7076,7 @@ if active_section == "🧪 Paper Trader":
             _radar = _radar_by_sym.get(s.get("symbol")) or {}
             _stage = str(_radar.get("stage") or "").upper()
             if _stage == "COILED":
-                base += 6     # loaded but not fired — predictive entry
+                base += 6     # loaded but not fired â€” predictive entry
             elif _stage == "FRESH":
                 base += 3     # early breakout, room left
             elif _stage == "EXTENDED":
@@ -7094,7 +7091,7 @@ if active_section == "🧪 Paper Trader":
             #     (per backtest: when CVD SHORT 67% wins, the LONG it
             #     was supposed to confirm is likely to fail)
             #   RS leader for LONG: +5 / RS laggard for LONG: -3
-            #   derivatives_velocity aligned: +3 (mild — Phase C edge
+            #   derivatives_velocity aligned: +3 (mild â€” Phase C edge
             #     was modest in snapshot)
             _setup_side = s["side"]
             _em_pick = load_early_momentum(s["symbol"], timeframe)
@@ -7110,7 +7107,7 @@ if active_section == "🧪 Paper Trader":
                     and _em_pick_side != _setup_side and (
                     (_em_pick_side == "SHORT" and _em_pick_score <= 30)
                     or (_em_pick_side == "LONG" and _em_pick_score >= 70)):
-                # Strong opposing early-momentum signal — the backtested
+                # Strong opposing early-momentum signal â€” the backtested
                 # 67%-win SHORT is saying "this LONG will fail" (or vice
                 # versa). Heavy penalty.
                 base -= 10
@@ -7139,37 +7136,37 @@ if active_section == "🧪 Paper Trader":
                     or (_setup_side == "SHORT" and _dv_pick_score <= 30)):
                 base += 3
 
-            # 🟢 PROVEN LONG PATTERNS (replaces broken bullish CVD) ------
+            # ðŸŸ¢ PROVEN LONG PATTERNS (replaces broken bullish CVD) ------
             # Only applies to LONG setups. Bullish RSI divergence + trend
             # reclaim + higher-low structure + bullish engulfing at
             # support. These are textbook patterns with documented edge
-            # across decades — replaces the per-bar "bullish CVD" that
+            # across decades â€” replaces the per-bar "bullish CVD" that
             # backtested at 3.6% win rate.
             if _setup_side == "LONG":
                 _lp_pick = load_long_patterns(s["symbol"], timeframe)
                 _lp_pick_score = float(_lp_pick.get("score") or 50)
                 _lp_n_aligned = int(_lp_pick.get("n_aligned") or 0)
                 if _lp_pick_score >= 75 and _lp_n_aligned >= 2:
-                    base += 8     # 2+ proven patterns agreeing — strong LONG
+                    base += 8     # 2+ proven patterns agreeing â€” strong LONG
                 elif _lp_pick_score >= 70:
                     base += 5     # single strong pattern
                 elif _lp_pick_score >= 60:
                     base += 2     # mild lift
 
-                # 🔄 V-BOTTOM RECOVERY — rare-fire but high-edge signal.
+                # ðŸ”„ V-BOTTOM RECOVERY â€” rare-fire but high-edge signal.
                 # Backtest: 75% win, +2.26% avg over 12 bars. Big bonus
                 # when it fires because (a) the pattern is rare so it
                 # WON'T over-promote junk picks, and (b) the win rate is
                 # meaningfully above baseline. The signal catches the
                 # JTO/INJ-style V-bottom setup at the first 1-3 strong
-                # green candles after capitulation — exactly when the
+                # green candles after capitulation â€” exactly when the
                 # user wanted picks to surface.
                 _rec_pick = load_recovery(s["symbol"], timeframe)
                 _rec_pick_score = float(_rec_pick.get("score") or 50)
                 if _rec_pick_score >= 80:
-                    base += 12    # STRONG V-bottom catch — top of board
+                    base += 12    # STRONG V-bottom catch â€” top of board
                 elif _rec_pick_score >= 70:
-                    base += 8     # VALID V-bottom — strong tilt up
+                    base += 8     # VALID V-bottom â€” strong tilt up
 
             # --- Market Regime tilt (adaptive layer) --------------------
             # In a BULL regime, push every score TOWARD LONG. In BEAR,
@@ -7178,9 +7175,9 @@ if active_section == "🧪 Paper Trader":
             # On 0-100 scoring: LONG setup uses base directly; SHORT
             # setup we invert before tilt then re-invert so the tilt
             # is applied to the directional bias not the raw number.
-            # Regime tilt reduced to ±8 (was ±12) so SIGNAL STRENGTH
+            # Regime tilt reduced to Â±8 (was Â±12) so SIGNAL STRENGTH
             # dominates over regime context. Per user direction:
-            # "the idea is to make money — doesn't matter short or long".
+            # "the idea is to make money â€” doesn't matter short or long".
             # A strong LONG signal in a BEAR regime should still surface
             # because dead-cat bounces are real trades. A strong SHORT
             # in BULL should still surface because overheated alts dump.
@@ -7200,32 +7197,32 @@ if active_section == "🧪 Paper Trader":
         # Lowered so the user ALWAYS sees picks even in low-conviction
         # markets (BEAR / CHOP / TRANSITION with sub-50 regime conf).
         # The CONVICTION TIER badge on each card is the safety:
-        #   ⚡⚡⚡ MAX (>=90)  → trade with full size
-        #   ⚡⚡ HIGH (>=85)   → trade meaningful
-        #   ⚡ STRONG (>=80)  → trade small
-        #   ⚪ STANDARD (65-79) → information only, very small or skip
-        # User reads the tier to decide — the floor just guarantees the
+        #   âš¡âš¡âš¡ MAX (>=90)  â†’ trade with full size
+        #   âš¡âš¡ HIGH (>=85)   â†’ trade meaningful
+        #   âš¡ STRONG (>=80)  â†’ trade small
+        #   âšª STANDARD (65-79) â†’ information only, very small or skip
+        # User reads the tier to decide â€” the floor just guarantees the
         # board is never empty when there's any signal at all.
         _scored = [t for t in _scored if t[0] >= 65]
 
         # ============================================================
-        # 🔭 PROMOTE STRONG Setups Forming PICKS into BEST TRADES NOW
+        # ðŸ”­ PROMOTE STRONG Setups Forming PICKS into BEST TRADES NOW
         # ============================================================
         # User: "setup forming if proven right should be in the top
         # picks to trade as well".
         #
         # "Proven right" = STRONG WATCH tier (reversal_approach score
-        # >= 80) with 5+/7 pre-conditions met. At that bar — multiple
+        # >= 80) with 5+/7 pre-conditions met. At that bar â€” multiple
         # leading signals AGREE on the same reversal direction:
         # approach to level + RSI extreme + volume waning + body
         # shrinkage + EMA extension + CVD divergence + intra-bar
         # rejection. Backtest pattern: when 5+/7 conditions hit, the
         # actual reversal candle prints within 1-5 bars ~50-60% of
-        # the time — strong enough to ANTICIPATE the trade with a
-        # buffered stop. Promoted picks get a 🔭 SETUP FORMING chip
+        # the time â€” strong enough to ANTICIPATE the trade with a
+        # buffered stop. Promoted picks get a ðŸ”­ SETUP FORMING chip
         # so the user knows the entry is anticipatory (not confirmed).
         try:
-            # Scan widened to TOP 100 Binance coins by volume — per user.
+            # Scan widened to TOP 100 Binance coins by volume â€” per user.
             # The cache (10 min TTL) means subsequent calls cost ~0.
             _sf_promote_results = run_reversal_approach_scan(
                 timeframe, scan_n=100)
@@ -7238,7 +7235,7 @@ if active_section == "🧪 Paper Trader":
             # the original strict (score>=80 + 5+/7 + has_plan) to:
             #   - score >= 75 (catches STRONG-WATCH tier and above)
             #   - conditions_met >= 5/7 (majority of pre-conditions)
-            # has_plan is NOT required — we build a percent-based
+            # has_plan is NOT required â€” we build a percent-based
             # fallback plan from current price if reversal_approach
             # couldn't generate one (e.g., ATR window too short or
             # level detection failed). 5+/7 conditions agreeing is
@@ -7246,11 +7243,11 @@ if active_section == "🧪 Paper Trader":
             if (_sfp.get("score", 0) < 75
                     or _sfp.get("conditions_met", 0) < 5):
                 continue
-            # Avoid dupes — if symbol already in _scored, skip
+            # Avoid dupes â€” if symbol already in _scored, skip
             # (the existing pick has more signals stacked).
             if _sfp["symbol"] in _scored_syms:
                 continue
-            # Skip if user already has an open position — the 📥 button
+            # Skip if user already has an open position â€” the ðŸ“¥ button
             # would no-op via paper_bot dedup.
             if _sfp["symbol"] in _open_syms:
                 continue
@@ -7263,7 +7260,7 @@ if active_section == "🧪 Paper Trader":
             _sf_tgt2 = float(_sfp.get("target_2") or 0)
             _sf_rr = float(_sfp.get("rr") or 0)
 
-            # FALLBACK trade plan — if reversal_approach didn't
+            # FALLBACK trade plan â€” if reversal_approach didn't
             # generate one, build a sensible anticipatory plan from
             # current price (1.5% stop, 3% target -> 2.0 R:R).
             _sf_has_plan = bool(_sfp.get("has_plan", False)) and (
@@ -7283,7 +7280,7 @@ if active_section == "🧪 Paper Trader":
                         _sf_tgt2 = _sf_cur_price * 0.950   # -5.0%
                     _sf_rr = 2.0
                 else:
-                    # No price available — can't build a plan. Skip.
+                    # No price available â€” can't build a plan. Skip.
                     continue
 
             _sf_setup = {
@@ -7300,7 +7297,7 @@ if active_section == "🧪 Paper Trader":
                 "confidence": int(min(99, _sf_score)),
                 "strength_factor": max(
                     0.4, min(1.0, (_sf_score - 65) / 30.0 + 0.4)),
-                "label": f"{_sf_side} (Setup Forming · "
+                "label": f"{_sf_side} (Setup Forming Â· "
                          f"{_sfp.get('conditions_met', 0)}/7)",
             }
             # 5-tuple matches: (combined, fc_label, trend, align, setup)
@@ -7312,10 +7309,10 @@ if active_section == "🧪 Paper Trader":
             _sf_promoted_syms.add(_sf_sym)
         _scored.sort(key=lambda t: t[0], reverse=True)
 
-        # 🔥 EARLY-MOMENTUM A/B filter — strict mode that hides any
+        # ðŸ”¥ EARLY-MOMENTUM A/B filter â€” strict mode that hides any
         # pick lacking an aligned early-momentum confirmation. Off by
         # default; user toggles it in Paper Trader settings. Paper
-        # trader only — does NOT affect the Live Trading section.
+        # trader only â€” does NOT affect the Live Trading section.
         if bool(pb_state.get("em_filter_on", False)):
             def _em_passes(setup_dict: dict) -> bool:
                 """Aligned early-momentum: score >= 75 AND side matches."""
@@ -7326,17 +7323,17 @@ if active_section == "🧪 Paper Trader":
             _scored = [t for t in _scored if _em_passes(t[4])]
             if _scored:
                 st.caption(
-                    f"🔥 Early-momentum filter ON — showing "
+                    f"ðŸ”¥ Early-momentum filter ON â€” showing "
                     f"{len(_scored)} of {_pre_filter_count} picks "
                     f"(only setups with aligned leading-indicator "
                     f"confirmation).")
             else:
                 st.caption(
-                    f"🔥 Early-momentum filter ON — 0 of "
+                    f"ðŸ”¥ Early-momentum filter ON â€” 0 of "
                     f"{_pre_filter_count} picks have aligned "
                     f"leading-indicator confirmation right now.")
 
-        # GUARANTEE BOTH-DIRECTION PICKS — per user direction "the idea
+        # GUARANTEE BOTH-DIRECTION PICKS â€” per user direction "the idea
         # is to make money, doesn't matter short or long". Take the top
         # 5 LONGs by combined score AND the top 3 SHORTs by combined
         # score, then re-rank by score. This means even in a BEAR
@@ -7351,7 +7348,7 @@ if active_section == "🧪 Paper Trader":
             key=lambda t: t[0], reverse=True)
         # Mix: top 5 longs + top 3 shorts, then re-rank by combined.
         # If one side has fewer, fill in with the other side.
-        # Show up to 12 picks (was 8) — user wants more options when
+        # Show up to 12 picks (was 8) â€” user wants more options when
         # the market is active. Top 7 LONGs + top 5 SHORTs, then re-rank
         # by score. Floor at combined >=72 already filters out weak ones,
         # so this only shows additional picks IF they qualify.
@@ -7365,9 +7362,9 @@ if active_section == "🧪 Paper Trader":
         _bot_picks = _mixed[:12]
 
         # Header + caption removed per user (too noisy). The earlier
-        # "### 🤖 Bot's top picks" header above already labels the board.
+        # "### ðŸ¤– Bot's top picks" header above already labels the board.
 
-        # Re-entry detection — if a coin you JUST closed (within 60 min) is
+        # Re-entry detection â€” if a coin you JUST closed (within 60 min) is
         # back in the setups list, the scanner thinks it qualifies again
         # (pullback into the entry zone, or a fresh continuation setup).
         # We flag these so you don't miss the re-entry opportunity.
@@ -7377,7 +7374,7 @@ if active_section == "🧪 Paper Trader":
         }
 
         # ====================================================================
-        # 💎 SURE SHOT META-FILTER — Highest-Conviction Picks Only
+        # ðŸ’Ž SURE SHOT META-FILTER â€” Highest-Conviction Picks Only
         # ====================================================================
         # User request: "one solid system, no false trades, concrete top picks
         # that wont make me lose money". Honest reality: no system gives 100%
@@ -7394,7 +7391,7 @@ if active_section == "🧪 Paper Trader":
         #   5. NOT extended in 24h (|24h change| < 10%)
         #
         # Expected fire rate: 0-3 per day in most conditions. Rarity is the
-        # edge — when SURE SHOT lights up, you'd be hard-pressed to find a
+        # edge â€” when SURE SHOT lights up, you'd be hard-pressed to find a
         # higher-conviction setup the system can see.
         try:
             _scout_results = run_pattern_scout(timeframe, scan_n=50)
@@ -7430,14 +7427,14 @@ if active_section == "🧪 Paper Trader":
             strong_chips = 0
             chip_names = []
             if (conf >= 80
-                    and fc_label == "forecast confirms · aligned 3/3"):
+                    and fc_label == "forecast confirms Â· aligned 3/3"):
                 strong_chips += 1
-                chip_names.append("🏆 PREMIUM")
+                chip_names.append("ðŸ† PREMIUM")
             radar_info = _radar_by_sym.get(symbol) or {}
             stage = str(radar_info.get("stage") or "").upper()
             if stage in ("COILED", "FRESH"):
                 strong_chips += 1
-                chip_names.append(f"🌀 {stage}")
+                chip_names.append(f"ðŸŒ€ {stage}")
             # long_patterns aligned
             if side == "LONG":
                 try:
@@ -7445,7 +7442,7 @@ if active_section == "🧪 Paper Trader":
                     if (float(lp.get("score") or 50) >= 70
                             and int(lp.get("n_aligned") or 0) >= 2):
                         strong_chips += 1
-                        chip_names.append("🟢 LONG PATTERNS")
+                        chip_names.append("ðŸŸ¢ LONG PATTERNS")
                 except Exception:
                     pass
                 # V-bottom
@@ -7453,7 +7450,7 @@ if active_section == "🧪 Paper Trader":
                     rec = load_recovery(symbol, timeframe)
                     if float(rec.get("score") or 50) >= 75:
                         strong_chips += 1
-                        chip_names.append("🔄 V-BOTTOM")
+                        chip_names.append("ðŸ”„ V-BOTTOM")
                 except Exception:
                     pass
             # RS aligned with side
@@ -7465,7 +7462,7 @@ if active_section == "🧪 Paper Trader":
                         (side == "LONG" and rs_score >= 65)
                         or (side == "SHORT" and rs_score <= 35)):
                     strong_chips += 1
-                    chip_names.append("⚡ RS aligned")
+                    chip_names.append("âš¡ RS aligned")
             except Exception:
                 pass
 
@@ -7514,7 +7511,7 @@ if active_section == "🧪 Paper Trader":
             if is_ss:
                 _sure_shots.append((combined, fc_label, trend, align, s, ss_reasons))
 
-        # SURE SHOT rendering DISABLED — picks that qualify already
+        # SURE SHOT rendering DISABLED â€” picks that qualify already
         # appear at the TOP of Bot's Top Picks (sorted by combined score).
         # Per user: "too many segments". Build a set so we can chip-tag
         # them in the main rendering loop instead.
@@ -7528,24 +7525,24 @@ if active_section == "🧪 Paper Trader":
                 "background:linear-gradient(135deg,#00d4ff,#ffd700);"
                 "-webkit-background-clip:text;-webkit-text-fill-color:"
                 "transparent;background-clip:text;letter-spacing:-0.02em'>"
-                "💎 SURE SHOT</span>"
+                "ðŸ’Ž SURE SHOT</span>"
                 "<span style='color:#aab;font-size:0.84rem'>"
-                f"highest-conviction picks · {len(_sure_shots)} firing now</span>"
+                f"highest-conviction picks Â· {len(_sure_shots)} firing now</span>"
                 "</div>",
                 unsafe_allow_html=True)
             st.caption(
-                "**Strict meta-filter:** combined score ≥88, Pattern Scout "
+                "**Strict meta-filter:** combined score â‰¥88, Pattern Scout "
                 "fires on same coin (aligned side), 2+ confirming chips, "
-                "regime-favorable OR live R:R ≥1.5, NOT extended in 24h. "
+                "regime-favorable OR live R:R â‰¥1.5, NOT extended in 24h. "
                 "**Honest expectation:** 0-3 per day in normal conditions. "
-                "The rarity is the edge — when this fires, every validated "
+                "The rarity is the edge â€” when this fires, every validated "
                 "signal in the system agrees. **No system gives 100% wins** "
-                "— even SURE SHOT will lose ~25-35% of trades. The R:R "
-                "≥1.5 means you stay profitable at 50%+ win rate.")
+                "â€” even SURE SHOT will lose ~25-35% of trades. The R:R "
+                "â‰¥1.5 means you stay profitable at 50%+ win rate.")
             for combined, fc_label, trend, align, s, ss_reasons in _sure_shots:
                 _ss_side = s["side"]
                 _ss_color = "#00d4ff" if _ss_side == "LONG" else "#ff3d57"
-                _ss_emoji = "🟢" if _ss_side == "LONG" else "🩸"
+                _ss_emoji = "ðŸŸ¢" if _ss_side == "LONG" else "ðŸ©¸"
                 _ss_cur = prices.get(s["symbol"]) or float(
                     s.get("entry_low") or 0)
                 with st.container(border=True):
@@ -7557,7 +7554,7 @@ if active_section == "🧪 Paper Trader":
                         f"<div style='display:flex;align-items:center;"
                         f"gap:10px;flex-wrap:wrap;margin-bottom:8px'>"
                         f"<span style='font-size:1.3rem;font-weight:800'>"
-                        f"💎</span>"
+                        f"ðŸ’Ž</span>"
                         f"<span style='font-size:1.1rem;font-weight:800;"
                         f"font-family:Space Grotesk,Inter,sans-serif'>"
                         f"{s['base']}</span>"
@@ -7569,13 +7566,13 @@ if active_section == "🧪 Paper Trader":
                         f"#00d4ff,#ffd700);color:#001122;padding:3px 12px;"
                         f"border-radius:6px;font-size:0.78rem;font-weight:"
                         f"800;box-shadow:0 0 10px rgba(0,212,255,0.4)'>"
-                        f"💎 SURE SHOT · {combined:.0f}</span>"
+                        f"ðŸ’Ž SURE SHOT Â· {combined:.0f}</span>"
                         f"<span style='color:#aab;font-size:0.82rem'>"
                         f"now ${_ss_cur:.4g}</span></div>"
                         f"<div style='color:#c8d2ed;font-size:0.82rem;"
                         f"line-height:1.6'>"
                         f"<b style='color:#00d4ff'>Why this is a SURE SHOT:</b><br>"
-                        f"{' · '.join(ss_reasons)}"
+                        f"{' Â· '.join(ss_reasons)}"
                         f"</div></div>",
                         unsafe_allow_html=True)
             st.markdown(
@@ -7585,30 +7582,30 @@ if active_section == "🧪 Paper Trader":
                 unsafe_allow_html=True)
             st.markdown(
                 "<div style='color:#aab;font-size:0.84rem;margin-bottom:8px'>"
-                "<b>↓ Other strong picks (didn't meet SURE SHOT bar but still tradeable):</b>"
+                "<b>â†“ Other strong picks (didn't meet SURE SHOT bar but still tradeable):</b>"
                 "</div>",
                 unsafe_allow_html=True)
 
         if not _bot_picks:
             st.warning(
-                "**No qualifying picks right now** — the multi-layer "
+                "**No qualifying picks right now** â€” the multi-layer "
                 "scoring is below the floor (combined < 65) for every "
                 "coin on this timeframe. This usually means market "
                 "regime is choppy/low-conviction. **Try:**\n"
-                "• Switch timeframe (top bar): 1h is most reliable, "
+                "â€¢ Switch timeframe (top bar): 1h is most reliable, "
                 "4h gives the bigger-picture setups.\n"
-                "• Check **🔭 SETUPS FORMING** below — coins about to "
+                "â€¢ Check **ðŸ”­ SETUPS FORMING** below â€” coins about to "
                 "trigger.\n"
-                "• Wait. Forcing trades in low-conviction regimes is "
+                "â€¢ Wait. Forcing trades in low-conviction regimes is "
                 "how you lose money.")
         else:
             # ============================================================
-            # TWO SEGMENTS — per user "two segments here so we can pick
+            # TWO SEGMENTS â€” per user "two segments here so we can pick
             # from the best ones".
-            #   1. 🏆 TOP CONVICTION — confirmed signals (alerts engine,
+            #   1. ðŸ† TOP CONVICTION â€” confirmed signals (alerts engine,
             #      pattern scout, convergence) where the actual trigger
             #      candle has printed. Highest reliability.
-            #   2. 🔭 EARLY SETUPS — anticipatory signals (promoted from
+            #   2. ðŸ”­ EARLY SETUPS â€” anticipatory signals (promoted from
             #      Setups Forming) where leading indicators agree but
             #      the trigger candle hasn't printed yet. Buffered stop.
             # User reads the segment header to know WHICH conviction
@@ -7637,12 +7634,12 @@ if active_section == "🧪 Paper Trader":
                      for pk in _anticipatory_segment])
 
             for _row in _segmented_picks:
-                # Segment-header row — render the section divider+title
+                # Segment-header row â€” render the section divider+title
                 if _row[0] == "__HEADER__":
                     _seg_kind = _row[1]
                     _seg_count = _row[2]
                     if _seg_kind == "CONFIRMED":
-                        # Full section header (was inline strip) — Section 1
+                        # Full section header (was inline strip) â€” Section 1
                         st.markdown(
                             "<div style='display:flex;align-items:center;"
                             "gap:14px;margin-top:22px;margin-bottom:10px'>"
@@ -7652,16 +7649,16 @@ if active_section == "🧪 Paper Trader":
                             "-webkit-background-clip:text;"
                             "-webkit-text-fill-color:transparent;"
                             "background-clip:text;letter-spacing:-0.02em'>"
-                            "🏆 TOP CONVICTION</span>"
+                            "ðŸ† TOP CONVICTION</span>"
                             "<span style='color:#aab;font-size:0.82rem'>"
-                            "confirmed signals · trigger candle printed · "
+                            "confirmed signals Â· trigger candle printed Â· "
                             f"{_seg_count} pick"
-                            f"{'s' if _seg_count != 1 else ''} · primary "
+                            f"{'s' if _seg_count != 1 else ''} Â· primary "
                             "size-up board</span>"
                             "</div>",
                             unsafe_allow_html=True)
                     else:  # ANTICIPATORY
-                        # Full section header — Section 2
+                        # Full section header â€” Section 2
                         st.markdown(
                             "<div style='display:flex;align-items:center;"
                             "gap:14px;margin-top:28px;margin-bottom:10px'>"
@@ -7671,23 +7668,23 @@ if active_section == "🧪 Paper Trader":
                             "-webkit-background-clip:text;"
                             "-webkit-text-fill-color:transparent;"
                             "background-clip:text;letter-spacing:-0.02em'>"
-                            "🔭 EARLY SETUPS</span>"
+                            "ðŸ”­ EARLY SETUPS</span>"
                             "<span style='color:#aab;font-size:0.82rem'>"
-                            "anticipatory entries · 1-5 bars before "
-                            f"trigger · {_seg_count} pick"
-                            f"{'s' if _seg_count != 1 else ''} · "
+                            "anticipatory entries Â· 1-5 bars before "
+                            f"trigger Â· {_seg_count} pick"
+                            f"{'s' if _seg_count != 1 else ''} Â· "
                             "lighter size, buffered stop</span>"
                             "</div>",
                             unsafe_allow_html=True)
                     continue
-                # Regular pick row — same 5-tuple unpack as before
+                # Regular pick row â€” same 5-tuple unpack as before
                 # (the extra trailing tag from the segmented list is
-                # ignored — we use the symbol-based set checks).
+                # ignored â€” we use the symbol-based set checks).
                 combined, fc_label, trend, align, s, _seg_tag = _row
                 side = s["side"]
                 side_color = "#2ed47a" if side == "LONG" else "#ff5c5c"
                 conf = int(s.get("confidence", 0) or 0)
-                # Cap to 99 for the visible chip — the raw (uncapped)
+                # Cap to 99 for the visible chip â€” the raw (uncapped)
                 # value above already did its job in the sort, so the
                 # truly excellent setup is at the top of the list. The
                 # chip text just keeps the UI within 0-99.
@@ -7728,17 +7725,17 @@ if active_section == "🧪 Paper Trader":
                         _live_rr = _live_reward_pct / _live_risk_pct
                         if _show_tp2:
                             _live_rr_2 = _live_reward_pct_2 / _live_risk_pct
-                # Entry-zone chip — symmetric signal (user asked for the
-                # red marker back, 2026-05-25 second pass — makes the
+                # Entry-zone chip â€” symmetric signal (user asked for the
+                # red marker back, 2026-05-25 second pass â€” makes the
                 # state immediately scannable on a card).
                 #   Green "At entry zone" when live R:R >= 1.3 means the
                 #     math from the plan is intact: open here = the R:R
                 #     you see on the card.
                 #   Red "Entry zone passed" when live R:R < 1.2 means
                 #     price has drifted past the planned entry and the
-                #     live R:R is degraded. NOT a "don't trade" — the
+                #     live R:R is degraded. NOT a "don't trade" â€” the
                 #     setup can still profit if the rest of the data is
-                #     clean — just a heads-up to check the live R:R
+                #     clean â€” just a heads-up to check the live R:R
                 #     number before clicking.
                 _drift_chip = ""
                 if _live_rr >= 1.3:
@@ -7746,42 +7743,42 @@ if active_section == "🧪 Paper Trader":
                         f"<span style='background:#2ed47a33;color:#2ed47a;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"✓ At entry zone · live R:R {_live_rr:.2f}"
+                        f"âœ“ At entry zone Â· live R:R {_live_rr:.2f}"
                         f"</span>")
                 elif 0 < _live_rr < 1.2:
                     _drift_chip = (
                         f"<span style='background:#ff5c5c33;color:#ff5c5c;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"⚠ Entry zone passed · live R:R {_live_rr:.2f}"
+                        f"âš  Entry zone passed Â· live R:R {_live_rr:.2f}"
                         f"</span>")
                 sid = f"{s['symbol']}:{side}"
                 alive_min = (now_ts - sp.get(sid, now_ts)) / 60.0
                 alive_txt = (f"alive {alive_min:.0f} min"
                              if alive_min >= 1 else "just appeared")
                 hold = _hold_horizon(timeframe)
-                proof = (" · ".join(s.get("proof", [])[:2])
+                proof = (" Â· ".join(s.get("proof", [])[:2])
                          if s.get("proof") else "multiple signals align")
                 rr = float(s.get("rr") or 0.0)
                 fc = _fc_by_sym.get(s["symbol"]) or {}
 
-                # 🏆 PREMIUM tier — scanner conf >= 80 AND forecast aligned
+                # ðŸ† PREMIUM tier â€” scanner conf >= 80 AND forecast aligned
                 # 3/3. Empirically the most reliable setups; the badge
                 # exists so the user can spot them at a glance without
                 # reading the scores. PREMIUM cards also get a second
                 # button to open at the deeper TP2 target (optional).
                 premium_chip = ""
                 if (conf >= 80
-                        and fc_label == "forecast confirms · aligned 3/3"):
+                        and fc_label == "forecast confirms Â· aligned 3/3"):
                     premium_chip = (
                         f"<span style='background:linear-gradient(90deg,"
                         f"#e0a92b,#ffd700);color:#1a1a1a;"
                         f"padding:2px 10px;border-radius:5px;font-size:"
                         f"0.72rem;font-weight:800;margin-left:4px;"
                         f"box-shadow:0 0 8px #e0a92b66'>"
-                        f"🏆 PREMIUM</span>")
+                        f"ðŸ† PREMIUM</span>")
 
-                # ⚡ CONVERGENCE chip — pick qualifies under the validated
+                # âš¡ CONVERGENCE chip â€” pick qualifies under the validated
                 # convergence formula (Pattern Scout + Setups Forming +
                 # regime + 4h trend + BTC corr). Folded in here so the
                 # standalone CONVERGENCE segment can stay hidden.
@@ -7794,9 +7791,9 @@ if active_section == "🧪 Paper Trader":
                         f"padding:2px 10px;border-radius:5px;font-size:"
                         f"0.72rem;font-weight:800;margin-left:4px;"
                         f"box-shadow:0 0 10px rgba(255,215,0,0.5)'>"
-                        f"⚡ CONVERGENCE</span>")
+                        f"âš¡ CONVERGENCE</span>")
 
-                # 💎 SURE SHOT chip — passed the strict meta-filter
+                # ðŸ’Ž SURE SHOT chip â€” passed the strict meta-filter
                 # (score >= 88, Pattern Scout agrees, 2+ confirming chips,
                 # regime-OK or R:R >= 1.5, not extended).
                 sure_shot_chip = ""
@@ -7807,11 +7804,11 @@ if active_section == "🧪 Paper Trader":
                         f"padding:2px 10px;border-radius:5px;font-size:"
                         f"0.72rem;font-weight:800;margin-left:4px;"
                         f"box-shadow:0 0 10px rgba(0,212,255,0.5)'>"
-                        f"💎 SURE SHOT</span>")
+                        f"ðŸ’Ž SURE SHOT</span>")
 
-                # 🔭 SETUP FORMING chip — promoted from the Setups
+                # ðŸ”­ SETUP FORMING chip â€” promoted from the Setups
                 # Forming watchlist (STRONG WATCH with 5+/7 conditions).
-                # Tells user "this is an ANTICIPATORY entry — leading
+                # Tells user "this is an ANTICIPATORY entry â€” leading
                 # signals agree but the actual trigger candle hasn't
                 # printed yet". Buffered stop in the trade plan.
                 setup_forming_chip = ""
@@ -7822,32 +7819,32 @@ if active_section == "🧪 Paper Trader":
                         f"padding:2px 10px;border-radius:5px;font-size:"
                         f"0.72rem;font-weight:800;margin-left:4px;"
                         f"box-shadow:0 0 8px rgba(91,142,255,0.4)'>"
-                        f"🔭 SETUP FORMING</span>")
+                        f"ðŸ”­ SETUP FORMING</span>")
 
                 # ============================================================
-                # 🏆 CONVICTION TIER — multi-layer fusion badge.
+                # ðŸ† CONVICTION TIER â€” multi-layer fusion badge.
                 # ============================================================
                 # Tells the user at a glance how many top conviction
                 # layers agree on this pick. The MOST important chip on
-                # the card — it sits leftmost in render order below.
+                # the card â€” it sits leftmost in render order below.
                 #
-                # MAX  (⚡⚡⚡): combined >=90 AND (CONVERGENCE OR SURE SHOT)
-                #               — every top layer agrees, max conviction.
-                # HIGH (⚡⚡)  : combined >=85 AND any one of (CONVERGENCE,
+                # MAX  (âš¡âš¡âš¡): combined >=90 AND (CONVERGENCE OR SURE SHOT)
+                #               â€” every top layer agrees, max conviction.
+                # HIGH (âš¡âš¡)  : combined >=85 AND any one of (CONVERGENCE,
                 #               SURE SHOT, PREMIUM)
-                # STRONG (⚡) : combined >=80 AND forecast aligned 3/3
+                # STRONG (âš¡) : combined >=80 AND forecast aligned 3/3
                 # STANDARD  : combined >=72 (passes alert floor)
                 _conv_score = combined  # combined score (multi-layer)
                 _conv_in_convergence = s["symbol"] in _convergence_syms
                 _conv_in_sureshot = s["symbol"] in _sure_shot_syms
                 _conv_is_premium = bool(premium_chip)
                 _conv_forecast_aligned = (
-                    fc_label == "forecast confirms · aligned 3/3")
+                    fc_label == "forecast confirms Â· aligned 3/3")
 
                 if (_conv_score >= 90
                         and (_conv_in_convergence or _conv_in_sureshot)):
                     _conv_tier = "MAX"
-                    _conv_emoji = "⚡⚡⚡"
+                    _conv_emoji = "âš¡âš¡âš¡"
                     _conv_grad = ("linear-gradient(90deg,"
                                   "#ffd700,#ff006e,#8b5cf6,#00d4ff)")
                     _conv_glow = "0 0 14px rgba(255,215,0,0.6)"
@@ -7856,19 +7853,19 @@ if active_section == "🧪 Paper Trader":
                         and (_conv_in_convergence
                              or _conv_in_sureshot or _conv_is_premium)):
                     _conv_tier = "HIGH"
-                    _conv_emoji = "⚡⚡"
+                    _conv_emoji = "âš¡âš¡"
                     _conv_grad = "linear-gradient(90deg,#ff006e,#8b5cf6)"
                     _conv_glow = "0 0 10px rgba(139,92,246,0.5)"
                     _conv_text = "#fff"
                 elif _conv_score >= 80 and _conv_forecast_aligned:
                     _conv_tier = "STRONG"
-                    _conv_emoji = "⚡"
+                    _conv_emoji = "âš¡"
                     _conv_grad = "linear-gradient(90deg,#00d4ff,#2ed47a)"
                     _conv_glow = "0 0 8px rgba(0,212,255,0.4)"
                     _conv_text = "#001122"
                 else:
                     _conv_tier = "STANDARD"
-                    _conv_emoji = "⚪"
+                    _conv_emoji = "âšª"
                     _conv_grad = "rgba(255,255,255,0.06)"
                     _conv_glow = "none"
                     _conv_text = "#aab"
@@ -7881,13 +7878,13 @@ if active_section == "🧪 Paper Trader":
                     f"{_conv_emoji} {_conv_tier} CONVICTION</span>")
 
                 # ============================================================
-                # 🛡️ SUPPORT / RESISTANCE ZONES
+                # ðŸ›¡ï¸ SUPPORT / RESISTANCE ZONES
                 # ============================================================
                 # Show the nearest S/R zone on each side of current price so
                 # the user can sanity-check the trade plan:
-                #   LONG  — nearest resistance = realistic TP ceiling
-                #   SHORT — nearest support    = realistic TP floor
-                # Strength = touches × proximity (0-100). 70+ = strong zone.
+                #   LONG  â€” nearest resistance = realistic TP ceiling
+                #   SHORT â€” nearest support    = realistic TP floor
+                # Strength = touches Ã— proximity (0-100). 70+ = strong zone.
                 _sr = load_support_resistance(s["symbol"], timeframe)
                 _sr_html = ""
                 _sup_z = _sr.get("nearest_support")
@@ -7896,23 +7893,23 @@ if active_section == "🧪 Paper Trader":
                     _sr_parts = []
                     if _sup_z:
                         _sup_strong = (
-                            "🟢" if _sup_z["strength"] >= 70 else "🔵")
+                            "ðŸŸ¢" if _sup_z["strength"] >= 70 else "ðŸ”µ")
                         _sr_parts.append(
                             f"<span style='color:#2ed47a;font-weight:700'>"
                             f"{_sup_strong} S</span> "
                             f"<b>{fmt_price(_sup_z['price'])}</b> "
                             f"<span style='color:#888'>"
-                            f"({_sup_z['touches']}× · "
+                            f"({_sup_z['touches']}Ã— Â· "
                             f"{_sup_z['distance_pct']:+.1f}%)</span>")
                     if _res_z:
                         _res_strong = (
-                            "🔴" if _res_z["strength"] >= 70 else "🟠")
+                            "ðŸ”´" if _res_z["strength"] >= 70 else "ðŸŸ ")
                         _sr_parts.append(
                             f"<span style='color:#ff5c5c;font-weight:700'>"
                             f"{_res_strong} R</span> "
                             f"<b>{fmt_price(_res_z['price'])}</b> "
                             f"<span style='color:#888'>"
-                            f"({_res_z['touches']}× · "
+                            f"({_res_z['touches']}Ã— Â· "
                             f"+{_res_z['distance_pct']:.1f}%)</span>")
                     _sr_html = (
                         f"<div style='color:#aab;font-size:0.76rem;"
@@ -7921,36 +7918,36 @@ if active_section == "🧪 Paper Trader":
                         f"border-left:2px solid rgba(91,142,255,0.25);"
                         f"border-radius:4px'>"
                         f"<span style='color:#6e8bff;font-weight:700;"
-                        f"margin-right:8px'>🛡️ ZONES</span>"
-                        f"{' · '.join(_sr_parts)}"
+                        f"margin-right:8px'>ðŸ›¡ï¸ ZONES</span>"
+                        f"{' Â· '.join(_sr_parts)}"
                         f"</div>")
 
                 # Forecast confirmation chip
                 fc_chip = ""
-                if fc_label == "forecast confirms · aligned 3/3":
+                if fc_label == "forecast confirms Â· aligned 3/3":
                     fc_chip = (
                         f"<span style='background:#2ed47a33;color:#2ed47a;"
                         f"padding:2px 8px;border-radius:5px;font-size:0.7rem;"
                         f"font-weight:700;margin-left:4px'>"
-                        f"✓ Forecast aligned 3/3</span>")
+                        f"âœ“ Forecast aligned 3/3</span>")
                 elif fc_label == "forecast confirms":
                     fc_chip = (
                         f"<span style='background:#6e8bff33;color:#6e8bff;"
                         f"padding:2px 8px;border-radius:5px;font-size:0.7rem;"
                         f"font-weight:700;margin-left:4px'>"
-                        f"✓ Forecast confirms</span>")
+                        f"âœ“ Forecast confirms</span>")
                 elif fc_label == "forecast disagrees":
                     fc_chip = (
                         f"<span style='background:#e0a92b33;color:#e0a92b;"
                         f"padding:2px 8px;border-radius:5px;font-size:0.7rem;"
                         f"font-weight:700;margin-left:4px'>"
-                        f"⚠ Forecast disagrees</span>")
+                        f"âš  Forecast disagrees</span>")
 
                 # Higher-TF weekly trend is folded silently into the score
-                # above (+5 aligned / -8 counter); no visual chip — the
+                # above (+5 aligned / -8 counter); no visual chip â€” the
                 # ranking does the work without cluttering the card.
 
-                # Re-entry badge — flag setups that re-qualified after a
+                # Re-entry badge â€” flag setups that re-qualified after a
                 # recent close so the user can take the second leg.
                 reentry_chip = ""
                 if s["symbol"] in _recent_close_syms:
@@ -7958,9 +7955,9 @@ if active_section == "🧪 Paper Trader":
                         f"<span style='background:#e0a92b33;color:#e0a92b;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"↻ Re-entry available</span>")
+                        f"â†» Re-entry available</span>")
 
-                # 🌀 COILED chip — Breakout Radar says this setup is
+                # ðŸŒ€ COILED chip â€” Breakout Radar says this setup is
                 # "loaded but not fired yet". The closest honest signal
                 # for "about to explode". Showing this visually so the
                 # user can spot the pre-breakout candidates instantly.
@@ -7972,26 +7969,26 @@ if active_section == "🧪 Paper Trader":
                         f"<span style='background:#6e8bff33;color:#6e8bff;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:800;margin-left:4px'>"
-                        f"🌀 COILED · loaded</span>")
+                        f"ðŸŒ€ COILED Â· loaded</span>")
                 elif _pick_stage == "FRESH":
                     coiled_chip = (
                         f"<span style='background:#2ed47a22;color:#2ed47a;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"⚡ FRESH · breaking out</span>")
+                        f"âš¡ FRESH Â· breaking out</span>")
                 elif _pick_stage == "EXTENDED":
                     coiled_chip = (
                         f"<span style='background:#8b8d9833;color:#8b8d98;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"📉 EXTENDED · move spent</span>")
+                        f"ðŸ“‰ EXTENDED Â· move spent</span>")
 
-                # 🔥 EARLY MOMENTUM chip — Phase A MVP. Displays a
+                # ðŸ”¥ EARLY MOMENTUM chip â€” Phase A MVP. Displays a
                 # parallel leading-indicator score (CVD divergence,
                 # TTM Squeeze fire, ROC-of-ROC, SMC liquidity sweep
                 # gated by a Hurst regime check). Score >= 75 fires
                 # when its side aligns with the setup's side. This is
-                # DISPLAY-ONLY for now — does NOT feed combined_score
+                # DISPLAY-ONLY for now â€” does NOT feed combined_score
                 # or the live broker gate. Lets the user A/B test
                 # whether the new leading signals correlate with wins
                 # before we trust them with the ranking.
@@ -8001,35 +7998,35 @@ if active_section == "🧪 Paper Trader":
                 _em_side = str(_em.get("side") or "NEUTRAL")
                 _em_flags = list(_em.get("flags") or [])
                 if _em_score >= 75 and _em_side == side:
-                    # Aligned with setup direction — strongest read
+                    # Aligned with setup direction â€” strongest read
                     flag_text = ""
                     if "squeeze_fire" in _em_flags:
-                        flag_text = " · 🌀 squeeze fired"
+                        flag_text = " Â· ðŸŒ€ squeeze fired"
                     elif "liquidity_sweep" in _em_flags:
-                        flag_text = " · 🎯 sweep"
+                        flag_text = " Â· ðŸŽ¯ sweep"
                     elif "cvd_divergence" in _em_flags:
-                        flag_text = " · 📊 CVD div"
+                        flag_text = " Â· ðŸ“Š CVD div"
                     elif "accel_inflection" in _em_flags:
-                        flag_text = " · 📈 accel"
+                        flag_text = " Â· ðŸ“ˆ accel"
                     early_chip = (
                         f"<span style='background:linear-gradient(90deg,"
                         f"#ff6b35,#ffa657);color:#1a0c00;"
                         f"padding:2px 10px;border-radius:5px;font-size:"
                         f"0.72rem;font-weight:800;margin-left:4px;"
                         f"box-shadow:0 0 6px #ff6b3566'>"
-                        f"🔥 EARLY · {_em_score:.0f}{flag_text}</span>")
+                        f"ðŸ”¥ EARLY Â· {_em_score:.0f}{flag_text}</span>")
                 elif _em_score <= 25 and _em_side != side \
                         and _em_side != "NEUTRAL":
-                    # Strong opposite-side early signal — warning chip
+                    # Strong opposite-side early signal â€” warning chip
                     early_chip = (
                         f"<span style='background:#ff5c5c33;color:#ff5c5c;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"⚠ Early-mom opposes ({_em_score:.0f})</span>")
+                        f"âš  Early-mom opposes ({_em_score:.0f})</span>")
 
-                # 🔄 V-BOTTOM RECOVERY chip — fires on the rare-but-high-
+                # ðŸ”„ V-BOTTOM RECOVERY chip â€” fires on the rare-but-high-
                 # edge setup (75% win, +2.26% avg per backtest). Catches
-                # the JTO/INJ-style sharp drawdown → capitulation → strong
+                # the JTO/INJ-style sharp drawdown â†’ capitulation â†’ strong
                 # green reversal pattern. LONG setups only by design.
                 recovery_chip = ""
                 if side == "LONG":
@@ -8037,7 +8034,7 @@ if active_section == "🧪 Paper Trader":
                     _rec_score = float(_rec.get("score") or 50)
                     _rec_flags = list(_rec.get("flags") or [])
                     if _rec_score >= 80:
-                        # Strong V-bottom — distinctive cyan-gold gradient
+                        # Strong V-bottom â€” distinctive cyan-gold gradient
                         recovery_chip = (
                             f"<span style='background:linear-gradient("
                             f"90deg,#00d4ff,#ffd700);color:#001122;"
@@ -8045,16 +8042,16 @@ if active_section == "🧪 Paper Trader":
                             f"font-size:0.72rem;font-weight:800;"
                             f"margin-left:4px;box-shadow:0 0 10px "
                             f"#00d4ff66;'>"
-                            f"🔄 V-BOTTOM · {_rec_score:.0f}</span>")
+                            f"ðŸ”„ V-BOTTOM Â· {_rec_score:.0f}</span>")
                     elif _rec_score >= 70:
                         recovery_chip = (
                             f"<span style='background:#00d4ff22;"
                             f"color:#00d4ff;padding:2px 8px;"
                             f"border-radius:5px;font-size:0.7rem;"
                             f"font-weight:700;margin-left:4px'>"
-                            f"🔄 Recovery · {_rec_score:.0f}</span>")
+                            f"ðŸ”„ Recovery Â· {_rec_score:.0f}</span>")
 
-                # 🟢 PROVEN LONG PATTERNS chip — only on LONG setups
+                # ðŸŸ¢ PROVEN LONG PATTERNS chip â€” only on LONG setups
                 long_chip = ""
                 if side == "LONG":
                     _lp = load_long_patterns(s["symbol"], timeframe)
@@ -8072,7 +8069,7 @@ if active_section == "🧪 Paper Trader":
                             flag_lbls.append("HL")
                         if "engulfing_support" in _lp_flags:
                             flag_lbls.append("engulf")
-                        flag_text = (" · " + " · ".join(flag_lbls[:2])
+                        flag_text = (" Â· " + " Â· ".join(flag_lbls[:2])
                                      if flag_lbls else "")
                         # Stronger colors for multi-pattern alignment
                         if _lp_n >= 2:
@@ -8083,22 +8080,22 @@ if active_section == "🧪 Paper Trader":
                                 f"font-size:0.72rem;font-weight:800;"
                                 f"margin-left:4px;box-shadow:0 0 6px "
                                 f"#34c75966'>"
-                                f"🟢 LONG · {_lp_score:.0f}{flag_text}</span>")
+                                f"ðŸŸ¢ LONG Â· {_lp_score:.0f}{flag_text}</span>")
                         else:
                             long_chip = (
                                 f"<span style='background:#2ed47a22;"
                                 f"color:#2ed47a;padding:2px 8px;"
                                 f"border-radius:5px;font-size:0.7rem;"
                                 f"font-weight:700;margin-left:4px'>"
-                                f"🟢 LONG · {_lp_score:.0f}{flag_text}</span>")
+                                f"ðŸŸ¢ LONG Â· {_lp_score:.0f}{flag_text}</span>")
 
-                # ⚡ RS LEADER chip (Phase B) — relative strength vs BTC.
+                # âš¡ RS LEADER chip (Phase B) â€” relative strength vs BTC.
                 # When the alt is significantly out-performing BTC across
                 # short/med/long windows (z-score >= +0.5), capital is
                 # rotating in BEFORE the broader trend confirms. This is
-                # a leading rotation signal — particularly useful when
+                # a leading rotation signal â€” particularly useful when
                 # BTC is chopping but specific alts are leading.
-                # Mirror chip ⚠ RS LAGGARD fires when the alt is
+                # Mirror chip âš  RS LAGGARD fires when the alt is
                 # significantly UNDER-performing BTC.
                 rs_chip = ""
                 _rs = load_rs_vs_btc(s["symbol"], timeframe)
@@ -8112,7 +8109,7 @@ if active_section == "🧪 Paper Trader":
                         f"padding:2px 10px;border-radius:5px;font-size:"
                         f"0.72rem;font-weight:800;margin-left:4px;"
                         f"box-shadow:0 0 6px #6e8bff66'>"
-                        f"⚡ RS LEADER · z{_rs_z:+.1f}</span>")
+                        f"âš¡ RS LEADER Â· z{_rs_z:+.1f}</span>")
                 elif _rs_score <= 30 and _rs_side == "SHORT" and side == "SHORT":
                     rs_chip = (
                         f"<span style='background:linear-gradient(90deg,"
@@ -8120,22 +8117,22 @@ if active_section == "🧪 Paper Trader":
                         f"padding:2px 10px;border-radius:5px;font-size:"
                         f"0.72rem;font-weight:800;margin-left:4px;"
                         f"box-shadow:0 0 6px #ff5c5c66'>"
-                        f"⚡ RS LAGGARD · z{_rs_z:+.1f}</span>")
+                        f"âš¡ RS LAGGARD Â· z{_rs_z:+.1f}</span>")
                 elif _rs_score >= 65 and _rs_side == "LONG" and side == "SHORT":
-                    # Setup is SHORT but RS says the alt is leading — warn
+                    # Setup is SHORT but RS says the alt is leading â€” warn
                     rs_chip = (
                         f"<span style='background:#e0a92b33;color:#e0a92b;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"⚠ RS opposes (z{_rs_z:+.1f})</span>")
+                        f"âš  RS opposes (z{_rs_z:+.1f})</span>")
 
-                # 💱 DERIV chip (Phase C) — derivatives velocity. Funding
+                # ðŸ’± DERIV chip (Phase C) â€” derivatives velocity. Funding
                 # ROC + OI compression. Useful at sentiment turns: when
                 # funding flips sharply, the contrarian read often catches
                 # squeezes ahead of the price move.
                 # Per backtest findings: SHORT-side derivatives signals
                 # have edge; LONG-side does not. Chip styling reflects
-                # this — SHORT fires get the strong gradient, LONG fires
+                # this â€” SHORT fires get the strong gradient, LONG fires
                 # only get a subtle hint chip.
                 dv_chip = ""
                 _dv = load_derivatives_velocity(s["symbol"], timeframe)
@@ -8145,23 +8142,23 @@ if active_section == "🧪 Paper Trader":
                 if _dv_score <= 30 and _dv_side == "SHORT" and side == "SHORT":
                     flag_text = ""
                     if "funding_flip" in _dv_flags:
-                        flag_text = " · ⚡ funding flip"
+                        flag_text = " Â· âš¡ funding flip"
                     elif "oi_compression" in _dv_flags:
-                        flag_text = " · 🌀 OI coil"
+                        flag_text = " Â· ðŸŒ€ OI coil"
                     dv_chip = (
                         f"<span style='background:linear-gradient(90deg,"
                         f"#ff5c5c,#e0a92b);color:#06121f;"
                         f"padding:2px 10px;border-radius:5px;font-size:"
                         f"0.72rem;font-weight:800;margin-left:4px;"
                         f"box-shadow:0 0 6px #ff5c5c66'>"
-                        f"💱 DERIV · {_dv_score:.0f}{flag_text}</span>")
+                        f"ðŸ’± DERIV Â· {_dv_score:.0f}{flag_text}</span>")
                 elif _dv_score >= 70 and _dv_side == "LONG" and side == "LONG":
-                    # LONG signals showed no edge in backtests — mute styling
+                    # LONG signals showed no edge in backtests â€” mute styling
                     dv_chip = (
                         f"<span style='background:#6e8bff22;color:#6e8bff;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"💱 deriv {_dv_score:.0f} (long, weak edge)</span>")
+                        f"ðŸ’± deriv {_dv_score:.0f} (long, weak edge)</span>")
                 elif (_dv_score >= 70 and _dv_side == "LONG"
                       and side == "SHORT") or (
                       _dv_score <= 30 and _dv_side == "SHORT"
@@ -8170,13 +8167,13 @@ if active_section == "🧪 Paper Trader":
                         f"<span style='background:#e0a92b33;color:#e0a92b;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"⚠ deriv opposes ({_dv_score:.0f})</span>")
+                        f"âš  deriv opposes ({_dv_score:.0f})</span>")
 
                 # Forecast per-horizon line
                 fc_line = ""
                 if fc.get("horizons"):
                     horizon_bits = []
-                    arrow = {"Up": "▲", "Down": "▼", "Sideways": "▬"}
+                    arrow = {"Up": "â–²", "Down": "â–¼", "Sideways": "â–¬"}
                     for _tf in ("15m", "1h", "4h"):
                         h = fc["horizons"].get(_tf)
                         if not h:
@@ -8187,13 +8184,13 @@ if active_section == "🧪 Paper Trader":
                         horizon_bits.append(
                             f"<span style='color:#aab'>{_tf}</span> "
                             f"<span style='color:{ac};font-weight:700'>"
-                            f"{arrow.get(h['direction'], '·')} "
+                            f"{arrow.get(h['direction'], 'Â·')} "
                             f"{h['move_pct']:+.2f}%</span>")
                     if horizon_bits:
                         fc_line = (
                             f"<div style='color:#9aa0b4;font-size:0.76rem;"
-                            f"margin-top:2px'>📈 forecast — "
-                            + " · ".join(horizon_bits) + "</div>")
+                            f"margin-top:2px'>ðŸ“ˆ forecast â€” "
+                            + " Â· ".join(horizon_bits) + "</div>")
 
                 with st.container(border=True):
                     pa, pb = st.columns([6, 1])
@@ -8208,7 +8205,7 @@ if active_section == "🧪 Paper Trader":
                         f"<span style='background:{str_color}33;"
                         f"color:{str_color};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:700'>"
-                        f"{str_label} · {combined_display}</span>"
+                        f"{str_label} Â· {combined_display}</span>"
                         f"{conviction_chip}"
                         f"{convergence_chip}{sure_shot_chip}"
                         f"{setup_forming_chip}{premium_chip}"
@@ -8216,42 +8213,42 @@ if active_section == "🧪 Paper Trader":
                         f"{early_chip}{long_chip}{rs_chip}{dv_chip}"
                         f"{fc_chip}{reentry_chip}{_drift_chip}"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
-                        f"scanner {conf}% · R:R {rr:.1f} · "
+                        f"scanner {conf}% Â· R:R {rr:.1f} Â· "
                         f"{alive_txt}</span></div>"
                         f"<div style='color:#aab;font-size:0.78rem;"
                         f"margin-top:4px'>"
-                        f"hold: <b>{hold}</b> · now "
-                        f"<b>{fmt_price(_cur)}</b> · entry zone "
-                        f"{fmt_price(s.get('entry_low', 0))} · "
+                        f"hold: <b>{hold}</b> Â· now "
+                        f"<b>{fmt_price(_cur)}</b> Â· entry zone "
+                        f"{fmt_price(s.get('entry_low', 0))} Â· "
                         f"stop {fmt_price(_stop)} "
                         f"<span style='color:#ff5c5c'>"
-                        f"(−{_live_risk_pct:.1f}%)</span> · "
+                        f"(âˆ’{_live_risk_pct:.1f}%)</span> Â· "
                         # PREMIUM cards show TP1 (default exit, green)
                         # and TP2 (optional deeper target, gold).
                         # Non-PREMIUM cards show just TP1.
                         + (
                             f"target 1 {fmt_price(_tgt)} "
                             f"<span style='color:#2ed47a'>"
-                            f"(+{_live_reward_pct:.1f}%)</span> · "
+                            f"(+{_live_reward_pct:.1f}%)</span> Â· "
                             f"target 2 {fmt_price(_tgt_2)} "
                             f"<span style='color:#e0a92b'>"
-                            f"(+{_live_reward_pct_2:.1f}%)</span> · "
+                            f"(+{_live_reward_pct_2:.1f}%)</span> Â· "
                             f"R:R "
                             f"<b>{_live_rr:.2f}</b> "
                             f"/ <b>{_live_rr_2:.2f}</b>"
                             if _show_tp2 else
                             f"target {fmt_price(_tgt)} "
                             f"<span style='color:#2ed47a'>"
-                            f"(+{_live_reward_pct:.1f}%)</span> · "
+                            f"(+{_live_reward_pct:.1f}%)</span> Â· "
                             f"live R:R <b>{_live_rr:.2f}</b>"
                         )
                         + f"</div>"
                         f"{_sr_html}"
                         f"<div style='color:#9aa0b4;font-size:0.78rem;"
-                        f"margin-top:2px'>proof — {md_safe(proof)}</div>"
+                        f"margin-top:2px'>proof â€” {md_safe(proof)}</div>"
                         f"{fc_line}",
                         unsafe_allow_html=True)
-                    # Default button — opens at TP1 (the standard target).
+                    # Default button â€” opens at TP1 (the standard target).
                     # On PREMIUM-eligible setups it also activates the
                     # chase-TP2 trailing: if price hits TP1 the stop
                     # trails up to lock in the win and the target
@@ -8260,14 +8257,14 @@ if active_section == "🧪 Paper Trader":
                                  f"(~5-7%, chase TP2 if trend holds)"
                                  if s.get("premium_eligible") else
                                  f"Open {side} {s['base']} at TP1 (~5-7%)")
-                    if pb.button("📥", key=f"pb_pick_{sid}",
+                    if pb.button("ðŸ“¥", key=f"pb_pick_{sid}",
                                  help=_btn_help,
                                  use_container_width=True):
                         _open_setup = dict(s)
                         if s.get("premium_eligible"):
                             _open_setup["chase_tp2_eligible"] = True
                         # Strength factor scales the notional cap by
-                        # the combined score — top picks deploy the
+                        # the combined score â€” top picks deploy the
                         # full cap, weaker picks get less. Linear from
                         # 0.4 at combined 72 to 1.0 at combined 95+.
                         _open_setup["strength_factor"] = max(
@@ -8281,21 +8278,21 @@ if active_section == "🧪 Paper Trader":
                                              timeframe)
                             paper_bot.save_state(PAPER_BOT_FILE, pb_state)
                             _msg_suffix = (
-                                " → TP1 · chases TP2"
+                                " â†’ TP1 Â· chases TP2"
                                 if s.get("premium_eligible") else
-                                " → TP1")
+                                " â†’ TP1")
                             st.toast(
-                                f"📥 Opened {side} {_opened['base']} @ "
+                                f"ðŸ“¥ Opened {side} {_opened['base']} @ "
                                 f"{fmt_price(_opened['entry'])}{_msg_suffix}",
-                                icon="🏆" if s.get("premium_eligible")
-                                     else "🧪")
+                                icon="ðŸ†" if s.get("premium_eligible")
+                                     else "ðŸ§ª")
                             st.rerun()
-                    # Optional TP2 button — only on PREMIUM-eligible cards.
+                    # Optional TP2 button â€” only on PREMIUM-eligible cards.
                     # Opens the same setup but with the target swapped to
                     # TP2 (~7.5-10%), for users who want to ride the
                     # deeper target on strong setups.
                     if _show_tp2:
-                        if pb.button("🏆 TP2", key=f"pb_tp2_{sid}",
+                        if pb.button("ðŸ† TP2", key=f"pb_tp2_{sid}",
                                      help=f"Open {side} {s['base']} aiming "
                                           f"for TP2 (~7.5-10%) instead of "
                                           f"TP1. Strong setups only.",
@@ -8304,7 +8301,7 @@ if active_section == "🧪 Paper Trader":
                             _setup_tp2["target"] = float(_tgt_2)
                             _setup_tp2["rr"] = float(
                                 s.get("rr_2") or s.get("rr") or 0)
-                            # Premium-only button → use full strength
+                            # Premium-only button â†’ use full strength
                             # factor for the size allocation.
                             _setup_tp2["strength_factor"] = max(
                                 0.4, min(1.0,
@@ -8319,30 +8316,30 @@ if active_section == "🧪 Paper Trader":
                                 paper_bot.save_state(
                                     PAPER_BOT_FILE, pb_state)
                                 st.toast(
-                                    f"🏆 Opened {side} {_opened['base']} @ "
-                                    f"{fmt_price(_opened['entry'])} → TP2",
-                                    icon="🏆")
+                                    f"ðŸ† Opened {side} {_opened['base']} @ "
+                                    f"{fmt_price(_opened['entry'])} â†’ TP2",
+                                    icon="ðŸ†")
                                 st.rerun()
 
-        # ---- Movers right now — coins already running with volume --------
+        # ---- Movers right now â€” coins already running with volume --------
         # Top picks only show "setups at entry" (conf>=70 + valid plan).
         # Coins already up 5-10 percent on a volume surge often don't pass
         # that filter even though they are tradable. Surface them here so
-        # the user does not miss INJ-style movers — clearly labelled as
+        # the user does not miss INJ-style movers â€” clearly labelled as
         # chase candidates with momentum, NOT pristine entries.
         _pick_syms = {pk[4]["symbol"] for pk in _bot_picks}
         _surges_all = auto_ad.get("surges") or []
         _movers = [m for m in _surges_all
                    if m["symbol"] not in _open_syms
                    and m["symbol"] not in _pick_syms][:5]
-        # Movers section DISABLED per user — too many sections. Volume
+        # Movers section DISABLED per user â€” too many sections. Volume
         # surges already factored into combined_score for picks. Flip
         # to True to restore the standalone Movers list.
         if False and _movers:
-            st.markdown("#### 🔥 Movers right now")
+            st.markdown("#### ðŸ”¥ Movers right now")
             st.caption("Coins already running on a volume surge "
-                       "(≥ 2× average). These don't have a fresh entry "
-                       "zone like the top picks — they're chase candidates "
+                       "(â‰¥ 2Ã— average). These don't have a fresh entry "
+                       "zone like the top picks â€” they're chase candidates "
                        "with momentum, so use a tighter stop and don't "
                        "commit full risk.")
             for m in _movers:
@@ -8351,7 +8348,7 @@ if active_section == "🧪 Paper Trader":
                 lbl = str(m.get("label") or "NEUTRAL")
                 bias = ("LONG" if "LONG" in lbl
                         else "SHORT" if "SHORT" in lbl
-                        else "—")
+                        else "â€”")
                 bias_col = ("#2ed47a" if bias == "LONG"
                             else "#ff5c5c" if bias == "SHORT"
                             else "#8b8d98")
@@ -8369,37 +8366,37 @@ if active_section == "🧪 Paper Trader":
                         f"<span style='background:#e0a92b33;color:#e0a92b;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700'>"
-                        f"🔥 {vr:.1f}× volume</span>"
+                        f"ðŸ”¥ {vr:.1f}Ã— volume</span>"
                         f"<span style='color:{ch_col};font-weight:700;"
                         f"font-size:0.82rem'>{ch:+.2f}% 24h</span>"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
-                        f"· scanner conf {mconf}%</span></div>",
+                        f"Â· scanner conf {mconf}%</span></div>",
                         unsafe_allow_html=True)
 
         # ============================================================
-        # 🔭 SETUPS FORMING — Compact directional intel (NOT openable)
+        # ðŸ”­ SETUPS FORMING â€” Compact directional intel (NOT openable)
         # ============================================================
         # User: "setups forming was good ... as it gives the direction".
         # This is the leading-indicator watchlist showing coins where
         # reversal pre-conditions are forming on the current timeframe.
         # By the time a hammer/shooting-star prints, the rejection
-        # already happened — this catches the 1-5 bar lead-up so the
+        # already happened â€” this catches the 1-5 bar lead-up so the
         # user knows WHERE direction is shifting and can position
         # accordingly. Compact one-line-per-coin format (NOT a card
-        # board) so it doesn't bloat the page. NO trade buttons —
+        # board) so it doesn't bloat the page. NO trade buttons â€”
         # this is intel; when the actual fire candle lands it shows
         # up in BEST TRADES NOW above.
         try:
-            # Same scan_n=100 as the promote step — shared cache, one
+            # Same scan_n=100 as the promote step â€” shared cache, one
             # actual scan per 10-min cache window.
             _sf_results = run_reversal_approach_scan(timeframe, scan_n=100)
         except Exception:
             _sf_results = []
-        # Show top 6 — only score >= 65 (3+ conditions). Skip coins that
+        # Show top 6 â€” only score >= 65 (3+ conditions). Skip coins that
         # are already in BEST TRADES NOW (whether from regular setups
         # or promoted from Setups Forming itself).
         _btn_syms = {pk[4]["symbol"] for pk in _bot_picks}
-        # Dont dedup against promoted syms — only against actually-rendered
+        # Dont dedup against promoted syms â€” only against actually-rendered
         # cards (_btn_syms). If a promoted pick was cut by top-12 it should
         # still surface here as intel.
         _sf_top = [r for r in sorted(_sf_results,
@@ -8407,7 +8404,7 @@ if active_section == "🧪 Paper Trader":
                    if r["score"] >= 65
                    and r["symbol"] not in _btn_syms][:6]
         if _sf_top:
-            # Full section header — Section 3
+            # Full section header â€” Section 3
             st.markdown(
                 "<div style='display:flex;align-items:center;gap:14px;"
                 "margin-top:28px;margin-bottom:10px'>"
@@ -8415,15 +8412,15 @@ if active_section == "🧪 Paper Trader":
                 "background:linear-gradient(135deg,#8b5cf6,#ff006e);"
                 "-webkit-background-clip:text;-webkit-text-fill-color:"
                 "transparent;background-clip:text;letter-spacing:-0.02em'>"
-                "🔭 SETUPS FORMING</span>"
+                "ðŸ”­ SETUPS FORMING</span>"
                 "<span style='color:#aab;font-size:0.82rem'>"
-                f"direction intel · {len(_sf_top)} forming · watchlist "
+                f"direction intel Â· {len(_sf_top)} forming Â· watchlist "
                 "for the next promotion</span>"
                 "</div>",
                 unsafe_allow_html=True)
             st.caption(
                 "Coins where reversal pre-conditions are forming. Each "
-                "line shows the **directional prediction** — bullish or "
+                "line shows the **directional prediction** â€” bullish or "
                 "bearish, expected move, time window, and the R:R if the "
                 "trigger fires. **Bet on the pattern early** here, or "
                 "wait for the trigger candle (appears in BEST TRADES NOW "
@@ -8465,16 +8462,16 @@ if active_section == "🧪 Paper Trader":
 
                 # Bull/Bear scenario phrasing
                 if _sf_side == "SHORT":
-                    _sf_scenario_label = "🩸 BEARISH"
+                    _sf_scenario_label = "ðŸ©¸ BEARISH"
                     _sf_scenario_text = (
-                        f"price rejected at resistance → expect drop to "
+                        f"price rejected at resistance â†’ expect drop to "
                         f"<b>${_sf_target:.4g}</b> "
                         f"(<b>{_sf_move_pct:+.2f}%</b>) within "
                         f"<b>{_sf_window}</b>")
                 else:
-                    _sf_scenario_label = "🟢 BULLISH"
+                    _sf_scenario_label = "ðŸŸ¢ BULLISH"
                     _sf_scenario_text = (
-                        f"price bounced at support → expect rally to "
+                        f"price bounced at support â†’ expect rally to "
                         f"<b>${_sf_target:.4g}</b> "
                         f"(<b>{_sf_move_pct:+.2f}%</b>) within "
                         f"<b>{_sf_window}</b>")
@@ -8483,7 +8480,7 @@ if active_section == "🧪 Paper Trader":
                                  else "#ff5c5c" if _sf_pct < 0
                                  else "#888")
 
-                # ===== RENDER — two-line compact card =====================
+                # ===== RENDER â€” two-line compact card =====================
                 st.markdown(
                     # ---- Line 1: header chips ----
                     f"<div style='padding:8px 12px;"
@@ -8501,15 +8498,15 @@ if active_section == "🧪 Paper Trader":
                     f"<span style='background:{_sf_tier_color}33;"
                     f"color:{_sf_tier_color};padding:2px 8px;"
                     f"border-radius:5px;font-size:0.7rem;font-weight:"
-                    f"700'>🔭 {_sf_tier} · {_sf['score']:.0f}</span>"
+                    f"700'>ðŸ”­ {_sf_tier} Â· {_sf['score']:.0f}</span>"
                     f"<span style='color:#aab;font-size:0.74rem'>"
                     f"{_sf_cm}/7 conditions</span>"
-                    f"<span style='color:#888;font-size:0.74rem'>·</span>"
+                    f"<span style='color:#888;font-size:0.74rem'>Â·</span>"
                     f"<span style='color:#888;font-size:0.74rem'>"
-                    f"${_sf_price:.4g} · "
+                    f"${_sf_price:.4g} Â· "
                     f"<span style='color:{_sf_pct_color}'>"
                     f"{_sf_pct:+.2f}%</span></span>"
-                    + (f"<span style='color:#888;font-size:0.74rem'>·</span>"
+                    + (f"<span style='color:#888;font-size:0.74rem'>Â·</span>"
                        f"<span style='color:#aab;font-size:0.74rem;"
                        f"font-weight:600'>R:R if fires "
                        f"<b style='color:#2ed47a'>{_sf_rr:.2f}</b></span>"
@@ -8524,7 +8521,227 @@ if active_section == "🧪 Paper Trader":
                     f"</div>",
                     unsafe_allow_html=True)
 
-        # ---- 🩸 Top SHORT setups REMOVED — folded into BEST TRADES NOW
+        # ---- Top SHORT setups REMOVED — folded into BEST TRADES NOW
+
+        # ============================================================
+        # 🔁 + 🚀 HUNTERS — bolted into Paper Trader per user request
+        # ============================================================
+        # Two composite scanners. Use the SAME paper_bot mechanics +
+        # PAPER_BOT_FILE state file as the rest of the section, so any
+        # trades opened here show up in the regular Paper Trader open-
+        # positions list and history alongside trades from the boards
+        # above. Both fire under expanders so they don't crowd the page.
+        try:
+            import rebound_radar
+            import breakout_hunter
+        except Exception:
+            rebound_radar = None
+            breakout_hunter = None
+
+        if rebound_radar and breakout_hunter:
+            @st.cache_data(ttl=600, show_spinner=False)
+            def _pt_load_rebound(_v: int = 1):
+                return rebound_radar.scan_for_rebounds(
+                    scan_n=150, min_score=70.0,
+                    min_drawdown_pct=5.0, max_picks=12)
+
+            @st.cache_data(ttl=900, show_spinner=False)
+            def _pt_load_breakout(_v: int = 1):
+                return breakout_hunter.scan_for_breakouts(
+                    scan_n=300, min_score=70.0,
+                    max_seven_day_chg=50.0,
+                    min_volume_usd=5_000_000.0, max_picks=12)
+
+            def _open_hunter_pick(sym, side, plan, score, source):
+                """Open into the SAME .paper_bot.json — picks here live
+                alongside trades from BEST TRADES NOW / EARLY SETUPS."""
+                try:
+                    entry = float(plan.get("entry") or 0)
+                    alert = {
+                        "symbol": sym,
+                        "base": sym.replace("USDT", ""),
+                        "side": side,
+                        "entry_low": entry,
+                        "stop": float(plan.get("stop") or 0),
+                        "target": float(plan.get("tp1") or 0),
+                        "target_2": float(plan.get("tp2") or 0),
+                        "confidence": int(score),
+                        "rr": float(plan.get("rr") or 0),
+                        "strength_factor": max(
+                            0.4, min(1.0, (score - 65) / 30 + 0.4)),
+                        "_hunter_source": source,
+                    }
+                    pos = paper_bot.open_position(
+                        pb_state, alert, entry)
+                    paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                    if pos:
+                        st.success(
+                            f"Opened {side} {sym} at {entry:g} "
+                            f"(from {source} · Paper Trader history)")
+                        st.rerun()
+                    else:
+                        st.warning(
+                            "Position not opened — Paper Trader "
+                            "rejected (already open, or "
+                            "balance / concurrency issue).")
+                except Exception as exc:
+                    st.error(f"Open failed: {exc}")
+
+            # ----- 🔁 REBOUND HUNTER (15m + 1h) -----
+            with st.expander(
+                    "🔁 **REBOUND HUNTER** — first 5-7% of "
+                    "bearish→bullish rebounds (15m + 1h)",
+                    expanded=False):
+                st.caption(
+                    "Composites V-bottom + CVD divergence + funding "
+                    "extreme + reversal_approach 7-conditions + "
+                    "pattern_scout + drawdown depth + first-green-"
+                    "candle. Fires when 15m AND 1h both ≥60, blended "
+                    "≥70, coin ≥5% off recent high. Honest hit rate "
+                    "~55-65%.")
+                try:
+                    reb_picks = _pt_load_rebound()
+                except Exception as exc:
+                    st.error(f"Rebound scan failed: {exc}")
+                    reb_picks = []
+                if not reb_picks:
+                    st.caption(
+                        "No rebound setups firing right now — needs "
+                        "5+ lanes to align. Cached 10 min.")
+                else:
+                    st.success(
+                        f"**{len(reb_picks)} rebound setups firing.**")
+                    for p in reb_picks:
+                        sym = p["symbol"]
+                        sc = p["score"]
+                        dd = p["drawdown_pct"]
+                        exp = p["expected_move_pct"]
+                        plan = p.get("trade_plan") or {}
+                        entry = plan.get("entry", 0)
+                        stop = plan.get("stop", 0)
+                        tp1 = plan.get("tp1", 0)
+                        tp2 = plan.get("tp2", 0)
+                        sl_pct = (
+                            (stop - entry) / entry * 100
+                            if entry > 0 else 0)
+                        tp1_pct = (
+                            (tp1 - entry) / entry * 100
+                            if entry > 0 else 0)
+                        tp2_pct = (
+                            (tp2 - entry) / entry * 100
+                            if entry > 0 else 0)
+                        with st.container(border=True):
+                            top_l, top_r = st.columns([6, 1])
+                            top_l.markdown(
+                                f"**{sym}** · 🟢 LONG · score "
+                                f"<b>{sc:.0f}</b> · "
+                                f"−{dd:.1f}% from high · expected "
+                                f"+{exp:.1f}% · 15m {p['score_15m']:.0f} "
+                                f"/ 1h {p['score_1h']:.0f}<br>"
+                                f"<span style='color:#aab;font-size:"
+                                f"0.85rem'>Entry "
+                                f"<code>{entry:g}</code> · SL "
+                                f"<code>{stop:g}</code> "
+                                f"(<span style='color:#ff5c5c'>"
+                                f"{sl_pct:+.2f}%</span>) · TP1 "
+                                f"<code>{tp1:g}</code> "
+                                f"(<span style='color:#2ed47a'>"
+                                f"{tp1_pct:+.2f}%</span>) · TP2 "
+                                f"<code>{tp2:g}</code> "
+                                f"(<span style='color:#2ed47a'>"
+                                f"{tp2_pct:+.2f}%</span>) · R:R "
+                                f"<b>{plan.get('rr', 0):.2f}</b></span>",
+                                unsafe_allow_html=True)
+                            if top_r.button(
+                                    "📥 Open",
+                                    key=f"pt_reb_{sym}",
+                                    use_container_width=True):
+                                _open_hunter_pick(
+                                    sym, "LONG", plan, sc,
+                                    "REBOUND HUNTER")
+                            if p.get("reasons"):
+                                st.caption(
+                                    "Why: " + " · ".join(
+                                        p["reasons"][:3]))
+
+            # ----- 🚀 BREAKOUT HUNTER (4h, top 300 universe) -----
+            with st.expander(
+                    "🚀 **BREAKOUT HUNTER** — pre-pump coil scanner "
+                    "(top 300, PORTAL-style runners)",
+                    expanded=False):
+                st.caption(
+                    "Hunts BB-squeeze + hidden accumulation + OI/"
+                    "funding surge + TTM squeeze + higher-low + cup-"
+                    "and-handle. Top 300 USDT-perp universe (covers "
+                    "mid-caps where 100%+ runs originate). Filters: "
+                    "≥$5M daily volume, ≤50% 7-day gain. Honest hit "
+                    "rate ~30-40% but asymmetric upside (hits run "
+                    "20-100%+).")
+                try:
+                    bk_picks = _pt_load_breakout()
+                except Exception as exc:
+                    st.error(f"Breakout scan failed: {exc}")
+                    bk_picks = []
+                if not bk_picks:
+                    st.caption(
+                        "No breakout coils firing — coil patterns "
+                        "are rare (1-5 per session in healthy "
+                        "markets). Cached 15 min.")
+                else:
+                    st.success(
+                        f"**{len(bk_picks)} breakout coils firing.** "
+                        "Position SMALL — asymmetric bets.")
+                    for p in bk_picks:
+                        sym = p["symbol"]
+                        sc = p["score"]
+                        d7 = p.get("seven_day_chg_pct", 0)
+                        vol_m = p.get("volume_usd", 0) / 1e6
+                        plan = p.get("trade_plan") or {}
+                        entry = plan.get("entry", 0)
+                        stop = plan.get("stop", 0)
+                        tp1 = plan.get("tp1", 0)
+                        tp2 = plan.get("tp2", 0)
+                        sl_pct = (
+                            (stop - entry) / entry * 100
+                            if entry > 0 else 0)
+                        tp1_pct = (
+                            (tp1 - entry) / entry * 100
+                            if entry > 0 else 0)
+                        tp2_pct = (
+                            (tp2 - entry) / entry * 100
+                            if entry > 0 else 0)
+                        with st.container(border=True):
+                            top_l, top_r = st.columns([6, 1])
+                            top_l.markdown(
+                                f"**{sym}** · 🟢 LONG · score "
+                                f"<b>{sc:.0f}</b> · 7d "
+                                f"{d7:+.1f}% · vol ${vol_m:.1f}M<br>"
+                                f"<span style='color:#aab;font-size:"
+                                f"0.85rem'>Entry "
+                                f"<code>{entry:g}</code> · SL "
+                                f"<code>{stop:g}</code> "
+                                f"(<span style='color:#ff5c5c'>"
+                                f"{sl_pct:+.2f}%</span>) · TP1 "
+                                f"<code>{tp1:g}</code> "
+                                f"(<span style='color:#2ed47a'>"
+                                f"{tp1_pct:+.2f}%</span>) · TP2 "
+                                f"<code>{tp2:g}</code> "
+                                f"(<span style='color:#2ed47a'>"
+                                f"{tp2_pct:+.2f}%</span>) · R:R "
+                                f"<b>{plan.get('rr', 0):.2f}</b></span>",
+                                unsafe_allow_html=True)
+                            if top_r.button(
+                                    "📥 Open",
+                                    key=f"pt_bk_{sym}",
+                                    use_container_width=True):
+                                _open_hunter_pick(
+                                    sym, "LONG", plan, sc,
+                                    "BREAKOUT HUNTER")
+                            if p.get("reasons"):
+                                st.caption(
+                                    "Why: " + " · ".join(
+                                        p["reasons"][:3]))
+
         st.divider()
         # Open positions — LIVE fragment (updates in place every 10s).
         _live_paper_positions()
@@ -8547,14 +8764,14 @@ if active_section == "🧪 Paper Trader":
                     c.get("exit_at", 0), tz=timezone.utc),
                 "Equity": round(bal, 2),
             })
-        st.markdown("#### 📈 Equity curve")
+        st.markdown("#### ðŸ“ˆ Equity curve")
         st.line_chart(pd.DataFrame(eq_rows).set_index("Time"),
                       use_container_width=True, height=240)
 
     # ---- Closed trades history -------------------------------------------
     _ct_head, _ct_dl = st.columns([6, 1])
     _ct_head.markdown(
-        f"#### 📜 Closed trades ({len(pb_state['closed'])})")
+        f"#### ðŸ“œ Closed trades ({len(pb_state['closed'])})")
     if pb_state["closed"]:
         cs_recent = sorted(pb_state["closed"],
                            key=lambda c: c.get("exit_at", 0),
@@ -8584,24 +8801,24 @@ if active_section == "🧪 Paper Trader":
         # log so I can analyse what actually worked.
         _ct_full = pd.DataFrame(pb_state["closed"])
         _ct_dl.download_button(
-            "⬇ CSV", data=_ct_full.to_csv(index=False).encode("utf-8"),
+            "â¬‡ CSV", data=_ct_full.to_csv(index=False).encode("utf-8"),
             file_name="closed_trades.csv", mime="text/csv",
             use_container_width=True,
             help="Download every closed trade with all fields for "
                  "deeper analysis (win-rate per tier, R metrics, etc.)")
         st.dataframe(_ct_df, use_container_width=True, hide_index=True)
     else:
-        st.caption("No closed trades yet — they appear here once a position "
+        st.caption("No closed trades yet â€” they appear here once a position "
                    "hits a stop, target, or you close it manually.")
 
-    st.caption("Paper trading idealises execution — no slippage, fees or "
+    st.caption("Paper trading idealises execution â€” no slippage, fees or "
                "partial fills. Use it to gauge whether the signals tend to "
                "win in the current regime; real-money results will be a "
                "little worse. Educational only, not financial advice.")
 
-    # ---- Live mode — 5-minute full refresh ------------------------------
+    # ---- Live mode â€” 5-minute full refresh ------------------------------
     # The Bank stats and Open positions sections already update in place
-    # every 10s via st.fragment — no full page reload needed for live P&L.
+    # every 10s via st.fragment â€” no full page reload needed for live P&L.
     # Live mode triggers a 5-minute full page refresh (per user). Cadence:
     #   - Live fragments (P&L, positions): every 10 sec
     #   - Full page reload: every 300 sec
@@ -8617,40 +8834,40 @@ if active_section == "🧪 Paper Trader":
             "<span class='pulse' style='display:inline-block;width:8px;"
             "height:8px;background:#ff3d57;border-radius:50%;'></span>"
             "<span style='color:#ff3d57;font-size:0.78rem;font-weight:700'>"
-            "🔴 LIVE MODE</span>"
+            "ðŸ”´ LIVE MODE</span>"
             "<span style='color:#aab;font-size:0.78rem'>"
-            "page auto-refreshes every 5 min · Pattern Scout re-scans every "
-            "10 min · live position P&amp;L updates every 10s</span>"
+            "page auto-refreshes every 5 min Â· Pattern Scout re-scans every "
+            "10 min Â· live position P&amp;L updates every 10s</span>"
             "</div>",
             unsafe_allow_html=True)
         _inject_autorefresh(300)
 
 
 # ===========================================================================
-# Tab 8b — 24/7 Agent (portfolio deep-analysis + premium picks)
+# Tab 8b â€” 24/7 Agent (portfolio deep-analysis + premium picks)
 # ===========================================================================
 # Deep multi-TF (15m / 1h / 4h / 1d) conviction scoring across the 19
 # portfolio coins, plus high-conviction premium picks scanned across the
 # rest of the Binance USDT-perp universe. Cards auto-refresh every 3
 # minutes via @st.fragment so the page stays live without a full reload.
-# Section is intentionally read-only WRT live_broker / paper_bot state —
-# the only mutation is `📥 Open` (paper_bot.open_position) on
+# Section is intentionally read-only WRT live_broker / paper_bot state â€”
+# the only mutation is `ðŸ“¥ Open` (paper_bot.open_position) on
 # STRONG-and-above plans, which mirrors the Paper Trader's own open path.
-if active_section == "🤖 24/7 Agent":
+if active_section == "ðŸ¤– 24/7 Agent":
     st.subheader(
-        "🤖 24/7 Agent · deep analysis on your portfolio + "
+        "ðŸ¤– 24/7 Agent Â· deep analysis on your portfolio + "
         "premium picks from Binance")
     st.caption(
         "Auto-refresh every 5 minutes. Multi-timeframe conviction "
         "scoring on **1h + 4h** across all major signals. **Your 20 "
-        "portfolio coins are the priority** — Binance is tried first, "
+        "portfolio coins are the priority** â€” Binance is tried first, "
         "Bybit as fallback for the slow/rate-limited cases.")
 
     # ---- Cached loaders ---------------------------------------------------
-    # TTL = 900s (15 min) — significantly LONGER than the 300s fragment
+    # TTL = 900s (15 min) â€” significantly LONGER than the 300s fragment
     # cadence so cache always covers the next refresh cycle. The cold-
-    # cache scan is ~110s (analyze 20 coins × 3 TFs), so we cannot let
-    # the cache expire mid-fragment-cycle — that would block rendering
+    # cache scan is ~110s (analyze 20 coins Ã— 3 TFs), so we cannot let
+    # the cache expire mid-fragment-cycle â€” that would block rendering
     # for ~2 minutes every cycle.
     @st.cache_data(ttl=900, show_spinner=False)
     def load_watchlist(_cache_version: int = 3):
@@ -8667,10 +8884,10 @@ if active_section == "🤖 24/7 Agent":
             scan_n=200, min_conviction=80, max_picks=10)
 
     # Use the module-scope _agent_load_chart_klines (defined near the
-    # other load_* helpers) — it persists the cache across navigations.
+    # other load_* helpers) â€” it persists the cache across navigations.
     _load_chart_klines = _agent_load_chart_klines
 
-    # ---- Small render helpers (kept local — no other section uses them) --
+    # ---- Small render helpers (kept local â€” no other section uses them) --
     def _agent_conviction_color(tier: str) -> tuple[str, str]:
         """Map a conviction tier to (background, foreground) hex colours.
 
@@ -8718,7 +8935,7 @@ if active_section == "🤖 24/7 Agent":
             except Exception:
                 score_v = 50.0
             bg, fg = _agent_side_color(side)
-            label = f"{tf} · {score_v:.0f}"
+            label = f"{tf} Â· {score_v:.0f}"
             parts.append(_render_chip(label, bg, fg))
         return "".join(parts)
 
@@ -8772,10 +8989,10 @@ if active_section == "🤖 24/7 Agent":
         sl_pct = ((f["stop"] - entry) / entry * 100) if entry else 0.0
         tp1_pct = ((f["tp1"] - entry) / entry * 100) if entry else 0.0
         tp2_pct = ((f["tp2"] - entry) / entry * 100) if entry else 0.0
-        tp2_part = (f" · TP2 {tp2_pct:+.2f}%" if f["tp2"] > 0 else "")
+        tp2_part = (f" Â· TP2 {tp2_pct:+.2f}%" if f["tp2"] > 0 else "")
         return (
-            f"Entry {entry:g} · SL {sl_pct:+.2f}% · "
-            f"TP1 {tp1_pct:+.2f}%{tp2_part} · R:R {f['rr']:.2f}")
+            f"Entry {entry:g} Â· SL {sl_pct:+.2f}% Â· "
+            f"TP1 {tp1_pct:+.2f}%{tp2_part} Â· R:R {f['rr']:.2f}")
 
     def _open_plan_as_alert(symbol: str, base: str, side: str,
                             plan: dict, conviction: float) -> dict:
@@ -8800,44 +9017,44 @@ if active_section == "🤖 24/7 Agent":
     def _tier_emoji(tier: str) -> str:
         t = str(tier or "").upper()
         return {
-            "MAX": "🟣",
-            "HIGH": "🔴",
-            "STRONG": "🟢",
-            "STANDARD": "🔵",
-            "LOW": "🟡",
-            "WEAK": "🟡",
-        }.get(t, "⚪")
+            "MAX": "ðŸŸ£",
+            "HIGH": "ðŸ”´",
+            "STRONG": "ðŸŸ¢",
+            "STANDARD": "ðŸ”µ",
+            "LOW": "ðŸŸ¡",
+            "WEAK": "ðŸŸ¡",
+        }.get(t, "âšª")
 
     def _side_emoji(side: str) -> str:
         s = str(side or "").upper()
-        return "🟢" if s == "LONG" else "🩸" if s == "SHORT" else "⚪"
+        return "ðŸŸ¢" if s == "LONG" else "ðŸ©¸" if s == "SHORT" else "âšª"
 
     def _strength_bar(score: float) -> str:
-        """ASCII strength bar — used in the collapsed title for quick read."""
+        """ASCII strength bar â€” used in the collapsed title for quick read."""
         try:
             n = max(0, min(10, int(round(float(score) / 10))))
         except Exception:
             n = 5
-        return "▰" * n + "▱" * (10 - n)
+        return "â–°" * n + "â–±" * (10 - n)
 
     def _render_open_button(symbol: str, base: str, side: str,
                             plan: dict, conviction: float,
                             key_prefix: str) -> None:
-        """Open trade button — writes to the 24/7 Agent's OWN state file
+        """Open trade button â€” writes to the 24/7 Agent's OWN state file
         (.agent_bot.json) so the agent's history is independent of the
         Paper Trader. Conviction tier on the card tells the user
         signal quality; R:R warning shows when the plan is marginal.
         """
         f = _plan_fields(plan)
         if not _has_plan(plan):
-            st.caption("📥 button unavailable — no trade plan generated.")
+            st.caption("ðŸ“¥ button unavailable â€” no trade plan generated.")
             return
         if side not in ("LONG", "SHORT"):
             side = f["side"] or "LONG"
         if f["rr"] < 1.5:
-            st.caption("⚠️ Marginal R:R (<1.5) — speculative entry.")
+            st.caption("âš ï¸ Marginal R:R (<1.5) â€” speculative entry.")
         if st.button(
-                f"📥 Open {side} trade",
+                f"ðŸ“¥ Open {side} trade",
                 key=f"{key_prefix}_open_{symbol}",
                 use_container_width=False):
             try:
@@ -8850,11 +9067,11 @@ if active_section == "🤖 24/7 Agent":
                 if pos:
                     st.success(
                         f"Opened {side} {symbol} at "
-                        f"{alert['entry_low']:g} · saved to 24/7 "
+                        f"{alert['entry_low']:g} Â· saved to 24/7 "
                         "Agent history.")
                 else:
                     st.warning(
-                        "Position not opened — 24/7 Agent already has "
+                        "Position not opened â€” 24/7 Agent already has "
                         "a position in this symbol, or balance is "
                         "insufficient.")
             except Exception as exc:
@@ -8868,7 +9085,7 @@ if active_section == "🤖 24/7 Agent":
                           key_prefix: str) -> None:
         """The expanded "full picture" view inside each collapsible card."""
 
-        # --- 1. Chart — 1-YEAR daily history. Uses _load_chart_klines
+        # --- 1. Chart â€” 1-YEAR daily history. Uses _load_chart_klines
         # (cached 10 min) so 30+ simultaneous expander bodies don't melt
         # the page on first render.
         chart_loaded = False
@@ -8893,18 +9110,18 @@ if active_section == "🤖 24/7 Agent":
 
         if chart_loaded:
             st.caption(
-                "📅 1-year daily chart · 💡 Drag to pan · "
-                "scroll to zoom · double-click to reset")
+                "ðŸ“… 1-year daily chart Â· ðŸ’¡ Drag to pan Â· "
+                "scroll to zoom Â· double-click to reset")
 
         # --- 2. Per-TF breakdown
-        st.markdown("#### 📊 Per-timeframe breakdown")
+        st.markdown("#### ðŸ“Š Per-timeframe breakdown")
         tf_rows = []
         for tf in ("15m", "1h", "4h", "1d"):
             r = (per_tf or {}).get(tf) or {}
-            tf_side = str(r.get("side") or "—").upper()
+            tf_side = str(r.get("side") or "â€”").upper()
             tf_score = r.get("score") or r.get("conviction_score") or 0
             tf_tier = str(r.get("tier") or r.get("confidence_tier")
-                          or "—").upper()
+                          or "â€”").upper()
             try:
                 tf_score_f = float(tf_score)
             except Exception:
@@ -8918,8 +9135,8 @@ if active_section == "🤖 24/7 Agent":
             })
         st.table(tf_rows)
 
-        # --- 3. Drivers / candle formation — pull from the strongest TF
-        st.markdown("#### 🕯️ Candle formation & top drivers")
+        # --- 3. Drivers / candle formation â€” pull from the strongest TF
+        st.markdown("#### ðŸ•¯ï¸ Candle formation & top drivers")
         # Find a TF dict that has drivers/reasons
         best_tf_dict = None
         for tf in ("1h", "4h", "15m", "1d"):
@@ -8938,7 +9155,7 @@ if active_section == "🤖 24/7 Agent":
                         vote = d.get("vote", 0)
                         note = d.get("note", "")
                         st.markdown(
-                            f"- **{lane}** ({vote:+.1f}) — {note}")
+                            f"- **{lane}** ({vote:+.1f}) â€” {note}")
                     else:
                         st.markdown(f"- {d}")
             if reasons:
@@ -8955,14 +9172,14 @@ if active_section == "🤖 24/7 Agent":
         if forming:
             st.markdown(
                 _render_chip(
-                    "🔭 FORECAST FORMING — leading signals diverge "
+                    "ðŸ”­ FORECAST FORMING â€” leading signals diverge "
                     "from current trend",
                     "rgba(245,166,35,0.18)", "#f5a623"),
                 unsafe_allow_html=True)
 
-        # --- 4. Trade plan — full detail
+        # --- 4. Trade plan â€” full detail
         if plan and _has_plan(plan):
-            st.markdown("#### 🎯 Trade plan")
+            st.markdown("#### ðŸŽ¯ Trade plan")
             f = _plan_fields(plan)
             entry = f["entry"]
             sl_pct = (
@@ -8981,9 +9198,9 @@ if active_section == "🤖 24/7 Agent":
                 f"- **Side:** {side}  \n"
                 f"- **Entry:** `{entry:g}`  \n"
                 f"- **Stop:** `{f['stop']:g}` (`{sl_pct:+.2f}%`)  \n"
-                f"- **TP1:** `{f['tp1']:g}` (`{tp1_pct:+.2f}%`) — "
+                f"- **TP1:** `{f['tp1']:g}` (`{tp1_pct:+.2f}%`) â€” "
                 f"R:R **{f['rr']:.2f}**"
-                + (f"  \n- **TP2:** `{f['tp2']:g}` (`{tp2_pct:+.2f}%`) — "
+                + (f"  \n- **TP2:** `{f['tp2']:g}` (`{tp2_pct:+.2f}%`) â€” "
                    f"R:R **{rr2:.2f}**"
                    if f["tp2"] > 0 else ""))
         else:
@@ -8998,27 +9215,27 @@ if active_section == "🤖 24/7 Agent":
     # ---- The auto-refreshing fragment (5-min cadence per user) ----------
     @st.fragment(run_every=300)
     def _agent_section():
-        # Load PORTFOLIO data first — this is the user's top priority.
+        # Load PORTFOLIO data first â€” this is the user's top priority.
         # Cold scan is ~40s with the leaner TF set (1h + 4h only); cached
         # 15 min after. Premium picks load lazily AFTER portfolio renders
         # so the user sees their watchlist as fast as possible.
         with st.spinner(
-                "🔍 Scanning your 20 portfolio coins on 1h + 4h "
+                "ðŸ” Scanning your 20 portfolio coins on 1h + 4h "
                 "(~30-40s on first load; cached 15 min after)..."):
             try:
                 reports = load_watchlist()
             except Exception as exc:
                 st.error(f"Portfolio scan failed: {exc}")
                 reports = []
-        # Premium picks are SECONDARY (rest of Binance) — load them but
+        # Premium picks are SECONDARY (rest of Binance) â€” load them but
         # silently fall through if Binance is rate-limited. Cached 15 min.
         try:
             premium_picks_data = load_premium_picks()
         except Exception:
             premium_picks_data = []
 
-        # ===== SUB-BOARD: 🏆 BEST FROM PORTFOLIO (≥75 conviction) ==========
-        # PORTFOLIO-ONLY by design — per user "top priorities of coin
+        # ===== SUB-BOARD: ðŸ† BEST FROM PORTFOLIO (â‰¥75 conviction) ==========
+        # PORTFOLIO-ONLY by design â€” per user "top priorities of coin
         # analysis is my coins that I mentioned, else its useless".
         # Premium-pick non-portfolio picks live in their own section
         # further down so they never crowd out the user's watchlist.
@@ -9072,15 +9289,15 @@ if active_section == "🤖 24/7 Agent":
             "background:linear-gradient(135deg,#ffd700,#ff006e,#8b5cf6);"
             "-webkit-background-clip:text;-webkit-text-fill-color:"
             "transparent;background-clip:text;letter-spacing:-0.02em'>"
-            "🏆 BEST FROM YOUR PORTFOLIO</span>"
+            "ðŸ† BEST FROM YOUR PORTFOLIO</span>"
             f"<span style='color:#aab;font-size:0.84rem'>"
-            f"{len(best_trades)} of 20 firing at ≥75 · click 📥 to open</span>"
+            f"{len(best_trades)} of 20 firing at â‰¥75 Â· click ðŸ“¥ to open</span>"
             "</div>",
             unsafe_allow_html=True)
         if not best_trades:
             st.info(
-                "No portfolio coin is firing ≥75 conviction right now. "
-                "All 20 coins still listed below — scan them to see "
+                "No portfolio coin is firing â‰¥75 conviction right now. "
+                "All 20 coins still listed below â€” scan them to see "
                 "which are closest to triggering. Premium picks (rest "
                 "of Binance) at the bottom.")
         else:
@@ -9088,10 +9305,10 @@ if active_section == "🤖 24/7 Agent":
                 _f = _plan_fields(bt["plan"])
                 bt_title = (
                     f"{_tier_emoji(bt['tier'])} **{bt['base']}** "
-                    f"· {_side_emoji(bt['side'])} {bt['side']} "
-                    f"· {bt['tier']} {bt['score']:.0f} "
-                    f"· {('$%.4f' % bt['price_now']) if bt['price_now'] else '—'} "
-                    f"· {_plan_summary(bt['plan'])}")
+                    f"Â· {_side_emoji(bt['side'])} {bt['side']} "
+                    f"Â· {bt['tier']} {bt['score']:.0f} "
+                    f"Â· {('$%.4f' % bt['price_now']) if bt['price_now'] else 'â€”'} "
+                    f"Â· {_plan_summary(bt['plan'])}")
                 with st.expander(bt_title, expanded=False):
                     _render_deep_view(
                         symbol=bt["symbol"], base=bt["base"],
@@ -9108,18 +9325,18 @@ if active_section == "🤖 24/7 Agent":
             "margin:18px 0'></div>",
             unsafe_allow_html=True)
 
-        # ===== SUBSECTION A — Your Portfolio (20 coins) ====================
-        st.markdown("### 💎 Your Portfolio (20 coins)")
+        # ===== SUBSECTION A â€” Your Portfolio (20 coins) ====================
+        st.markdown("### ðŸ’Ž Your Portfolio (20 coins)")
         st.caption(
             "**Every coin in your watchlist with deep analysis.** Click "
             "any to expand: 1-year daily chart with pan/scroll-zoom, "
             "per-TF breakdown (1h / 4h), candle formation, top drivers, "
-            "full trade plan (entry/SL/TP1/TP2). 📥 button on every "
-            "card — opens trade in **this section's history**, separate "
+            "full trade plan (entry/SL/TP1/TP2). ðŸ“¥ button on every "
+            "card â€” opens trade in **this section's history**, separate "
             "from Paper Trader.")
 
         if not reports:
-            st.info("Portfolio scan returned no data — try refreshing in a "
+            st.info("Portfolio scan returned no data â€” try refreshing in a "
                     "few seconds.")
         else:
             for rep in reports:
@@ -9159,29 +9376,29 @@ if active_section == "🤖 24/7 Agent":
                     score_f = 50.0
                 try:
                     price_str = (f"${float(price_now):,.4f}"
-                                 if price_now is not None else "—")
+                                 if price_now is not None else "â€”")
                 except Exception:
-                    price_str = "—"
+                    price_str = "â€”"
                 try:
                     pct_f = float(pct_24h) if pct_24h is not None else 0.0
                     pct_str = f"{pct_f:+.2f}%"
                 except Exception:
-                    pct_str = "—"
+                    pct_str = "â€”"
 
                 plan_summary = _plan_summary(plan)
-                forming_flag = " 🔭" if forming else ""
+                forming_flag = " ðŸ”­" if forming else ""
                 title = (
                     f"{_tier_emoji(tier)} **{base}** "
-                    f"· {_side_emoji(side)} {side} "
-                    f"· {tier} {score_f:.0f} "
-                    f"· {price_str} ({pct_str}){forming_flag} "
-                    f"· {plan_summary}")
+                    f"Â· {_side_emoji(side)} {side} "
+                    f"Â· {tier} {score_f:.0f} "
+                    f"Â· {price_str} ({pct_str}){forming_flag} "
+                    f"Â· {plan_summary}")
 
                 with st.expander(title, expanded=False):
                     if unavailable:
                         st.warning(
-                            f"⚠️ {symbol} unavailable on Binance right "
-                            f"now — deep analysis skipped.")
+                            f"âš ï¸ {symbol} unavailable on Binance right "
+                            f"now â€” deep analysis skipped.")
                         continue
                     _render_deep_view(
                         symbol=symbol, base=base, side=side,
@@ -9193,11 +9410,11 @@ if active_section == "🤖 24/7 Agent":
                             consensus.get("confidence") or score_f),
                         key_prefix="agent_wl")
 
-        # ===== SUBSECTION B — Premium Picks (rest of Binance) ==============
-        st.markdown("### 🌐 Premium Picks (rest of Binance)")
+        # ===== SUBSECTION B â€” Premium Picks (rest of Binance) ==============
+        st.markdown("### ðŸŒ Premium Picks (rest of Binance)")
         st.caption(
             "Top 10 picks from the **top-200 Binance USDT-perp** universe "
-            "outside your portfolio. Conviction ≥**80** floor. Empty if "
+            "outside your portfolio. Conviction â‰¥**80** floor. Empty if "
             "nothing meets the bar.")
         try:
             picks = load_premium_picks()
@@ -9207,8 +9424,8 @@ if active_section == "🤖 24/7 Agent":
 
         if not picks:
             st.info(
-                "No premium picks right now — system is waiting for "
-                "conviction ≥80 setups outside your portfolio.")
+                "No premium picks right now â€” system is waiting for "
+                "conviction â‰¥80 setups outside your portfolio.")
         else:
             for pk in picks[:10]:
                 sym = pk.get("symbol") or ""
@@ -9227,25 +9444,25 @@ if active_section == "🤖 24/7 Agent":
                     score_f = 0.0
                 try:
                     price_str = (f"${float(price_now):,.4f}"
-                                 if price_now else "—")
+                                 if price_now else "â€”")
                 except Exception:
-                    price_str = "—"
+                    price_str = "â€”"
                 try:
                     pct_f = float(pct_24h) if pct_24h else 0.0
                     pct_str = f"{pct_f:+.2f}%"
                 except Exception:
-                    pct_str = "—"
+                    pct_str = "â€”"
 
                 plan_summary = _plan_summary(plan)
                 title = (
                     f"{_tier_emoji(tier)} **{base}** "
-                    f"· {_side_emoji(side)} {side} "
-                    f"· {tier} {score_f:.0f} "
-                    f"· {price_str} ({pct_str}) "
-                    f"· {plan_summary}")
+                    f"Â· {_side_emoji(side)} {side} "
+                    f"Â· {tier} {score_f:.0f} "
+                    f"Â· {price_str} ({pct_str}) "
+                    f"Â· {plan_summary}")
 
                 with st.expander(title, expanded=False):
-                    # Chart — use the SAME cached 1-year daily loader so
+                    # Chart â€” use the SAME cached 1-year daily loader so
                     # the page stays responsive even with 30+ expanders.
                     chart_loaded = False
                     try:
@@ -9271,17 +9488,17 @@ if active_section == "🤖 24/7 Agent":
 
                     if chart_loaded:
                         st.caption(
-                            "💡 Drag to pan · scroll to zoom · "
+                            "ðŸ’¡ Drag to pan Â· scroll to zoom Â· "
                             "double-click to reset")
 
                     if reasons:
-                        st.markdown("#### 🕯️ Why this fired")
+                        st.markdown("#### ðŸ•¯ï¸ Why this fired")
                         for r in reasons[:5]:
                             st.markdown(f"- {r}")
 
                     # Trade plan detail
                     if plan and _has_plan(plan):
-                        st.markdown("#### 🎯 Trade plan")
+                        st.markdown("#### ðŸŽ¯ Trade plan")
                         f = _plan_fields(plan)
                         entry = f["entry"]
                         sl_pct = (
@@ -9304,10 +9521,10 @@ if active_section == "🤖 24/7 Agent":
                             f"- **Stop:** `{f['stop']:g}` "
                             f"(`{sl_pct:+.2f}%`)  \n"
                             f"- **TP1:** `{f['tp1']:g}` "
-                            f"(`{tp1_pct:+.2f}%`) — R:R "
+                            f"(`{tp1_pct:+.2f}%`) â€” R:R "
                             f"**{f['rr']:.2f}**"
                             + (f"  \n- **TP2:** `{f['tp2']:g}` "
-                               f"(`{tp2_pct:+.2f}%`) — R:R "
+                               f"(`{tp2_pct:+.2f}%`) â€” R:R "
                                f"**{rr2:.2f}**"
                                if f["tp2"] > 0 else ""))
 
@@ -9320,8 +9537,8 @@ if active_section == "🤖 24/7 Agent":
                         key_prefix="agent_pp")
 
         # =================================================================
-        # SECTION C — 24/7 Agent's OWN open positions + history
-        # (separate from Paper Trader — uses AGENT_BOT_FILE state)
+        # SECTION C â€” 24/7 Agent's OWN open positions + history
+        # (separate from Paper Trader â€” uses AGENT_BOT_FILE state)
         # =================================================================
         st.markdown("---")
         ag_state = paper_bot.load_state(AGENT_BOT_FILE)
@@ -9347,7 +9564,7 @@ if active_section == "🤖 24/7 Agent":
             except Exception:
                 pass
 
-        st.markdown("### 📊 24/7 Agent — your trades")
+        st.markdown("### ðŸ“Š 24/7 Agent â€” your trades")
         st.caption(
             "Trades opened from THIS section. Separate from the "
             "Paper Trader's history.")
@@ -9361,7 +9578,7 @@ if active_section == "🤖 24/7 Agent":
 
         # ----- Open positions (live, with chart) -----
         if ag_open:
-            st.markdown("#### 🔄 Open positions")
+            st.markdown("#### ðŸ”„ Open positions")
             for op in ag_open:
                 sym_op = op.get("symbol", "?")
                 side_op = (op.get("side") or "LONG").upper()
@@ -9383,8 +9600,8 @@ if active_section == "🤖 24/7 Agent":
                     (cur_px / entry_op - 1) * 100 if side_op == "LONG"
                     else (entry_op / cur_px - 1) * 100) if entry_op else 0
                 pnl_color = "#2ed47a" if pnl >= 0 else "#ff5c5c"
-                # Notional = qty × entry price (the dollar value of the
-                # position). Also compute current notional (qty × mark)
+                # Notional = qty Ã— entry price (the dollar value of the
+                # position). Also compute current notional (qty Ã— mark)
                 # to show how much exposure has changed with price.
                 notional_op = qty_op * entry_op if entry_op else 0.0
                 notional_now = qty_op * cur_px if cur_px else notional_op
@@ -9394,13 +9611,13 @@ if active_section == "🤖 24/7 Agent":
                              if lev_op > 0 else notional_op)
 
                 with st.container(border=True):
-                    # ROW 1 — metrics with notional + margin
+                    # ROW 1 â€” metrics with notional + margin
                     cols = st.columns([1.8, 1.3, 1.3, 1.3, 1.6, 1.0])
                     cols[0].markdown(
-                        f"**{op.get('base', sym_op)}** · {sym_op}<br>"
+                        f"**{op.get('base', sym_op)}** Â· {sym_op}<br>"
                         f"<span style='color:#aab;font-size:0.82rem'>"
-                        f"{side_op} · qty {qty_op:.4f}"
-                        + (f" · {lev_op:g}x lev" if lev_op > 0 else "")
+                        f"{side_op} Â· qty {qty_op:.4f}"
+                        + (f" Â· {lev_op:g}x lev" if lev_op > 0 else "")
                         + "</span>",
                         unsafe_allow_html=True)
                     cols[1].markdown(
@@ -9423,7 +9640,7 @@ if active_section == "🤖 24/7 Agent":
                         f"${pnl:+,.2f} ({pnl_pct:+.2f}%)</b>",
                         unsafe_allow_html=True)
                     if cols[5].button(
-                            "✖ Close",
+                            "âœ– Close",
                             key=f"agent_close_{sym_op}",
                             use_container_width=True):
                         try:
@@ -9435,13 +9652,13 @@ if active_section == "🤖 24/7 Agent":
                             if closed:
                                 st.success(
                                     f"Closed {side_op} {sym_op} at "
-                                    f"{cur_px:g} · P&L "
+                                    f"{cur_px:g} Â· P&L "
                                     f"${closed.get('pnl_usd', 0):+,.2f}")
                                 st.rerun()
                         except Exception as exc:
                             st.error(f"Close failed: {exc}")
 
-                    # ROW 2 — Paper-Trader-style chart with entry/SL/TP1/TP2
+                    # ROW 2 â€” Paper-Trader-style chart with entry/SL/TP1/TP2
                     # lines. Uses the cached chart kline loader so this
                     # stays fast across re-renders.
                     try:
@@ -9470,22 +9687,22 @@ if active_section == "🤖 24/7 Agent":
                                         "autoScale2d"],
                                 })
                             st.caption(
-                                f"📅 1-year daily chart · Entry "
-                                f"`{entry_op:g}` · SL `{stop_op:g}` · "
+                                f"ðŸ“… 1-year daily chart Â· Entry "
+                                f"`{entry_op:g}` Â· SL `{stop_op:g}` Â· "
                                 f"TP1 `{tgt_op:g}`"
-                                + (f" · TP2 `{tgt2_op:g}`"
+                                + (f" Â· TP2 `{tgt2_op:g}`"
                                    if tgt2_op > 0 else "")
-                                + " · drag to pan · scroll to zoom")
+                                + " Â· drag to pan Â· scroll to zoom")
                     except Exception as exc:
                         st.caption(f"Chart unavailable: {exc}")
         else:
-            st.caption("No open positions yet — click 📥 on any "
+            st.caption("No open positions yet â€” click ðŸ“¥ on any "
                        "card above to open one.")
 
         # ----- Closed history -----
         if ag_closed:
             st.markdown(
-                f"#### 📜 Closed trades ({len(ag_closed)})")
+                f"#### ðŸ“œ Closed trades ({len(ag_closed)})")
             import pandas as pd
             rows = []
             for c in ag_closed[-50:][::-1]:  # last 50, newest first
@@ -9497,7 +9714,7 @@ if active_section == "🤖 24/7 Agent":
                     "Exit": f"{float(c.get('exit') or 0):g}",
                     "P&L $": f"{float(c.get('pnl_usd') or 0):+,.2f}",
                     "P&L %": f"{float(c.get('pnl_pct') or 0):+.2f}%",
-                    "Reason": c.get("exit_reason", "—"),
+                    "Reason": c.get("exit_reason", "â€”"),
                 })
             st.dataframe(
                 pd.DataFrame(rows), use_container_width=True,
@@ -9507,20 +9724,20 @@ if active_section == "🤖 24/7 Agent":
 
 
 # ===========================================================================
-# Tab 9 — Live Trading (real money on Bybit)
+# Tab 9 â€” Live Trading (real money on Bybit)
 # ===========================================================================
-if active_section == "💸 Live Trading":
-    st.subheader("💸 Live Trading — Bybit USDT-Perp")
+if active_section == "ðŸ’¸ Live Trading":
+    st.subheader("ðŸ’¸ Live Trading â€” Bybit USDT-Perp")
 
     # --- Big red REAL MONEY banner + testnet mode notice ------------------
     if config.BYBIT_TESTNET:
         st.warning(
-            "🟡 **TESTNET MODE** — orders route to Bybit's demo server. "
+            "ðŸŸ¡ **TESTNET MODE** â€” orders route to Bybit's demo server. "
             "No real money is at stake. Flip `BYBIT_TESTNET=false` in "
             "your `.env` (and reboot) to switch to real-money live.")
     else:
         st.error(
-            "⚠️ **REAL MONEY MODE** — every trade you open here uses real "
+            "âš ï¸ **REAL MONEY MODE** â€” every trade you open here uses real "
             "USDT on your Bybit account. The bot suggests; YOU confirm.")
 
     _live_ready, _live_info = lb.is_ready()
@@ -9530,16 +9747,16 @@ if active_section == "💸 Live Trading":
         st.info(
             "**Live Trading isn't connected yet.** This tab needs Bybit "
             "API credentials before it can place any orders.")
-        with st.expander("📖 Setup steps (one-time)", expanded=True):
+        with st.expander("ðŸ“– Setup steps (one-time)", expanded=True):
             st.markdown("""
 1. **Sign up at [bybit.com](https://www.bybit.com)** (or
    [testnet.bybit.com](https://testnet.bybit.com) for paper-money plumbing
-   tests). Complete KYC — required for derivatives.
-2. **Deposit ≥ $100 USDT** to your Unified Trading Account (or claim
+   tests). Complete KYC â€” required for derivatives.
+2. **Deposit â‰¥ $100 USDT** to your Unified Trading Account (or claim
    demo funds from the testnet faucet).
-3. **Account → API Management → Create New Key** — System-generated:
-   - Permissions: **Contract → Orders + Positions ON**
-   - **Wallet → Transfers OFF, Withdrawals OFF** (critical safety)
+3. **Account â†’ API Management â†’ Create New Key** â€” System-generated:
+   - Permissions: **Contract â†’ Orders + Positions ON**
+   - **Wallet â†’ Transfers OFF, Withdrawals OFF** (critical safety)
    - **IP whitelist** your home IP (or a VPS IP if dynamic).
 4. **Paste into `.env`** (gitignored) at the project root:
    ```
@@ -9549,13 +9766,13 @@ if active_section == "💸 Live Trading":
    ```
 5. **Reinstall deps** so `pybit` is available:
    `pip install -r requirements.txt`.
-6. **Restart Streamlit** — the gate clears once keys are detected.
+6. **Restart Streamlit** â€” the gate clears once keys are detected.
 
-**Cost** — the Bybit API itself is **free** (no subscription). The only
+**Cost** â€” the Bybit API itself is **free** (no subscription). The only
 real cost is trading fees: ~0.055% taker / 0.02% maker on USDT-perp,
 plus funding rate every 8 hours on open positions.
 """)
-        st.caption(f"Status: **{_live_info}** — fix the above and reload.")
+        st.caption(f"Status: **{_live_info}** â€” fix the above and reload.")
         st.stop()
 
     # --- Helpers used by this section (mirror paper-bot patterns) ---------
@@ -9579,7 +9796,7 @@ plus funding rate every 8 hours on open positions.
     _settings = lb_state.setdefault("settings", dict(config.LIVE_DEFAULTS))
 
     # --- Settings expander ------------------------------------------------
-    with st.expander("⚙️ Settings — guardrails, leverage cap, auto-trade"):
+    with st.expander("âš™ï¸ Settings â€” guardrails, leverage cap, auto-trade"):
         sc1, sc2, sc3 = st.columns(3)
         _new_lev_cap = sc1.slider(
             "Leverage cap (max)", 1, 25,
@@ -9592,7 +9809,7 @@ plus funding rate every 8 hours on open positions.
             int(_settings.get("notional_cap_pct", 30)),
             key="lb_notional_cap")
         _new_daily_loss = sc3.slider(
-            "Daily loss limit (%) — halts auto", 5, 25,
+            "Daily loss limit (%) â€” halts auto", 5, 25,
             int(_settings.get("daily_loss_pct", 10)),
             key="lb_daily_loss")
 
@@ -9614,15 +9831,15 @@ plus funding rate every 8 hours on open positions.
 
         sc7, sc8, sc9 = st.columns(3)
         _live_auto_trade = sc7.checkbox(
-            "🤖 Auto-trade ON", value=False, key="lb_auto",
+            "ðŸ¤– Auto-trade ON", value=False, key="lb_auto",
             help="When on AND past confirm-first-N, the bot auto-opens "
-                 "very-strong signals. Use with 💎 Premium-only ON below "
+                 "very-strong signals. Use with ðŸ’Ž Premium-only ON below "
                  "for safest auto-trading.")
         _new_auto_thresh = sc8.slider(
             "Auto-trade confidence threshold", 70, 99,
             int(_settings.get("auto_threshold", 85)),
             key="lb_auto_thresh")
-        if sc9.button("🔄 Reset live state",
+        if sc9.button("ðŸ”„ Reset live state",
                       type="secondary", use_container_width=True):
             lb.reset(config.LIVE_BOT_STATE_PATH,
                      starting_balance=100.0, risk_pct=1.0,
@@ -9631,26 +9848,26 @@ plus funding rate every 8 hours on open positions.
 
         # Strict premium-only auto-gate (the "sure shot" filter).
         _new_premium_only = st.checkbox(
-            "💎 Auto-trade PREMIUM-ONLY (sure-shot filter)",
+            "ðŸ’Ž Auto-trade PREMIUM-ONLY (sure-shot filter)",
             value=bool(_settings.get("auto_premium_only", True)),
             key="lb_auto_premium",
             help="When ON: auto-trade fires ONLY on setups that meet ALL "
-                 "five strict criteria — scanner conf>=90, forecast "
+                 "five strict criteria â€” scanner conf>=90, forecast "
                  "aligned 3/3 (direction match), radar stage COILED or "
                  "FRESH (NOT EXTENDED), live R:R>=1.3 (green zone), AND "
                  "not counter-trend. Expect 0-2 auto-fires per day at "
-                 "best. The 💎 PREMIUM TRADEABLE chip on the picks "
+                 "best. The ðŸ’Ž PREMIUM TRADEABLE chip on the picks "
                  "board shows which manual picks also pass this bar.")
         _new_premium_mult = st.slider(
-            "💎 Premium risk multiplier",
+            "ðŸ’Ž Premium risk multiplier",
             min_value=1.0, max_value=2.0, step=0.05,
             value=float(
                 _settings.get("premium_risk_multiplier", 1.5)),
             key="lb_premium_mult",
-            help="When you fire a 💎 PREMIUM TRADEABLE setup (manual OR "
+            help="When you fire a ðŸ’Ž PREMIUM TRADEABLE setup (manual OR "
                  "auto), the risk_per_trade_pct gets multiplied by this "
                  "factor. 1.0 = same as regular. 1.5 = 50% bigger "
-                 "position. 2.0 = double (max — anything higher risks "
+                 "position. 2.0 = double (max â€” anything higher risks "
                  "account ruin on losing streaks). Recommended 1.5 for "
                  "small accounts.")
 
@@ -9670,26 +9887,26 @@ plus funding rate every 8 hours on open positions.
         st.markdown(
             "<div style='background:#3a1818;border:1px solid #ff5c5c;"
             "padding:8px 12px;border-radius:5px;margin:8px 0'>"
-            "<b style='color:#ff5c5c'>🛑 EMERGENCY STOP</b><br>"
+            "<b style='color:#ff5c5c'>ðŸ›‘ EMERGENCY STOP</b><br>"
             "<span style='color:#d5d7e0;font-size:0.85rem'>Closes EVERY "
             "open Bybit position at market and cancels all open orders. "
             "Two-click confirm.</span></div>", unsafe_allow_html=True)
         ec1, ec2 = st.columns([1, 1])
         _emerg_armed = st.session_state.get("lb_emerg_armed", False)
         if not _emerg_armed:
-            if ec1.button("🛑 Arm emergency stop", type="secondary",
+            if ec1.button("ðŸ›‘ Arm emergency stop", type="secondary",
                           use_container_width=True):
                 st.session_state["lb_emerg_armed"] = True
                 st.rerun()
         else:
-            if ec1.button("🛑 CONFIRM CLOSE ALL", type="primary",
+            if ec1.button("ðŸ›‘ CONFIRM CLOSE ALL", type="primary",
                           use_container_width=True):
                 try:
                     res = lb.emergency_stop_all(lb_state)
                     lb.save_state(config.LIVE_BOT_STATE_PATH, lb_state)
                     st.session_state["lb_emerg_armed"] = False
                     st.success(
-                        f"🛑 Emergency stop fired — closed {res['n']} "
+                        f"ðŸ›‘ Emergency stop fired â€” closed {res['n']} "
                         "position(s) at market.")
                 except Exception as _exc:
                     st.error(f"Emergency stop failed: {_exc}")
@@ -9700,7 +9917,7 @@ plus funding rate every 8 hours on open positions.
     # Persist settings every render so user tweaks survive.
     lb.save_state(config.LIVE_BOT_STATE_PATH, lb_state)
 
-    # --- Live fragments — update in place every 10s -----------------------
+    # --- Live fragments â€” update in place every 10s -----------------------
     @st.fragment(run_every=10)
     def _live_live_stats():
         """Bank + trade stats, queried live from Bybit on each tick."""
@@ -9713,7 +9930,7 @@ plus funding rate every 8 hours on open positions.
                 float(_lp) if _lp is not None and _lp > 0
                 else float(_p["entry"]))
 
-        # Live Bybit equity snapshot — authoritative source.
+        # Live Bybit equity snapshot â€” authoritative source.
         acct = lb.account_balance()
         ex_equity = float(acct.get("equity") or 0.0)
         ex_avail = float(acct.get("available") or 0.0)
@@ -9726,7 +9943,7 @@ plus funding rate every 8 hours on open positions.
 
         bc = st.columns(5)
         bc[0].metric(
-            "💼 Bybit equity", f"${ex_equity:,.2f}",
+            "ðŸ’¼ Bybit equity", f"${ex_equity:,.2f}",
             f"avail ${ex_avail:,.2f}",
             help="Live wallet equity from Bybit (authoritative).")
         bc[1].metric(
@@ -9741,7 +9958,7 @@ plus funding rate every 8 hours on open positions.
             f"${realised_24h:+,.2f} realised 24h",
             help="Local snapshot. The Bybit equity above is the truth.")
         sync_state = lb.sync_positions(state)
-        sync_icon = "✓" if sync_state["drift"] == 0 else "⚠"
+        sync_icon = "âœ“" if sync_state["drift"] == 0 else "âš "
         bc[4].metric(
             f"{sync_icon} Sync", f"{sync_state['exchange_count']} on Bybit",
             (f"drift {sync_state['drift']}"
@@ -9753,17 +9970,17 @@ plus funding rate every 8 hours on open positions.
         sc[0].metric("Trades closed", st_stats["trades"])
         sc[1].metric("Win rate",
                      f"{st_stats['win_rate']:.0f}%"
-                     if st_stats["trades"] else "—")
+                     if st_stats["trades"] else "â€”")
         sc[2].metric("Best trade",
                      f"{st_stats['best_trade']:+.2f}%"
-                     if st_stats["trades"] else "—")
+                     if st_stats["trades"] else "â€”")
         sc[3].metric("Worst trade",
                      f"{st_stats['worst_trade']:+.2f}%"
-                     if st_stats["trades"] else "—")
+                     if st_stats["trades"] else "â€”")
         sc[4].metric(
             "Trades opened total",
             int(state.get("trades_opened_total") or 0),
-            help=("First-N rule: until trades_opened_total ≥ confirm_first_n "
+            help=("First-N rule: until trades_opened_total â‰¥ confirm_first_n "
                   "every open requires a manual confirm even in auto mode."))
 
 
@@ -9782,18 +9999,18 @@ plus funding rate every 8 hours on open positions.
         # primarily.
         closed_now = lb.evaluate(state, live_p)
         for c in closed_now:
-            emoji = "✅" if c["pnl_usd"] > 0 else "❌"
+            emoji = "âœ…" if c["pnl_usd"] > 0 else "âŒ"
             st.toast(
-                f"{emoji} {c['base']} closed @ {c['exit_reason']} · "
-                f"{c['pnl_pct']:+.2f}%", icon="💸")
+                f"{emoji} {c['base']} closed @ {c['exit_reason']} Â· "
+                f"{c['pnl_pct']:+.2f}%", icon="ðŸ’¸")
         if closed_now:
             lb.save_state(config.LIVE_BOT_STATE_PATH, state)
 
-        st.markdown(f"### 📂 Live positions on Bybit ({len(state['open'])})")
+        st.markdown(f"### ðŸ“‚ Live positions on Bybit ({len(state['open'])})")
         if not state["open"]:
             st.info(
                 "No live positions. Use the panel on the left to open one, "
-                "or click 📥 on a Bot's-top-picks card.")
+                "or click ðŸ“¥ on a Bot's-top-picks card.")
             return
 
         for p in state["open"]:
@@ -9827,12 +10044,12 @@ plus funding rate every 8 hours on open positions.
                     f"{p['side']}</span></div>"
                     f"<div style='color:#d5d7e0;font-size:0.84rem;"
                     f"margin:3px 0'>"
-                    f"<b>{qty_v:.6f} {p['base']}</b> · "
-                    f"notional <b>${notional_v:,.2f}</b> · "
-                    f"<b>{lev_v}× lev</b></div>"
+                    f"<b>{qty_v:.6f} {p['base']}</b> Â· "
+                    f"notional <b>${notional_v:,.2f}</b> Â· "
+                    f"<b>{lev_v}Ã— lev</b></div>"
                     f"<div style='color:#8b8d98;font-size:0.78rem'>"
-                    f"Entry {fmt_price(entry_v)} · Stop "
-                    f"{fmt_price(stop_v)} · Target {fmt_price(target_v)}"
+                    f"Entry {fmt_price(entry_v)} Â· Stop "
+                    f"{fmt_price(stop_v)} Â· Target {fmt_price(target_v)}"
                     f"</div>",
                     unsafe_allow_html=True)
                 pnl_col.markdown(
@@ -9854,11 +10071,11 @@ plus funding rate every 8 hours on open positions.
                         if closed:
                             lb.save_state(config.LIVE_BOT_STATE_PATH,
                                           state)
-                            emoji = ("✅" if closed["pnl_usd"] > 0
-                                     else "❌")
+                            emoji = ("âœ…" if closed["pnl_usd"] > 0
+                                     else "âŒ")
                             st.toast(
-                                f"{emoji} Closed {closed['base']} · "
-                                f"{closed['pnl_pct']:+.2f}%", icon="💸")
+                                f"{emoji} Closed {closed['base']} Â· "
+                                f"{closed['pnl_pct']:+.2f}%", icon="ðŸ’¸")
                             st.rerun(scope="fragment")
                     except Exception as _exc:
                         st.error(f"Close failed: {_exc}")
@@ -9871,9 +10088,9 @@ plus funding rate every 8 hours on open positions.
     lt_left, lt_right = st.columns([1, 2])
 
     with lt_left:
-        st.markdown("### 📥 Open a live trade")
+        st.markdown("### ðŸ“¥ Open a live trade")
         if _alert_merged.empty:
-            st.info("Scanner data not ready — refresh and try again.")
+            st.info("Scanner data not ready â€” refresh and try again.")
         else:
             _syms = sorted(_alert_merged["symbol"].unique().tolist())
             _open_syms_lt = {p["symbol"] for p in lb_state["open"]}
@@ -9881,7 +10098,7 @@ plus funding rate every 8 hours on open positions.
             if not _avail_lt:
                 st.warning(
                     "You already have a live position in every tracked "
-                    "coin — close one before opening another.")
+                    "coin â€” close one before opening another.")
             else:
                 _sel_lt = st.selectbox(
                     "Coin", _avail_lt,
@@ -9909,7 +10126,7 @@ plus funding rate every 8 hours on open positions.
                     f"border:1px solid #1f2330'>"
                     f"<div style='font-size:0.7rem;color:#8b8d98;"
                     f"letter-spacing:0.08em;font-weight:700'>"
-                    f"LIVE PRICE · {_sel_lt}</div>"
+                    f"LIVE PRICE Â· {_sel_lt}</div>"
                     f"<div style='font-size:1.4rem;font-weight:800;"
                     f"color:#fff'>{fmt_price(_cur_lt)} "
                     f"<span style='color:{_chc};font-size:0.85rem;"
@@ -9940,7 +10157,7 @@ plus funding rate every 8 hours on open positions.
                 ok, reason, preview = lb.preflight(
                     lb_state, _alert_lt, _cur_lt)
                 if not ok:
-                    st.warning(f"⚠️ {reason}")
+                    st.warning(f"âš ï¸ {reason}")
                 else:
                     _lev = preview["leverage"]
                     _qty = preview["qty"]
@@ -9961,21 +10178,21 @@ plus funding rate every 8 hours on open positions.
                         f"({_sl_pct:.2f}% away)<br>"
                         f"Target: <b>{fmt_price(_target_lt)}</b> "
                         f"({_rr_lt:.2f}R, {_tp_pct:.2f}% away)<br>"
-                        f"Leverage: <b>{_lev}×</b> "
+                        f"Leverage: <b>{_lev}Ã—</b> "
                         f"(scaled from conf {_conf_lt})<br>"
                         f"Quantity: <b>{_qty:.6f} "
                         f"{_sel_lt.replace('USDT','')}</b><br>"
-                        f"Notional: <b>${_notional:,.2f}</b> · "
+                        f"Notional: <b>${_notional:,.2f}</b> Â· "
                         f"Margin: <b>${_margin:,.2f}</b><br>"
                         f"Est. round-trip fees: ~${_est_fee:.2f}</div>",
                         unsafe_allow_html=True)
 
-                    # Preview → Confirm two-step
+                    # Preview â†’ Confirm two-step
                     _armed_key = f"lb_armed_{_sel_lt}_{_side_lt}"
                     armed = st.session_state.get(_armed_key, False)
                     if not armed:
                         if st.button(
-                                f"📋 Preview {_side_lt} "
+                                f"ðŸ“‹ Preview {_side_lt} "
                                 f"{_sel_lt.replace('USDT','')} order",
                                 use_container_width=True,
                                 key=f"lb_preview_btn_{_sel_lt}_{_side_lt}"):
@@ -9988,13 +10205,13 @@ plus funding rate every 8 hours on open positions.
                             f"border-radius:5px;margin:4px 0;"
                             f"font-size:0.84rem;color:#e0a92b;"
                             f"font-weight:700'>"
-                            f"⚠️ Click CONFIRM to send this order to "
+                            f"âš ï¸ Click CONFIRM to send this order to "
                             f"Bybit. This is real money "
                             f"{'(testnet)' if config.BYBIT_TESTNET else ''}."
                             f"</div>", unsafe_allow_html=True)
                         bc1, bc2 = st.columns(2)
                         if bc1.button(
-                                f"✅ CONFIRM open {_lev}×",
+                                f"âœ… CONFIRM open {_lev}Ã—",
                                 type="primary",
                                 use_container_width=True,
                                 key=f"lb_confirm_btn_{_sel_lt}_{_side_lt}"):
@@ -10007,10 +10224,10 @@ plus funding rate every 8 hours on open positions.
                                         config.LIVE_BOT_STATE_PATH, lb_state)
                                     st.session_state[_armed_key] = False
                                     st.toast(
-                                        f"📥 OPENED {_side_lt} "
+                                        f"ðŸ“¥ OPENED {_side_lt} "
                                         f"{opened['base']} @ "
-                                        f"{fmt_price(opened['entry'])} · "
-                                        f"{_lev}×", icon="💸")
+                                        f"{fmt_price(opened['entry'])} Â· "
+                                        f"{_lev}Ã—", icon="ðŸ’¸")
                                     st.rerun()
                             except lb.ConfigError as _exc:
                                 st.error(str(_exc))
@@ -10025,10 +10242,10 @@ plus funding rate every 8 hours on open positions.
                             st.rerun()
 
     with lt_right:
-        st.markdown("### 🤖 Bot's top picks (live-eligible)")
+        st.markdown("### ðŸ¤– Bot's top picks (live-eligible)")
         st.caption(
             "Same signals as the Paper Trader, filtered to only the "
-            "very-strong setups suitable for real money. The Preview→"
+            "very-strong setups suitable for real money. The Previewâ†’"
             "Confirm flow applies even when auto-trade is ON for the "
             "first N trades.")
         # Pull forecast + radar lookups (cached) so the live picks use the
@@ -10117,7 +10334,7 @@ plus funding rate every 8 hours on open positions.
             return score
 
         _open_syms_lt = {p["symbol"] for p in lb_state["open"]}
-        # Re-entry detection — coins that closed within the last 60 min
+        # Re-entry detection â€” coins that closed within the last 60 min
         # AND re-qualify as setups now (price pulled back into entry
         # zone, or a fresh continuation). Same definition as paper.
         _now_ts_lt = time.time()
@@ -10126,7 +10343,7 @@ plus funding rate every 8 hours on open positions.
             for c in (lb_state.get("closed") or [])[-30:]
             if (_now_ts_lt - (c.get("exit_at") or 0)) < 3600
         }
-        # Bybit-tradeable filter — signal data comes from Binance but
+        # Bybit-tradeable filter â€” signal data comes from Binance but
         # orders go to Bybit. Some Binance-listed coins aren't available
         # as USDT-perp on Bybit (or are delisted, e.g. LUNAUSDT). Drop
         # those from the picks board so the user never clicks a card
@@ -10139,7 +10356,7 @@ plus funding rate every 8 hours on open positions.
             # Skip coins not actively trading on Bybit USDT-perp.
             if _bybit_tradeable and s["symbol"] not in _bybit_tradeable:
                 continue
-            # Higher-TF trend filter — real money is stricter than paper.
+            # Higher-TF trend filter â€” real money is stricter than paper.
             # Counter-trend setups are dropped entirely unless they pack a
             # very high (>= 88) scanner confidence.
             _lt_trend = htf_trend(s["symbol"])
@@ -10156,21 +10373,21 @@ plus funding rate every 8 hours on open positions.
             # Combined-score gate is the quality filter on the live
             # board: only Very Strong (>= 80) picks pass. RED entry-
             # passed cards still show when their combined score clears
-            # the bar — the chips on each card (entry-zone status,
+            # the bar â€” the chips on each card (entry-zone status,
             # COILED, live R:R) let the user judge per pick. The user
-            # explicitly asked for this — entry-passed setups with
+            # explicitly asked for this â€” entry-passed setups with
             # strong underlying scores can still be tradeable.
             if _combined_lt < 80:
                 continue
             _live_eligible.append(
                 (_prev["leverage"], _lt_align, s, _combined_lt))
         # Sort by combined score (uncapped) so the strongest fused
-        # signal rises to the top — same ranking as paper picks.
+        # signal rises to the top â€” same ranking as paper picks.
         _live_eligible.sort(key=lambda t: t[3], reverse=True)
 
         if not _live_eligible:
             st.info(
-                "No live-eligible picks right now (combined ≥ 80 "
+                "No live-eligible picks right now (combined â‰¥ 80 "
                 "required). The board waits for high-conviction setups. "
                 "Check the Paper Trader tab for the broader signal "
                 "universe, or wait for the next scan.")
@@ -10185,7 +10402,7 @@ plus funding rate every 8 hours on open positions.
                 _combined_disp = int(min(99, max(0, _combined_lt)))
                 str_label, str_col = _live_strength_label(_combined_disp)
 
-                # 🏆 PREMIUM tier — conf >= 80 AND forecast aligned 3/3.
+                # ðŸ† PREMIUM tier â€” conf >= 80 AND forecast aligned 3/3.
                 _fc_lt = _fc_by_sym_lt.get(s["symbol"]) or {}
                 _fc_word_lt = _fc_lt.get("outlook_word")
                 _is_premium = (
@@ -10201,7 +10418,7 @@ plus funding rate every 8 hours on open positions.
                         f"padding:2px 10px;border-radius:5px;font-size:"
                         f"0.72rem;font-weight:800;margin-left:4px;"
                         f"box-shadow:0 0 8px #e0a92b66'>"
-                        f"🏆 PREMIUM</span>")
+                        f"ðŸ† PREMIUM</span>")
 
                 # Radar STAGE chip (same definition as paper).
                 _r_lt = _radar_by_sym_lt.get(s["symbol"]) or {}
@@ -10212,21 +10429,21 @@ plus funding rate every 8 hours on open positions.
                         f"<span style='background:#6e8bff33;color:#6e8bff;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:800;margin-left:4px'>"
-                        f"🌀 COILED · loaded</span>")
+                        f"ðŸŒ€ COILED Â· loaded</span>")
                 elif _stg_lt == "FRESH":
                     _coiled_chip_lt = (
                         f"<span style='background:#2ed47a22;color:#2ed47a;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"⚡ FRESH · breaking out</span>")
+                        f"âš¡ FRESH Â· breaking out</span>")
                 elif _stg_lt == "EXTENDED":
                     _coiled_chip_lt = (
                         f"<span style='background:#8b8d9833;color:#8b8d98;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"📉 EXTENDED · move spent</span>")
+                        f"ðŸ“‰ EXTENDED Â· move spent</span>")
 
-                # ↻ Re-entry chip — coin closed within the last 60 min
+                # â†» Re-entry chip â€” coin closed within the last 60 min
                 # and re-qualifies as a setup (second-leg opportunity).
                 _reentry_chip_lt = ""
                 if s["symbol"] in _recent_close_syms_lt:
@@ -10234,7 +10451,7 @@ plus funding rate every 8 hours on open positions.
                         f"<span style='background:#e0a92b33;color:#e0a92b;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"↻ Re-entry available</span>")
+                        f"â†» Re-entry available</span>")
 
                 # Live R:R from current price (mirror of paper logic).
                 _cur_lt = (prices.get(s["symbol"])
@@ -10259,15 +10476,15 @@ plus funding rate every 8 hours on open positions.
                         f"<span style='background:#2ed47a33;color:#2ed47a;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"✓ At entry zone · R:R {_live_rr_lt:.2f}</span>")
+                        f"âœ“ At entry zone Â· R:R {_live_rr_lt:.2f}</span>")
                 elif 0 < _live_rr_lt < 1.2:
                     _drift_chip_lt = (
                         f"<span style='background:#ff5c5c33;color:#ff5c5c;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"⚠ Entry passed · R:R {_live_rr_lt:.2f}</span>")
+                        f"âš  Entry passed Â· R:R {_live_rr_lt:.2f}</span>")
 
-                # 💎 PREMIUM TRADEABLE chip — passes ALL 5 strict criteria
+                # ðŸ’Ž PREMIUM TRADEABLE chip â€” passes ALL 5 strict criteria
                 # for the auto-trade "sure shot" filter. When this chip
                 # is on, both auto-trade AND manual clicking are the
                 # high-conviction choices. Most cards will NOT have it.
@@ -10280,7 +10497,7 @@ plus funding rate every 8 hours on open positions.
                         f"padding:2px 10px;border-radius:5px;font-size:"
                         f"0.72rem;font-weight:800;margin-left:4px;"
                         f"box-shadow:0 0 8px #9b59b677'>"
-                        f"💎 PREMIUM TRADEABLE</span>")
+                        f"ðŸ’Ž PREMIUM TRADEABLE</span>")
 
                 with st.container(border=True):
                     aa, bb = st.columns([6, 1])
@@ -10295,39 +10512,39 @@ plus funding rate every 8 hours on open positions.
                         f"<span style='background:{str_col}33;"
                         f"color:{str_col};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:700'>"
-                        f"{str_label} · {_combined_disp}</span>"
+                        f"{str_label} Â· {_combined_disp}</span>"
                         f"{_premium_chip_lt}{_tradeable_chip_lt}"
                         f"{_coiled_chip_lt}"
                         f"{_reentry_chip_lt}{_drift_chip_lt}"
                         f"<span style='color:#6e8bff;font-weight:700;"
-                        f"font-size:0.78rem'>{_lev}× lev</span>"
+                        f"font-size:0.78rem'>{_lev}Ã— lev</span>"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
-                        f"· conf {conf} · R:R "
+                        f"Â· conf {conf} Â· R:R "
                         f"{float(s.get('rr', 0)):.1f}</span></div>"
                         f"<div style='color:#aab;font-size:0.78rem;"
                         f"margin-top:4px'>"
-                        f"now <b>{fmt_price(_cur_lt)}</b> · entry zone "
-                        f"{fmt_price(s.get('entry_low', 0))} · stop "
+                        f"now <b>{fmt_price(_cur_lt)}</b> Â· entry zone "
+                        f"{fmt_price(s.get('entry_low', 0))} Â· stop "
                         f"{fmt_price(_stop_lt)} "
                         f"<span style='color:#ff5c5c'>"
-                        f"(−{_live_risk_lt:.1f}%)</span> · target "
+                        f"(âˆ’{_live_risk_lt:.1f}%)</span> Â· target "
                         f"{fmt_price(_tgt_lt)} "
                         f"<span style='color:#2ed47a'>"
                         f"(+{_live_reward_lt:.1f}%)</span></div>",
                         unsafe_allow_html=True)
                     _pk = f"lb_pick_{s['symbol']}:{side}"
                     _pk_help = (
-                        f"LIVE {side} {s['base']} → TP1 (~5-7%)"
+                        f"LIVE {side} {s['base']} â†’ TP1 (~5-7%)"
                         + (
-                            f" · 💎 {_settings.get('premium_risk_multiplier', 1.5):.2f}× risk"
+                            f" Â· ðŸ’Ž {_settings.get('premium_risk_multiplier', 1.5):.2f}Ã— risk"
                             if _is_premium_trd else ""
                         ))
-                    if bb.button("📥", key=_pk,
+                    if bb.button("ðŸ“¥", key=_pk,
                                  help=_pk_help,
                                  use_container_width=True):
                         try:
                             # Premium-tradeable trades deploy more risk per
-                            # the user-set multiplier — flag in the alert.
+                            # the user-set multiplier â€” flag in the alert.
                             _setup_for_open = dict(s)
                             if _is_premium_trd:
                                 _setup_for_open["premium_tradeable"] = True
@@ -10340,15 +10557,15 @@ plus funding rate every 8 hours on open positions.
                                 lb.save_state(
                                     config.LIVE_BOT_STATE_PATH, lb_state)
                                 st.toast(
-                                    f"📥 LIVE {side} {opened['base']} @ "
-                                    f"{fmt_price(opened['entry'])} → TP1 · "
-                                    f"{_lev}×", icon="💸")
+                                    f"ðŸ“¥ LIVE {side} {opened['base']} @ "
+                                    f"{fmt_price(opened['entry'])} â†’ TP1 Â· "
+                                    f"{_lev}Ã—", icon="ðŸ’¸")
                                 st.rerun()
                         except lb.ConfigError as _exc:
                             st.error(str(_exc))
                         except Exception as _exc:
                             st.error(f"Open failed: {_exc}")
-                    # 🏆 TP2 button — only on PREMIUM-eligible cards.
+                    # ðŸ† TP2 button â€” only on PREMIUM-eligible cards.
                     # Opens the same setup but with target swapped to
                     # TP2 (~7.5-10%). Real money use this when you
                     # want to ride a strong setup further; live broker
@@ -10356,10 +10573,10 @@ plus funding rate every 8 hours on open positions.
                     _tgt2_lt = float(s.get("target_2") or 0)
                     if _is_premium and _tgt2_lt > 0:
                         if bb.button(
-                                "🏆 TP2", key=f"lb_tp2_{s['symbol']}:{side}",
-                                help=f"LIVE {side} {s['base']} → TP2 "
+                                "ðŸ† TP2", key=f"lb_tp2_{s['symbol']}:{side}",
+                                help=f"LIVE {side} {s['base']} â†’ TP2 "
                                      f"(~7.5-10%). Original stop. Real "
-                                     f"money — strong setups only.",
+                                     f"money â€” strong setups only.",
                                 use_container_width=True):
                             try:
                                 _s_tp2 = dict(s)
@@ -10380,10 +10597,10 @@ plus funding rate every 8 hours on open positions.
                                         config.LIVE_BOT_STATE_PATH,
                                         lb_state)
                                     st.toast(
-                                        f"🏆 LIVE {side} "
+                                        f"ðŸ† LIVE {side} "
                                         f"{opened['base']} @ "
                                         f"{fmt_price(opened['entry'])} "
-                                        f"→ TP2 · {_lev}×", icon="🏆")
+                                        f"â†’ TP2 Â· {_lev}Ã—", icon="ðŸ†")
                                     st.rerun()
                             except lb.ConfigError as _exc:
                                 st.error(str(_exc))
@@ -10432,8 +10649,8 @@ plus funding rate every 8 hours on open positions.
                             s["side"], _fc_a, _stg_a,
                             _live_rr_a, _lt_align):
                         continue
-                # FIRE — premium auto-fires use the premium risk
-                # multiplier (default 1.5×) for bigger position size.
+                # FIRE â€” premium auto-fires use the premium risk
+                # multiplier (default 1.5Ã—) for bigger position size.
                 _setup_auto = dict(s)
                 if _auto_premium_only:
                     _setup_auto["premium_tradeable"] = True
@@ -10446,9 +10663,9 @@ plus funding rate every 8 hours on open positions.
                         lb.save_state(
                             config.LIVE_BOT_STATE_PATH, lb_state)
                         st.toast(
-                            f"💎 AUTO-FIRED {s['side']} {opened['base']} "
-                            f"@ {fmt_price(opened['entry'])} · "
-                            f"{_lev}× lev", icon="💎")
+                            f"ðŸ’Ž AUTO-FIRED {s['side']} {opened['base']} "
+                            f"@ {fmt_price(opened['entry'])} Â· "
+                            f"{_lev}Ã— lev", icon="ðŸ’Ž")
                         _auto_fired_this_run.append(opened["symbol"])
                 except Exception as _exc:
                     st.error(f"Auto-fire failed on {s['symbol']}: {_exc}")
@@ -10460,7 +10677,7 @@ plus funding rate every 8 hours on open positions.
 
     # --- Closed-trades history --------------------------------------------
     st.markdown(
-        f"#### 📜 Closed live trades ({len(lb_state['closed'])})")
+        f"#### ðŸ“œ Closed live trades ({len(lb_state['closed'])})")
     if lb_state["closed"]:
         _cs = sorted(lb_state["closed"],
                      key=lambda c: c.get("exit_at", 0),
@@ -10492,28 +10709,28 @@ plus funding rate every 8 hours on open positions.
         "taker / 0.02% maker on USDT-perp plus funding every 8 hours. "
         "Slippage on market orders is real. Stops and take-profits are "
         "set on the exchange so they fire even if this app crashes. "
-        "Educational use — not financial advice.")
+        "Educational use â€” not financial advice.")
 
 
 # ===========================================================================
-# Tab 10 — Spot Long-Term Picks  (Phase D MVP)
+# Tab 10 â€” Spot Long-Term Picks  (Phase D MVP)
 # ===========================================================================
 # Long-term hold picks on a fundamentally different scoring engine than the
 # short-term futures scanner. Uses WEEKLY bars and four classic long-entry
 # filters (Weinstein Stage 2, Mayer Multiple, drawdown from ATH, weekly
-# HH/HL structure). PURE DISPLAY — does NOT feed live_broker, paper_bot, or
+# HH/HL structure). PURE DISPLAY â€” does NOT feed live_broker, paper_bot, or
 # the existing futures picks. Build a watchlist here, then buy on spot
 # manually if you like the read.
-if active_section == "💎 Spot Long-Term":
-    st.subheader("💎 Spot Long-Term Picks")
+if active_section == "ðŸ’Ž Spot Long-Term":
+    st.subheader("ðŸ’Ž Spot Long-Term Picks")
     st.caption(
         "Long-term hold candidates ranked by a fundamentally different "
         "scoring engine than the short-term futures scanner. Weekly bars, "
         "no leverage, weeks-to-months horizon. **This is a watchlist, "
-        "not an auto-trader** — clicking a card does not open a position; "
+        "not an auto-trader** â€” clicking a card does not open a position; "
         "use it to build conviction for manual spot buys.")
 
-    # --- Macro overlay banner (Phase E) — BTC.D + FRED ----------------
+    # --- Macro overlay banner (Phase E) â€” BTC.D + FRED ----------------
     # Slow-moving regime context for ALT positioning. BTC-dominant regimes
     # mean alts under-perform BTC; risk-off macro environments (rising
     # DXY, falling M2, rising real yields) mean spot crypto under-performs
@@ -10536,36 +10753,36 @@ if active_section == "💎 Spot Long-Term":
             f"<div style='background:{_reg_color}22;border-left:3px solid "
             f"{_reg_color};padding:10px 14px;border-radius:6px'>"
             f"<div style='font-weight:800;color:{_reg_color};font-size:0.9rem'>"
-            f"📊 BTC Dominance · {_reg_label}</div>"
+            f"ðŸ“Š BTC Dominance Â· {_reg_label}</div>"
             f"<div style='color:#aab;font-size:0.78rem;margin-top:4px'>"
-            f"{_btc_reg.get('detail', '—')}</div>"
+            f"{_btc_reg.get('detail', 'â€”')}</div>"
             f"<div style='color:#8b8d98;font-size:0.72rem;margin-top:6px'>"
-            f"alt-score multiplier: <b>{_alt_mult:.2f}×</b></div></div>",
+            f"alt-score multiplier: <b>{_alt_mult:.2f}Ã—</b></div></div>",
             unsafe_allow_html=True)
     with mc2:
         st.markdown(
             f"<div style='background:{_macro_color}22;border-left:3px solid "
             f"{_macro_color};padding:10px 14px;border-radius:6px'>"
             f"<div style='font-weight:800;color:{_macro_color};font-size:0.9rem'>"
-            f"🌍 Macro · {_macro_label}</div>"
+            f"ðŸŒ Macro Â· {_macro_label}</div>"
             f"<div style='color:#aab;font-size:0.78rem;margin-top:4px'>"
-            f"{_macro_reg.get('detail', '—')}</div>"
+            f"{_macro_reg.get('detail', 'â€”')}</div>"
             f"<div style='color:#8b8d98;font-size:0.72rem;margin-top:6px'>"
-            f"risk multiplier: <b>{_risk_mult:.2f}×</b></div></div>",
+            f"risk multiplier: <b>{_risk_mult:.2f}Ã—</b></div></div>",
             unsafe_allow_html=True)
     st.markdown("")  # spacer
 
     st.markdown(
-        "**How the score is built** — composite 0–100, weighted:\n"
-        "- **35% Weinstein Stage** — only Stage 2 (markup) scores high. "
+        "**How the score is built** â€” composite 0â€“100, weighted:\n"
+        "- **35% Weinstein Stage** â€” only Stage 2 (markup) scores high. "
         "Stage 1 (basing) is neutral; Stage 3/4 (distribution/decline) "
         "score low.\n"
-        "- **25% Structure** — last 2 swing highs AND 2 swing lows "
+        "- **25% Structure** â€” last 2 swing highs AND 2 swing lows "
         "both ascending (no lookahead). Confirms an uptrend.\n"
-        "- **20% Mayer Multiple** — close / 200-bar SMA. Only BTC and ETH "
+        "- **20% Mayer Multiple** â€” close / 200-bar SMA. Only BTC and ETH "
         "get the zone scoring (deep value / accumulation / fair / "
         "extended); alts get a neutral Mayer (informational only).\n"
-        "- **20% Drawdown from ATH** — % off all-time-high, with a "
+        "- **20% Drawdown from ATH** â€” % off all-time-high, with a "
         "capitulation bonus when current volume is < 50% of peak-area "
         "volume.\n\n"
         "**Floor: 65** (WATCH tier). **Strong: 80+** (STRONG tier). "
@@ -10583,7 +10800,7 @@ if active_section == "💎 Spot Long-Term":
     with spot_col1:
         spot_min_score = st.slider(
             "Min score", 50, 95, 65, step=5,
-            help="Filter floor. WATCH ≥65, STRONG ≥80.")
+            help="Filter floor. WATCH â‰¥65, STRONG â‰¥80.")
     with spot_col2:
         spot_max_picks = st.slider(
             "Max picks", 5, 30, 15, step=5)
@@ -10608,7 +10825,7 @@ if active_section == "💎 Spot Long-Term":
     )
 
     _b1, _b2 = st.columns([1, 5])
-    if _b1.button(f"🔄 Rescan ({spot_tf})", use_container_width=True,
+    if _b1.button(f"ðŸ”„ Rescan ({spot_tf})", use_container_width=True,
                   help="Force a fresh scan even if cached results exist.") \
             or _need_scan:
         with st.spinner(
@@ -10637,7 +10854,7 @@ if active_section == "💎 Spot Long-Term":
     if _spot_results:
         st.caption(
             f"Last scan: {datetime.fromtimestamp(_spot_scan_ts, tz=timezone.utc).strftime('%H:%M:%S UTC')} "
-            f"· {len(_spot_results)} coins scored")
+            f"Â· {len(_spot_results)} coins scored")
 
         # Filter + rank
         _spot_visible = [r for r in _spot_results
@@ -10647,9 +10864,9 @@ if active_section == "💎 Spot Long-Term":
 
         if not _spot_visible:
             st.info(
-                f"No coins scored ≥ {spot_min_score} in the last scan. "
+                f"No coins scored â‰¥ {spot_min_score} in the last scan. "
                 "Lower the minimum-score slider or try a different "
-                "market regime — Stage 2 setups are rare in bear / chop "
+                "market regime â€” Stage 2 setups are rare in bear / chop "
                 "markets by design.")
         else:
             # Tier summary
@@ -10672,8 +10889,8 @@ if active_section == "💎 Spot Long-Term":
 
                 _tier_color = "#2ed47a" if _tier == "STRONG" else (
                     "#e0a92b" if _tier == "WATCH" else "#8b8d98")
-                _tier_label = (f"💎 {_tier}" if _tier == "STRONG"
-                               else f"👀 {_tier}")
+                _tier_label = (f"ðŸ’Ž {_tier}" if _tier == "STRONG"
+                               else f"ðŸ‘€ {_tier}")
 
                 # Stage chip
                 _stage_chip = ""
@@ -10682,25 +10899,25 @@ if active_section == "💎 Spot Long-Term":
                         f"<span style='background:#2ed47a33;color:#2ed47a;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"📈 Stage 2 markup</span>")
+                        f"ðŸ“ˆ Stage 2 markup</span>")
                 elif _stage == "STAGE_1_BASE":
                     _stage_chip = (
                         f"<span style='background:#6e8bff33;color:#6e8bff;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"🟦 Stage 1 base</span>")
+                        f"ðŸŸ¦ Stage 1 base</span>")
                 elif _stage == "STAGE_3_DISTRIBUTION":
                     _stage_chip = (
                         f"<span style='background:#e0a92b33;color:#e0a92b;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"📊 Stage 3 distribution</span>")
+                        f"ðŸ“Š Stage 3 distribution</span>")
                 elif _stage == "STAGE_4_DECLINE":
                     _stage_chip = (
                         f"<span style='background:#ff5c5c33;color:#ff5c5c;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"📉 Stage 4 decline</span>")
+                        f"ðŸ“‰ Stage 4 decline</span>")
 
                 # Mayer chip (only meaningful for BTC/ETH)
                 _mayer_chip = ""
@@ -10722,12 +10939,12 @@ if active_section == "💎 Spot Long-Term":
                 _dd_chip = ""
                 if _dd_pct >= 40:
                     _ddc = "#2ed47a" if _dd_pct >= 60 else "#6e8bff"
-                    _cap = " 💧" if _dd.get("capitulated") else ""
+                    _cap = " ðŸ’§" if _dd.get("capitulated") else ""
                     _dd_chip = (
                         f"<span style='background:{_ddc}22;color:{_ddc};"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"−{_dd_pct:.0f}% from ATH{_cap}</span>")
+                        f"âˆ’{_dd_pct:.0f}% from ATH{_cap}</span>")
 
                 # --- Phase E / F enrichment chips per pick -------------
                 # Fetched lazily so the scan stays fast on the initial
@@ -10747,19 +10964,19 @@ if active_section == "💎 Spot Long-Term":
                         f"#2ed47a,#6e8bff);color:#06121f;padding:2px 10px;"
                         f"border-radius:5px;font-size:0.72rem;font-weight:"
                         f"800;margin-left:4px;box-shadow:0 0 6px #2ed47a66'>"
-                        f"☕ CUP+HANDLE BREAKOUT</span>")
+                        f"â˜• CUP+HANDLE BREAKOUT</span>")
                 elif _cup_stage == "HANDLE_FORMING":
                     _cup_chip = (
                         f"<span style='background:#6e8bff33;color:#6e8bff;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"☕ handle forming</span>")
+                        f"â˜• handle forming</span>")
                 elif _cup_stage == "CUP_NO_HANDLE":
                     _cup_chip = (
                         f"<span style='background:#8b8d9833;color:#aab;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"☕ cup forming</span>")
+                        f"â˜• cup forming</span>")
 
                 # On-chain chip (BTC/ETH only)
                 _onchain_chip = ""
@@ -10773,7 +10990,7 @@ if active_section == "💎 Spot Long-Term":
                         f"<span style='background:{_oc_color}22;"
                         f"color:{_oc_color};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.7rem;font-weight:700;"
-                        f"margin-left:4px'>🔗 {_onchain.get('detail', '')}</span>")
+                        f"margin-left:4px'>ðŸ”— {_onchain.get('detail', '')}</span>")
 
                 # TVL chip (only if DefiLlama covers the protocol)
                 _tvl_chip = ""
@@ -10786,9 +11003,9 @@ if active_section == "💎 Spot Long-Term":
                         f"<span style='background:{_tvl_color}22;"
                         f"color:{_tvl_color};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.7rem;font-weight:700;"
-                        f"margin-left:4px'>📈 TVL 90d {_tvl_90d:+.0f}%</span>")
+                        f"margin-left:4px'>ðŸ“ˆ TVL 90d {_tvl_90d:+.0f}%</span>")
 
-                # Tokenomics dilution chip (warning only — defensive)
+                # Tokenomics dilution chip (warning only â€” defensive)
                 _tok_chip = ""
                 _tok_score = float(_tok.get("score") or 50)
                 _tok_circ = _tok.get("circulating_fraction")
@@ -10797,15 +11014,15 @@ if active_section == "💎 Spot Long-Term":
                         f"<span style='background:#ff5c5c33;color:#ff5c5c;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"⚠ {_tok_circ * 100:.0f}% circulating</span>")
+                        f"âš  {_tok_circ * 100:.0f}% circulating</span>")
                 elif _tok_score >= 80 and _tok_circ is not None:
                     _tok_chip = (
                         f"<span style='background:#2ed47a22;color:#2ed47a;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"✓ {_tok_circ * 100:.0f}% circulating</span>")
+                        f"âœ“ {_tok_circ * 100:.0f}% circulating</span>")
 
-                # Composite enhanced score — multiply alts by BTC.D and
+                # Composite enhanced score â€” multiply alts by BTC.D and
                 # FRED macro regime multipliers. BTC and ETH are not
                 # affected by the alt-multiplier (they ARE BTC).
                 _is_btc_eth = r["symbol"] in ("BTCUSDT", "ETHUSDT")
@@ -10820,7 +11037,7 @@ if active_section == "💎 Spot Long-Term":
                         f"<span style='background:{_dc}22;color:{_dc};"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"⇢ regime-adjusted {_enhanced_score:.0f} "
+                        f"â‡¢ regime-adjusted {_enhanced_score:.0f} "
                         f"({_delta:+.0f})</span>")
 
                 with st.container(border=True):
@@ -10832,255 +11049,39 @@ if active_section == "💎 Spot Long-Term":
                         f"<span style='background:{_tier_color};"
                         f"color:#06121f;padding:2px 10px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:800'>"
-                        f"{_tier_label} · {r['score']:.0f}</span>"
+                        f"{_tier_label} Â· {r['score']:.0f}</span>"
                         f"{_delta_chip}"
                         f"{_stage_chip}{_mayer_chip}{_dd_chip}"
                         f"{_cup_chip}{_onchain_chip}{_tvl_chip}{_tok_chip}"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
-                        f"price ${r['price']:,.4g} · "
+                        f"price ${r['price']:,.4g} Â· "
                         f"24h vol ${r['volume_24h'] / 1e6:.1f}M</span>"
                         f"</div>"
                         f"<div style='color:#aab;font-size:0.78rem;"
                         f"margin-top:6px;line-height:1.5'>"
-                        f"<b>Stage:</b> {_weinstein.get('detail', '—')}<br>"
-                        f"<b>Structure:</b> {_struct.get('detail', '—')}<br>"
-                        f"<b>Drawdown:</b> {_dd.get('detail', '—')}<br>"
-                        f"<b>Mayer:</b> {_mayer.get('detail', '—')}<br>"
-                        f"<b>Cup/Handle:</b> {_ch.get('detail', '—')}<br>"
-                        f"<b>TVL/Fees:</b> {_tvl.get('detail', '—')}<br>"
-                        f"<b>Tokenomics:</b> {_tok.get('detail', '—')}"
-                        f"{('<br><b>On-chain:</b> ' + _onchain.get('detail', '—')) if _onchain.get('mvrv') is not None else ''}"
+                        f"<b>Stage:</b> {_weinstein.get('detail', 'â€”')}<br>"
+                        f"<b>Structure:</b> {_struct.get('detail', 'â€”')}<br>"
+                        f"<b>Drawdown:</b> {_dd.get('detail', 'â€”')}<br>"
+                        f"<b>Mayer:</b> {_mayer.get('detail', 'â€”')}<br>"
+                        f"<b>Cup/Handle:</b> {_ch.get('detail', 'â€”')}<br>"
+                        f"<b>TVL/Fees:</b> {_tvl.get('detail', 'â€”')}<br>"
+                        f"<b>Tokenomics:</b> {_tok.get('detail', 'â€”')}"
+                        f"{('<br><b>On-chain:</b> ' + _onchain.get('detail', 'â€”')) if _onchain.get('mvrv') is not None else ''}"
                         f"</div>",
                         unsafe_allow_html=True)
 
     else:
         st.info(
-            "Click **🔄 Run weekly scan** to score the top coins on "
+            "Click **ðŸ”„ Run weekly scan** to score the top coins on "
             "weekly bars. This is a slower scan (~1s per coin) because "
             "weekly klines aren't in the regular per-tick cache. "
             "Results stay cached for 2 minutes between scans.")
 
     st.caption(
-        "⚠️ This module is **DISPLAY ONLY** in Phase D MVP. Picks here "
+        "âš ï¸ This module is **DISPLAY ONLY** in Phase D MVP. Picks here "
         "do NOT auto-open spot positions, do NOT influence the futures "
         "picks board, and do NOT feed live_broker. Manually buy on spot "
         "after doing your own due diligence on tokenomics, project "
         "fundamentals, and current macro regime. Long-term holds need "
         "more than a chart score.")
 
-
-# ===========================================================================
-# Tab — 🔬 Hunters (EXPERIMENTAL · isolated · revert-safe)
-# ===========================================================================
-# Two new composite scanners that are STRICTLY isolated from the rest of
-# the app — they read kline data and surface picks, but they only touch
-# the 24/7 Agent's state file (.agent_bot.json) when the user clicks 📥
-# to open a paper position. Paper Trader / Live Trading / live_broker
-# state are untouched.
-#
-# REVERT: this entire block + the SECTIONS entry + rebound_radar.py +
-# breakout_hunter.py + backtest_rebound_breakout.py can be wiped with:
-#   git reset --hard stable-pre-rebound-breakout
-#
-# Backtest validation:  python backtest_rebound_breakout.py
-# ===========================================================================
-if active_section == "🔬 Hunters (experimental)":
-    import rebound_radar
-    import breakout_hunter
-
-    st.subheader("🔬 Hunters · experimental composite scanners")
-    st.caption(
-        "Two focused scanners separate from the rest of the app. "
-        "**REBOUND HUNTER** catches bullish rebounds early on 15m/1h "
-        "(5-7% targets). **BREAKOUT HUNTER** scans top-300 Binance "
-        "for pre-pump coil patterns (PORTAL-style runners). Both use "
-        "real backtested signal modules. Honest hit rates: rebounds "
-        "~55-65%, breakouts ~30-40% (with much larger upside).")
-    st.info(
-        "**Revert anytime** with `git reset --hard "
-        "stable-pre-rebound-breakout` to wipe both hunters back "
-        "out of the app without touching anything else.")
-
-    @st.cache_data(ttl=600, show_spinner=False)
-    def load_rebound_picks(_v: int = 1):
-        return rebound_radar.scan_for_rebounds(
-            scan_n=150, min_score=70.0, min_drawdown_pct=5.0,
-            max_picks=15)
-
-    @st.cache_data(ttl=900, show_spinner=False)
-    def load_breakout_picks(_v: int = 1):
-        return breakout_hunter.scan_for_breakouts(
-            scan_n=300, min_score=70.0, max_seven_day_chg=50.0,
-            min_volume_usd=5_000_000.0, max_picks=15)
-
-    # ----- 🔁 REBOUND HUNTER ---------------------------------------------
-    st.markdown("---")
-    st.markdown("### 🔁 REBOUND HUNTER")
-    st.caption(
-        "**Target:** the first 5-7% of a bearish→bullish rebound. "
-        "**Triggers when:** 15m AND 1h both score ≥60, blended ≥70, "
-        "coin is ≥5% off recent high. Composites V-bottom + CVD "
-        "divergence + funding extreme + reversal_approach + "
-        "pattern_scout + drawdown depth + first-green-candle.")
-    with st.spinner("🔍 Scanning top 150 for rebound setups (~30-60s cold)..."):
-        try:
-            reb_picks = load_rebound_picks()
-        except Exception as exc:
-            st.error(f"Rebound scan failed: {exc}")
-            reb_picks = []
-
-    if not reb_picks:
-        st.info("No rebound setups firing right now. The system needs "
-                "5+ lanes to agree before surfacing a pick. Refresh "
-                "in 10 min for a re-scan.")
-    else:
-        st.success(
-            f"**{len(reb_picks)} rebound setups firing.** Sorted by "
-            "blended score (highest first).")
-        for p in reb_picks:
-            sym = p["symbol"]
-            sc = p["score"]
-            dd = p["drawdown_pct"]
-            exp = p["expected_move_pct"]
-            plan = p.get("trade_plan") or {}
-            tier_emoji = ("🟣 MAX" if sc >= 90 else
-                          "🔴 HIGH" if sc >= 85 else
-                          "🟢 STRONG")
-            entry = plan.get("entry", 0)
-            stop = plan.get("stop", 0)
-            tp1 = plan.get("tp1", 0)
-            tp2 = plan.get("tp2", 0)
-            sl_pct = (
-                (stop - entry) / entry * 100 if entry > 0 else 0)
-            tp1_pct = (
-                (tp1 - entry) / entry * 100 if entry > 0 else 0)
-            tp2_pct = (
-                (tp2 - entry) / entry * 100 if entry > 0 else 0)
-            title = (
-                f"{tier_emoji} · **{sym}** · score {sc:.0f} · "
-                f"−{dd:.1f}% from high · expected +{exp:.1f}% · "
-                f"15m {p['score_15m']:.0f} / 1h {p['score_1h']:.0f}")
-            with st.expander(title, expanded=False):
-                st.markdown(
-                    f"**Entry** `{entry:g}` · **SL** `{stop:g}` "
-                    f"(`{sl_pct:+.2f}%`) · **TP1** `{tp1:g}` "
-                    f"(`{tp1_pct:+.2f}%`) · **TP2** `{tp2:g}` "
-                    f"(`{tp2_pct:+.2f}%`) · "
-                    f"**R:R** {plan.get('rr', 0):.2f}")
-                if p.get("reasons"):
-                    st.markdown("**Why fired:**")
-                    for r in p["reasons"]:
-                        st.markdown(f"- {r}")
-                if st.button(f"📥 Open paper LONG {sym}",
-                             key=f"hunters_reb_{sym}"):
-                    try:
-                        ag = paper_bot.load_state(AGENT_BOT_FILE)
-                        alert = {
-                            "symbol": sym,
-                            "base": sym.replace("USDT", ""),
-                            "side": "LONG",
-                            "entry_low": entry, "stop": stop,
-                            "target": tp1, "target_2": tp2,
-                            "confidence": int(sc),
-                            "rr": plan.get("rr", 0),
-                        }
-                        pos = paper_bot.open_position(ag, alert, entry)
-                        paper_bot.save_state(AGENT_BOT_FILE, ag)
-                        if pos:
-                            st.success(
-                                f"Opened LONG {sym} at {entry:g} "
-                                "(saved to 24/7 Agent history)")
-                        else:
-                            st.warning(
-                                "Already open in 24/7 Agent state.")
-                    except Exception as exc:
-                        st.error(f"Open failed: {exc}")
-
-    # ----- 🚀 BREAKOUT HUNTER --------------------------------------------
-    st.markdown("---")
-    st.markdown("### 🚀 BREAKOUT HUNTER")
-    st.caption(
-        "**Target:** pre-pump coil + ignition, BEFORE the move. "
-        "**Universe:** top 300 USDT-perp by volume (covers mid-caps "
-        "where PORTAL-style 100%+ runs originate). **Filters:** ≥$5M "
-        "daily volume (no illiquid traps), ≤50% gain in last 7 days "
-        "(no chasing). Lanes: BB-squeeze + hidden accumulation + "
-        "OI/funding surge + TTM Squeeze + higher-low + cup-and-handle.")
-    with st.spinner("🚀 Scanning top 300 for pre-breakout coils (~60-90s cold)..."):
-        try:
-            bk_picks = load_breakout_picks()
-        except Exception as exc:
-            st.error(f"Breakout scan failed: {exc}")
-            bk_picks = []
-
-    if not bk_picks:
-        st.info("No breakout setups firing right now. Coil patterns "
-                "are rare — typically 1-5 picks per session. The "
-                "wider 300-coin universe means we DO catch mid-caps "
-                "the regular picks board misses.")
-    else:
-        st.success(
-            f"**{len(bk_picks)} breakout setups firing.** Position "
-            "SMALL — asymmetric bets (many miss, hits run 20%+).")
-        for p in bk_picks:
-            sym = p["symbol"]
-            sc = p["score"]
-            d7 = p.get("seven_day_chg_pct", 0)
-            vol_m = p.get("volume_usd", 0) / 1e6
-            plan = p.get("trade_plan") or {}
-            tier_emoji = ("🟣 MAX" if sc >= 90 else
-                          "🔴 HIGH" if sc >= 85 else
-                          "🟢 STRONG")
-            entry = plan.get("entry", 0)
-            stop = plan.get("stop", 0)
-            tp1 = plan.get("tp1", 0)
-            tp2 = plan.get("tp2", 0)
-            tp1_pct = (
-                (tp1 - entry) / entry * 100 if entry > 0 else 0)
-            tp2_pct = (
-                (tp2 - entry) / entry * 100 if entry > 0 else 0)
-            title = (
-                f"{tier_emoji} · **{sym}** · score {sc:.0f} · "
-                f"7d {d7:+.1f}% · vol ${vol_m:.1f}M · "
-                f"TP1 +{tp1_pct:.1f}% · TP2 +{tp2_pct:.1f}%")
-            with st.expander(title, expanded=False):
-                st.markdown(
-                    f"**Entry** `{entry:g}` · **SL** `{stop:g}` · "
-                    f"**TP1** `{tp1:g}` (`{tp1_pct:+.2f}%`) · "
-                    f"**TP2** `{tp2:g}` (`{tp2_pct:+.2f}%`) · "
-                    f"**R:R** {plan.get('rr', 0):.2f}")
-                if p.get("reasons"):
-                    st.markdown("**Why fired:**")
-                    for r in p["reasons"]:
-                        st.markdown(f"- {r}")
-                if st.button(f"📥 Open paper LONG {sym}",
-                             key=f"hunters_bk_{sym}"):
-                    try:
-                        ag = paper_bot.load_state(AGENT_BOT_FILE)
-                        alert = {
-                            "symbol": sym,
-                            "base": sym.replace("USDT", ""),
-                            "side": "LONG",
-                            "entry_low": entry, "stop": stop,
-                            "target": tp1, "target_2": tp2,
-                            "confidence": int(sc),
-                            "rr": plan.get("rr", 0),
-                        }
-                        pos = paper_bot.open_position(ag, alert, entry)
-                        paper_bot.save_state(AGENT_BOT_FILE, ag)
-                        if pos:
-                            st.success(
-                                f"Opened LONG {sym} at {entry:g} "
-                                "(saved to 24/7 Agent history)")
-                        else:
-                            st.warning(
-                                "Already open in 24/7 Agent state.")
-                    except Exception as exc:
-                        st.error(f"Open failed: {exc}")
-
-    st.markdown("---")
-    st.caption(
-        "Both modules are decoupled from Paper Trader and Live "
-        "Trading — they only open positions in the 24/7 Agent's own "
-        "state file (.agent_bot.json). Backtest with: "
-        "`python backtest_rebound_breakout.py`")
