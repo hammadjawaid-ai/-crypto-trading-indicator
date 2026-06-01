@@ -2527,7 +2527,7 @@ def render_action_plan(plan: dict, regime: str, confidence: int,
             f"<h4 style='margin:0 0 6px 0'>ðŸ“‹ Action Plan &nbsp;"
             f"<span style='color:{accent}'>{side} {coin}</span>"
             f"<span style='float:right;color:#888;font-size:0.8rem'>"
-            f"{mode.upper()} Â· regime: {regime}</span></h4>",
+            f"{mode.upper()} · regime: {regime}</span></h4>",
             unsafe_allow_html=True)
         if mat:
             st.markdown(
@@ -2535,7 +2535,7 @@ def render_action_plan(plan: dict, regime: str, confidence: int,
                 f"{mat_color};padding:6px 11px;border-radius:4px;"
                 f"margin:2px 0 12px 0'>"
                 f"<b style='color:{mat_color}'>{mat_label}</b>"
-                f"<span style='color:#888'> Â· {mat.get('confidence', 0)}% "
+                f"<span style='color:#888'> · {mat.get('confidence', 0)}% "
                 f"confidence</span><br><span style='font-size:0.85rem;"
                 f"color:#bbb'>{mat.get('note', '')}</span></div>",
                 unsafe_allow_html=True)
@@ -2544,7 +2544,7 @@ def render_action_plan(plan: dict, regime: str, confidence: int,
                   f"{fmt_price(plan['entry_low'])} â€“ "
                   f"{fmt_price(plan['entry_high'])}")
         c2.metric("Stop loss", fmt_price(plan["stop_loss"]),
-                  f"-{plan['risk_pct']:.2f}% Â· {plan.get('stop_basis', '')}")
+                  f"-{plan['risk_pct']:.2f}% · {plan.get('stop_basis', '')}")
         c3.metric("Target 1", fmt_price(plan["take_profit"]),
                   f"{plan['risk_reward']:.1f}R")
         c4.metric("Target 2", fmt_price(plan["take_profit_2"]),
@@ -2569,7 +2569,7 @@ def render_action_plan(plan: dict, regime: str, confidence: int,
                 f"confidence and is capped on volatile (wide-stop) coins, so "
                 f"each coin gets its own size â€” never a copy-paste.")
         st.caption(plan["regime_fit"])
-        st.progress(int(confidence), text=f"Signal confidence Â· {confidence}%")
+        st.progress(int(confidence), text=f"Signal confidence · {confidence}%")
 
         market = ("tradeable on Spot or Futures" if side == "LONG"
                   else "tradeable on Futures / Margin only â€” you cannot "
@@ -2596,7 +2596,7 @@ def render_orderflow(snap: dict) -> None:
             f3.metric("Net flow", f"${flow['net_quote']:,.0f}",
                       flow["pressure"])
             st.caption(f"Last {flow['trades']:,} executed trades over "
-                       f"~{flow['window_seconds'] / 60:.1f} min Â· "
+                       f"~{flow['window_seconds'] / 60:.1f} min · "
                        f"{flow['pressure']}.")
             if flow["large_trades"]:
                 lt = pd.DataFrame([
@@ -2615,7 +2615,7 @@ def render_orderflow(snap: dict) -> None:
         else:
             st.caption("Live trade feed unavailable for this symbol.")
         if book:
-            st.markdown(f"**Order book** Â· Â±{config.DEPTH_BAND_PCT:.1f}% band")
+            st.markdown(f"**Order book** · ±{config.DEPTH_BAND_PCT:.1f}% band")
             b1, b2, b3 = st.columns(3)
             b1.metric("Bid depth", f"${book['bid_quote']:,.0f}")
             b2.metric("Ask depth", f"${book['ask_quote']:,.0f}")
@@ -2623,8 +2623,8 @@ def render_orderflow(snap: dict) -> None:
             sup, res = book.get("support"), book.get("resistance")
             if sup and res:
                 st.caption(
-                    f"{book['verdict']} Â· nearest support wall "
-                    f"{fmt_price(sup['price'])} (${sup['quote']:,.0f}) Â· "
+                    f"{book['verdict']} · nearest support wall "
+                    f"{fmt_price(sup['price'])} (${sup['quote']:,.0f}) · "
                     f"resistance wall {fmt_price(res['price'])} "
                     f"(${res['quote']:,.0f}).")
 
@@ -2680,7 +2680,7 @@ def render_history(symbol: str, df1d, ticker_row, detail: dict,
                         + ("uptrend" if above else "downtrend"))
         if detail.get("atr_pct"):
             bits.append(f"volatility {detail['atr_pct']}% ATR")
-        st.caption(" Â· ".join(bits))
+        st.caption(" · ".join(bits))
 
 
 def render_lunarcrush(metrics: dict | None, base_asset: str) -> None:
@@ -2748,7 +2748,7 @@ def render_bottom_line(agg: dict, detail: dict, per_tf: dict,
         "Trend & momentum",
         "bull" if agg["bias_score"] > 8
         else "bear" if agg["bias_score"] < -8 else "neutral",
-        f"{agg['bias_label']} bias Â· {agg['action_label']} timing"))
+        f"{agg['bias_label']} bias · {agg['action_label']} timing"))
     if tv_rating:
         reads.append((
             "TradingView", "bull" if tv_rating["score"] > 10
@@ -2772,7 +2772,7 @@ def render_bottom_line(agg: dict, detail: dict, per_tf: dict,
         reads.append((
             "Social (LunarCrush)", "bull" if s >= 60
             else "bear" if s <= 40 else "neutral",
-            f"Galaxy {lc_metrics.get('galaxy_score', 'â€”')} Â· "
+            f"Galaxy {lc_metrics.get('galaxy_score', 'â€”')} · "
             f"sentiment {s:.0f}%"))
 
     bulls = sum(1 for _, s, _ in reads if s == "bull")
@@ -2798,8 +2798,8 @@ def render_bottom_line(agg: dict, detail: dict, per_tf: dict,
             f"<div style='font-size:1.35rem;font-weight:800;color:{col};"
             f"margin:3px 0 4px 0'>{head}</div>"
             f"<div style='color:#8b8d98;font-size:0.85rem'>"
-            f"{bulls} bullish Â· {bears} bearish signals Â· composite score "
-            f"{score:+.0f} Â· {conf}% confidence</div>",
+            f"{bulls} bullish · {bears} bearish signals · composite score "
+            f"{score:+.0f} · {conf}% confidence</div>",
             unsafe_allow_html=True)
         rows = "".join(
             f"<div style='display:flex;gap:9px;align-items:center;"
@@ -2856,7 +2856,7 @@ def render_lunarcrush_leaderboard(rows: list) -> None:
         c1, c2, c3 = st.columns(3)
         c1.metric("Coins tracked", len(coins))
         c2.metric("Top Galaxy Score",
-                  f"{top['symbol']} Â· {top['galaxy_score']:.0f}")
+                  f"{top['symbol']} · {top['galaxy_score']:.0f}")
         if sents:
             c3.metric("Avg social sentiment",
                       f"{sum(sents) / len(sents):.0f}%")
@@ -2928,8 +2928,8 @@ def render_breakout_card(row: dict, rank: int) -> None:
             f"border-radius:7px;font-size:0.72rem;font-weight:800;"
             f"letter-spacing:0.03em'>{row['verdict']}</span>{ignite}</div>"
             f"<div style='color:#8b8d98;font-size:0.82rem;font-weight:600'>"
-            f"radar score {row['opportunity']:.0f}/100 Â· "
-            f"{row['confidence']}% confidence Â· "
+            f"radar score {row['opportunity']:.0f}/100 · "
+            f"{row['confidence']}% confidence · "
             f"signal {strength['label'].lower()} ({strength['score']})"
             f"</div></div>",
             unsafe_allow_html=True)
@@ -2939,7 +2939,7 @@ def render_breakout_card(row: dict, rank: int) -> None:
                 "<div style='background:rgba(224,169,43,0.12);"
                 "border:1px solid rgba(224,169,43,0.45);border-radius:9px;"
                 "padding:7px 12px;margin:8px 0;font-size:0.84rem;"
-                "color:#e9c66b;font-weight:600'>âš ï¸ This coin has already made "
+                "color:#e9c66b;font-weight:600'>âš ️ This coin has already made "
                 "its big move â€” it is too late to enter safely. Don't chase "
                 "it: wait for it to pull back, or just manage a position you "
                 "already hold.</div>",
@@ -2956,12 +2956,12 @@ def render_breakout_card(row: dict, rank: int) -> None:
         m[5].metric("RSI", f"{row['rsi']:.0f}")
 
         st.progress(min(int(row["opportunity"]), 100),
-                    text=f"ðŸŽ¯ Radar score {row['opportunity']:.0f}/100  Â·  "
+                    text=f"ðŸŽ¯ Radar score {row['opportunity']:.0f}/100  ·  "
                          f"{_STAGE_WORD.get(row['stage'], row['stage'])}")
 
         st.markdown(f"**Why it's on the radar** â€” {md_safe(row['summary'])}")
         st.markdown(f"**ðŸ“° News** â€” {md_safe(row['news_read'])}")
-        st.caption(f"â±ï¸ Timing â€” {row['window']} Â· {row['regime_4h']} backdrop")
+        st.caption(f"⏱️ Timing â€” {row['window']} · {row['regime_4h']} backdrop")
 
         # --- Entry & exit plan, shown prominently in the card body ---------
         st.markdown(f"**ðŸŽ¯ The play** â€” {md_safe(idea['play'])}")
@@ -3103,7 +3103,7 @@ def render_buy_zone_board(radar: pd.DataFrame, backdrop: dict,
     table = pd.DataFrame({
         "Coin": zones["base"],
         "Signal": zones.apply(
-            lambda r: f"{r['strength_label']} Â· {r['strength']:.0f}", axis=1),
+            lambda r: f"{r['strength_label']} · {r['strength']:.0f}", axis=1),
         "Status": zones.apply(
             lambda r: ("ðŸ”¥ " if r["ignited"] else "")
             + _STAGE_WORD.get(r["stage"], r["stage"]), axis=1),
@@ -3182,19 +3182,19 @@ def _render_alert_setup(s: dict, is_new: bool) -> None:
     """One high-confidence setup line inside the Trade Alerts strip."""
     color = "#2ed47a" if s["side"] == "LONG" else "#ff5c5c"
     word = "BULLISH" if s["side"] == "LONG" else "BEARISH"
-    proof = " Â· ".join(s["proof"]) if s["proof"] else "multiple signals aligned"
+    proof = " · ".join(s["proof"]) if s["proof"] else "multiple signals aligned"
     new_tag = " ðŸ†•" if is_new else ""
     st.markdown(
         f"<div style='border-left:3px solid {color};padding:6px 11px;"
         f"margin:6px 0;background:{color}14;border-radius:5px'>"
         f"<span style='font-weight:800'>{s['base']}</span> "
-        f"<span style='color:{color};font-weight:800'>{word}</span> Â· "
-        f"{s['confidence']}% confidence Â· R:R {s['rr']:.1f}{new_tag}<br>"
+        f"<span style='color:{color};font-weight:800'>{word}</span> · "
+        f"{s['confidence']}% confidence · R:R {s['rr']:.1f}{new_tag}<br>"
         f"<span style='font-size:0.8rem;color:#aab'>proof â€” "
         f"{md_safe(proof)}</span><br>"
         f"<span style='font-size:0.8rem;color:#889'>entry "
-        f"{fmt_price(s['entry_low'])}â€“{fmt_price(s['entry_high'])} Â· stop "
-        f"{fmt_price(s['stop'])} Â· target {fmt_price(s['target'])}</span>"
+        f"{fmt_price(s['entry_low'])}â€“{fmt_price(s['entry_high'])} · stop "
+        f"{fmt_price(s['stop'])} · target {fmt_price(s['target'])}</span>"
         f"</div>",
         unsafe_allow_html=True)
 
@@ -3202,7 +3202,7 @@ def _render_alert_setup(s: dict, is_new: bool) -> None:
 def _render_alert_surge(s: dict, is_new: bool) -> None:
     """One volume-surge line inside the Trade Alerts strip."""
     chg = s.get("change_24h")
-    chg_txt = (f" Â· {chg:+.1f}% 24h" if chg is not None and chg == chg else "")
+    chg_txt = (f" · {chg:+.1f}% 24h" if chg is not None and chg == chg else "")
     lab = s["label"]
     lab_col = ("#2ed47a" if "LONG" in lab else "#ff5c5c" if "SHORT" in lab
                else "#8b8d98")
@@ -3212,7 +3212,7 @@ def _render_alert_surge(s: dict, is_new: bool) -> None:
         f"border-radius:5px;border:1px solid #ff8a3d44'>"
         f"ðŸ”¥ <span style='font-weight:800'>{s['base']}</span> â€” volume "
         f"<span style='color:#ff9d3d;font-weight:800'>{s['vol_ratio']:.1f}Ã—</span>"
-        f" average{chg_txt} Â· <span style='color:{lab_col};font-weight:700'>"
+        f" average{chg_txt} · <span style='color:{lab_col};font-weight:700'>"
         f"{lab}</span>{new_tag}</div>",
         unsafe_allow_html=True)
 
@@ -3315,7 +3315,7 @@ def render_alerts(merged: pd.DataFrame, timeframe: str) -> None:
             f"align-items:baseline'><span style='font-size:1.06rem;"
             f"font-weight:800'>ðŸš¨ Trade Alerts</span>"
             f"<span style='color:#8b8d98;font-size:0.8rem;font-weight:600'>"
-            f"{timeframe} timeframe Â· {trade_mode.upper()} mode</span></div>",
+            f"{timeframe} timeframe · {trade_mode.upper()} mode</span></div>",
             unsafe_allow_html=True)
 
         if not setups and not surges:
@@ -3355,8 +3355,8 @@ def render_alerts(merged: pd.DataFrame, timeframe: str) -> None:
                 "id": f"{s['symbol']}:{s['side']}",
                 "title": (f"{'ðŸŸ¢' if bullish else 'ðŸ”´'} {s['base']} "
                           f"{'BULLISH' if bullish else 'BEARISH'} setup"),
-                "body": (f"{s['confidence']}% confidence Â· R:R "
-                         f"{s['rr']:.1f} Â· {timeframe} Â· entry "
+                "body": (f"{s['confidence']}% confidence · R:R "
+                         f"{s['rr']:.1f} · {timeframe} · entry "
                          f"{fmt_price(s['entry_low'])}â€“"
                          f"{fmt_price(s['entry_high'])}"),
             })
@@ -3364,7 +3364,7 @@ def render_alerts(merged: pd.DataFrame, timeframe: str) -> None:
             notify_items.append({
                 "id": f"vol:{s['symbol']}",
                 "title": f"ðŸ”¥ {s['base']} volume surge",
-                "body": (f"Volume {s['vol_ratio']:.1f}Ã— average Â· "
+                "body": (f"Volume {s['vol_ratio']:.1f}Ã— average · "
                          f"{timeframe} timeframe"),
             })
         _inject_browser_alerts(notify_items, alert_every * 60)
@@ -3411,8 +3411,8 @@ def render_forecast(fc_df: pd.DataFrame) -> None:
                     f"padding:5px 11px;margin:5px 0;background:{color}14;"
                     f"border-radius:5px'><b>{a['base']}</b> "
                     f"<span style='color:{color};font-weight:800'>"
-                    f"{a['outlook'].upper()}</span> across 15m / 1h / 4h Â· "
-                    f"{a['confidence']}% confidence Â· 4h move "
+                    f"{a['outlook'].upper()}</span> across 15m / 1h / 4h · "
+                    f"{a['confidence']}% confidence · 4h move "
                     f"<b>{a['proj_4h_pct']:+.2f}%</b>{fire}{tag}</div>",
                     unsafe_allow_html=True)
 
@@ -3422,8 +3422,8 @@ def render_forecast(fc_df: pd.DataFrame) -> None:
         _inject_browser_alerts(
             [{"id": f"fc:{a['symbol']}:{a['outlook']}",
               "title": f"ðŸ”® {a['base']} â€” {a['outlook']} forecast",
-              "body": (f"Aligned across 15m / 1h / 4h Â· {a['confidence']}% "
-                       f"confidence Â· 4h move {a['proj_4h_pct']:+.2f}%")}
+              "body": (f"Aligned across 15m / 1h / 4h · {a['confidence']}% "
+                       f"confidence · 4h move {a['proj_4h_pct']:+.2f}%")}
              for a in fa],
             0, key="ti_notified_forecast")
 
@@ -3441,7 +3441,7 @@ def render_forecast(fc_df: pd.DataFrame) -> None:
     def cell(h: dict | None) -> str:
         if not h:
             return "â€”"
-        return f"{arrow.get(h['direction'], 'Â·')} {h['move_pct']:+.2f}%"
+        return f"{arrow.get(h['direction'], '·')} {h['move_pct']:+.2f}%"
 
     rows = []
     for _, r in fc_df.iterrows():
@@ -3496,9 +3496,9 @@ def render_forecast(fc_df: pd.DataFrame) -> None:
         ranked = fc_df.reindex(
             fc_df["net_lean"].abs().sort_values(ascending=False).index)
         for _, r in ranked.head(6).iterrows():
-            drivers = " Â· ".join(r["drivers"]) if r["drivers"] else "â€”"
+            drivers = " · ".join(r["drivers"]) if r["drivers"] else "â€”"
             news = r["news_read"] or "no specific news catalyst"
-            fire = " Â· ðŸ”¥ volume igniting" if r["ignited"] else ""
+            fire = " · ðŸ”¥ volume igniting" if r["ignited"] else ""
             st.markdown(
                 f"**{r['base']}** â€” {r['outlook_word']} "
                 f"({r['confidence']}%){fire}  \n"
@@ -3506,7 +3506,7 @@ def render_forecast(fc_df: pd.DataFrame) -> None:
                 f"News: {md_safe(news)}")
 
     st.caption(
-        "Each cell shows the projected direction (â–² up Â· â–¼ down Â· â–¬ "
+        "Each cell shows the projected direction (â–² up · â–¼ down · â–¬ "
         "sideways) and the expected NET move for that candle. The call "
         "fuses the timeframe's technicals with news, the macro backdrop, "
         "volume ignition, social heat and funding â€” every input tilts the "
@@ -3576,10 +3576,10 @@ def render_btc_outlook(o: dict,
             f"border-radius:7px;font-size:0.78rem;font-weight:800;"
             f"letter-spacing:0.04em'>{label}</span></div>"
             f"<div style='color:#8b8d98;font-size:0.85rem;font-weight:600'>"
-            f"{o.get('confidence', 0)}% confidence Â· "
+            f"{o.get('confidence', 0)}% confidence · "
             f"{o.get('aligned_categories', 0)}/"
-            f"{o.get('total_categories', 0)} categories agree Â· "
-            f"expected range Â±{o.get('expected_range_pct', 0):.1f}%"
+            f"{o.get('total_categories', 0)} categories agree · "
+            f"expected range ±{o.get('expected_range_pct', 0):.1f}%"
             f"</div></div>"
             f"<div style='color:{color};font-size:0.94rem;font-weight:700;"
             f"margin:6px 0 4px 0'>{md_safe(o.get('takeaway', ''))}</div>",
@@ -3654,7 +3654,7 @@ def render_btc_outlook(o: dict,
                                f"font-size:0.7rem;margin-left:6px'>"
                                f"{it['keywords'][0]}</span>")
                 time_ago = _relative_time(it.get("published"))
-                time_chip = (f" Â· <span style='color:#6e8bff'>{time_ago}</span>"
+                time_chip = (f" · <span style='color:#6e8bff'>{time_ago}</span>"
                              if time_ago else "")
                 link = it.get("link") or ""
                 if link:
@@ -3673,8 +3673,8 @@ def render_btc_outlook(o: dict,
                     f"<span style='color:{dir_color};font-weight:800'>"
                     f"{it['direction'].upper()}</span>{kw_chip} "
                     f"<span style='color:#9aa0b4;font-size:0.76rem'>"
-                    f"Â· {md_safe(it.get('source', ''))} "
-                    f"Â· impact {it['score']:.2f}{time_chip}</span>"
+                    f"· {md_safe(it.get('source', ''))} "
+                    f"· impact {it['score']:.2f}{time_chip}</span>"
                     f"{fresh_tag}<br>{title_html}</div>")
             st.markdown(
                 f"<div style='background:#0e1118;border-left:3px solid "
@@ -3702,7 +3702,7 @@ def render_btc_outlook(o: dict,
             st.markdown(
                 f"<div style='background:#e0a92b1f;border-left:3px solid "
                 f"#e0a92b;padding:5px 11px;margin:4px 0;border-radius:4px;"
-                f"font-size:0.85rem'>âš ï¸ {md_safe(flag)}</div>",
+                f"font-size:0.85rem'>âš ️ {md_safe(flag)}</div>",
                 unsafe_allow_html=True)
         if o.get("strategies"):
             with st.expander("ðŸŽ¯ Trading strategies currently firing on BTC"):
@@ -3809,7 +3809,7 @@ if st.sidebar.button("ðŸ”„ Refresh data", use_container_width=True):
     st.rerun()
 
 st.sidebar.caption(
-    f"Updated {datetime.now(timezone.utc):%H:%M:%S} UTC Â· "
+    f"Updated {datetime.now(timezone.utc):%H:%M:%S} UTC · "
     f"market cache {config.MARKET_CACHE_TTL}s")
 st.sidebar.info(
     "Educational tool. Signals are algorithmic, not financial advice. "
@@ -3869,7 +3869,7 @@ hcol1, hcol2, hcol3, hcol4 = st.columns(4)
 
 if fg:
     delta = fg["value"] - (fg["yesterday"] or fg["value"])
-    hcol1.metric("Fear & Greed", f"{fg['value']} Â· {fg['label']}",
+    hcol1.metric("Fear & Greed", f"{fg['value']} · {fg['label']}",
                  f"{delta:+d} vs yesterday")
 else:
     hcol1.metric("Fear & Greed", "unavailable")
@@ -3882,7 +3882,7 @@ else:
 
 if crypto_soc:
     hcol3.metric("Crypto Social Mood", crypto_soc["mood"],
-                 f"{crypto_soc['sentiment']:.0f}% positive Â· LunarCrush")
+                 f"{crypto_soc['sentiment']:.0f}% positive · LunarCrush")
 elif not news_df.empty:
     _cm = news_mod.category_mood(news_df, "Crypto")
     hcol3.metric("Crypto News Mood", _cm["mood"], f"{_cm['score']:+.2f} avg")
@@ -3891,7 +3891,7 @@ else:
 
 if stock_soc:
     hcol4.metric("Equities Social Mood", stock_soc["mood"],
-                 f"{stock_soc['sentiment']:.0f}% positive Â· LunarCrush")
+                 f"{stock_soc['sentiment']:.0f}% positive · LunarCrush")
 elif not news_df.empty:
     _mm = news_mod.category_mood(news_df, "Macro / Politics")
     hcol4.metric("Macro News Mood", _mm["mood"], f"{_mm['score']:+.2f} avg")
@@ -3902,9 +3902,9 @@ if glob:
     _eth = glob.get("eth_dominance") or 0.0
     _eth_txt = f" / ETH {_eth:.1f}%" if _eth else ""
     st.caption(
-        f"Total crypto market cap ${glob['market_cap_usd'] / 1e12:.2f}T Â· "
-        f"24h volume ${glob['volume_usd'] / 1e9:.0f}B Â· "
-        f"BTC {glob['btc_dominance']:.1f}%{_eth_txt} dominance Â· "
+        f"Total crypto market cap ${glob['market_cap_usd'] / 1e12:.2f}T · "
+        f"24h volume ${glob['volume_usd'] / 1e9:.0f}B · "
+        f"BTC {glob['btc_dominance']:.1f}%{_eth_txt} dominance · "
         f"via {glob.get('source', 'â€”')}")
 
 # --- BTC 24h Outlook â€” the headline directional read above every tab --------
@@ -3964,7 +3964,7 @@ if not _alert_merged.empty:
 # Tab 1 â€” Market Scanner
 # ===========================================================================
 if active_section == "ðŸ” Market Scanner":
-    st.subheader(f"Market Scanner Â· {timeframe} timeframe")
+    st.subheader(f"Market Scanner · {timeframe} timeframe")
     st.caption(f"Top {top_n} USDT pairs by 24h volume, ranked by signal score.")
 
     try:
@@ -4137,12 +4137,12 @@ if active_section == "ðŸš€ Breakout Radar":
         "and coins that have already run (too late to chase).")
 
     hz_label = st.radio(
-        "Horizon", ["âš¡ Imminent â€” next 15mâ€“4h move  (scans 15m Â· 1h Â· 4h)",
-                    "ðŸ“… Next 24 hours  (scans 1h Â· 4h Â· 1d)"],
+        "Horizon", ["âš¡ Imminent â€” next 15mâ€“4h move  (scans 15m · 1h · 4h)",
+                    "ðŸ“… Next 24 hours  (scans 1h · 4h · 1d)"],
         horizontal=True, label_visibility="collapsed")
     horizon = "24h" if hz_label.startswith("ðŸ“…") else "imminent"
-    tf_note = ("1h Â· 4h Â· 1d charts" if horizon == "24h"
-               else "15m Â· 1h Â· 4h charts")
+    tf_note = ("1h · 4h · 1d charts" if horizon == "24h"
+               else "15m · 1h · 4h charts")
 
     try:
         b_tickers = load_top_symbols(top_n)
@@ -4181,8 +4181,8 @@ if active_section == "ðŸš€ Breakout Radar":
             f"SETUP SITS INSIDE</span><br>"
             f"<span style='font-size:1.08rem;font-weight:800;color:{bd_color}'>"
             f"{backdrop['label']}</span>"
-            f"<span style='color:#8b8d98;font-size:0.84rem'> &nbsp;Â·&nbsp; "
-            f"score {backdrop['score']:+.0f} &nbsp;Â·&nbsp; "
+            f"<span style='color:#8b8d98;font-size:0.84rem'> &nbsp;·&nbsp; "
+            f"score {backdrop['score']:+.0f} &nbsp;·&nbsp; "
             f"{backdrop['note']}</span><br>"
             f"<span style='color:#9aa0b4;font-size:0.79rem'>Bullish setups get "
             f"a small tailwind when the tape is risk-on and a headwind when "
@@ -4206,7 +4206,7 @@ if active_section == "ðŸš€ Breakout Radar":
                   help="Hasn't moved yet â€” the earliest, safest entries")
         k2.metric("ðŸš€ Just Started", fresh,
                   help="Already moving but still early â€” room to run")
-        k3.metric("âš ï¸ Already Ran", extended,
+        k3.metric("âš ️ Already Ran", extended,
                   help="Move mostly done â€” too late, risky to chase")
         k4.metric("ðŸŸ¢ Long / ðŸ”´ Short", f"{len(up_df)} / {len(down_df)}")
 
@@ -4214,7 +4214,7 @@ if active_section == "ðŸš€ Breakout Radar":
             "**The summary above counts the 30 coins by status.** "
             "ðŸ”‹ **Building Up** = coiled, has not moved yet â€” the earliest and "
             "safest entry. ðŸš€ **Just Started** = the move just began, still "
-            "early. âš ï¸ **Already Ran** = the move is mostly done â€” too late, "
+            "early. âš ️ **Already Ran** = the move is mostly done â€” too late, "
             "risky to chase.")
 
         # --- The decision board: LONG vs SHORT ----------------------------
@@ -4250,7 +4250,7 @@ if active_section == "ðŸš€ Breakout Radar":
         fc1, fc2 = st.columns([3, 2])
         stage_flt = fc1.radio(
             "Status", ["All", "ðŸ”‹ Building up", "ðŸš€ Just started",
-                       "âš ï¸ Already ran"],
+                       "âš ️ Already ran"],
             horizontal=True, label_visibility="collapsed")
         dir_flt = fc2.radio(
             "Direction", ["Long & short", "ðŸŸ¢ Long only", "ðŸ”´ Short only"],
@@ -4261,7 +4261,7 @@ if active_section == "ðŸš€ Breakout Radar":
             view = view[view["stage"] == "COILED"]
         elif stage_flt.startswith("ðŸš€"):
             view = view[view["stage"] == "FRESH"]
-        elif stage_flt.startswith("âš ï¸"):
+        elif stage_flt.startswith("âš ️"):
             view = view[view["stage"] == "EXTENDED"]
         if dir_flt.startswith("ðŸŸ¢"):
             view = view[view["direction"] >= 0]
@@ -4321,9 +4321,9 @@ if active_section == "ðŸ¤– Ask the Oracle":
         "Your question", value="",
         placeholder="e.g. Which coin is about to blow out?",
         label_visibility="collapsed", key="oracle_question")
-    st.caption("Try: â€œwhich coin is next for a bullish blowout?â€ Â· "
-               "â€œsafest long right nowâ€ Â· â€œwhat about SOL?â€ Â· "
-               "â€œshow me the next breakdownâ€ Â· â€œvolume ignitingâ€")
+    st.caption("Try: â€œwhich coin is next for a bullish blowout?â€ · "
+               "â€œsafest long right nowâ€ · â€œwhat about SOL?â€ · "
+               "â€œshow me the next breakdownâ€ · â€œvolume ignitingâ€")
 
     o_presets = ["Next bullish blowout", "Next bearish blowout",
                  "Safest long now", "Volume igniting"]
@@ -4425,18 +4425,18 @@ if active_section == "ðŸª™ Coin Analysis":
     with vc1:
         st.caption("DIRECTIONAL BIAS â€” which side to hold")
         st.markdown(label_badge(agg["bias_label"]), unsafe_allow_html=True)
-        st.caption(f"Score {agg['bias_score']:+.0f} Â· trend Â· MACD Â· derivatives")
+        st.caption(f"Score {agg['bias_score']:+.0f} · trend · MACD · derivatives")
     with vc2:
         st.caption("ENTRY ACTION â€” whether to act now")
         st.markdown(label_badge(agg["action_label"]), unsafe_allow_html=True)
-        st.caption(f"Score {agg['action_score']:+.0f} Â· RSI Â· Stoch Â· Bollinger")
+        st.caption(f"Score {agg['action_score']:+.0f} · RSI · Stoch · Bollinger")
     with vc3:
         st.caption(f"TRADINGVIEW â€” independent rating ({detail_tf})")
         if tv_rating:
             st.markdown(label_badge(tv_rating["recommendation"].upper()),
                         unsafe_allow_html=True)
-            st.caption(f"{tv_rating['buy']} buy Â· {tv_rating['neutral']} "
-                       f"neutral Â· {tv_rating['sell']} sell")
+            st.caption(f"{tv_rating['buy']} buy · {tv_rating['neutral']} "
+                       f"neutral · {tv_rating['sell']} sell")
         else:
             st.markdown(label_badge("NEUTRAL"), unsafe_allow_html=True)
             st.caption("rating unavailable")
@@ -4452,7 +4452,7 @@ if active_section == "ðŸª™ Coin Analysis":
     _bd_bear = sum(1 for b in detail["breakdown"] if b["signal"] == "Bearish")
     st.caption(
         f"ðŸ”— **Confluence** â€” {_tf_long}/{len(per_tf)} timeframes lean long, "
-        f"{_tf_short} lean short Â· on {detail_tf}: {_bd_bull} bullish / "
+        f"{_tf_short} lean short · on {detail_tf}: {_bd_bull} bullish / "
         f"{_bd_bear} bearish across {len(detail['breakdown'])} indicators. "
         f"Bias and timing are scored separately, so a long bias can still "
         f"pair with a 'wait' on entry.")
@@ -4489,7 +4489,7 @@ if active_section == "ðŸª™ Coin Analysis":
     render_lunarcrush(lc_metrics, base_asset)
 
     # ---- Live, interactive TradingView chart -----------------------------
-    st.markdown(f"#### ðŸ“ˆ Live TradingView chart Â· {detail_tf}")
+    st.markdown(f"#### ðŸ“ˆ Live TradingView chart · {detail_tf}")
     tradingview_chart(symbol, detail_tf)
 
     # ---- Per-timeframe signal cards --------------------------------------
@@ -4499,7 +4499,7 @@ if active_section == "ðŸª™ Coin Analysis":
         with col:
             if tf in per_tf:
                 a = per_tf[tf]
-                st.markdown(f"**{tf}** Â· _{a['regime']}_")
+                st.markdown(f"**{tf}** · _{a['regime']}_")
                 st.markdown(f"Bias {label_badge(a['bias_label'])}",
                             unsafe_allow_html=True)
                 st.markdown(f"Action {label_badge(a['action_label'])}",
@@ -4515,7 +4515,7 @@ if active_section == "ðŸª™ Coin Analysis":
     left, right = st.columns([2, 1])
 
     with left:
-        st.markdown(f"#### Indicator chart Â· {detail_tf}")
+        st.markdown(f"#### Indicator chart · {detail_tf}")
         plot = edf.tail(120)
         fig = make_subplots(
             rows=3, cols=1, shared_xaxes=True,
@@ -4561,11 +4561,11 @@ if active_section == "ðŸª™ Coin Analysis":
             xaxis_rangeslider_visible=False, showlegend=False,
             template="plotly_dark")
         st.plotly_chart(fig, use_container_width=True)
-        st.caption("Price panel: candles Â· EMA fast/slow Â· VWAP (dashed "
-                   "magenta) Â· Bollinger Bands. Lower panels: RSI & volume.")
+        st.caption("Price panel: candles · EMA fast/slow · VWAP (dashed "
+                   "magenta) · Bollinger Bands. Lower panels: RSI & volume.")
 
     with right:
-        st.markdown(f"#### Signal detail Â· {detail_tf}")
+        st.markdown(f"#### Signal detail · {detail_tf}")
         b1, b2 = st.columns(2)
         b1.caption("Directional bias")
         b1.markdown(label_badge(detail["bias_label"]), unsafe_allow_html=True)
@@ -4575,7 +4575,7 @@ if active_section == "ðŸª™ Coin Analysis":
         m1, m2 = st.columns(2)
         m1.metric("Bias score", f"{detail['bias_score']:+.0f}")
         m2.metric("Action score", f"{detail['action_score']:+.0f}")
-        m1.metric("ADX Â· trend strength",
+        m1.metric("ADX · trend strength",
                   f"{detail['adx']}" if detail["adx"] is not None else "â€”",
                   detail["regime"])
         m2.metric("Volatility (ATR)",
@@ -4683,7 +4683,7 @@ if active_section == "ðŸ“° News & Sentiment":
         for col, cat in zip(mcols, cats):
             mood = news_mod.category_mood(news_df, cat)
             col.metric(cat, mood["mood"],
-                       f"{mood['score']:+.2f} Â· {mood['count']} stories")
+                       f"{mood['score']:+.2f} · {mood['count']} stories")
 
         st.divider()
 
@@ -4697,7 +4697,7 @@ if active_section == "ðŸ“° News & Sentiment":
         if mood_filter != "All":
             view = view[view["mood"] == mood_filter]
 
-        st.caption(f"{len(view)} stories Â· newest first")
+        st.caption(f"{len(view)} stories · newest first")
         for _, row in view.head(60).iterrows():
             color = MOOD_COLORS.get(row["mood"], "#888")
             when = row["published"].strftime("%b %d %H:%M UTC")
@@ -4708,14 +4708,14 @@ if active_section == "ðŸ“° News & Sentiment":
                 f"style='font-weight:600;text-decoration:none;color:inherit'>"
                 f"{row['title']}</a><br>"
                 f"<span style='color:#888;font-size:0.8rem'>"
-                f"{row['source']} Â· {row['category']} Â· {when} Â· "
+                f"{row['source']} · {row['category']} · {when} · "
                 f"<span style='color:{color}'>{row['mood']} "
                 f"({row['sentiment']:+.2f})</span></span></div>",
                 unsafe_allow_html=True)
 
     # --- Social buzz (Reddit) â€” free, ToS-compliant stand-in for X --------
     st.divider()
-    st.subheader("Social Buzz Â· Reddit")
+    st.subheader("Social Buzz · Reddit")
     st.caption("Retail/social sentiment from Reddit â€” a free, "
                "Terms-of-Service-compliant alternative to X/Twitter, which no "
                "longer offers free data access. Mood is upvote-weighted.")
@@ -4733,9 +4733,9 @@ if active_section == "ðŸ“° News & Sentiment":
         for col, cat in zip(sm_cols, scats):
             mood = social_mod.social_mood(social_df, cat)
             col.metric(f"{cat} buzz", mood["mood"],
-                       f"{mood['score']:+.2f} Â· {mood['count']} posts")
+                       f"{mood['score']:+.2f} · {mood['count']} posts")
 
-        st.caption(f"{len(social_df)} hot posts Â· most-upvoted first")
+        st.caption(f"{len(social_df)} hot posts · most-upvoted first")
         for _, row in social_df.sort_values(
                 "upvotes", ascending=False).head(40).iterrows():
             color = MOOD_COLORS.get(row["mood"], "#888")
@@ -4747,8 +4747,8 @@ if active_section == "ðŸ“° News & Sentiment":
                 f"style='font-weight:600;text-decoration:none;color:inherit'>"
                 f"{row['title']}</a><br>"
                 f"<span style='color:#888;font-size:0.8rem'>"
-                f"{row['source']} Â· â–²{row['upvotes']:,} Â· "
-                f"{row['comments']:,} comments Â· {when} Â· "
+                f"{row['source']} · â–²{row['upvotes']:,} · "
+                f"{row['comments']:,} comments · {when} · "
                 f"<span style='color:{color}'>{row['mood']} "
                 f"({row['sentiment']:+.2f})</span></span></div>",
                 unsafe_allow_html=True)
@@ -4830,7 +4830,7 @@ if active_section == "ðŸ§­ Decision Mode":
                     f"font-size:0.8rem;font-weight:800'>{dec['decision']}"
                     f"</span><span style='float:right;color:#8b8d98;"
                     f"font-size:0.8rem;font-weight:600'>composite "
-                    f"{r['score']:+.0f} Â· {r['confidence']}% confidence"
+                    f"{r['score']:+.0f} · {r['confidence']}% confidence"
                     f"</span></h4>", unsafe_allow_html=True)
 
                 m = st.columns(6)
@@ -4843,21 +4843,21 @@ if active_section == "ðŸ§­ Decision Mode":
                 m[5].metric("Social sentiment",
                             f"{_sent:.0f}%" if _sent is not None else "â€”")
 
-                st.markdown(f"**Decision:** {dec['decision']} Â· "
+                st.markdown(f"**Decision:** {dec['decision']} · "
                             f"**when to open:** {dec['when']}")
                 st.markdown(f"**Hold duration:** {dec['hold']}")
-                st.markdown(f"**Read:** {r['bias_label']} bias Â· "
-                            f"{r['action_label']} timing Â· {r['regime']} "
+                st.markdown(f"**Read:** {r['bias_label']} bias · "
+                            f"{r['action_label']} timing · {r['regime']} "
                             f"market regime")
                 _plan = r.get("trade_plan")
                 if isinstance(_plan, dict):
                     st.markdown(
                         f"**Trade levels:** entry "
                         f"{fmt_price(_plan['entry_low'])}â€“"
-                        f"{fmt_price(_plan['entry_high'])} Â· stop "
-                        f"{fmt_price(_plan['stop_loss'])} Â· targets "
+                        f"{fmt_price(_plan['entry_high'])} · stop "
+                        f"{fmt_price(_plan['stop_loss'])} · targets "
                         f"{fmt_price(_plan['take_profit'])} / "
-                        f"{fmt_price(_plan['take_profit_2'])} Â· "
+                        f"{fmt_price(_plan['take_profit_2'])} · "
                         f"R:R {_plan['risk_reward']:.1f}")
                 st.caption("ðŸ“ˆ Prediction â€” " + dec["outlook"])
 
@@ -4897,7 +4897,7 @@ if active_section == "ðŸ§ª Paper Trader":
         paper_bot.save_state(PAPER_BOT_FILE, pb_state)
 
     # ---- Settings (collapsed so the trade UI is the focus) ---------------
-    with st.expander("âš™ï¸ Settings â€” balance, risk, leverage, auto-trade, live, reset"):
+    with st.expander("âš™️ Settings â€” balance, risk, leverage, auto-trade, live, reset"):
         c1, c2, c3, c4, c5 = st.columns([1.2, 1.2, 1.3, 1.1, 1.1])
         new_balance = c1.number_input(
             "Starting balance ($)", min_value=100.0, max_value=1_000_000.0,
@@ -5011,7 +5011,7 @@ if active_section == "ðŸ§ª Paper Trader":
                             float(_bk_loaded.get("balance") or 0))
                         paper_bot.save_state(PAPER_BOT_FILE, pb_state)
                         st.success(
-                            f"Restored Â· {len(_merged_open)} open Â· "
+                            f"Restored · {len(_merged_open)} open · "
                             f"{len(_merged_closed)} closed trades in "
                             "history.")
                         st.rerun()
@@ -5038,8 +5038,8 @@ if active_section == "ðŸ§ª Paper Trader":
                     st.success(
                         f"Restored {restored} position"
                         f"{'s' if restored != 1 else ''} from the "
-                        f"last reset Â· {skipped} skipped (already open)"
-                        + (f" Â· {len(errors)} errors" if errors else ""))
+                        f"last reset · {skipped} skipped (already open)"
+                        + (f" · {len(errors)} errors" if errors else ""))
                 elif skipped > 0:
                     st.info(
                         f"Nothing to restore â€” {skipped} positions "
@@ -5227,7 +5227,7 @@ if active_section == "ðŸ§ª Paper Trader":
         sc[3].metric("Worst trade",
                      f"{st_stats['worst_trade']:+.2f}%"
                      if st_stats["trades"] else "â€”")
-        sc[4].metric("â° Resets in", _reset_txt,
+        sc[4].metric("⏰ Resets in", _reset_txt,
                      f"to ${start_bal:,.0f}",
                      help=(f"Auto-restores to ${start_bal:,.0f} every "
                            f"{paper_bot.WEEKLY_RESET_DAYS} days."))
@@ -5249,7 +5249,7 @@ if active_section == "ðŸ§ª Paper Trader":
         for c in closed_now:
             emoji = "âœ…" if c["pnl_usd"] > 0 else "âŒ"
             st.toast(
-                f"{emoji} {c['base']} closed at {c['exit_reason']} Â· "
+                f"{emoji} {c['base']} closed at {c['exit_reason']} · "
                 f"{c['pnl_pct']:+.2f}%", icon="ðŸ§ª")
         if closed_now:
             paper_bot.save_state(PAPER_BOT_FILE, state)
@@ -5304,9 +5304,9 @@ if active_section == "ðŸ§ª Paper Trader":
             health = int(max(0, min(100, prog)))
             hold_txt = p.get("hold_horizon") or "â€”"
             str_label = p.get("strength_label", "")
-            be_badge = (" Â· âœ“ break-even"
+            be_badge = (" · âœ“ break-even"
                         if p.get("break_even_set") else "")
-            lev_txt = f" Â· {lev_v}Ã— lev" if lev_v > 1 else ""
+            lev_txt = f" · {lev_v}Ã— lev" if lev_v > 1 else ""
 
             with st.container(border=True):
                 info_col, pnl_col, btn_col = st.columns([2.4, 1.8, 0.8])
@@ -5319,13 +5319,13 @@ if active_section == "ðŸ§ª Paper Trader":
                     f"{p['side']}</span></div>"
                     f"<div style='color:#d5d7e0;font-size:0.84rem;"
                     f"margin:3px 0'>"
-                    f"<b>{qty_v:.6f} {p['base']}</b> Â· "
+                    f"<b>{qty_v:.6f} {p['base']}</b> · "
                     f"notional <b>${notional_v:,.2f}</b>{lev_txt}</div>"
                     f"<div style='color:#8b8d98;font-size:0.78rem'>"
-                    f"Entry {fmt_price(entry_v)} Â· Stop "
-                    f"{fmt_price(stop_v)} Â· Target {fmt_price(target_v)}"
-                    f" Â· hold: {hold_txt}"
-                    + (f" Â· {str_label}" if str_label else "")
+                    f"Entry {fmt_price(entry_v)} · Stop "
+                    f"{fmt_price(stop_v)} · Target {fmt_price(target_v)}"
+                    f" · hold: {hold_txt}"
+                    + (f" · {str_label}" if str_label else "")
                     + be_badge + "</div>",
                     unsafe_allow_html=True)
                 pnl_col.markdown(
@@ -5336,7 +5336,7 @@ if active_section == "ðŸ§ª Paper Trader":
                     f"${unreal_pos:+,.2f}</div>"
                     f"<div style='text-align:right;color:{color};"
                     f"font-size:0.78rem;font-weight:700;margin-top:1px'>"
-                    f"{pct_from_entry:+.2f}% from entry Â· "
+                    f"{pct_from_entry:+.2f}% from entry · "
                     f"{unreal_pct_pos:+.2f}% balance</div>",
                     unsafe_allow_html=True)
                 if btn_col.button(
@@ -5348,13 +5348,13 @@ if active_section == "ðŸ§ª Paper Trader":
                         paper_bot.save_state(PAPER_BOT_FILE, state)
                         emoji = "âœ…" if cl["pnl_usd"] > 0 else "âŒ"
                         st.toast(
-                            f"{emoji} Closed {cl['base']} Â· "
+                            f"{emoji} Closed {cl['base']} · "
                             f"{cl['pnl_pct']:+.2f}%", icon="ðŸ§ª")
                         st.rerun(scope="fragment")
                 st.progress(health, text=(
                     f"ðŸŽ¯ {health}% toward target"
                     if health >= 50
-                    else f"âš ï¸ {100 - health}% toward stop"))
+                    else f"âš ️ {100 - health}% toward stop"))
                 _render_position_chart(
                     p["symbol"], p["side"],
                     entry_v, stop_v, target_v, cur)
@@ -5385,7 +5385,7 @@ if active_section == "ðŸ§ª Paper Trader":
     for c in just_closed:
         emoji = "âœ…" if c["pnl_usd"] > 0 else "âŒ"
         st.toast(
-            f"{emoji} {c['base']} closed at {c['exit_reason']} Â· "
+            f"{emoji} {c['base']} closed at {c['exit_reason']} · "
             f"{c['pnl_pct']:+.2f}%", icon="ðŸ§ª")
 
     # ---- Auto-trade from alerts ------------------------------------------
@@ -5524,7 +5524,7 @@ if active_section == "ðŸ§ª Paper Trader":
     _reset_info = paper_bot.check_weekly_reset(pb_state, prices)
     if _reset_info["reset"]:
         st.success(
-            f"â° Weekly reset! Balance restored to "
+            f"⏰ Weekly reset! Balance restored to "
             f"${pb_state['starting_balance']:,.0f}. "
             f"{len(_reset_info['closed_at_reset'])} open position(s) "
             f"were closed at market â€” the closed-trades history is "
@@ -5578,7 +5578,7 @@ if active_section == "ðŸ§ª Paper Trader":
                     f"border-radius:6px;margin:6px 0 10px 0;"
                     f"border:1px solid #1f2330'>"
                     f"<div style='font-size:0.7rem;color:#8b8d98;"
-                    f"letter-spacing:0.08em;font-weight:700'>LIVE PRICE Â· "
+                    f"letter-spacing:0.08em;font-weight:700'>LIVE PRICE · "
                     f"{_sel.replace('USDT','')}/USDT</div>"
                     f"<div style='display:flex;align-items:baseline;"
                     f"gap:10px;flex-wrap:wrap'>"
@@ -5626,8 +5626,8 @@ if active_section == "ðŸ§ª Paper Trader":
                 else:
                     _stop_pct = _target_pct = _rr = 0.0
                 st.caption(
-                    f"Stop **{_stop_pct:.2f}%** away Â· Target "
-                    f"**{_target_pct:.2f}%** away Â· R:R **{_rr:.2f}**")
+                    f"Stop **{_stop_pct:.2f}%** away · Target "
+                    f"**{_target_pct:.2f}%** away · R:R **{_rr:.2f}**")
 
                 # ---- Leverage (futures only) ------------------------------
                 if trade_mode == "futures":
@@ -5703,7 +5703,7 @@ if active_section == "ðŸ§ª Paper Trader":
                     f"Reward if target: <b style='color:#2ed47a'>"
                     f"${_potential_profit:,.2f}</b> "
                     f"({_profit_pct:.2f}% of balance)",
-                    f"R:R = <b>{_rr:.2f}R</b> Â· Suggested hold: "
+                    f"R:R = <b>{_rr:.2f}R</b> · Suggested hold: "
                     f"<b>{_hold_horizon(timeframe)}</b>",
                 ])
                 st.markdown(
@@ -5744,7 +5744,7 @@ if active_section == "ðŸ§ª Paper Trader":
                         f"Risking {_risk_pct_final:.1f}% of balance â€” that "
                         "is aggressive; size down.")
                 for _w in _warnings:
-                    st.warning(f"âš ï¸ {_w}")
+                    st.warning(f"âš ️ {_w}")
 
                 # ---- Open button ------------------------------------------
                 _can_open = (not _warnings) and _qty > 0
@@ -5779,7 +5779,7 @@ if active_section == "ðŸ§ª Paper Trader":
                         paper_bot.save_state(PAPER_BOT_FILE, pb_state)
                         st.toast(
                             f"ðŸ“¥ Opened {_side} {_opened['base']} @ "
-                            f"{fmt_price(_opened['entry'])} Â· qty "
+                            f"{fmt_price(_opened['entry'])} · qty "
                             f"{_qty:.6f}", icon="ðŸ§ª")
                         st.rerun()
                     else:
@@ -5809,8 +5809,8 @@ if active_section == "ðŸ§ª Paper Trader":
             "<div style='color:#aab;font-size:0.78rem;margin-top:8px;"
             "margin-bottom:2px'>"
             "Three sections below â€” <b style='color:#ffd700'>TOP CONVICTION</b> "
-            "(confirmed signals) Â· <b style='color:#5b8eff'>EARLY SETUPS</b> "
-            "(anticipatory) Â· <b style='color:#8b5cf6'>SETUPS FORMING</b> "
+            "(confirmed signals) · <b style='color:#5b8eff'>EARLY SETUPS</b> "
+            "(anticipatory) · <b style='color:#8b5cf6'>SETUPS FORMING</b> "
             "(intel watchlist). Click ðŸ“¥ on any card to open."
             "</div>",
             unsafe_allow_html=True)
@@ -5853,13 +5853,13 @@ if active_section == "ðŸ§ª Paper Trader":
             f"border:1px solid {_reg_color}44;margin-bottom:14px'>"
             f"<span style='color:{_reg_color};font-weight:800;font-size:0.9rem'>"
             f"{_reg_emoji} {_reg_lbl}</span>"
-            f"<span style='color:#888;font-size:0.78rem'>Â·</span>"
+            f"<span style='color:#888;font-size:0.78rem'>·</span>"
             f"<span style='color:#2ed47a;font-size:0.78rem;font-weight:700'>"
             f"LONG {_reg_long_bias:.0f}</span>"
-            f"<span style='color:#888;font-size:0.78rem'>Â·</span>"
+            f"<span style='color:#888;font-size:0.78rem'>·</span>"
             f"<span style='color:#ff5c5c;font-size:0.78rem;font-weight:700'>"
             f"SHORT {_reg_short_bias:.0f}</span>"
-            f"<span style='color:#888;font-size:0.78rem'>Â·</span>"
+            f"<span style='color:#888;font-size:0.78rem'>·</span>"
             f"<span style='color:#aab;font-size:0.78rem'>"
             f"conf {_reg_conf:.0f}%</span>"
             f"</div>",
@@ -5940,7 +5940,7 @@ if active_section == "ðŸ§ª Paper Trader":
                             f"color:{_tf_chip_color};padding:3px 10px;"
                             f"border-radius:6px;font-size:0.74rem;"
                             f"font-weight:700;margin-right:6px'>"
-                            f"{_tf} Â· {_tf_cond}/7"
+                            f"{_tf} · {_tf_cond}/7"
                             f"</span>")
                     with st.container(border=True):
                         st.markdown(
@@ -5962,7 +5962,7 @@ if active_section == "ðŸ§ª Paper Trader":
                             f"rgba(91,142,255,0.4)'>"
                             f"ðŸ”­ {_mtf['tf_count']}/3 TFs agree</span>"
                             f"<span style='color:#888;font-size:0.78rem'>"
-                            f"now ${_mtf['price']:.4g} Â· "
+                            f"now ${_mtf['price']:.4g} · "
                             f"<span style='color:{_mtf_pct_color}'>"
                             f"{_mtf_pct:+.2f}% 24h</span></span>"
                             f"</div>"
@@ -6010,9 +6010,9 @@ if active_section == "ðŸ§ª Paper Trader":
 
         if _ds_circuit_tripped:
             st.error(
-                f"ðŸ›‘ **DAILY LOSS CIRCUIT TRIPPED** Â· today's realised "
+                f"ðŸ›‘ **DAILY LOSS CIRCUIT TRIPPED** · today's realised "
                 f"P&L: **${_ds_today_pnl:,.2f}** ({_ds_daily_loss_pct:.2f}%) "
-                f"Â· auto-trade BLOCKED for 24h. Wait, don't force trades.")
+                f"· auto-trade BLOCKED for 24h. Wait, don't force trades.")
 
         # NOTE: BEST TRADES NOW + tier legend rendering REMOVED entirely.
         # The OLD Bot's Top Picks below (with PREMIUM, COILED, FRESH,
@@ -6084,14 +6084,14 @@ if active_section == "ðŸ§ª Paper Trader":
                         f"padding:6px 10px;background:rgba(255,215,0,0.06);"
                         f"border-radius:6px;border-left:2px solid #ffd700'>"
                         f"<b style='color:#ffd700'>Why this stacks:</b> "
-                        f"{' Â· '.join(_bp['reasons'])}"
+                        f"{' · '.join(_bp['reasons'])}"
                         f"</div>")
                 elif _bp_tier == "B" and _bp.get("conditions_met"):
                     _bp_reasons_html = (
                         f"<div style='color:#aab;font-size:0.78rem;"
                         f"margin-top:6px'>"
                         f"<b>{_bp['conditions_met']}/7</b> pre-conditions "
-                        f"met Â· anticipatory entry (lower win rate, "
+                        f"met · anticipatory entry (lower win rate, "
                         f"better entry)"
                         f"</div>")
 
@@ -6112,9 +6112,9 @@ if active_section == "ðŸ§ª Paper Trader":
                         f"color:#001122;padding:3px 12px;border-radius:"
                         f"7px;font-size:0.78rem;font-weight:800;"
                         f"box-shadow:0 0 10px {_bp_tier_color}55'>"
-                        f"{_bp_tier_label} Â· {_bp_score:.0f}</span>"
+                        f"{_bp_tier_label} · {_bp_score:.0f}</span>"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
-                        f"now ${_bp_cur:.4g} Â· "
+                        f"now ${_bp_cur:.4g} · "
                         f"<span style='color:{_bp_pct_color}'>"
                         f"{_bp_pct24h:+.2f}% 24h</span></span>"
                         f"</div>"
@@ -6124,10 +6124,10 @@ if active_section == "ðŸ§ª Paper Trader":
                         + (
                             f"<div style='color:#aab;font-size:0.80rem;"
                             f"margin-top:8px;line-height:1.6'>"
-                            f"entry <b>${_bp_entry:.4g}</b> Â· "
-                            f"stop <b>${_bp_stop:.4g}</b> Â· "
-                            f"TP1 <b>${_bp_tgt:.4g}</b> Â· "
-                            + (f"TP2 <b>${_bp_tgt2:.4g}</b> Â· "
+                            f"entry <b>${_bp_entry:.4g}</b> · "
+                            f"stop <b>${_bp_stop:.4g}</b> · "
+                            f"TP1 <b>${_bp_tgt:.4g}</b> · "
+                            + (f"TP2 <b>${_bp_tgt2:.4g}</b> · "
                                if _bp_tgt2 > 0 else "")
                             + f"R:R <b>{_bp_rr:.2f}</b></div>"
                             # Size preview
@@ -6138,12 +6138,12 @@ if active_section == "ðŸ§ª Paper Trader":
                             f"font-size:0.78rem;line-height:1.6'>"
                             f"<b style='color:#00d4ff'>ðŸ“¥ If you click NOW:</b> "
                             f"<b>{_bp_qty:.4f}</b> {_bp['base']} "
-                            f"{_bp_side.lower()} Â· notional "
-                            f"<b>${_bp_notional:,.0f}</b> Â· "
-                            f"<b>{_bp_lev:.0f}x</b> lev Â· "
-                            f"margin <b>${_bp_margin:,.0f}</b> Â· "
+                            f"{_bp_side.lower()} · notional "
+                            f"<b>${_bp_notional:,.0f}</b> · "
+                            f"<b>{_bp_lev:.0f}x</b> lev · "
+                            f"margin <b>${_bp_margin:,.0f}</b> · "
                             f"risk <b style='color:#ff5c5c'>"
-                            f"-${_bp_loss:,.2f}</b> Â· "
+                            f"-${_bp_loss:,.2f}</b> · "
                             f"profit <b style='color:#2ed47a'>"
                             f"+${_bp_profit:,.2f}</b>"
                             f"</div>"
@@ -6190,8 +6190,8 @@ if active_section == "ðŸ§ª Paper Trader":
                     elif _bp_can_open:
                         if _bp_btn.button(
                                 "ðŸ“¥", key=f"pb_{_bp_sid}",
-                                help=(f"Open {_bp_side} {_bp['base']} Â· "
-                                      f"{_bp_tier_label} Â· score {_bp_score:.0f}"),
+                                help=(f"Open {_bp_side} {_bp['base']} · "
+                                      f"{_bp_tier_label} · score {_bp_score:.0f}"),
                                 use_container_width=True):
                             _bp_setup = {
                                 "symbol": _bp["symbol"],
@@ -6218,7 +6218,7 @@ if active_section == "ðŸ§ª Paper Trader":
                                 st.toast(
                                     f"ðŸ† Opened {_bp_side} "
                                     f"{_bp_opened['base']} @ "
-                                    f"{fmt_price(_bp_opened['entry'])} Â· "
+                                    f"{fmt_price(_bp_opened['entry'])} · "
                                     f"{_bp_tier_label} {_bp_score:.0f}",
                                     icon="ðŸ†")
                                 st.rerun()
@@ -6276,7 +6276,7 @@ if active_section == "ðŸ§ª Paper Trader":
                 "transparent;background-clip:text;letter-spacing:-0.02em'>"
                 "âš¡ CONVERGENCE</span>"
                 "<span style='color:#aab;font-size:0.84rem'>"
-                f"signals stacking Â· {len(_convergence_picks)} firing now</span>"
+                f"signals stacking · {len(_convergence_picks)} firing now</span>"
                 "</div>",
                 unsafe_allow_html=True)
             st.caption(
@@ -6343,9 +6343,9 @@ if active_section == "ðŸ§ª Paper Trader":
                         f"#ffd700,#ff006e);color:#001122;padding:3px 14px;"
                         f"border-radius:7px;font-size:0.82rem;font-weight:"
                         f"800;box-shadow:0 0 12px rgba(255,215,0,0.5)'>"
-                        f"âš¡ CONVERGENCE Â· {_cv_score:.0f}</span>"
+                        f"âš¡ CONVERGENCE · {_cv_score:.0f}</span>"
                         f"<span style='color:#aab;font-size:0.82rem'>"
-                        f"now ${_cv_cur:.4g} Â· "
+                        f"now ${_cv_cur:.4g} · "
                         f"<span style='color:{_cv_pct_color}'>"
                         f"{_cv_pct24h:+.2f}% 24h</span></span>"
                         f"</div>"
@@ -6353,15 +6353,15 @@ if active_section == "ðŸ§ª Paper Trader":
                         f"<div style='color:#c8d2ed;font-size:0.82rem;"
                         f"line-height:1.55;margin-bottom:10px'>"
                         f"<b style='color:#ffd700'>Why this is CONVERGENCE:</b><br>"
-                        f"{' Â· '.join(_cv.get('convergence_reasons', []))}"
+                        f"{' · '.join(_cv.get('convergence_reasons', []))}"
                         f"</div>"
                         # Trade plan
                         f"<div style='color:#aab;font-size:0.80rem;"
                         f"line-height:1.6;margin-top:8px'>"
-                        f"entry <b>${_cv_entry:.4g}</b> Â· "
-                        f"stop <b>${_cv_stop:.4g}</b> Â· "
-                        f"TP1 <b>${_cv_tgt:.4g}</b> Â· "
-                        + (f"TP2 <b>${_cv_tgt2:.4g}</b> Â· "
+                        f"entry <b>${_cv_entry:.4g}</b> · "
+                        f"stop <b>${_cv_stop:.4g}</b> · "
+                        f"TP1 <b>${_cv_tgt:.4g}</b> · "
+                        + (f"TP2 <b>${_cv_tgt2:.4g}</b> · "
                            if _cv_tgt2 > 0 else "")
                         + f"plan R:R <b>{_cv_rr:.2f}</b></div>"
                         # Size preview
@@ -6371,12 +6371,12 @@ if active_section == "ðŸ§ª Paper Trader":
                         f"color:#c8d2ed;font-size:0.78rem;line-height:1.6'>"
                         f"<b style='color:#ffd700'>ðŸ“¥ If you click NOW:</b> "
                         f"<b>{_cv_qty:.4f}</b> {_cv['base']} "
-                        f"{_cv_side.lower()} Â· notional "
-                        f"<b>${_cv_notional:,.0f}</b> Â· "
-                        f"<b>{_cv_lev:.0f}x</b> lev Â· "
-                        f"margin <b>${_cv_margin:,.0f}</b> Â· "
+                        f"{_cv_side.lower()} · notional "
+                        f"<b>${_cv_notional:,.0f}</b> · "
+                        f"<b>{_cv_lev:.0f}x</b> lev · "
+                        f"margin <b>${_cv_margin:,.0f}</b> · "
                         f"risk <b style='color:#ff5c5c'>"
-                        f"-${_cv_loss:,.2f}</b> Â· "
+                        f"-${_cv_loss:,.2f}</b> · "
                         f"profit at TP <b style='color:#2ed47a'>"
                         f"+${_cv_profit:,.2f}</b>"
                         f"</div>"
@@ -6412,7 +6412,7 @@ if active_section == "ðŸ§ª Paper Trader":
                             st.toast(
                                 f"âš¡ Opened {_cv_side} "
                                 f"{_cv_opened['base']} @ "
-                                f"{fmt_price(_cv_opened['entry'])} Â· "
+                                f"{fmt_price(_cv_opened['entry'])} · "
                                 f"CONVERGENCE {_cv_score:.0f}",
                                 icon="âš¡")
                             st.rerun()
@@ -6464,7 +6464,7 @@ if active_section == "ðŸ§ª Paper Trader":
             else:
                 st.markdown(
                     f"**{len(_approach_results)} coins showing setup "
-                    f"formation Â· top 6 below:**")
+                    f"formation · top 6 below:**")
                 for _ar in _approach_top:
                     _ar_side = _ar["side"]
                     _ar_side_color = ("#ff3d57" if _ar_side == "SHORT"
@@ -6549,10 +6549,10 @@ if active_section == "ðŸ§ª Paper Trader":
                             f"<span style='background:{_ar_tier_color}33;"
                             f"color:{_ar_tier_color};padding:2px 8px;"
                             f"border-radius:5px;font-size:0.72rem;"
-                            f"font-weight:700'>ðŸ”­ {_ar_tier} Â· "
+                            f"font-weight:700'>ðŸ”­ {_ar_tier} · "
                             f"{_ar_score:.0f}</span>"
                             f"<span style='color:#8b8d98;font-size:0.78rem'>"
-                            f"now ${_ar['price']:.4g} Â· "
+                            f"now ${_ar['price']:.4g} · "
                             f"{_ar['conditions_met']}/7 conditions</span>"
                             f"</div>"
                             # Condition chips
@@ -6562,10 +6562,10 @@ if active_section == "ðŸ§ª Paper Trader":
                                 f"<div style='color:#aab;font-size:0.80rem;"
                                 f"margin-top:10px;line-height:1.6'>"
                                 f"<b>Anticipatory entry:</b> "
-                                f"entry <b>${_ar_entry:.4g}</b> Â· "
-                                f"stop <b>${_ar_stop:.4g}</b> Â· "
-                                f"TP1 <b>${_ar_tgt:.4g}</b> Â· "
-                                + (f"TP2 <b>${_ar_tgt2:.4g}</b> Â· "
+                                f"entry <b>${_ar_entry:.4g}</b> · "
+                                f"stop <b>${_ar_stop:.4g}</b> · "
+                                f"TP1 <b>${_ar_tgt:.4g}</b> · "
+                                + (f"TP2 <b>${_ar_tgt2:.4g}</b> · "
                                    if _ar_tgt2 > 0 else "")
                                 + f"R:R <b>{_ar_rr:.2f}</b>"
                                 + f"</div>"
@@ -6576,12 +6576,12 @@ if active_section == "ðŸ§ª Paper Trader":
                                 f"font-size:0.78rem;line-height:1.6'>"
                                 f"<b style='color:#5b8eff'>ðŸ“¥ If you click NOW:</b> "
                                 f"<b>{_ar_qty:.4f}</b> {_ar['base']} "
-                                f"{_ar_side.lower()} Â· "
-                                f"notional <b>${_ar_notional:,.0f}</b> Â· "
-                                f"<b>{_ar_lev:.0f}x</b> lev Â· "
-                                f"margin <b>${_ar_margin:,.0f}</b> Â· "
+                                f"{_ar_side.lower()} · "
+                                f"notional <b>${_ar_notional:,.0f}</b> · "
+                                f"<b>{_ar_lev:.0f}x</b> lev · "
+                                f"margin <b>${_ar_margin:,.0f}</b> · "
                                 f"risk <b style='color:#ff5c5c'>"
-                                f"-${_ar_loss:,.2f}</b> Â· "
+                                f"-${_ar_loss:,.2f}</b> · "
                                 f"profit <b style='color:#2ed47a'>"
                                 f"+${_ar_profit:,.2f}</b>"
                                 f"</div>"
@@ -6628,7 +6628,7 @@ if active_section == "ðŸ§ª Paper Trader":
                                     st.toast(
                                         f"ðŸ”­ Opened {_ar_side} "
                                         f"{_ar_opened['base']} @ "
-                                        f"{fmt_price(_ar_opened['entry'])} Â· "
+                                        f"{fmt_price(_ar_opened['entry'])} · "
                                         f"Setups Forming",
                                         icon="ðŸ”­")
                                     st.rerun()
@@ -6667,7 +6667,7 @@ if active_section == "ðŸ§ª Paper Trader":
                         "is loading â€” wait 30-60 sec and refresh.")
             else:
                 st.markdown(
-                    f"**Found {len(_scout)} qualifying setups Â· top 6 below:**")
+                    f"**Found {len(_scout)} qualifying setups · top 6 below:**")
                 for _sc in _scout_top:
                     _score = _sc["score"]
                     _color = ("#2ed47a" if _score >= 80
@@ -6753,7 +6753,7 @@ if active_section == "ðŸ§ª Paper Trader":
                             f"box-shadow:0 0 8px {_style['glow']};"
                             f"display:inline-block;letter-spacing:0.02em'>"
                             f"{_style['emoji']} {_style['label']} "
-                            f"<span style='opacity:0.7'>Â· {_sig['score']:.0f}</span>"
+                            f"<span style='opacity:0.7'>· {_sig['score']:.0f}</span>"
                             f"</span>")
                     _pct_24h = _sc.get("pct_24h", 0)
                     _pct_color = ("#2ed47a" if _pct_24h > 0
@@ -6845,10 +6845,10 @@ if active_section == "ðŸ§ª Paper Trader":
                             f"<span style='background:{_color};color:#06121f;"
                             f"padding:2px 10px;border-radius:5px;font-size:"
                             f"0.72rem;font-weight:800'>"
-                            f"ðŸŽ¯ {_tier} Â· {_score:.0f}</span>"
+                            f"ðŸŽ¯ {_tier} · {_score:.0f}</span>"
                             f"{_signal_chips}"
                             f"<span style='color:#8b8d98;font-size:0.78rem'>"
-                            f"now ${_ps_cur:.4g} Â· "
+                            f"now ${_ps_cur:.4g} · "
                             f"<span style='color:{_pct_color}'>"
                             f"{_pct_24h:+.2f}% 24h</span></span>"
                             f"</div>"
@@ -6856,19 +6856,19 @@ if active_section == "ðŸ§ª Paper Trader":
                             + (
                                 f"<div style='color:#aab;font-size:0.80rem;"
                                 f"margin-top:8px;line-height:1.6'>"
-                                f"entry <b>${_ps_entry:.4g}</b> Â· "
+                                f"entry <b>${_ps_entry:.4g}</b> · "
                                 f"stop <b>${_ps_stop:.4g}</b> "
                                 f"<span style='color:#ff5c5c'>"
-                                f"(-{abs(_ps_stop - _ps_entry) / _ps_entry * 100:.1f}%)</span> Â· "
+                                f"(-{abs(_ps_stop - _ps_entry) / _ps_entry * 100:.1f}%)</span> · "
                                 f"TP1 <b>${_ps_tgt:.4g}</b> "
                                 f"<span style='color:#2ed47a'>"
                                 f"(+{abs(_ps_tgt - _ps_entry) / _ps_entry * 100:.1f}%)</span>"
-                                + (f" Â· TP2 <b>${_ps_tgt2:.4g}</b> "
+                                + (f" · TP2 <b>${_ps_tgt2:.4g}</b> "
                                    f"<span style='color:#e0a92b'>"
                                    f"(+{abs(_ps_tgt2 - _ps_entry) / _ps_entry * 100:.1f}%)</span>"
                                    if _ps_tgt2 > 0 else "")
-                                + f" Â· plan R:R <b>{_ps_rr:.2f}</b>"
-                                + (f" Â· live R:R <b>{_ps_live_rr:.2f}</b>"
+                                + f" · plan R:R <b>{_ps_rr:.2f}</b>"
+                                + (f" · live R:R <b>{_ps_live_rr:.2f}</b>"
                                    if _ps_live_rr > 0 else "")
                                 + f"</div>"
                                 # Position-size preview box
@@ -6879,14 +6879,14 @@ if active_section == "ðŸ§ª Paper Trader":
                                 f"font-size:0.78rem;line-height:1.6'>"
                                 f"<b style='color:#00d4ff'>ðŸ“¥ If you click NOW:</b> "
                                 f"<b>{_ps_qty:.4f}</b> {_sc['base']} "
-                                f"{_ps_side_str.lower()} Â· "
-                                f"notional <b>${_ps_notional:,.0f}</b> Â· "
-                                f"<b>{_ps_lev:.0f}x</b> lev Â· "
-                                f"margin <b>${_ps_margin:,.0f}</b> Â· "
+                                f"{_ps_side_str.lower()} · "
+                                f"notional <b>${_ps_notional:,.0f}</b> · "
+                                f"<b>{_ps_lev:.0f}x</b> lev · "
+                                f"margin <b>${_ps_margin:,.0f}</b> · "
                                 f"risk <b style='color:#ff5c5c'>"
-                                f"-${_ps_loss:,.2f}</b> Â· "
+                                f"-${_ps_loss:,.2f}</b> · "
                                 f"profit at TP <b style='color:#2ed47a'>"
-                                f"+${_ps_profit:,.2f}</b> Â· "
+                                f"+${_ps_profit:,.2f}</b> · "
                                 f"strength factor <b>{_ps_sf:.2f}</b>"
                                 f"</div>"
                                 if _ps_has_plan else
@@ -6900,7 +6900,7 @@ if active_section == "ðŸ§ª Paper Trader":
                             + (
                                 f"<div style='color:#aab;font-size:0.76rem;"
                                 f"margin-top:6px'>"
-                                f"<b>Best signal:</b> {_sc['best_signal']} Â· "
+                                f"<b>Best signal:</b> {_sc['best_signal']} · "
                                 f"{_sc['signals'][0]['detail'][:100]}"
                                 f"</div>"
                             ),
@@ -6940,8 +6940,8 @@ if active_section == "ðŸ§ª Paper Trader":
                                     st.toast(
                                         f"ðŸ“¥ Opened {_ps_side_str} "
                                         f"{_ps_opened['base']} @ "
-                                        f"{fmt_price(_ps_opened['entry'])} Â· "
-                                        f"Pattern Scout Â· score {_score:.0f}",
+                                        f"{fmt_price(_ps_opened['entry'])} · "
+                                        f"Pattern Scout · score {_score:.0f}",
                                         icon="ðŸŽ¯")
                                     st.rerun()
                                 else:
@@ -6982,7 +6982,7 @@ if active_section == "ðŸ§ª Paper Trader":
                     score += 8        # all three horizons agree
                 if fc_conf >= 70:
                     score += 5        # high-confidence forecast
-                label = (f"forecast confirms Â· aligned 3/3"
+                label = (f"forecast confirms · aligned 3/3"
                          if aligned else f"forecast confirms")
             elif disagrees:
                 score -= 8
@@ -7175,7 +7175,7 @@ if active_section == "ðŸ§ª Paper Trader":
             # On 0-100 scoring: LONG setup uses base directly; SHORT
             # setup we invert before tilt then re-invert so the tilt
             # is applied to the directional bias not the raw number.
-            # Regime tilt reduced to Â±8 (was Â±12) so SIGNAL STRENGTH
+            # Regime tilt reduced to ±8 (was ±12) so SIGNAL STRENGTH
             # dominates over regime context. Per user direction:
             # "the idea is to make money â€” doesn't matter short or long".
             # A strong LONG signal in a BEAR regime should still surface
@@ -7297,7 +7297,7 @@ if active_section == "ðŸ§ª Paper Trader":
                 "confidence": int(min(99, _sf_score)),
                 "strength_factor": max(
                     0.4, min(1.0, (_sf_score - 65) / 30.0 + 0.4)),
-                "label": f"{_sf_side} (Setup Forming Â· "
+                "label": f"{_sf_side} (Setup Forming · "
                          f"{_sfp.get('conditions_met', 0)}/7)",
             }
             # 5-tuple matches: (combined, fc_label, trend, align, setup)
@@ -7427,7 +7427,7 @@ if active_section == "ðŸ§ª Paper Trader":
             strong_chips = 0
             chip_names = []
             if (conf >= 80
-                    and fc_label == "forecast confirms Â· aligned 3/3"):
+                    and fc_label == "forecast confirms · aligned 3/3"):
                 strong_chips += 1
                 chip_names.append("ðŸ† PREMIUM")
             radar_info = _radar_by_sym.get(symbol) or {}
@@ -7527,7 +7527,7 @@ if active_section == "ðŸ§ª Paper Trader":
                 "transparent;background-clip:text;letter-spacing:-0.02em'>"
                 "ðŸ’Ž SURE SHOT</span>"
                 "<span style='color:#aab;font-size:0.84rem'>"
-                f"highest-conviction picks Â· {len(_sure_shots)} firing now</span>"
+                f"highest-conviction picks · {len(_sure_shots)} firing now</span>"
                 "</div>",
                 unsafe_allow_html=True)
             st.caption(
@@ -7566,13 +7566,13 @@ if active_section == "ðŸ§ª Paper Trader":
                         f"#00d4ff,#ffd700);color:#001122;padding:3px 12px;"
                         f"border-radius:6px;font-size:0.78rem;font-weight:"
                         f"800;box-shadow:0 0 10px rgba(0,212,255,0.4)'>"
-                        f"ðŸ’Ž SURE SHOT Â· {combined:.0f}</span>"
+                        f"ðŸ’Ž SURE SHOT · {combined:.0f}</span>"
                         f"<span style='color:#aab;font-size:0.82rem'>"
                         f"now ${_ss_cur:.4g}</span></div>"
                         f"<div style='color:#c8d2ed;font-size:0.82rem;"
                         f"line-height:1.6'>"
                         f"<b style='color:#00d4ff'>Why this is a SURE SHOT:</b><br>"
-                        f"{' Â· '.join(ss_reasons)}"
+                        f"{' · '.join(ss_reasons)}"
                         f"</div></div>",
                         unsafe_allow_html=True)
             st.markdown(
@@ -7651,9 +7651,9 @@ if active_section == "ðŸ§ª Paper Trader":
                             "background-clip:text;letter-spacing:-0.02em'>"
                             "ðŸ† TOP CONVICTION</span>"
                             "<span style='color:#aab;font-size:0.82rem'>"
-                            "confirmed signals Â· trigger candle printed Â· "
+                            "confirmed signals · trigger candle printed · "
                             f"{_seg_count} pick"
-                            f"{'s' if _seg_count != 1 else ''} Â· primary "
+                            f"{'s' if _seg_count != 1 else ''} · primary "
                             "size-up board</span>"
                             "</div>",
                             unsafe_allow_html=True)
@@ -7670,9 +7670,9 @@ if active_section == "ðŸ§ª Paper Trader":
                             "background-clip:text;letter-spacing:-0.02em'>"
                             "ðŸ”­ EARLY SETUPS</span>"
                             "<span style='color:#aab;font-size:0.82rem'>"
-                            "anticipatory entries Â· 1-5 bars before "
-                            f"trigger Â· {_seg_count} pick"
-                            f"{'s' if _seg_count != 1 else ''} Â· "
+                            "anticipatory entries · 1-5 bars before "
+                            f"trigger · {_seg_count} pick"
+                            f"{'s' if _seg_count != 1 else ''} · "
                             "lighter size, buffered stop</span>"
                             "</div>",
                             unsafe_allow_html=True)
@@ -7743,21 +7743,21 @@ if active_section == "ðŸ§ª Paper Trader":
                         f"<span style='background:#2ed47a33;color:#2ed47a;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"âœ“ At entry zone Â· live R:R {_live_rr:.2f}"
+                        f"âœ“ At entry zone · live R:R {_live_rr:.2f}"
                         f"</span>")
                 elif 0 < _live_rr < 1.2:
                     _drift_chip = (
                         f"<span style='background:#ff5c5c33;color:#ff5c5c;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"âš  Entry zone passed Â· live R:R {_live_rr:.2f}"
+                        f"âš  Entry zone passed · live R:R {_live_rr:.2f}"
                         f"</span>")
                 sid = f"{s['symbol']}:{side}"
                 alive_min = (now_ts - sp.get(sid, now_ts)) / 60.0
                 alive_txt = (f"alive {alive_min:.0f} min"
                              if alive_min >= 1 else "just appeared")
                 hold = _hold_horizon(timeframe)
-                proof = (" Â· ".join(s.get("proof", [])[:2])
+                proof = (" · ".join(s.get("proof", [])[:2])
                          if s.get("proof") else "multiple signals align")
                 rr = float(s.get("rr") or 0.0)
                 fc = _fc_by_sym.get(s["symbol"]) or {}
@@ -7769,7 +7769,7 @@ if active_section == "ðŸ§ª Paper Trader":
                 # button to open at the deeper TP2 target (optional).
                 premium_chip = ""
                 if (conf >= 80
-                        and fc_label == "forecast confirms Â· aligned 3/3"):
+                        and fc_label == "forecast confirms · aligned 3/3"):
                     premium_chip = (
                         f"<span style='background:linear-gradient(90deg,"
                         f"#e0a92b,#ffd700);color:#1a1a1a;"
@@ -7839,7 +7839,7 @@ if active_section == "ðŸ§ª Paper Trader":
                 _conv_in_sureshot = s["symbol"] in _sure_shot_syms
                 _conv_is_premium = bool(premium_chip)
                 _conv_forecast_aligned = (
-                    fc_label == "forecast confirms Â· aligned 3/3")
+                    fc_label == "forecast confirms · aligned 3/3")
 
                 if (_conv_score >= 90
                         and (_conv_in_convergence or _conv_in_sureshot)):
@@ -7878,7 +7878,7 @@ if active_section == "ðŸ§ª Paper Trader":
                     f"{_conv_emoji} {_conv_tier} CONVICTION</span>")
 
                 # ============================================================
-                # ðŸ›¡ï¸ SUPPORT / RESISTANCE ZONES
+                # ðŸ›¡️ SUPPORT / RESISTANCE ZONES
                 # ============================================================
                 # Show the nearest S/R zone on each side of current price so
                 # the user can sanity-check the trade plan:
@@ -7899,7 +7899,7 @@ if active_section == "ðŸ§ª Paper Trader":
                             f"{_sup_strong} S</span> "
                             f"<b>{fmt_price(_sup_z['price'])}</b> "
                             f"<span style='color:#888'>"
-                            f"({_sup_z['touches']}Ã— Â· "
+                            f"({_sup_z['touches']}Ã— · "
                             f"{_sup_z['distance_pct']:+.1f}%)</span>")
                     if _res_z:
                         _res_strong = (
@@ -7909,7 +7909,7 @@ if active_section == "ðŸ§ª Paper Trader":
                             f"{_res_strong} R</span> "
                             f"<b>{fmt_price(_res_z['price'])}</b> "
                             f"<span style='color:#888'>"
-                            f"({_res_z['touches']}Ã— Â· "
+                            f"({_res_z['touches']}Ã— · "
                             f"+{_res_z['distance_pct']:.1f}%)</span>")
                     _sr_html = (
                         f"<div style='color:#aab;font-size:0.76rem;"
@@ -7918,13 +7918,13 @@ if active_section == "ðŸ§ª Paper Trader":
                         f"border-left:2px solid rgba(91,142,255,0.25);"
                         f"border-radius:4px'>"
                         f"<span style='color:#6e8bff;font-weight:700;"
-                        f"margin-right:8px'>ðŸ›¡ï¸ ZONES</span>"
-                        f"{' Â· '.join(_sr_parts)}"
+                        f"margin-right:8px'>ðŸ›¡️ ZONES</span>"
+                        f"{' · '.join(_sr_parts)}"
                         f"</div>")
 
                 # Forecast confirmation chip
                 fc_chip = ""
-                if fc_label == "forecast confirms Â· aligned 3/3":
+                if fc_label == "forecast confirms · aligned 3/3":
                     fc_chip = (
                         f"<span style='background:#2ed47a33;color:#2ed47a;"
                         f"padding:2px 8px;border-radius:5px;font-size:0.7rem;"
@@ -7969,19 +7969,19 @@ if active_section == "ðŸ§ª Paper Trader":
                         f"<span style='background:#6e8bff33;color:#6e8bff;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:800;margin-left:4px'>"
-                        f"ðŸŒ€ COILED Â· loaded</span>")
+                        f"ðŸŒ€ COILED · loaded</span>")
                 elif _pick_stage == "FRESH":
                     coiled_chip = (
                         f"<span style='background:#2ed47a22;color:#2ed47a;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"âš¡ FRESH Â· breaking out</span>")
+                        f"âš¡ FRESH · breaking out</span>")
                 elif _pick_stage == "EXTENDED":
                     coiled_chip = (
                         f"<span style='background:#8b8d9833;color:#8b8d98;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"ðŸ“‰ EXTENDED Â· move spent</span>")
+                        f"ðŸ“‰ EXTENDED · move spent</span>")
 
                 # ðŸ”¥ EARLY MOMENTUM chip â€” Phase A MVP. Displays a
                 # parallel leading-indicator score (CVD divergence,
@@ -8001,20 +8001,20 @@ if active_section == "ðŸ§ª Paper Trader":
                     # Aligned with setup direction â€” strongest read
                     flag_text = ""
                     if "squeeze_fire" in _em_flags:
-                        flag_text = " Â· ðŸŒ€ squeeze fired"
+                        flag_text = " · ðŸŒ€ squeeze fired"
                     elif "liquidity_sweep" in _em_flags:
-                        flag_text = " Â· ðŸŽ¯ sweep"
+                        flag_text = " · ðŸŽ¯ sweep"
                     elif "cvd_divergence" in _em_flags:
-                        flag_text = " Â· ðŸ“Š CVD div"
+                        flag_text = " · ðŸ“Š CVD div"
                     elif "accel_inflection" in _em_flags:
-                        flag_text = " Â· ðŸ“ˆ accel"
+                        flag_text = " · ðŸ“ˆ accel"
                     early_chip = (
                         f"<span style='background:linear-gradient(90deg,"
                         f"#ff6b35,#ffa657);color:#1a0c00;"
                         f"padding:2px 10px;border-radius:5px;font-size:"
                         f"0.72rem;font-weight:800;margin-left:4px;"
                         f"box-shadow:0 0 6px #ff6b3566'>"
-                        f"ðŸ”¥ EARLY Â· {_em_score:.0f}{flag_text}</span>")
+                        f"ðŸ”¥ EARLY · {_em_score:.0f}{flag_text}</span>")
                 elif _em_score <= 25 and _em_side != side \
                         and _em_side != "NEUTRAL":
                     # Strong opposite-side early signal â€” warning chip
@@ -8042,14 +8042,14 @@ if active_section == "ðŸ§ª Paper Trader":
                             f"font-size:0.72rem;font-weight:800;"
                             f"margin-left:4px;box-shadow:0 0 10px "
                             f"#00d4ff66;'>"
-                            f"ðŸ”„ V-BOTTOM Â· {_rec_score:.0f}</span>")
+                            f"ðŸ”„ V-BOTTOM · {_rec_score:.0f}</span>")
                     elif _rec_score >= 70:
                         recovery_chip = (
                             f"<span style='background:#00d4ff22;"
                             f"color:#00d4ff;padding:2px 8px;"
                             f"border-radius:5px;font-size:0.7rem;"
                             f"font-weight:700;margin-left:4px'>"
-                            f"ðŸ”„ Recovery Â· {_rec_score:.0f}</span>")
+                            f"ðŸ”„ Recovery · {_rec_score:.0f}</span>")
 
                 # ðŸŸ¢ PROVEN LONG PATTERNS chip â€” only on LONG setups
                 long_chip = ""
@@ -8069,7 +8069,7 @@ if active_section == "ðŸ§ª Paper Trader":
                             flag_lbls.append("HL")
                         if "engulfing_support" in _lp_flags:
                             flag_lbls.append("engulf")
-                        flag_text = (" Â· " + " Â· ".join(flag_lbls[:2])
+                        flag_text = (" · " + " · ".join(flag_lbls[:2])
                                      if flag_lbls else "")
                         # Stronger colors for multi-pattern alignment
                         if _lp_n >= 2:
@@ -8080,14 +8080,14 @@ if active_section == "ðŸ§ª Paper Trader":
                                 f"font-size:0.72rem;font-weight:800;"
                                 f"margin-left:4px;box-shadow:0 0 6px "
                                 f"#34c75966'>"
-                                f"ðŸŸ¢ LONG Â· {_lp_score:.0f}{flag_text}</span>")
+                                f"ðŸŸ¢ LONG · {_lp_score:.0f}{flag_text}</span>")
                         else:
                             long_chip = (
                                 f"<span style='background:#2ed47a22;"
                                 f"color:#2ed47a;padding:2px 8px;"
                                 f"border-radius:5px;font-size:0.7rem;"
                                 f"font-weight:700;margin-left:4px'>"
-                                f"ðŸŸ¢ LONG Â· {_lp_score:.0f}{flag_text}</span>")
+                                f"ðŸŸ¢ LONG · {_lp_score:.0f}{flag_text}</span>")
 
                 # âš¡ RS LEADER chip (Phase B) â€” relative strength vs BTC.
                 # When the alt is significantly out-performing BTC across
@@ -8109,7 +8109,7 @@ if active_section == "ðŸ§ª Paper Trader":
                         f"padding:2px 10px;border-radius:5px;font-size:"
                         f"0.72rem;font-weight:800;margin-left:4px;"
                         f"box-shadow:0 0 6px #6e8bff66'>"
-                        f"âš¡ RS LEADER Â· z{_rs_z:+.1f}</span>")
+                        f"âš¡ RS LEADER · z{_rs_z:+.1f}</span>")
                 elif _rs_score <= 30 and _rs_side == "SHORT" and side == "SHORT":
                     rs_chip = (
                         f"<span style='background:linear-gradient(90deg,"
@@ -8117,7 +8117,7 @@ if active_section == "ðŸ§ª Paper Trader":
                         f"padding:2px 10px;border-radius:5px;font-size:"
                         f"0.72rem;font-weight:800;margin-left:4px;"
                         f"box-shadow:0 0 6px #ff5c5c66'>"
-                        f"âš¡ RS LAGGARD Â· z{_rs_z:+.1f}</span>")
+                        f"âš¡ RS LAGGARD · z{_rs_z:+.1f}</span>")
                 elif _rs_score >= 65 and _rs_side == "LONG" and side == "SHORT":
                     # Setup is SHORT but RS says the alt is leading â€” warn
                     rs_chip = (
@@ -8142,16 +8142,16 @@ if active_section == "ðŸ§ª Paper Trader":
                 if _dv_score <= 30 and _dv_side == "SHORT" and side == "SHORT":
                     flag_text = ""
                     if "funding_flip" in _dv_flags:
-                        flag_text = " Â· âš¡ funding flip"
+                        flag_text = " · âš¡ funding flip"
                     elif "oi_compression" in _dv_flags:
-                        flag_text = " Â· ðŸŒ€ OI coil"
+                        flag_text = " · ðŸŒ€ OI coil"
                     dv_chip = (
                         f"<span style='background:linear-gradient(90deg,"
                         f"#ff5c5c,#e0a92b);color:#06121f;"
                         f"padding:2px 10px;border-radius:5px;font-size:"
                         f"0.72rem;font-weight:800;margin-left:4px;"
                         f"box-shadow:0 0 6px #ff5c5c66'>"
-                        f"ðŸ’± DERIV Â· {_dv_score:.0f}{flag_text}</span>")
+                        f"ðŸ’± DERIV · {_dv_score:.0f}{flag_text}</span>")
                 elif _dv_score >= 70 and _dv_side == "LONG" and side == "LONG":
                     # LONG signals showed no edge in backtests â€” mute styling
                     dv_chip = (
@@ -8184,13 +8184,13 @@ if active_section == "ðŸ§ª Paper Trader":
                         horizon_bits.append(
                             f"<span style='color:#aab'>{_tf}</span> "
                             f"<span style='color:{ac};font-weight:700'>"
-                            f"{arrow.get(h['direction'], 'Â·')} "
+                            f"{arrow.get(h['direction'], '·')} "
                             f"{h['move_pct']:+.2f}%</span>")
                     if horizon_bits:
                         fc_line = (
                             f"<div style='color:#9aa0b4;font-size:0.76rem;"
                             f"margin-top:2px'>ðŸ“ˆ forecast â€” "
-                            + " Â· ".join(horizon_bits) + "</div>")
+                            + " · ".join(horizon_bits) + "</div>")
 
                 with st.container(border=True):
                     pa, pb = st.columns([6, 1])
@@ -8205,7 +8205,7 @@ if active_section == "ðŸ§ª Paper Trader":
                         f"<span style='background:{str_color}33;"
                         f"color:{str_color};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:700'>"
-                        f"{str_label} Â· {combined_display}</span>"
+                        f"{str_label} · {combined_display}</span>"
                         f"{conviction_chip}"
                         f"{convergence_chip}{sure_shot_chip}"
                         f"{setup_forming_chip}{premium_chip}"
@@ -8213,33 +8213,33 @@ if active_section == "ðŸ§ª Paper Trader":
                         f"{early_chip}{long_chip}{rs_chip}{dv_chip}"
                         f"{fc_chip}{reentry_chip}{_drift_chip}"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
-                        f"scanner {conf}% Â· R:R {rr:.1f} Â· "
+                        f"scanner {conf}% · R:R {rr:.1f} · "
                         f"{alive_txt}</span></div>"
                         f"<div style='color:#aab;font-size:0.78rem;"
                         f"margin-top:4px'>"
-                        f"hold: <b>{hold}</b> Â· now "
-                        f"<b>{fmt_price(_cur)}</b> Â· entry zone "
-                        f"{fmt_price(s.get('entry_low', 0))} Â· "
+                        f"hold: <b>{hold}</b> · now "
+                        f"<b>{fmt_price(_cur)}</b> · entry zone "
+                        f"{fmt_price(s.get('entry_low', 0))} · "
                         f"stop {fmt_price(_stop)} "
                         f"<span style='color:#ff5c5c'>"
-                        f"(âˆ’{_live_risk_pct:.1f}%)</span> Â· "
+                        f"(âˆ’{_live_risk_pct:.1f}%)</span> · "
                         # PREMIUM cards show TP1 (default exit, green)
                         # and TP2 (optional deeper target, gold).
                         # Non-PREMIUM cards show just TP1.
                         + (
                             f"target 1 {fmt_price(_tgt)} "
                             f"<span style='color:#2ed47a'>"
-                            f"(+{_live_reward_pct:.1f}%)</span> Â· "
+                            f"(+{_live_reward_pct:.1f}%)</span> · "
                             f"target 2 {fmt_price(_tgt_2)} "
                             f"<span style='color:#e0a92b'>"
-                            f"(+{_live_reward_pct_2:.1f}%)</span> Â· "
+                            f"(+{_live_reward_pct_2:.1f}%)</span> · "
                             f"R:R "
                             f"<b>{_live_rr:.2f}</b> "
                             f"/ <b>{_live_rr_2:.2f}</b>"
                             if _show_tp2 else
                             f"target {fmt_price(_tgt)} "
                             f"<span style='color:#2ed47a'>"
-                            f"(+{_live_reward_pct:.1f}%)</span> Â· "
+                            f"(+{_live_reward_pct:.1f}%)</span> · "
                             f"live R:R <b>{_live_rr:.2f}</b>"
                         )
                         + f"</div>"
@@ -8278,7 +8278,7 @@ if active_section == "ðŸ§ª Paper Trader":
                                              timeframe)
                             paper_bot.save_state(PAPER_BOT_FILE, pb_state)
                             _msg_suffix = (
-                                " â†’ TP1 Â· chases TP2"
+                                " â†’ TP1 · chases TP2"
                                 if s.get("premium_eligible") else
                                 " â†’ TP1")
                             st.toast(
@@ -8370,7 +8370,7 @@ if active_section == "ðŸ§ª Paper Trader":
                         f"<span style='color:{ch_col};font-weight:700;"
                         f"font-size:0.82rem'>{ch:+.2f}% 24h</span>"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
-                        f"Â· scanner conf {mconf}%</span></div>",
+                        f"· scanner conf {mconf}%</span></div>",
                         unsafe_allow_html=True)
 
         # ============================================================
@@ -8414,7 +8414,7 @@ if active_section == "ðŸ§ª Paper Trader":
                 "transparent;background-clip:text;letter-spacing:-0.02em'>"
                 "ðŸ”­ SETUPS FORMING</span>"
                 "<span style='color:#aab;font-size:0.82rem'>"
-                f"direction intel Â· {len(_sf_top)} forming Â· watchlist "
+                f"direction intel · {len(_sf_top)} forming · watchlist "
                 "for the next promotion</span>"
                 "</div>",
                 unsafe_allow_html=True)
@@ -8498,15 +8498,15 @@ if active_section == "ðŸ§ª Paper Trader":
                     f"<span style='background:{_sf_tier_color}33;"
                     f"color:{_sf_tier_color};padding:2px 8px;"
                     f"border-radius:5px;font-size:0.7rem;font-weight:"
-                    f"700'>ðŸ”­ {_sf_tier} Â· {_sf['score']:.0f}</span>"
+                    f"700'>ðŸ”­ {_sf_tier} · {_sf['score']:.0f}</span>"
                     f"<span style='color:#aab;font-size:0.74rem'>"
                     f"{_sf_cm}/7 conditions</span>"
-                    f"<span style='color:#888;font-size:0.74rem'>Â·</span>"
+                    f"<span style='color:#888;font-size:0.74rem'>·</span>"
                     f"<span style='color:#888;font-size:0.74rem'>"
-                    f"${_sf_price:.4g} Â· "
+                    f"${_sf_price:.4g} · "
                     f"<span style='color:{_sf_pct_color}'>"
                     f"{_sf_pct:+.2f}%</span></span>"
-                    + (f"<span style='color:#888;font-size:0.74rem'>Â·</span>"
+                    + (f"<span style='color:#888;font-size:0.74rem'>·</span>"
                        f"<span style='color:#aab;font-size:0.74rem;"
                        f"font-weight:600'>R:R if fires "
                        f"<b style='color:#2ed47a'>{_sf_rr:.2f}</b></span>"
@@ -8836,8 +8836,8 @@ if active_section == "ðŸ§ª Paper Trader":
             "<span style='color:#ff3d57;font-size:0.78rem;font-weight:700'>"
             "ðŸ”´ LIVE MODE</span>"
             "<span style='color:#aab;font-size:0.78rem'>"
-            "page auto-refreshes every 5 min Â· Pattern Scout re-scans every "
-            "10 min Â· live position P&amp;L updates every 10s</span>"
+            "page auto-refreshes every 5 min · Pattern Scout re-scans every "
+            "10 min · live position P&amp;L updates every 10s</span>"
             "</div>",
             unsafe_allow_html=True)
         _inject_autorefresh(300)
@@ -8855,7 +8855,7 @@ if active_section == "ðŸ§ª Paper Trader":
 # STRONG-and-above plans, which mirrors the Paper Trader's own open path.
 if active_section == "ðŸ¤– 24/7 Agent":
     st.subheader(
-        "ðŸ¤– 24/7 Agent Â· deep analysis on your portfolio + "
+        "ðŸ¤– 24/7 Agent · deep analysis on your portfolio + "
         "premium picks from Binance")
     st.caption(
         "Auto-refresh every 5 minutes. Multi-timeframe conviction "
@@ -8935,7 +8935,7 @@ if active_section == "ðŸ¤– 24/7 Agent":
             except Exception:
                 score_v = 50.0
             bg, fg = _agent_side_color(side)
-            label = f"{tf} Â· {score_v:.0f}"
+            label = f"{tf} · {score_v:.0f}"
             parts.append(_render_chip(label, bg, fg))
         return "".join(parts)
 
@@ -8989,10 +8989,10 @@ if active_section == "ðŸ¤– 24/7 Agent":
         sl_pct = ((f["stop"] - entry) / entry * 100) if entry else 0.0
         tp1_pct = ((f["tp1"] - entry) / entry * 100) if entry else 0.0
         tp2_pct = ((f["tp2"] - entry) / entry * 100) if entry else 0.0
-        tp2_part = (f" Â· TP2 {tp2_pct:+.2f}%" if f["tp2"] > 0 else "")
+        tp2_part = (f" · TP2 {tp2_pct:+.2f}%" if f["tp2"] > 0 else "")
         return (
-            f"Entry {entry:g} Â· SL {sl_pct:+.2f}% Â· "
-            f"TP1 {tp1_pct:+.2f}%{tp2_part} Â· R:R {f['rr']:.2f}")
+            f"Entry {entry:g} · SL {sl_pct:+.2f}% · "
+            f"TP1 {tp1_pct:+.2f}%{tp2_part} · R:R {f['rr']:.2f}")
 
     def _open_plan_as_alert(symbol: str, base: str, side: str,
                             plan: dict, conviction: float) -> dict:
@@ -9052,7 +9052,7 @@ if active_section == "ðŸ¤– 24/7 Agent":
         if side not in ("LONG", "SHORT"):
             side = f["side"] or "LONG"
         if f["rr"] < 1.5:
-            st.caption("âš ï¸ Marginal R:R (<1.5) â€” speculative entry.")
+            st.caption("âš ️ Marginal R:R (<1.5) â€” speculative entry.")
         if st.button(
                 f"ðŸ“¥ Open {side} trade",
                 key=f"{key_prefix}_open_{symbol}",
@@ -9067,7 +9067,7 @@ if active_section == "ðŸ¤– 24/7 Agent":
                 if pos:
                     st.success(
                         f"Opened {side} {symbol} at "
-                        f"{alert['entry_low']:g} Â· saved to 24/7 "
+                        f"{alert['entry_low']:g} · saved to 24/7 "
                         "Agent history.")
                 else:
                     st.warning(
@@ -9110,8 +9110,8 @@ if active_section == "ðŸ¤– 24/7 Agent":
 
         if chart_loaded:
             st.caption(
-                "ðŸ“… 1-year daily chart Â· ðŸ’¡ Drag to pan Â· "
-                "scroll to zoom Â· double-click to reset")
+                "ðŸ“… 1-year daily chart · ðŸ’¡ Drag to pan · "
+                "scroll to zoom · double-click to reset")
 
         # --- 2. Per-TF breakdown
         st.markdown("#### ðŸ“Š Per-timeframe breakdown")
@@ -9136,7 +9136,7 @@ if active_section == "ðŸ¤– 24/7 Agent":
         st.table(tf_rows)
 
         # --- 3. Drivers / candle formation â€” pull from the strongest TF
-        st.markdown("#### ðŸ•¯ï¸ Candle formation & top drivers")
+        st.markdown("#### ðŸ•¯️ Candle formation & top drivers")
         # Find a TF dict that has drivers/reasons
         best_tf_dict = None
         for tf in ("1h", "4h", "15m", "1d"):
@@ -9291,7 +9291,7 @@ if active_section == "ðŸ¤– 24/7 Agent":
             "transparent;background-clip:text;letter-spacing:-0.02em'>"
             "ðŸ† BEST FROM YOUR PORTFOLIO</span>"
             f"<span style='color:#aab;font-size:0.84rem'>"
-            f"{len(best_trades)} of 20 firing at â‰¥75 Â· click ðŸ“¥ to open</span>"
+            f"{len(best_trades)} of 20 firing at â‰¥75 · click ðŸ“¥ to open</span>"
             "</div>",
             unsafe_allow_html=True)
         if not best_trades:
@@ -9305,10 +9305,10 @@ if active_section == "ðŸ¤– 24/7 Agent":
                 _f = _plan_fields(bt["plan"])
                 bt_title = (
                     f"{_tier_emoji(bt['tier'])} **{bt['base']}** "
-                    f"Â· {_side_emoji(bt['side'])} {bt['side']} "
-                    f"Â· {bt['tier']} {bt['score']:.0f} "
-                    f"Â· {('$%.4f' % bt['price_now']) if bt['price_now'] else 'â€”'} "
-                    f"Â· {_plan_summary(bt['plan'])}")
+                    f"· {_side_emoji(bt['side'])} {bt['side']} "
+                    f"· {bt['tier']} {bt['score']:.0f} "
+                    f"· {('$%.4f' % bt['price_now']) if bt['price_now'] else 'â€”'} "
+                    f"· {_plan_summary(bt['plan'])}")
                 with st.expander(bt_title, expanded=False):
                     _render_deep_view(
                         symbol=bt["symbol"], base=bt["base"],
@@ -9389,15 +9389,15 @@ if active_section == "ðŸ¤– 24/7 Agent":
                 forming_flag = " ðŸ”­" if forming else ""
                 title = (
                     f"{_tier_emoji(tier)} **{base}** "
-                    f"Â· {_side_emoji(side)} {side} "
-                    f"Â· {tier} {score_f:.0f} "
-                    f"Â· {price_str} ({pct_str}){forming_flag} "
-                    f"Â· {plan_summary}")
+                    f"· {_side_emoji(side)} {side} "
+                    f"· {tier} {score_f:.0f} "
+                    f"· {price_str} ({pct_str}){forming_flag} "
+                    f"· {plan_summary}")
 
                 with st.expander(title, expanded=False):
                     if unavailable:
                         st.warning(
-                            f"âš ï¸ {symbol} unavailable on Binance right "
+                            f"âš ️ {symbol} unavailable on Binance right "
                             f"now â€” deep analysis skipped.")
                         continue
                     _render_deep_view(
@@ -9456,10 +9456,10 @@ if active_section == "ðŸ¤– 24/7 Agent":
                 plan_summary = _plan_summary(plan)
                 title = (
                     f"{_tier_emoji(tier)} **{base}** "
-                    f"Â· {_side_emoji(side)} {side} "
-                    f"Â· {tier} {score_f:.0f} "
-                    f"Â· {price_str} ({pct_str}) "
-                    f"Â· {plan_summary}")
+                    f"· {_side_emoji(side)} {side} "
+                    f"· {tier} {score_f:.0f} "
+                    f"· {price_str} ({pct_str}) "
+                    f"· {plan_summary}")
 
                 with st.expander(title, expanded=False):
                     # Chart â€” use the SAME cached 1-year daily loader so
@@ -9488,11 +9488,11 @@ if active_section == "ðŸ¤– 24/7 Agent":
 
                     if chart_loaded:
                         st.caption(
-                            "ðŸ’¡ Drag to pan Â· scroll to zoom Â· "
+                            "ðŸ’¡ Drag to pan · scroll to zoom · "
                             "double-click to reset")
 
                     if reasons:
-                        st.markdown("#### ðŸ•¯ï¸ Why this fired")
+                        st.markdown("#### ðŸ•¯️ Why this fired")
                         for r in reasons[:5]:
                             st.markdown(f"- {r}")
 
@@ -9614,10 +9614,10 @@ if active_section == "ðŸ¤– 24/7 Agent":
                     # ROW 1 â€” metrics with notional + margin
                     cols = st.columns([1.8, 1.3, 1.3, 1.3, 1.6, 1.0])
                     cols[0].markdown(
-                        f"**{op.get('base', sym_op)}** Â· {sym_op}<br>"
+                        f"**{op.get('base', sym_op)}** · {sym_op}<br>"
                         f"<span style='color:#aab;font-size:0.82rem'>"
-                        f"{side_op} Â· qty {qty_op:.4f}"
-                        + (f" Â· {lev_op:g}x lev" if lev_op > 0 else "")
+                        f"{side_op} · qty {qty_op:.4f}"
+                        + (f" · {lev_op:g}x lev" if lev_op > 0 else "")
                         + "</span>",
                         unsafe_allow_html=True)
                     cols[1].markdown(
@@ -9652,7 +9652,7 @@ if active_section == "ðŸ¤– 24/7 Agent":
                             if closed:
                                 st.success(
                                     f"Closed {side_op} {sym_op} at "
-                                    f"{cur_px:g} Â· P&L "
+                                    f"{cur_px:g} · P&L "
                                     f"${closed.get('pnl_usd', 0):+,.2f}")
                                 st.rerun()
                         except Exception as exc:
@@ -9687,12 +9687,12 @@ if active_section == "ðŸ¤– 24/7 Agent":
                                         "autoScale2d"],
                                 })
                             st.caption(
-                                f"ðŸ“… 1-year daily chart Â· Entry "
-                                f"`{entry_op:g}` Â· SL `{stop_op:g}` Â· "
+                                f"ðŸ“… 1-year daily chart · Entry "
+                                f"`{entry_op:g}` · SL `{stop_op:g}` · "
                                 f"TP1 `{tgt_op:g}`"
-                                + (f" Â· TP2 `{tgt2_op:g}`"
+                                + (f" · TP2 `{tgt2_op:g}`"
                                    if tgt2_op > 0 else "")
-                                + " Â· drag to pan Â· scroll to zoom")
+                                + " · drag to pan · scroll to zoom")
                     except Exception as exc:
                         st.caption(f"Chart unavailable: {exc}")
         else:
@@ -9737,7 +9737,7 @@ if active_section == "ðŸ’¸ Live Trading":
             "your `.env` (and reboot) to switch to real-money live.")
     else:
         st.error(
-            "âš ï¸ **REAL MONEY MODE** â€” every trade you open here uses real "
+            "âš ️ **REAL MONEY MODE** â€” every trade you open here uses real "
             "USDT on your Bybit account. The bot suggests; YOU confirm.")
 
     _live_ready, _live_info = lb.is_ready()
@@ -9796,7 +9796,7 @@ plus funding rate every 8 hours on open positions.
     _settings = lb_state.setdefault("settings", dict(config.LIVE_DEFAULTS))
 
     # --- Settings expander ------------------------------------------------
-    with st.expander("âš™ï¸ Settings â€” guardrails, leverage cap, auto-trade"):
+    with st.expander("âš™️ Settings â€” guardrails, leverage cap, auto-trade"):
         sc1, sc2, sc3 = st.columns(3)
         _new_lev_cap = sc1.slider(
             "Leverage cap (max)", 1, 25,
@@ -10001,7 +10001,7 @@ plus funding rate every 8 hours on open positions.
         for c in closed_now:
             emoji = "âœ…" if c["pnl_usd"] > 0 else "âŒ"
             st.toast(
-                f"{emoji} {c['base']} closed @ {c['exit_reason']} Â· "
+                f"{emoji} {c['base']} closed @ {c['exit_reason']} · "
                 f"{c['pnl_pct']:+.2f}%", icon="ðŸ’¸")
         if closed_now:
             lb.save_state(config.LIVE_BOT_STATE_PATH, state)
@@ -10044,12 +10044,12 @@ plus funding rate every 8 hours on open positions.
                     f"{p['side']}</span></div>"
                     f"<div style='color:#d5d7e0;font-size:0.84rem;"
                     f"margin:3px 0'>"
-                    f"<b>{qty_v:.6f} {p['base']}</b> Â· "
-                    f"notional <b>${notional_v:,.2f}</b> Â· "
+                    f"<b>{qty_v:.6f} {p['base']}</b> · "
+                    f"notional <b>${notional_v:,.2f}</b> · "
                     f"<b>{lev_v}Ã— lev</b></div>"
                     f"<div style='color:#8b8d98;font-size:0.78rem'>"
-                    f"Entry {fmt_price(entry_v)} Â· Stop "
-                    f"{fmt_price(stop_v)} Â· Target {fmt_price(target_v)}"
+                    f"Entry {fmt_price(entry_v)} · Stop "
+                    f"{fmt_price(stop_v)} · Target {fmt_price(target_v)}"
                     f"</div>",
                     unsafe_allow_html=True)
                 pnl_col.markdown(
@@ -10074,7 +10074,7 @@ plus funding rate every 8 hours on open positions.
                             emoji = ("âœ…" if closed["pnl_usd"] > 0
                                      else "âŒ")
                             st.toast(
-                                f"{emoji} Closed {closed['base']} Â· "
+                                f"{emoji} Closed {closed['base']} · "
                                 f"{closed['pnl_pct']:+.2f}%", icon="ðŸ’¸")
                             st.rerun(scope="fragment")
                     except Exception as _exc:
@@ -10126,7 +10126,7 @@ plus funding rate every 8 hours on open positions.
                     f"border:1px solid #1f2330'>"
                     f"<div style='font-size:0.7rem;color:#8b8d98;"
                     f"letter-spacing:0.08em;font-weight:700'>"
-                    f"LIVE PRICE Â· {_sel_lt}</div>"
+                    f"LIVE PRICE · {_sel_lt}</div>"
                     f"<div style='font-size:1.4rem;font-weight:800;"
                     f"color:#fff'>{fmt_price(_cur_lt)} "
                     f"<span style='color:{_chc};font-size:0.85rem;"
@@ -10157,7 +10157,7 @@ plus funding rate every 8 hours on open positions.
                 ok, reason, preview = lb.preflight(
                     lb_state, _alert_lt, _cur_lt)
                 if not ok:
-                    st.warning(f"âš ï¸ {reason}")
+                    st.warning(f"âš ️ {reason}")
                 else:
                     _lev = preview["leverage"]
                     _qty = preview["qty"]
@@ -10182,7 +10182,7 @@ plus funding rate every 8 hours on open positions.
                         f"(scaled from conf {_conf_lt})<br>"
                         f"Quantity: <b>{_qty:.6f} "
                         f"{_sel_lt.replace('USDT','')}</b><br>"
-                        f"Notional: <b>${_notional:,.2f}</b> Â· "
+                        f"Notional: <b>${_notional:,.2f}</b> · "
                         f"Margin: <b>${_margin:,.2f}</b><br>"
                         f"Est. round-trip fees: ~${_est_fee:.2f}</div>",
                         unsafe_allow_html=True)
@@ -10205,7 +10205,7 @@ plus funding rate every 8 hours on open positions.
                             f"border-radius:5px;margin:4px 0;"
                             f"font-size:0.84rem;color:#e0a92b;"
                             f"font-weight:700'>"
-                            f"âš ï¸ Click CONFIRM to send this order to "
+                            f"âš ️ Click CONFIRM to send this order to "
                             f"Bybit. This is real money "
                             f"{'(testnet)' if config.BYBIT_TESTNET else ''}."
                             f"</div>", unsafe_allow_html=True)
@@ -10226,7 +10226,7 @@ plus funding rate every 8 hours on open positions.
                                     st.toast(
                                         f"ðŸ“¥ OPENED {_side_lt} "
                                         f"{opened['base']} @ "
-                                        f"{fmt_price(opened['entry'])} Â· "
+                                        f"{fmt_price(opened['entry'])} · "
                                         f"{_lev}Ã—", icon="ðŸ’¸")
                                     st.rerun()
                             except lb.ConfigError as _exc:
@@ -10429,19 +10429,19 @@ plus funding rate every 8 hours on open positions.
                         f"<span style='background:#6e8bff33;color:#6e8bff;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:800;margin-left:4px'>"
-                        f"ðŸŒ€ COILED Â· loaded</span>")
+                        f"ðŸŒ€ COILED · loaded</span>")
                 elif _stg_lt == "FRESH":
                     _coiled_chip_lt = (
                         f"<span style='background:#2ed47a22;color:#2ed47a;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"âš¡ FRESH Â· breaking out</span>")
+                        f"âš¡ FRESH · breaking out</span>")
                 elif _stg_lt == "EXTENDED":
                     _coiled_chip_lt = (
                         f"<span style='background:#8b8d9833;color:#8b8d98;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"ðŸ“‰ EXTENDED Â· move spent</span>")
+                        f"ðŸ“‰ EXTENDED · move spent</span>")
 
                 # â†» Re-entry chip â€” coin closed within the last 60 min
                 # and re-qualifies as a setup (second-leg opportunity).
@@ -10476,13 +10476,13 @@ plus funding rate every 8 hours on open positions.
                         f"<span style='background:#2ed47a33;color:#2ed47a;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"âœ“ At entry zone Â· R:R {_live_rr_lt:.2f}</span>")
+                        f"âœ“ At entry zone · R:R {_live_rr_lt:.2f}</span>")
                 elif 0 < _live_rr_lt < 1.2:
                     _drift_chip_lt = (
                         f"<span style='background:#ff5c5c33;color:#ff5c5c;"
                         f"padding:2px 8px;border-radius:5px;font-size:"
                         f"0.7rem;font-weight:700;margin-left:4px'>"
-                        f"âš  Entry passed Â· R:R {_live_rr_lt:.2f}</span>")
+                        f"âš  Entry passed · R:R {_live_rr_lt:.2f}</span>")
 
                 # ðŸ’Ž PREMIUM TRADEABLE chip â€” passes ALL 5 strict criteria
                 # for the auto-trade "sure shot" filter. When this chip
@@ -10512,22 +10512,22 @@ plus funding rate every 8 hours on open positions.
                         f"<span style='background:{str_col}33;"
                         f"color:{str_col};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:700'>"
-                        f"{str_label} Â· {_combined_disp}</span>"
+                        f"{str_label} · {_combined_disp}</span>"
                         f"{_premium_chip_lt}{_tradeable_chip_lt}"
                         f"{_coiled_chip_lt}"
                         f"{_reentry_chip_lt}{_drift_chip_lt}"
                         f"<span style='color:#6e8bff;font-weight:700;"
                         f"font-size:0.78rem'>{_lev}Ã— lev</span>"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
-                        f"Â· conf {conf} Â· R:R "
+                        f"· conf {conf} · R:R "
                         f"{float(s.get('rr', 0)):.1f}</span></div>"
                         f"<div style='color:#aab;font-size:0.78rem;"
                         f"margin-top:4px'>"
-                        f"now <b>{fmt_price(_cur_lt)}</b> Â· entry zone "
-                        f"{fmt_price(s.get('entry_low', 0))} Â· stop "
+                        f"now <b>{fmt_price(_cur_lt)}</b> · entry zone "
+                        f"{fmt_price(s.get('entry_low', 0))} · stop "
                         f"{fmt_price(_stop_lt)} "
                         f"<span style='color:#ff5c5c'>"
-                        f"(âˆ’{_live_risk_lt:.1f}%)</span> Â· target "
+                        f"(âˆ’{_live_risk_lt:.1f}%)</span> · target "
                         f"{fmt_price(_tgt_lt)} "
                         f"<span style='color:#2ed47a'>"
                         f"(+{_live_reward_lt:.1f}%)</span></div>",
@@ -10536,7 +10536,7 @@ plus funding rate every 8 hours on open positions.
                     _pk_help = (
                         f"LIVE {side} {s['base']} â†’ TP1 (~5-7%)"
                         + (
-                            f" Â· ðŸ’Ž {_settings.get('premium_risk_multiplier', 1.5):.2f}Ã— risk"
+                            f" · ðŸ’Ž {_settings.get('premium_risk_multiplier', 1.5):.2f}Ã— risk"
                             if _is_premium_trd else ""
                         ))
                     if bb.button("ðŸ“¥", key=_pk,
@@ -10558,7 +10558,7 @@ plus funding rate every 8 hours on open positions.
                                     config.LIVE_BOT_STATE_PATH, lb_state)
                                 st.toast(
                                     f"ðŸ“¥ LIVE {side} {opened['base']} @ "
-                                    f"{fmt_price(opened['entry'])} â†’ TP1 Â· "
+                                    f"{fmt_price(opened['entry'])} â†’ TP1 · "
                                     f"{_lev}Ã—", icon="ðŸ’¸")
                                 st.rerun()
                         except lb.ConfigError as _exc:
@@ -10600,7 +10600,7 @@ plus funding rate every 8 hours on open positions.
                                         f"ðŸ† LIVE {side} "
                                         f"{opened['base']} @ "
                                         f"{fmt_price(opened['entry'])} "
-                                        f"â†’ TP2 Â· {_lev}Ã—", icon="ðŸ†")
+                                        f"â†’ TP2 · {_lev}Ã—", icon="ðŸ†")
                                     st.rerun()
                             except lb.ConfigError as _exc:
                                 st.error(str(_exc))
@@ -10664,7 +10664,7 @@ plus funding rate every 8 hours on open positions.
                             config.LIVE_BOT_STATE_PATH, lb_state)
                         st.toast(
                             f"ðŸ’Ž AUTO-FIRED {s['side']} {opened['base']} "
-                            f"@ {fmt_price(opened['entry'])} Â· "
+                            f"@ {fmt_price(opened['entry'])} · "
                             f"{_lev}Ã— lev", icon="ðŸ’Ž")
                         _auto_fired_this_run.append(opened["symbol"])
                 except Exception as _exc:
@@ -10753,7 +10753,7 @@ if active_section == "ðŸ’Ž Spot Long-Term":
             f"<div style='background:{_reg_color}22;border-left:3px solid "
             f"{_reg_color};padding:10px 14px;border-radius:6px'>"
             f"<div style='font-weight:800;color:{_reg_color};font-size:0.9rem'>"
-            f"ðŸ“Š BTC Dominance Â· {_reg_label}</div>"
+            f"ðŸ“Š BTC Dominance · {_reg_label}</div>"
             f"<div style='color:#aab;font-size:0.78rem;margin-top:4px'>"
             f"{_btc_reg.get('detail', 'â€”')}</div>"
             f"<div style='color:#8b8d98;font-size:0.72rem;margin-top:6px'>"
@@ -10764,7 +10764,7 @@ if active_section == "ðŸ’Ž Spot Long-Term":
             f"<div style='background:{_macro_color}22;border-left:3px solid "
             f"{_macro_color};padding:10px 14px;border-radius:6px'>"
             f"<div style='font-weight:800;color:{_macro_color};font-size:0.9rem'>"
-            f"ðŸŒ Macro Â· {_macro_label}</div>"
+            f"ðŸŒ Macro · {_macro_label}</div>"
             f"<div style='color:#aab;font-size:0.78rem;margin-top:4px'>"
             f"{_macro_reg.get('detail', 'â€”')}</div>"
             f"<div style='color:#8b8d98;font-size:0.72rem;margin-top:6px'>"
@@ -10854,7 +10854,7 @@ if active_section == "ðŸ’Ž Spot Long-Term":
     if _spot_results:
         st.caption(
             f"Last scan: {datetime.fromtimestamp(_spot_scan_ts, tz=timezone.utc).strftime('%H:%M:%S UTC')} "
-            f"Â· {len(_spot_results)} coins scored")
+            f"· {len(_spot_results)} coins scored")
 
         # Filter + rank
         _spot_visible = [r for r in _spot_results
@@ -11049,12 +11049,12 @@ if active_section == "ðŸ’Ž Spot Long-Term":
                         f"<span style='background:{_tier_color};"
                         f"color:#06121f;padding:2px 10px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:800'>"
-                        f"{_tier_label} Â· {r['score']:.0f}</span>"
+                        f"{_tier_label} · {r['score']:.0f}</span>"
                         f"{_delta_chip}"
                         f"{_stage_chip}{_mayer_chip}{_dd_chip}"
                         f"{_cup_chip}{_onchain_chip}{_tvl_chip}{_tok_chip}"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
-                        f"price ${r['price']:,.4g} Â· "
+                        f"price ${r['price']:,.4g} · "
                         f"24h vol ${r['volume_24h'] / 1e6:.1f}M</span>"
                         f"</div>"
                         f"<div style='color:#aab;font-size:0.78rem;"
@@ -11078,7 +11078,7 @@ if active_section == "ðŸ’Ž Spot Long-Term":
             "Results stay cached for 2 minutes between scans.")
 
     st.caption(
-        "âš ï¸ This module is **DISPLAY ONLY** in Phase D MVP. Picks here "
+        "âš ️ This module is **DISPLAY ONLY** in Phase D MVP. Picks here "
         "do NOT auto-open spot positions, do NOT influence the futures "
         "picks board, and do NOT feed live_broker. Manually buy on spot "
         "after doing your own due diligence on tokenomics, project "
