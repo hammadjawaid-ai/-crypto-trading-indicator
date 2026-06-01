@@ -4878,7 +4878,44 @@ if active_section == "🧪 Paper Trader":
         "to `.paper_bot.json` so a run survives refreshes and full app "
         "restarts.")
 
+    # ---- State load + SESSION-PERSISTENCE LAYER --------------------------
+    # The user reported "trades reset on every refresh". Root cause:
+    # Streamlit Cloud's filesystem is ephemeral — every container
+    # restart (which can happen on auto-scaling, deploys, or even
+    # inactivity) wipes .paper_bot.json. Streamlit's session_state
+    # is in-memory but SURVIVES PAGE REFRESHES within a single
+    # browser session, so we use it as a fallback.
+    #
+    # Logic:
+    #   1. Load from .paper_bot.json (canonical source of truth)
+    #   2. Also check session_state for a cached copy
+    #   3. If session has MORE recent / MORE complete data
+    #      (more closed trades, more open positions, or higher
+    #      "started_at"), prefer it and re-save to file
+    #   4. After every render we update the session cache from
+    #      the (now possibly-modified) pb_state at line 5543
     pb_state = paper_bot.load_state(PAPER_BOT_FILE)
+    _SESSION_KEY = "_paper_bot_session_cache"
+    _cached = st.session_state.get(_SESSION_KEY)
+    if isinstance(_cached, dict):
+        cached_closed = len(_cached.get("closed") or [])
+        cached_open = len(_cached.get("open") or [])
+        file_closed = len(pb_state.get("closed") or [])
+        file_open = len(pb_state.get("open") or [])
+        # Restore from session_state if it has more data than the
+        # file (i.e., file was wiped by a container restart but our
+        # session memory still holds the real state).
+        if (cached_closed > file_closed
+                or cached_open > file_open
+                or (cached_closed == 0 and file_closed == 0
+                    and cached_open > 0 and file_open == 0)):
+            pb_state = _cached
+            paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+            st.toast(
+                f"🔄 Restored {cached_open} open / "
+                f"{cached_closed} closed trades from session cache "
+                "(file was wiped by Streamlit Cloud)",
+                icon="🔄")
 
     # ---- One-time balance migration to $20k (per user request) -----------
     # If the user's state has the old $10k default AND has no closed trades
@@ -5153,11 +5190,21 @@ if active_section == "🧪 Paper Trader":
             height=180, margin=dict(l=0, r=90, t=10, b=10),
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
-            xaxis=dict(showgrid=False, color="#888"),
-            yaxis=dict(showgrid=False, color="#888"))
+            # dragmode="pan" + axis fixedrange disables the
+            # click-and-drag-to-zoom animation that the user dislikes.
+            # Matches the 24/7 Agent chart behaviour (drag pans, no
+            # accidental zoom-in on click).
+            dragmode="pan",
+            xaxis=dict(showgrid=False, color="#888", fixedrange=True),
+            yaxis=dict(showgrid=False, color="#888", fixedrange=True))
         st.plotly_chart(
             fig, use_container_width=True,
-            config={"displayModeBar": False})
+            config={
+                "displayModeBar": False,
+                "scrollZoom": False,
+                "doubleClick": False,
+                "staticPlot": False,
+            })
 
     # ------------------------------------------------------------------
     # Live-updating fragments — these refresh IN PLACE every 10 seconds
@@ -5531,6 +5578,10 @@ if active_section == "🧪 Paper Trader":
             f"preserved so you can review the previous period.")
 
     paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+    # Mirror to session_state so a Streamlit Cloud container restart
+    # that wipes the file doesn't destroy the user's open trades and
+    # history within the same browser session.
+    st.session_state[_SESSION_KEY] = json.loads(json.dumps(pb_state))
 
     # ---- Bank + trade stats — LIVE fragment (updates in place every 10s)
     _live_paper_stats()
