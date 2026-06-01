@@ -3758,6 +3758,9 @@ SECTIONS = [
     "🤖 Ask the Oracle", "🪙 Coin Analysis", "📰 News & Sentiment",
     "🧭 Decision Mode", "🧪 Paper Trader", "💸 Live Trading",
     "💎 Spot Long-Term", "🤖 24/7 Agent",
+    # === EXPERIMENTAL — isolated from the rest. Revert with: ===
+    # git reset --hard stable-pre-rebound-breakout
+    "🔬 Hunters (experimental)",
 ]
 _qp_section = _qp.get("section", SECTIONS[0])
 if _qp_section not in SECTIONS:
@@ -10864,3 +10867,220 @@ if active_section == "💎 Spot Long-Term":
         "after doing your own due diligence on tokenomics, project "
         "fundamentals, and current macro regime. Long-term holds need "
         "more than a chart score.")
+
+
+# ===========================================================================
+# Tab — 🔬 Hunters (EXPERIMENTAL · isolated · revert-safe)
+# ===========================================================================
+# Two new composite scanners that are STRICTLY isolated from the rest of
+# the app — they read kline data and surface picks, but they only touch
+# the 24/7 Agent's state file (.agent_bot.json) when the user clicks 📥
+# to open a paper position. Paper Trader / Live Trading / live_broker
+# state are untouched.
+#
+# REVERT: this entire block + the SECTIONS entry + rebound_radar.py +
+# breakout_hunter.py + backtest_rebound_breakout.py can be wiped with:
+#   git reset --hard stable-pre-rebound-breakout
+#
+# Backtest validation:  python backtest_rebound_breakout.py
+# ===========================================================================
+if active_section == "🔬 Hunters (experimental)":
+    import rebound_radar
+    import breakout_hunter
+
+    st.subheader("🔬 Hunters · experimental composite scanners")
+    st.caption(
+        "Two focused scanners separate from the rest of the app. "
+        "**REBOUND HUNTER** catches bullish rebounds early on 15m/1h "
+        "(5-7% targets). **BREAKOUT HUNTER** scans top-300 Binance "
+        "for pre-pump coil patterns (PORTAL-style runners). Both use "
+        "real backtested signal modules. Honest hit rates: rebounds "
+        "~55-65%, breakouts ~30-40% (with much larger upside).")
+    st.info(
+        "**Revert anytime** with `git reset --hard "
+        "stable-pre-rebound-breakout` to wipe both hunters back "
+        "out of the app without touching anything else.")
+
+    @st.cache_data(ttl=600, show_spinner=False)
+    def load_rebound_picks(_v: int = 1):
+        return rebound_radar.scan_for_rebounds(
+            scan_n=150, min_score=70.0, min_drawdown_pct=5.0,
+            max_picks=15)
+
+    @st.cache_data(ttl=900, show_spinner=False)
+    def load_breakout_picks(_v: int = 1):
+        return breakout_hunter.scan_for_breakouts(
+            scan_n=300, min_score=70.0, max_seven_day_chg=50.0,
+            min_volume_usd=5_000_000.0, max_picks=15)
+
+    # ----- 🔁 REBOUND HUNTER ---------------------------------------------
+    st.markdown("---")
+    st.markdown("### 🔁 REBOUND HUNTER")
+    st.caption(
+        "**Target:** the first 5-7% of a bearish→bullish rebound. "
+        "**Triggers when:** 15m AND 1h both score ≥60, blended ≥70, "
+        "coin is ≥5% off recent high. Composites V-bottom + CVD "
+        "divergence + funding extreme + reversal_approach + "
+        "pattern_scout + drawdown depth + first-green-candle.")
+    with st.spinner("🔍 Scanning top 150 for rebound setups (~30-60s cold)..."):
+        try:
+            reb_picks = load_rebound_picks()
+        except Exception as exc:
+            st.error(f"Rebound scan failed: {exc}")
+            reb_picks = []
+
+    if not reb_picks:
+        st.info("No rebound setups firing right now. The system needs "
+                "5+ lanes to agree before surfacing a pick. Refresh "
+                "in 10 min for a re-scan.")
+    else:
+        st.success(
+            f"**{len(reb_picks)} rebound setups firing.** Sorted by "
+            "blended score (highest first).")
+        for p in reb_picks:
+            sym = p["symbol"]
+            sc = p["score"]
+            dd = p["drawdown_pct"]
+            exp = p["expected_move_pct"]
+            plan = p.get("trade_plan") or {}
+            tier_emoji = ("🟣 MAX" if sc >= 90 else
+                          "🔴 HIGH" if sc >= 85 else
+                          "🟢 STRONG")
+            entry = plan.get("entry", 0)
+            stop = plan.get("stop", 0)
+            tp1 = plan.get("tp1", 0)
+            tp2 = plan.get("tp2", 0)
+            sl_pct = (
+                (stop - entry) / entry * 100 if entry > 0 else 0)
+            tp1_pct = (
+                (tp1 - entry) / entry * 100 if entry > 0 else 0)
+            tp2_pct = (
+                (tp2 - entry) / entry * 100 if entry > 0 else 0)
+            title = (
+                f"{tier_emoji} · **{sym}** · score {sc:.0f} · "
+                f"−{dd:.1f}% from high · expected +{exp:.1f}% · "
+                f"15m {p['score_15m']:.0f} / 1h {p['score_1h']:.0f}")
+            with st.expander(title, expanded=False):
+                st.markdown(
+                    f"**Entry** `{entry:g}` · **SL** `{stop:g}` "
+                    f"(`{sl_pct:+.2f}%`) · **TP1** `{tp1:g}` "
+                    f"(`{tp1_pct:+.2f}%`) · **TP2** `{tp2:g}` "
+                    f"(`{tp2_pct:+.2f}%`) · "
+                    f"**R:R** {plan.get('rr', 0):.2f}")
+                if p.get("reasons"):
+                    st.markdown("**Why fired:**")
+                    for r in p["reasons"]:
+                        st.markdown(f"- {r}")
+                if st.button(f"📥 Open paper LONG {sym}",
+                             key=f"hunters_reb_{sym}"):
+                    try:
+                        ag = paper_bot.load_state(AGENT_BOT_FILE)
+                        alert = {
+                            "symbol": sym,
+                            "base": sym.replace("USDT", ""),
+                            "side": "LONG",
+                            "entry_low": entry, "stop": stop,
+                            "target": tp1, "target_2": tp2,
+                            "confidence": int(sc),
+                            "rr": plan.get("rr", 0),
+                        }
+                        pos = paper_bot.open_position(ag, alert, entry)
+                        paper_bot.save_state(AGENT_BOT_FILE, ag)
+                        if pos:
+                            st.success(
+                                f"Opened LONG {sym} at {entry:g} "
+                                "(saved to 24/7 Agent history)")
+                        else:
+                            st.warning(
+                                "Already open in 24/7 Agent state.")
+                    except Exception as exc:
+                        st.error(f"Open failed: {exc}")
+
+    # ----- 🚀 BREAKOUT HUNTER --------------------------------------------
+    st.markdown("---")
+    st.markdown("### 🚀 BREAKOUT HUNTER")
+    st.caption(
+        "**Target:** pre-pump coil + ignition, BEFORE the move. "
+        "**Universe:** top 300 USDT-perp by volume (covers mid-caps "
+        "where PORTAL-style 100%+ runs originate). **Filters:** ≥$5M "
+        "daily volume (no illiquid traps), ≤50% gain in last 7 days "
+        "(no chasing). Lanes: BB-squeeze + hidden accumulation + "
+        "OI/funding surge + TTM Squeeze + higher-low + cup-and-handle.")
+    with st.spinner("🚀 Scanning top 300 for pre-breakout coils (~60-90s cold)..."):
+        try:
+            bk_picks = load_breakout_picks()
+        except Exception as exc:
+            st.error(f"Breakout scan failed: {exc}")
+            bk_picks = []
+
+    if not bk_picks:
+        st.info("No breakout setups firing right now. Coil patterns "
+                "are rare — typically 1-5 picks per session. The "
+                "wider 300-coin universe means we DO catch mid-caps "
+                "the regular picks board misses.")
+    else:
+        st.success(
+            f"**{len(bk_picks)} breakout setups firing.** Position "
+            "SMALL — asymmetric bets (many miss, hits run 20%+).")
+        for p in bk_picks:
+            sym = p["symbol"]
+            sc = p["score"]
+            d7 = p.get("seven_day_chg_pct", 0)
+            vol_m = p.get("volume_usd", 0) / 1e6
+            plan = p.get("trade_plan") or {}
+            tier_emoji = ("🟣 MAX" if sc >= 90 else
+                          "🔴 HIGH" if sc >= 85 else
+                          "🟢 STRONG")
+            entry = plan.get("entry", 0)
+            stop = plan.get("stop", 0)
+            tp1 = plan.get("tp1", 0)
+            tp2 = plan.get("tp2", 0)
+            tp1_pct = (
+                (tp1 - entry) / entry * 100 if entry > 0 else 0)
+            tp2_pct = (
+                (tp2 - entry) / entry * 100 if entry > 0 else 0)
+            title = (
+                f"{tier_emoji} · **{sym}** · score {sc:.0f} · "
+                f"7d {d7:+.1f}% · vol ${vol_m:.1f}M · "
+                f"TP1 +{tp1_pct:.1f}% · TP2 +{tp2_pct:.1f}%")
+            with st.expander(title, expanded=False):
+                st.markdown(
+                    f"**Entry** `{entry:g}` · **SL** `{stop:g}` · "
+                    f"**TP1** `{tp1:g}` (`{tp1_pct:+.2f}%`) · "
+                    f"**TP2** `{tp2:g}` (`{tp2_pct:+.2f}%`) · "
+                    f"**R:R** {plan.get('rr', 0):.2f}")
+                if p.get("reasons"):
+                    st.markdown("**Why fired:**")
+                    for r in p["reasons"]:
+                        st.markdown(f"- {r}")
+                if st.button(f"📥 Open paper LONG {sym}",
+                             key=f"hunters_bk_{sym}"):
+                    try:
+                        ag = paper_bot.load_state(AGENT_BOT_FILE)
+                        alert = {
+                            "symbol": sym,
+                            "base": sym.replace("USDT", ""),
+                            "side": "LONG",
+                            "entry_low": entry, "stop": stop,
+                            "target": tp1, "target_2": tp2,
+                            "confidence": int(sc),
+                            "rr": plan.get("rr", 0),
+                        }
+                        pos = paper_bot.open_position(ag, alert, entry)
+                        paper_bot.save_state(AGENT_BOT_FILE, ag)
+                        if pos:
+                            st.success(
+                                f"Opened LONG {sym} at {entry:g} "
+                                "(saved to 24/7 Agent history)")
+                        else:
+                            st.warning(
+                                "Already open in 24/7 Agent state.")
+                    except Exception as exc:
+                        st.error(f"Open failed: {exc}")
+
+    st.markdown("---")
+    st.caption(
+        "Both modules are decoupled from Paper Trader and Live "
+        "Trading — they only open positions in the 24/7 Agent's own "
+        "state file (.agent_bot.json). Backtest with: "
+        "`python backtest_rebound_breakout.py`")
