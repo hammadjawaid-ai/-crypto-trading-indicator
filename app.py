@@ -4923,6 +4923,43 @@ if active_section == "🧪 Paper Trader":
                      use_container_width=True):
             paper_bot.reset(PAPER_BOT_FILE, new_balance, new_risk)
             st.rerun()
+
+        # ♻ Restore last reset — pulls back the open positions that were
+        # force-closed by the most recent auto-reset. Use this if the
+        # bot just auto-reset and wiped trades you still wanted open.
+        with st.expander("♻ Restore positions from last reset",
+                         expanded=False):
+            st.caption(
+                "If the auto-reset just fired and wiped your open "
+                "positions, click below to re-open the most recent "
+                "reset batch using their ORIGINAL entry / SL / TP. "
+                "Refunds the reset-time P&L from the balance. "
+                "Idempotent — safe to click more than once.")
+            if st.button("♻ Restore last reset batch",
+                         key="pb_restore_last_reset"):
+                info = paper_bot.restore_last_reset(pb_state)
+                paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                restored = info.get("restored", 0)
+                skipped = info.get("skipped", 0)
+                errors = info.get("errors", [])
+                if restored > 0:
+                    st.success(
+                        f"Restored {restored} position"
+                        f"{'s' if restored != 1 else ''} from the "
+                        f"last reset · {skipped} skipped (already open)"
+                        + (f" · {len(errors)} errors" if errors else ""))
+                elif skipped > 0:
+                    st.info(
+                        f"Nothing to restore — {skipped} positions "
+                        "from the last reset are already open.")
+                else:
+                    st.info(
+                        "No 'weekly reset' close events found in the "
+                        "closed-trade history. Nothing to restore.")
+                if errors:
+                    for e in errors:
+                        st.caption(f"⚠ {e}")
+                st.rerun()
         # Futures-style sizing controls (row 2 — added 2026-05-25 per
         # user request for leverage trading + max notional cap).
         cf1, cf2 = st.columns([1, 1])

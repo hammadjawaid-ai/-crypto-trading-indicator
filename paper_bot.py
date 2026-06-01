@@ -39,7 +39,10 @@ DEFAULT_STATE = {
 
 # How long a paper-trading period runs before balance auto-resets back to
 # the starting amount. Anything still open is closed at market first.
-WEEKLY_RESET_DAYS = 7
+# Bumped 7 -> 90 (3 months) per user — no more weekly wipe of open
+# positions. The variable name is kept as WEEKLY_RESET_DAYS for backward
+# compatibility with callers; the period is now quarterly.
+WEEKLY_RESET_DAYS = 90
 
 # Trade-management levels (multiples of original risk-per-unit, "R").
 #   +1.0R → move stop to entry (break-even)
@@ -119,6 +122,99 @@ def unrealized_pnl(state: dict, prices: dict[str, float]) -> float:
         qty = float(p["qty"])
         total += (((price - entry) if long else (entry - price)) * qty)
     return total
+
+
+def restore_last_reset(state: dict) -> dict:
+    """Recover positions that were force-closed by the last period reset.
+
+    Finds every closed trade whose exit_reason starts with "weekly reset"
+    or contains the word "reset", pulls them OUT of state["closed"], and
+    re-inserts them into state["open"] as live positions using the
+    original entry price (not the reset-time exit). This undoes a
+    too-aggressive auto-reset and gives the user back the trades they
+    had open.
+
+    Idempotent — calling twice is safe (no duplicates).
+
+    Returns {restored: int, skipped: int, errors: list[str]}.
+    """
+    closed = list(state.get("closed") or [])
+    if not closed:
+        return {"restored": 0, "skipped": 0, "errors": []}
+
+    # Find the timestamp of the last reset event (newest first)
+    reset_keys = ("weekly reset", "reset")
+    reset_closes = [
+        c for c in closed
+        if any(k in str(c.get("exit_reason", "")).lower()
+               for k in reset_keys)
+    ]
+    if not reset_closes:
+        return {"restored": 0, "skipped": 0, "errors": []}
+
+    # Pull out the most recent reset batch — group by exit_at within a
+    # 60-second window (the reset closes a batch of positions all at
+    # roughly the same instant).
+    reset_closes.sort(key=lambda c: float(c.get("exit_at") or 0),
+                      reverse=True)
+    newest_exit_at = float(reset_closes[0].get("exit_at") or 0)
+    batch = [c for c in reset_closes
+             if abs(float(c.get("exit_at") or 0) - newest_exit_at) < 60]
+
+    # Dedup against currently-open positions
+    open_syms = {p.get("symbol") for p in (state.get("open") or [])}
+
+    restored = 0
+    skipped = 0
+    errors: list[str] = []
+    for c in batch:
+        sym = c.get("symbol")
+        if not sym:
+            continue
+        if sym in open_syms:
+            skipped += 1
+            continue
+        # Reconstruct the open-position dict from the closed snapshot.
+        # Keep ORIGINAL entry / stop / target — not the exit-reset price.
+        try:
+            pos = {
+                "symbol": sym,
+                "base": c.get("base") or sym.replace("USDT", ""),
+                "side": c.get("side") or "LONG",
+                "entry": float(c.get("entry") or 0),
+                "stop": float(c.get("stop") or 0),
+                "target": float(c.get("target") or 0),
+                "target_2": float(c.get("target_2") or 0),
+                "qty": float(c.get("qty") or 0),
+                "notional": float(c.get("notional") or 0),
+                "leverage": float(c.get("leverage") or 0),
+                "opened_at": float(
+                    c.get("opened_at") or c.get("entry_at") or time.time()),
+                "confidence": int(c.get("confidence") or 0),
+                "strength_factor": float(
+                    c.get("strength_factor") or 1.0),
+                "restored_at": time.time(),
+            }
+            if pos["entry"] <= 0 or pos["qty"] <= 0:
+                errors.append(f"{sym}: invalid entry/qty")
+                continue
+            state.setdefault("open", []).append(pos)
+            # Refund the realised P&L that was deducted on reset close —
+            # the position is no longer "closed", so its P&L should be
+            # removed from the running balance.
+            pnl = float(c.get("pnl_usd") or 0)
+            state["balance"] = round(
+                float(state.get("balance") or 0) - pnl, 2)
+            # Remove this trade from closed history (it's open again)
+            state["closed"] = [
+                cl for cl in state["closed"]
+                if cl is not c
+            ]
+            restored += 1
+            open_syms.add(sym)
+        except Exception as exc:
+            errors.append(f"{sym}: {exc}")
+    return {"restored": restored, "skipped": skipped, "errors": errors}
 
 
 def check_weekly_reset(state: dict,
