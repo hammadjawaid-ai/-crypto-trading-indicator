@@ -5593,34 +5593,14 @@ if active_section == "🧪 Paper Trader":
     _live_paper_stats()
 
     # ====================================================================
-    # 🔥 RECENT FIRES — persistent signal log (last 12 hours)
+    # 🔥 RECENT FIRES — REVERTED per user feedback "too confusing"
     # ====================================================================
-    # The dashboard is stateless — every scan is a fresh snapshot, so a
-    # STRONG+ fire at 03:00 UTC that resets by 04:00 would be invisible
-    # to a user looking at 09:00. signal_fires.py persists every fire
-    # to .signal_fires.json with timestamp + entry, and we surface them
-    # here with post-fire performance (% since fire).
-    #
-    # This is the ENA-MISSING fix: pattern_scout fired ENA at 85 LONG at
-    # 03:00 UTC, but the pattern was gone by 04:00. With this section, a
-    # user who refreshes at 14:00 UTC still sees "🔥 ENA fired LONG 85
-    # at 03:00 → now +28%". They can audit what played out + spot late
-    # entry chances on still-running moves.
-    try:
-        _all_fires = signal_fires.load_fires(SIGNAL_FIRES_FILE)
-        _rf_recent = signal_fires.recent_fires(_all_fires, hours=12.0)
-        # Enrich with current-price performance. `prices` is defined
-        # earlier in this Paper Trader block (line ~5430); fall back to
-        # empty dict if not yet populated.
-        try:
-            _rf_prices = prices or {}
-        except NameError:
-            _rf_prices = {}
-        signal_fires.enrich_perf(_rf_recent, _rf_prices)
-    except Exception:
-        _rf_recent = []
-
-    if _rf_recent:
+    # The signal_fires.py module is kept (it still records fires in the
+    # background — harmless, useful for future audit). The visible block
+    # is disabled below. To re-enable, change `if False:` to
+    # `if _rf_recent:` and the existing code below renders unchanged.
+    _rf_recent = []
+    if False and _rf_recent:
         # Premium header — gold/orange gradient (fire colours)
         _rf_winning = sum(1 for f in _rf_recent if f.get("winning"))
         _rf_losing = sum(1 for f in _rf_recent
