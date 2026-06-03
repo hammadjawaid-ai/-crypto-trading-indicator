@@ -8590,33 +8590,43 @@ if active_section == "🧪 Paper Trader":
                     _conv_emoji = "⚡⚡⚡"
                     _conv_grad = ("linear-gradient(90deg,"
                                   "#ffd700,#ff006e,#8b5cf6,#00d4ff)")
-                    _conv_glow = "0 0 14px rgba(255,215,0,0.6)"
+                    _conv_glow = ("0 0 18px rgba(255,215,0,0.7),"
+                                  "0 0 36px rgba(255,0,110,0.35)")
                     _conv_text = "#fff"
+                    _conv_size = "0.82rem"   # MAX = visibly larger
+                    _conv_pad = "4px 14px"
                 elif (_conv_score >= 85
                         and (_conv_in_convergence
                              or _conv_in_sureshot or _conv_is_premium)):
                     _conv_tier = "HIGH"
                     _conv_emoji = "⚡⚡"
                     _conv_grad = "linear-gradient(90deg,#ff006e,#8b5cf6)"
-                    _conv_glow = "0 0 10px rgba(139,92,246,0.5)"
+                    _conv_glow = "0 0 14px rgba(139,92,246,0.6)"
                     _conv_text = "#fff"
+                    _conv_size = "0.78rem"
+                    _conv_pad = "4px 13px"
                 elif _conv_score >= 80 and _conv_forecast_aligned:
                     _conv_tier = "STRONG"
                     _conv_emoji = "⚡"
                     _conv_grad = "linear-gradient(90deg,#00d4ff,#2ed47a)"
-                    _conv_glow = "0 0 8px rgba(0,212,255,0.4)"
+                    _conv_glow = "0 0 10px rgba(0,212,255,0.5)"
                     _conv_text = "#001122"
+                    _conv_size = "0.76rem"
+                    _conv_pad = "3px 12px"
                 else:
                     _conv_tier = "STANDARD"
                     _conv_emoji = "⚪"
                     _conv_grad = "rgba(255,255,255,0.06)"
                     _conv_glow = "none"
                     _conv_text = "#aab"
+                    _conv_size = "0.72rem"
+                    _conv_pad = "3px 10px"
                 conviction_chip = (
                     f"<span style='background:{_conv_grad};"
-                    f"color:{_conv_text};padding:3px 12px;"
-                    f"border-radius:6px;font-size:0.74rem;font-weight:800;"
-                    f"margin-left:0;letter-spacing:0.02em;"
+                    f"color:{_conv_text};padding:{_conv_pad};"
+                    f"border-radius:6px;font-size:{_conv_size};"
+                    f"font-weight:900;margin-left:0;"
+                    f"letter-spacing:0.04em;"
                     f"box-shadow:{_conv_glow}'>"
                     f"{_conv_emoji} {_conv_tier} CONVICTION</span>")
 
@@ -9031,6 +9041,71 @@ if active_section == "🧪 Paper Trader":
                                 icon="🏆" if s.get("premium_eligible")
                                      else "🧪")
                             st.rerun()
+                    # ============================================================
+                    # ⚡ ELITE TRADE — full-confidence button
+                    # ============================================================
+                    # Shown ONLY when (a) the 9-lane ELITE composite agrees on
+                    # this coin + side at STRONG+ (>=80) AND (b) the TOP
+                    # CONVICTION combined score is also strong (>=80). When
+                    # BOTH systems independently agree at conviction level,
+                    # that's the highest-confidence trade the entire system
+                    # can produce — a single click here means: alerts engine
+                    # said go, forecast aligned, AND the 9-lane composite
+                    # independently confirms. Distinct gold/cyan styling so
+                    # the user can spot it without re-reading evidence chips.
+                    _elite_match_card = _elite_lookup.get(s["symbol"])
+                    _elite_validates = (
+                        _elite_match_card is not None
+                        and (_elite_match_card.get("side") or "").upper()
+                            == side
+                        and float(_elite_match_card.get("score") or 0) >= 80
+                        and combined >= 80)
+                    if _elite_validates:
+                        _e_lanes_n = int(
+                            _elite_match_card.get("n_strong_lanes") or 0)
+                        _e_score_n = float(
+                            _elite_match_card.get("score") or 0)
+                        # Render the button INSIDE the chip column (pb) so
+                        # it sits right under the default 📥 button. Streamlit
+                        # type="primary" gives it the high-emphasis style.
+                        if pb.button(
+                                f"⚡ ELITE",
+                                key=f"pb_elite_{sid}",
+                                help=(f"FULL CONFIDENCE TRADE — both the "
+                                      f"alerts engine ({combined_display}) "
+                                      f"AND the 9-lane ELITE composite "
+                                      f"({_e_score_n:.0f}, {_e_lanes_n} "
+                                      f"lane{'s' if _e_lanes_n != 1 else ''}) "
+                                      f"agree on {side} {s['base']}. "
+                                      f"Highest-conviction setup the system "
+                                      f"can produce."),
+                                use_container_width=True,
+                                type="primary"):
+                            _elite_setup = dict(s)
+                            # Use full strength factor — both systems agree
+                            _elite_setup["strength_factor"] = max(
+                                0.6, min(1.0,
+                                         (combined - 72) / 23.0 + 0.5))
+                            _elite_setup["_elite_confirmed"] = True
+                            _elite_setup["_elite_lanes"] = _e_lanes_n
+                            _elite_setup["_elite_score"] = _e_score_n
+                            _opened = paper_bot.open_position(
+                                pb_state, _elite_setup,
+                                prices.get(s["symbol"])
+                                or s.get("entry_low"))
+                            if _opened:
+                                _enrich_position(
+                                    _opened, combined_display, timeframe)
+                                paper_bot.save_state(
+                                    PAPER_BOT_FILE, pb_state)
+                                st.toast(
+                                    f"⚡ ELITE TRADE: {side} "
+                                    f"{_opened['base']} @ "
+                                    f"{fmt_price(_opened['entry'])} · "
+                                    f"{_e_lanes_n} lanes confirm",
+                                    icon="⚡")
+                                st.rerun()
+
                     # Optional TP2 button — only on PREMIUM-eligible cards.
                     # Opens the same setup but with the target swapped to
                     # TP2 (~7.5-10%), for users who want to ride the
