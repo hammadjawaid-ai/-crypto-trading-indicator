@@ -9476,29 +9476,31 @@ if active_section == "🧪 Paper Trader":
                 "Breakout Coil · 🌀 VWAP Z-Fade · 💧 Liq Exhaustion. "
                 "**Tiers:** 🟣 MAX (90+, ≥3 strong lanes) · 🔴 HIGH "
                 "(85+, ≥2 strong) · 🟢 STRONG (80+). Cached 5 min.")
-            # ⚠ HONEST BACKTEST DISCLAIMER — walk-forward results
-            # (n=223 across 10 coins) showed ELITE has WEAK standalone
-            # edge: STRONG tier 50% win, only 2+ lane stacks reach 55%
-            # win. Treat as MULTI-SYSTEM CONFIRMATION layer (use the
-            # ⚡ ELITE chip / button on TOP CONVICTION cards), not a
-            # standalone signal source. The proven backtested edges
-            # (CONVERGENCE +6.8pp, SURE SHOT meta-filter) live on the
-            # TOP CONVICTION board above.
+            # ⚠ HONEST BACKTEST DISCLAIMER — 25-coin walk-forward
+            # (n=698) showed ELITE standalone is essentially a coin
+            # flip: 48% overall, 50.6% STRONG tier, no slice produces
+            # robust edge. The real alpha is the ⚡ ELITE confirmation
+            # chip on TOP CONVICTION cards (already wired). The proven
+            # backtested edges live on the TOP CONVICTION board above:
+            # CONVERGENCE (+6.8pp uplift, validated), SURE SHOT meta-
+            # filter, PREMIUM tier.
             st.markdown(
                 "<div style='background:rgba(224,169,43,0.08);"
                 "border:1px solid rgba(224,169,43,0.30);"
                 "border-radius:10px;padding:10px 14px;"
                 "margin:8px 0 14px 0;font-size:0.82rem;color:#e0a92b;"
                 "line-height:1.5'>"
-                "<b>⚠ Honest read:</b> ELITE's standalone backtested "
-                "edge is weak (~50% win on STRONG-tier picks, ~55% on "
-                "2-lane stacks). The math + filters work, but the "
-                "alpha here is <b>multi-system confirmation</b> — when "
+                "<b>⚠ Honest read (25-coin backtest, n=698):</b> "
+                "ELITE's standalone edge is ~48% win — essentially a "
+                "coin flip across every tier and lane-count slice. "
+                "The math + trend gates work as designed, but the "
+                "alpha here is <b>multi-system confirmation</b>: when "
                 "an ELITE pick also lights up the ⚡ ELITE chip on a "
-                "TOP CONVICTION card, that's the trade. The proven "
-                "backtested edges (CONVERGENCE +6.8pp, SURE SHOT) live "
-                "on the TOP CONVICTION board above. Use this board to "
-                "confirm what's already strong there."
+                "TOP CONVICTION card, that's the trade. The "
+                "backtest-validated edges (<b>CONVERGENCE +6.8pp</b>, "
+                "<b>SURE SHOT</b>, <b>PREMIUM</b>) live on TOP "
+                "CONVICTION above. Use this board to <i>confirm</i> "
+                "what's strong there, not as a primary signal source."
                 "</div>",
                 unsafe_allow_html=True)
             with st.spinner(
@@ -9510,38 +9512,23 @@ if active_section == "🧪 Paper Trader":
                     st.error(f"Unified scan failed: {exc}")
                     _u_picks_raw = []
             # ============================================================
-            # ELITE DISPLAY FILTER — backtest-driven
+            # ELITE DISPLAY FILTER — score-only (post-25-coin backtest)
             # ============================================================
-            # Walk-forward backtest (n=223 across 10 coins) showed:
-            #   - 1-lane STRONG picks:   49.4% win (coin flip)
-            #   - 2-lane STRONG picks:   55.3% win (slight edge)
-            #   - STRONG tier overall:   50.0% win (no standalone edge)
+            # The 25-coin walk-forward (n=698) overrode an earlier
+            # 10-coin smoke test:
+            #   - 1 lane:  49.1% win, +0.22% avg (n=572) — coin flip
+            #   - 2 lanes: 41.4% win, -0.62% avg (n=116) — WORSE than 1
+            #   - 3 lanes: 60% win  (n=10) — too small
+            # The 10-coin "2-lane = 55%" finding was sample noise.
+            # Larger n shows lane count has NO reliable edge — single-
+            # lane picks marginally outperform 2-lane stacks.
             #
-            # Conclusion: ONLY multi-lane picks have measurable edge.
-            # Single-lane picks (the majority) are coin flips and
-            # shouldn't waste board real estate.
-            #
-            # Per-user qualification rule:
-            #   - 2+ lanes firing AND score >= 80
-            #   - The early_momentum + pattern_scout combo (momentum
-            #     shift detected) automatically passes as a 2-lane case
-            def _u_qualifies(p):
-                score_p = float(p.get("score") or 0)
-                lanes_p = p.get("active_lanes") or []
-                n_lanes_p = len(lanes_p)
-                if score_p < 80:
-                    return False
-                # Must have 2+ lanes firing — backtest-validated edge
-                if n_lanes_p >= 2:
-                    return True
-                return False
-
+            # Per user: revert to score-only filter. The real value of
+            # ELITE is the ⚡ confirmation chip on TOP CONVICTION cards
+            # (already wired), not the standalone board.
             _u_picks = [p for p in (_u_picks_raw or [])
-                        if _u_qualifies(p)]
-            _u_filtered_count = len(_u_picks_raw or []) - len(_u_picks)
-            _u_standard_count = sum(
-                1 for p in (_u_picks_raw or [])
-                if float(p.get("score") or 0) < 80)
+                        if float(p.get("score") or 0) >= 80]
+            _u_standard_count = (len(_u_picks_raw or []) - len(_u_picks))
 
             # 🔥 Persist every STRONG+ fire to the log so the
             # 🔥 RECENT FIRES section at the top of Paper Trader can
