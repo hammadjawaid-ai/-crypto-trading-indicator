@@ -8726,15 +8726,29 @@ if active_section == "🧪 Paper Trader":
         # chip + all firing lane chips + full plan + 📥 Open.
         # Trades open to PAPER_BOT_FILE with `_unified_source`
         # tag for A/B testing in closed-trade history.
+        # Defensive import: Streamlit Cloud can keep an old module
+        # cached in memory after a redeploy. importlib.reload forces
+        # the latest .py off disk; getattr with fallback to the
+        # backward-compat alias ensures we never crash on a stale
+        # module that's missing scan_unified.
         try:
+            import importlib
             import experimental_signals as _exp_sig
+            importlib.reload(_exp_sig)
         except Exception:
             _exp_sig = None
 
+        # Resolve the scan function on the LIVE module — handles the
+        # rename without crashing when the cache is mid-rebuild.
+        _u_scan_fn = None
         if _exp_sig is not None:
+            _u_scan_fn = (getattr(_exp_sig, 'scan_unified', None)
+                          or getattr(_exp_sig, 'scan_experimental', None))
+
+        if _u_scan_fn is not None:
             @st.cache_data(ttl=900, show_spinner=False)
-            def _pt_load_unified(_v: int = 2):
-                return _exp_sig.scan_unified(
+            def _pt_load_unified(_v: int = 3):
+                return _u_scan_fn(
                     scan_n=100, interval="1h",
                     min_score=70.0, max_picks=15)
 
