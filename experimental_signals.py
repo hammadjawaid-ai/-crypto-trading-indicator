@@ -59,6 +59,11 @@ try: import rebound_radar
 except Exception: rebound_radar = None
 try: import breakout_hunter
 except Exception: breakout_hunter = None
+# Market regime — used to tilt composite scores toward the currently
+# winning side (BULL→LONG, BEAR→SHORT). Imported lazily; if missing,
+# composite stays neutral.
+try: import market_regime
+except Exception: market_regime = None
 
 
 # ---------------------------------------------------------------------------
@@ -84,30 +89,34 @@ _LANE_WEIGHTS = {
 def _trend_state(ref_df: pd.DataFrame) -> str:
     """Classify higher-TF trend as STRONG_UP / STRONG_DOWN / NEUTRAL.
 
-    Uses EMA stacking + price location. STRONG_DOWN = price below ema20
-    below ema50 AND ema20 also below ema50 (proper bear stack). Same logic
-    inverted for STRONG_UP. Anything else is NEUTRAL.
+    Uses EMA stacking + price location. The indicator module names them
+    `ema_fast` (=20), `ema_slow` (=50), `ema_trend` (=200). For bear
+    stack: price < ema_fast < ema_slow (price below the 20EMA which is
+    below the 50EMA — all three pointing down).
 
-    Used by every mean-reversion lane (vwap_zfade, rebound, recovery) to
-    REFUSE to fire LONG against a STRONG_DOWN trend or SHORT against a
-    STRONG_UP trend — exactly the fix the ETH-LONG bug required.
+    Used by every mean-reversion lane (vwap_zfade, rebound, recovery)
+    to REFUSE to fire LONG against a STRONG_DOWN trend or SHORT against
+    a STRONG_UP trend — the fix the ETH-LONG bug required.
     """
     if ref_df is None or len(ref_df) < 50:
         return "NEUTRAL"
     try:
         last = ref_df.iloc[-1]
         p = float(last["close"])
-        e20 = (float(last["ema_20"]) if "ema_20" in ref_df.columns
-               else None)
-        e50 = (float(last["ema_50"]) if "ema_50" in ref_df.columns
-               else None)
-        if e20 is None or e50 is None or e20 <= 0 or e50 <= 0:
+        # Match the actual column names produced by indicators.enrich()
+        e_fast = (float(last["ema_fast"])
+                  if "ema_fast" in ref_df.columns else None)
+        e_slow = (float(last["ema_slow"])
+                  if "ema_slow" in ref_df.columns else None)
+        if e_fast is None or e_slow is None:
             return "NEUTRAL"
-        # Bear stack: price < ema20 < ema50
-        if p < e20 < e50:
+        if e_fast <= 0 or e_slow <= 0:
+            return "NEUTRAL"
+        # Bear stack: price below fast EMA below slow EMA
+        if p < e_fast < e_slow:
             return "STRONG_DOWN"
-        # Bull stack: price > ema20 > ema50
-        if p > e20 > e50:
+        # Bull stack: price above fast EMA above slow EMA
+        if p > e_fast > e_slow:
             return "STRONG_UP"
     except Exception:
         pass
@@ -398,8 +407,18 @@ def score_from_data(symbol: str,
                    df_4h: pd.DataFrame | None = None,
                    oi_hist: list | None = None,
                    pct_24h: float = 0.0,
-                   skip_deriv: bool = False) -> dict:
+                   skip_deriv: bool = False,
+                   regime_info: dict | None = None) -> dict:
     """Composite-score one symbol using PRE-FETCHED data.
+
+    regime_info (optional) is the dict returned by market_regime
+    .detect_regime(). When supplied, the composite final-score is
+    biased by current market regime:
+      BULL regime → boost LONG composite, demote SHORT
+      BEAR regime → boost SHORT composite, demote LONG
+      CHOP/TRANSITION → no effect
+    This makes ELITE adapt to changing market direction instead of
+    using static lane weights.
 
     Used by score_one (production) AND backtest_elite.py (walk-forward).
     Backtest passes skip_deriv=True because deriv_velocity has no
@@ -422,11 +441,45 @@ def score_from_data(symbol: str,
         "deriv_velocity": ((0.0, "NEUTRAL", "") if skip_deriv
                            else _lane_deriv_velocity(symbol)),
     }
-    return _composite_from_lanes(symbol, df, lanes, pct_24h)
+    return _composite_from_lanes(symbol, df, lanes, pct_24h,
+                                regime_info=regime_info)
+
+
+def _apply_regime_tilt(score: float, side: str,
+                      regime_info: dict | None) -> tuple[float, str]:
+    """Regime-aware re-scoring.
+
+    Returns (new_score, regime_note). When regime is BULL/BEAR with
+    high confidence, tilts the score ±5 in alignment with the regime.
+    Counter-regime side gets penalty, with-regime side gets boost.
+
+    Capped at ±8 to avoid over-amplifying — based on existing
+    market_regime.regime_tilt usage in app.py.
+    """
+    if not regime_info:
+        return score, ""
+    regime = regime_info.get("regime", "")
+    conf = float(regime_info.get("confidence") or 0)
+    if conf < 40 or regime in ("CHOP", "TRANSITION", "UNKNOWN", ""):
+        return score, ""
+    # Tilt magnitude scales with confidence (40%→0, 100%→8)
+    tilt = (conf - 40) / 60 * 8
+    if regime == "BULL":
+        if side == "LONG":
+            return min(100, score + tilt), f"BULL +{tilt:.0f}"
+        elif side == "SHORT":
+            return max(0, score - tilt), f"BULL -{tilt:.0f}"
+    elif regime == "BEAR":
+        if side == "SHORT":
+            return min(100, score + tilt), f"BEAR +{tilt:.0f}"
+        elif side == "LONG":
+            return max(0, score - tilt), f"BEAR -{tilt:.0f}"
+    return score, ""
 
 
 def _composite_from_lanes(symbol: str, df: pd.DataFrame,
-                         lanes: dict, pct_24h: float) -> dict:
+                         lanes: dict, pct_24h: float,
+                         regime_info: dict | None = None) -> dict:
     """Run the side-vote + composite math on already-scored lanes.
     Extracted so score_from_data and any future caller share one path."""
 
@@ -439,27 +492,24 @@ def _composite_from_lanes(symbol: str, df: pd.DataFrame,
         elif side == "SHORT" and sc >= 60:
             short_lanes.append((name, sc, note))
 
-    # Composite score per side = WEIGHTED AVERAGE over firing weight
-    # (not total weight). Previously: sum(score*w) / sum(all_weights)
-    # produced absurdly low scores when only a few lanes fired (e.g.,
-    # 2 lanes at 75 → 20). Now: 2 lanes at 75 → 75 weighted-avg, plus
-    # a confluence bonus for stacking.
+    # Composite score per side = WEIGHTED AVERAGE over firing weight.
+    #
+    # CONFLUENCE BONUS REMOVED (backtest evidence): the original
+    # +5/+10/+15 bonus for stacking lanes was assumed to be additive
+    # signal — but walk-forward results showed 2-lane setups (50% win)
+    # underperformed 1-lane setups (59.4% win). The lanes are
+    # correlated/redundant, not independent. Bonus removed; raw
+    # weighted average is the honest composite.
     def _composite(lanes_list: list[tuple[str, float, str]]) -> float:
         if not lanes_list:
             return 0.0
-        weighted_sum = sum(sc * _LANE_WEIGHTS.get(n, 0) for n, sc, _ in lanes_list)
-        weight_sum = sum(_LANE_WEIGHTS.get(n, 0) for n, _, _ in lanes_list)
+        weighted_sum = sum(sc * _LANE_WEIGHTS.get(n, 0)
+                          for n, sc, _ in lanes_list)
+        weight_sum = sum(_LANE_WEIGHTS.get(n, 0)
+                        for n, _, _ in lanes_list)
         if weight_sum <= 0:
             return 0.0
-        avg = weighted_sum / weight_sum
-        # Confluence bonus — more lanes agreeing = more conviction.
-        # 1 lane:  +0    (just the weighted average)
-        # 2 lanes: +5
-        # 3 lanes: +10
-        # 4+ lanes: +15
-        n = len(lanes_list)
-        bonus = 0 if n <= 1 else min(15, (n - 1) * 5)
-        return avg + bonus
+        return weighted_sum / weight_sum
 
     long_score = _composite(long_lanes)
     short_score = _composite(short_lanes)
@@ -479,6 +529,13 @@ def _composite_from_lanes(symbol: str, df: pd.DataFrame,
         return _empty(symbol)
 
     score = float(np.clip(score, 0, 100))
+
+    # Apply regime tilt — BULL boosts LONGs, BEAR boosts SHORTs. Counter-
+    # regime side gets penalty. Mirrors the existing tilt logic in
+    # app.py so ELITE adapts to current market direction.
+    regime_note = ""
+    if regime_info:
+        score, regime_note = _apply_regime_tilt(score, side, regime_info)
 
     tier = _conviction_tier(score, strong_n)
     if tier == "LOW":
@@ -515,14 +572,21 @@ def _composite_from_lanes(symbol: str, df: pd.DataFrame,
         "trade_plan": plan,
         "price_now": price_now,
         "pct_24h": pct_24h,
+        "regime_note": regime_note,  # e.g. "BEAR +5" or "" if no tilt
     }
 
 
 def score_one(symbol: str, interval: str = "1h",
-             pct_24h: float = 0.0) -> dict:
+             pct_24h: float = 0.0,
+             regime_info: dict | None = None) -> dict:
     """Production entry point — fetches live klines + OI, runs all lanes,
     returns composite pick. Live deployment uses this; backtests use
-    `score_from_data` directly with pre-fetched data."""
+    `score_from_data` directly with pre-fetched data.
+
+    regime_info (optional) tilts the final score toward the
+    currently-winning side. Pass once from scan_unified so we only
+    detect regime ONCE per scan, not per coin.
+    """
     try:
         df = binance_client.get_klines(symbol, interval, limit=200)
         df = indicators.enrich(df)
@@ -543,7 +607,7 @@ def score_one(symbol: str, interval: str = "1h",
             pass
     return score_from_data(symbol, df, df_4h=df_4h,
                           oi_hist=oi_hist, pct_24h=pct_24h,
-                          skip_deriv=False)
+                          skip_deriv=False, regime_info=regime_info)
 
 
 def scan_unified(scan_n: int = 100,
@@ -551,7 +615,12 @@ def scan_unified(scan_n: int = 100,
                 min_score: float = 70.0,
                 max_picks: int = 15,
                 max_workers: int = 6) -> list[dict]:
-    """Scan top N coins, return high-conviction unified picks."""
+    """Scan top N coins, return high-conviction unified picks.
+
+    Detects market regime ONCE up-front and passes it to every per-coin
+    score call, so the composite is regime-aware: BULL boosts LONGs,
+    BEAR boosts SHORTs, CHOP/TRANSITION → no tilt.
+    """
     try:
         top = binance_client.get_top_symbols(scan_n)
         syms = top["symbol"].tolist()
@@ -559,11 +628,23 @@ def scan_unified(scan_n: int = 100,
     except Exception:
         return []
 
+    # Detect regime once — propagated to every per-coin score call so
+    # ELITE adapts to current market direction (your point: shorts
+    # winning is temporary, regime determines which side wins).
+    regime_info = None
+    if market_regime is not None:
+        try:
+            regime_info = market_regime.detect_regime(
+                top_symbols=syms[:50])
+        except Exception:
+            regime_info = None
+
     results: list[dict] = []
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         futures = {
             pool.submit(score_one, sym, interval,
-                        float(pct_map.get(sym, 0))): sym
+                        float(pct_map.get(sym, 0)),
+                        regime_info): sym
             for sym in syms
         }
         for fut in as_completed(futures):
