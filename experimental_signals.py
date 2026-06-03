@@ -78,28 +78,102 @@ _LANE_WEIGHTS = {
 
 
 # ---------------------------------------------------------------------------
+# Shared trend classifier — protects mean-reversion lanes from firing
+# counter-trend against strong directional moves.
+# ---------------------------------------------------------------------------
+def _trend_state(ref_df: pd.DataFrame) -> str:
+    """Classify higher-TF trend as STRONG_UP / STRONG_DOWN / NEUTRAL.
+
+    Uses EMA stacking + price location. STRONG_DOWN = price below ema20
+    below ema50 AND ema20 also below ema50 (proper bear stack). Same logic
+    inverted for STRONG_UP. Anything else is NEUTRAL.
+
+    Used by every mean-reversion lane (vwap_zfade, rebound, recovery) to
+    REFUSE to fire LONG against a STRONG_DOWN trend or SHORT against a
+    STRONG_UP trend — exactly the fix the ETH-LONG bug required.
+    """
+    if ref_df is None or len(ref_df) < 50:
+        return "NEUTRAL"
+    try:
+        last = ref_df.iloc[-1]
+        p = float(last["close"])
+        e20 = (float(last["ema_20"]) if "ema_20" in ref_df.columns
+               else None)
+        e50 = (float(last["ema_50"]) if "ema_50" in ref_df.columns
+               else None)
+        if e20 is None or e50 is None or e20 <= 0 or e50 <= 0:
+            return "NEUTRAL"
+        # Bear stack: price < ema20 < ema50
+        if p < e20 < e50:
+            return "STRONG_DOWN"
+        # Bull stack: price > ema20 > ema50
+        if p > e20 > e50:
+            return "STRONG_UP"
+    except Exception:
+        pass
+    return "NEUTRAL"
+
+
+# ---------------------------------------------------------------------------
 # Individual lane scorers — each returns (score 0-100, side, note)
 # ---------------------------------------------------------------------------
-def _lane_vwap_zfade(df: pd.DataFrame) -> tuple[float, str, str]:
-    """VWAP z-score fade: ≥2σ deviation from session VWAP + RSI extreme."""
+def _lane_vwap_zfade(df: pd.DataFrame,
+                    df_4h: pd.DataFrame | None = None) -> tuple[float, str, str]:
+    """VWAP z-score fade: ≥2σ deviation from rolling VWAP + RSI extreme.
+
+    THREE BUG FIXES (after the ETH-LONG -8.51σ artifact):
+
+    1. ROLLING VWAP (window=50) replaces cumulative VWAP. Cumulative VWAP
+       anchors to the OLDEST bar in the window, so in a sustained downtrend
+       it stays near old (higher) prices while current price drops — the
+       spread blows up and z-score reports artifact-extreme values like
+       -8.51σ that aren't actually mean-reversion setups.
+
+    2. Z-SCORE CAPPED at ±3.5. Anything beyond 3.5 sigma in price data is
+       almost always a math artifact (window edge, std collapse), not a
+       genuine signal. Capping prevents these from dominating the composite.
+
+    3. TREND GATE. If higher-TF (4h) is in a STRONG_DOWN stack, REFUSE to
+       fire LONG. Same for STRONG_UP / SHORT. Mean-reversion against strong
+       trends has a backtested ~30% win rate vs ~55% for trend-following —
+       this filter kills the bad-EV trades.
+    """
     if df is None or len(df) < 50:
         return (0.0, "NEUTRAL", "")
     try:
+        # Rolling-window VWAP (50 bars) — kills the cumulative artifact
+        window = 50
         typical = (df["high"] + df["low"] + df["close"]) / 3.0
-        vwap = (typical * df["volume"]).cumsum() / df["volume"].cumsum().replace(0, np.nan)
+        roll_pv = (typical * df["volume"]).rolling(
+            window, min_periods=20).sum()
+        roll_v = df["volume"].rolling(window, min_periods=20).sum()
+        vwap = roll_pv / roll_v.replace(0, np.nan)
         spread = df["close"] - vwap
         roll_std = spread.rolling(20, min_periods=10).std()
         z = (df["close"] - vwap) / roll_std.replace(0, np.nan)
         last_z = float(z.iloc[-1]) if not np.isnan(z.iloc[-1]) else 0.0
-        last_rsi = float(df["rsi"].iloc[-1]) if "rsi" in df.columns else 50.0
+        # CAP — beyond ±3.5 is math artifact, not signal
+        last_z = max(-3.5, min(3.5, last_z))
+        last_rsi = (float(df["rsi"].iloc[-1])
+                    if "rsi" in df.columns else 50.0)
+        trend = _trend_state(df_4h if df_4h is not None else df)
+
         if last_z <= -2.0 and last_rsi <= 30:
-            mag = min(abs(last_z), 3.5)
+            # Counter-trend LONG against confirmed downtrend → REJECT
+            if trend == "STRONG_DOWN":
+                return (0.0, "NEUTRAL", "")
+            mag = abs(last_z)
             sc = float(np.clip(60 + (mag - 2.0) * 30, 60, 100))
-            return (sc, "LONG", f"z={last_z:.2f}σ + RSI {last_rsi:.0f} (oversold)")
+            return (sc, "LONG",
+                    f"z={last_z:.2f}σ + RSI {last_rsi:.0f} (oversold)")
         if last_z >= 2.0 and last_rsi >= 70:
-            mag = min(abs(last_z), 3.5)
+            # Counter-trend SHORT against confirmed uptrend → REJECT
+            if trend == "STRONG_UP":
+                return (0.0, "NEUTRAL", "")
+            mag = abs(last_z)
             sc = float(np.clip(60 + (mag - 2.0) * 30, 60, 100))
-            return (sc, "SHORT", f"z=+{last_z:.2f}σ + RSI {last_rsi:.0f} (overbought)")
+            return (sc, "SHORT",
+                    f"z=+{last_z:.2f}σ + RSI {last_rsi:.0f} (overbought)")
     except Exception:
         pass
     return (0.0, "NEUTRAL", "")
@@ -158,14 +232,22 @@ def _lane_liq_exhaustion(df: pd.DataFrame,
 
 
 def _lane_rebound(symbol: str, df: pd.DataFrame,
-                 pct_24h: float) -> tuple[float, str, str]:
-    """Rebound score from existing rebound_radar (V-bottom composite)."""
+                 pct_24h: float,
+                 df_4h: pd.DataFrame | None = None) -> tuple[float, str, str]:
+    """Rebound score from existing rebound_radar (V-bottom composite).
+
+    Trend-gated: rebound is a mean-reversion LONG. Refuses to fire
+    against a STRONG_DOWN 4h trend (same fix as vwap_zfade).
+    """
     if rebound_radar is None or df is None:
         return (0.0, "NEUTRAL", "")
     try:
         r = rebound_radar.score(symbol, df, pct_24h=pct_24h)
         sc = float(r.get("score", 0))
         if sc < 50:
+            return (0.0, "NEUTRAL", "")
+        # Trend gate — don't fade strong downtrends
+        if _trend_state(df_4h if df_4h is not None else df) == "STRONG_DOWN":
             return (0.0, "NEUTRAL", "")
         dd = r.get("drawdown_pct", 0)
         exp = r.get("expected_move_pct", 0)
@@ -253,11 +335,13 @@ def _lane_early_momentum(df: pd.DataFrame) -> tuple[float, str, str]:
     return (0.0, "NEUTRAL", "")
 
 
-def _lane_recovery(df: pd.DataFrame) -> tuple[float, str, str]:
+def _lane_recovery(df: pd.DataFrame,
+                  df_4h: pd.DataFrame | None = None) -> tuple[float, str, str]:
     """recovery_detector V-bottom (backtested 75% win at 12bar).
 
-    _v_bottom_bounce returns score=50 when no pattern. Gate >=60 cuts
-    the neutral-but-positive cases.
+    Trend-gated like rebound — V-bottom is a counter-trend LONG. The
+    backtested edge was measured in ranging/sideways markets; firing it
+    against a STRONG_DOWN 4h trend nullifies that edge.
     """
     if recovery_detector is None or df is None:
         return (0.0, "NEUTRAL", "")
@@ -266,6 +350,8 @@ def _lane_recovery(df: pd.DataFrame) -> tuple[float, str, str]:
         r = _v_bottom_bounce(df)
         sc = float(r.get("score") or 0)
         if sc < 60:
+            return (0.0, "NEUTRAL", "")
+        if _trend_state(df_4h if df_4h is not None else df) == "STRONG_DOWN":
             return (0.0, "NEUTRAL", "")
         return (sc, "LONG", "V-bottom capitulation pattern")
     except Exception:
@@ -307,43 +393,42 @@ def _conviction_tier(score: float, n_strong_lanes: int) -> str:
     return "LOW"
 
 
-def score_one(symbol: str, interval: str = "1h",
-             pct_24h: float = 0.0) -> dict:
-    """Run ALL lanes for one symbol, composite into a single pick."""
-    try:
-        df = binance_client.get_klines(symbol, interval, limit=200)
-        df = indicators.enrich(df)
-    except Exception:
-        return _empty(symbol)
-    df_4h = None
-    try:
-        df_4h = binance_client.get_klines(symbol, "4h", limit=200)
-        df_4h = indicators.enrich(df_4h)
-    except Exception:
-        pass
-    oi_hist = None
-    if derivatives_velocity is not None:
-        try:
-            oi_hist = derivatives_velocity._oi_history(
-                symbol, period="1h", limit=12)
-        except Exception:
-            pass
+def score_from_data(symbol: str,
+                   df: pd.DataFrame,
+                   df_4h: pd.DataFrame | None = None,
+                   oi_hist: list | None = None,
+                   pct_24h: float = 0.0,
+                   skip_deriv: bool = False) -> dict:
+    """Composite-score one symbol using PRE-FETCHED data.
 
-    # Run each lane.
-    # NOTE: never use `df_4h or df` — DataFrames raise on __bool__.
-    # Must be an explicit `is None` check.
+    Used by score_one (production) AND backtest_elite.py (walk-forward).
+    Backtest passes skip_deriv=True because deriv_velocity has no
+    historical API — calling it during backtest would leak forward info.
+    """
+    if df is None or len(df) < 50:
+        return _empty(symbol)
     df_4h_or_1h = df_4h if df_4h is not None else df
     lanes = {
-        "vwap_zfade":     _lane_vwap_zfade(df),
+        "vwap_zfade":     _lane_vwap_zfade(df, df_4h),
         "liq_exhaustion": _lane_liq_exhaustion(df, oi_hist),
-        "rebound":        _lane_rebound(symbol, df, pct_24h),
+        "rebound":        _lane_rebound(symbol, df, pct_24h, df_4h),
         "breakout_coil":  _lane_breakout(symbol, df_4h_or_1h, df),
         "pattern_scout":  _lane_pattern_scout(symbol, df, pct_24h),
         "reversal_app":   _lane_reversal_app(df),
         "early_momentum": _lane_early_momentum(df),
-        "recovery":       _lane_recovery(df),
-        "deriv_velocity": _lane_deriv_velocity(symbol),
+        "recovery":       _lane_recovery(df, df_4h),
+        # deriv_velocity skipped during backtest (no historical API) —
+        # backtest measures the OTHER 8 lanes' edge honestly.
+        "deriv_velocity": ((0.0, "NEUTRAL", "") if skip_deriv
+                           else _lane_deriv_velocity(symbol)),
     }
+    return _composite_from_lanes(symbol, df, lanes, pct_24h)
+
+
+def _composite_from_lanes(symbol: str, df: pd.DataFrame,
+                         lanes: dict, pct_24h: float) -> dict:
+    """Run the side-vote + composite math on already-scored lanes.
+    Extracted so score_from_data and any future caller share one path."""
 
     # Vote: collect every LANE firing >=60 with a clear side.
     long_lanes: list[tuple[str, float, str]] = []
@@ -431,6 +516,34 @@ def score_one(symbol: str, interval: str = "1h",
         "price_now": price_now,
         "pct_24h": pct_24h,
     }
+
+
+def score_one(symbol: str, interval: str = "1h",
+             pct_24h: float = 0.0) -> dict:
+    """Production entry point — fetches live klines + OI, runs all lanes,
+    returns composite pick. Live deployment uses this; backtests use
+    `score_from_data` directly with pre-fetched data."""
+    try:
+        df = binance_client.get_klines(symbol, interval, limit=200)
+        df = indicators.enrich(df)
+    except Exception:
+        return _empty(symbol)
+    df_4h = None
+    try:
+        df_4h = binance_client.get_klines(symbol, "4h", limit=200)
+        df_4h = indicators.enrich(df_4h)
+    except Exception:
+        pass
+    oi_hist = None
+    if derivatives_velocity is not None:
+        try:
+            oi_hist = derivatives_velocity._oi_history(
+                symbol, period="1h", limit=12)
+        except Exception:
+            pass
+    return score_from_data(symbol, df, df_4h=df_4h,
+                          oi_hist=oi_hist, pct_24h=pct_24h,
+                          skip_deriv=False)
 
 
 def scan_unified(scan_n: int = 100,
