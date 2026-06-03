@@ -7987,21 +7987,60 @@ if active_section == "🧪 Paper Trader":
                      for pk in _anticipatory_segment])
 
             # ============================================================
-            # 🎯 TRADE THIS NOW — HERO CARD for the #1 conviction pick
+            # 🎯 TRADE THIS NOW — HERO CARDS (dynamic count 2-5)
             # ============================================================
-            # User feedback: "Auto-mark the top 1-2 picks as 'TRADE THIS
-            # NOW' with a giant button". Reduces decision fatigue — the
-            # very best pick (highest combined_score, confirmed segment
-            # only) gets a hero card BEFORE the segmented list. Bonus:
-            # if it's also confirmed by ELITE composite, that's surfaced
-            # in big letters too.
+            # User: "have 4 or 5 trades to open when it's the best to trade.
+            # If there are no such activity so two as it shows now works."
             #
-            # Selection rule: the highest-priority CONFIRMED pick (not
-            # anticipatory — anticipatory entries have buffered stops
-            # and aren't size-up candidates).
-            _hero_picks = _confirmed_segment[:2] if _confirmed_segment else []
+            # Scale the hero count by how many picks are GENUINELY worth
+            # heroising — not just by count:
+            #   - Always show at least top 2 (current default for quiet
+            #     days with marginal setups)
+            #   - When 3+ picks have BOTH high combined score (>=82, i.e.
+            #     near-HIGH tier) AND ELITE composite confirms the side,
+            #     expand to show ALL such picks, capped at 5.
+            # This means: quiet day = 2 picks (today's behavior preserved).
+            # Active day with multi-system agreement = up to 5 heroes.
+            def _is_double_confirmed(pk, elite_map):
+                """Pick has high combined AND ELITE matches the side."""
+                combined_pk = pk[0]
+                if combined_pk < 82:
+                    return False
+                sym = pk[4].get("symbol")
+                e = elite_map.get(sym)
+                if not e:
+                    return False
+                return (e.get("side") or "").upper() == (
+                    pk[4].get("side") or "").upper() \
+                    and float(e.get("score") or 0) >= 80
+
+            _strong_aligned = [pk for pk in _confirmed_segment
+                              if _is_double_confirmed(pk, _elite_lookup)]
+            if len(_strong_aligned) >= 3:
+                # Strong activity — show all double-confirmed picks (cap 5)
+                _hero_picks = _strong_aligned[:5]
+                _hero_mode = "STRONG"  # for header copy
+            elif _confirmed_segment:
+                # Normal — top 2 confirmed picks
+                _hero_picks = _confirmed_segment[:2]
+                _hero_mode = "NORMAL"
+            else:
+                _hero_picks = []
+                _hero_mode = "EMPTY"
             if _hero_picks:
-                # Hero header strip
+                # Hero header strip — copy reflects activity level so the
+                # user knows WHY they're seeing 2 vs 5 picks. STRONG mode
+                # = "multi-system agreement on N coins", NORMAL = "top 2".
+                if _hero_mode == "STRONG":
+                    _hero_subhead = (
+                        f"<b style='color:#2ed47a'>{len(_hero_picks)} "
+                        f"strong setups</b> · alerts engine + ELITE "
+                        "composite both agree · click any button to open")
+                else:
+                    _hero_subhead = (
+                        f"top {len(_hero_picks)} highest-conviction "
+                        f"setup{'s' if len(_hero_picks) > 1 else ''} · "
+                        "click the big button to open")
                 st.markdown(
                     "<div style='display:flex;align-items:center;"
                     "gap:14px;margin-top:22px;margin-bottom:6px'>"
@@ -8012,11 +8051,9 @@ if active_section == "🧪 Paper Trader":
                     "-webkit-text-fill-color:transparent;"
                     "background-clip:text;letter-spacing:-0.02em'>"
                     "🎯 TRADE THIS NOW</span>"
-                    "<span style='color:#aab;font-size:0.82rem'>"
-                    f"top {len(_hero_picks)} highest-conviction "
-                    "setup{} · click the big button to open"
-                    "</span>"
-                    "</div>".format("s" if len(_hero_picks) > 1 else ""),
+                    f"<span style='color:#aab;font-size:0.82rem'>"
+                    f"{_hero_subhead}</span>"
+                    "</div>",
                     unsafe_allow_html=True)
                 for _h_idx, _hp in enumerate(_hero_picks):
                     _h_combined, _h_fc, _h_trend, _h_align, _h_s = _hp
@@ -8158,17 +8195,27 @@ if active_section == "🧪 Paper Trader":
                         if c in ("#2ed47a", "#ffd700",
                                  "#ff006e", "#00d4ff", "#e0a92b"))
 
-                    # Hero rank ribbon
-                    _h_rank_text = "#1 PICK" if _h_idx == 0 else "#2 PICK"
-                    _h_rank_grad = (
-                        "linear-gradient(135deg,#ffd700,#ff8c00)"
-                        if _h_idx == 0
-                        else "linear-gradient(135deg,#c0c0c0,#888)")
-                    # Border intensity scales with confirm count
-                    _h_border_intensity = min(0.75,
+                    # Hero rank ribbon — distinct per position so the user
+                    # sees ranking at a glance when 3-5 heroes render.
+                    _h_rank_text = f"#{_h_idx + 1} PICK"
+                    _h_rank_grads = [
+                        "linear-gradient(135deg,#ffd700,#ff8c00)",    # #1 gold
+                        "linear-gradient(135deg,#e5e5e5,#999)",       # #2 silver
+                        "linear-gradient(135deg,#cd7f32,#8b4513)",    # #3 bronze
+                        "linear-gradient(135deg,#5b8eff,#3a5fdb)",    # #4 blue
+                        "linear-gradient(135deg,#8b5cf6,#6d28d9)",    # #5 purple
+                    ]
+                    _h_rank_grad = _h_rank_grads[
+                        min(_h_idx, len(_h_rank_grads) - 1)]
+                    # Border intensity scales with confirm count AND rank
+                    # so #1 always looks slightly more prominent than #5
+                    _rank_dim = 1.0 - (_h_idx * 0.08)
+                    _h_border_intensity = (min(0.75,
                                               0.30 + _h_confirm_count * 0.08)
-                    _h_glow_intensity = min(0.50,
+                                           * _rank_dim)
+                    _h_glow_intensity = (min(0.50,
                                             0.25 + _h_confirm_count * 0.05)
+                                         * _rank_dim)
 
                     # Render the GIANT convincing card
                     st.markdown(
@@ -8329,7 +8376,7 @@ if active_section == "🧪 Paper Trader":
                         f"<div style='padding:8px 14px;color:#c8d2ed;"
                         f"font-size:0.85rem;line-height:1.5'>"
                         f"<b style='color:#ffd700'>Why this is "
-                        f"{'#1' if _h_idx == 0 else '#2'}:</b><br>"
+                        f"#{_h_idx + 1}:</b><br>"
                         f"{_h_why}"
                         f"</div>",
                         unsafe_allow_html=True)
