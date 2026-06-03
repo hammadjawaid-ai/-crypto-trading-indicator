@@ -8746,50 +8746,76 @@ if active_section == "🧪 Paper Trader":
                           or getattr(_exp_sig, 'scan_experimental', None))
 
         if _u_scan_fn is not None:
+            # Floor raised to STRONG (80+) — per user, this board should
+            # only surface BEST + STRONG conviction picks, not weak 70-79
+            # standard setups. STANDARD tier is filtered out in display.
             @st.cache_data(ttl=900, show_spinner=False)
-            def _pt_load_unified(_v: int = 3):
+            def _pt_load_unified(_v: int = 4):
+                # Scan from 70 so we keep STANDARD picks in the data
+                # (other code may need them); we filter display to 80+
+                # below to enforce the "strong + best only" rule.
                 return _u_scan_fn(
                     scan_n=100, interval="1h",
-                    min_score=70.0, max_picks=15)
+                    min_score=70.0, max_picks=20)
 
+            # Premium header — gold→pink→cyan gradient matching
+            # 🏆 TOP CONVICTION and 💎 SURE SHOT branding.
             st.markdown(
                 "<div style='display:flex;align-items:center;gap:14px;"
                 "margin-top:28px;margin-bottom:6px'>"
                 "<span style='font-size:1.45rem;font-weight:900;"
-                "background:linear-gradient(135deg,#ff6b35,#ff006e,"
-                "#8b5cf6);-webkit-background-clip:text;"
+                "background:linear-gradient(135deg,#ffd700,#ff006e,"
+                "#00d4ff);-webkit-background-clip:text;"
                 "-webkit-text-fill-color:transparent;"
                 "background-clip:text;letter-spacing:-0.02em'>"
-                "🧪 UNIFIED COMPOSITE</span>"
+                "💎 ELITE CONVICTION</span>"
                 "<span style='color:#aab;font-size:0.82rem'>"
-                "9 signal lanes · rebound + breakout + experimental · "
-                "BEST-TRADES-style conviction tiers</span>"
+                "9 proven signal lanes · "
+                "<b style='color:#ffd700'>STRONG+ only</b> · "
+                "premium picks</span>"
                 "</div>",
                 unsafe_allow_html=True)
             st.caption(
-                "Every proven signal lane composited into ONE board. "
-                "**Lanes:** Pattern Scout · Reversal Approach · "
-                "V-Bottom Recovery · Early Momentum (CVD+TTM+SMC) · "
-                "Derivatives Velocity (funding+OI) · Rebound Radar · "
-                "Breakout Coil · VWAP Z-Score Fade · Liq Exhaustion. "
-                "**Tiers** (like BEST TRADES NOW): 🟣 MAX (90+, "
-                "≥3 strong lanes) · 🔴 HIGH (85+, ≥2 strong) · "
-                "🟢 STRONG (80+) · 🔵 STANDARD (70+). Top 15 picks, "
-                "cached 15 min.")
+                "**The highest-conviction trades right now.** Every "
+                "proven signal lane in the system votes on every coin, "
+                "and only setups where the composite score clears 80+ "
+                "surface here. **Lanes:** 🎯 Pattern Scout · 🔭 Reversal "
+                "Approach · 🔄 V-Bottom Recovery · ⚡ Early Momentum "
+                "(CVD+TTM+SMC) · 💱 Derivatives Velocity (funding+OI) · "
+                "🔁 Rebound Radar · 🚀 Breakout Coil · 🌀 VWAP Z-Fade · "
+                "💧 Liq Exhaustion. **Tiers:** 🟣 MAX (90+, ≥3 strong "
+                "lanes) · 🔴 HIGH (85+, ≥2 strong) · 🟢 STRONG (80+). "
+                "Cached 15 min · sorted by conviction.")
             with st.spinner(
-                    "🧪 Scanning top 100 with 9-lane composite "
+                    "💎 Scanning top 100 across 9 signal lanes "
                     "(~40-60s cold, instant cached)..."):
                 try:
-                    _u_picks = _pt_load_unified()
+                    _u_picks_raw = _pt_load_unified()
                 except Exception as exc:
                     st.error(f"Unified scan failed: {exc}")
-                    _u_picks = []
+                    _u_picks_raw = []
+            # Filter to STRONG+ only (score >= 80). STANDARD tier
+            # discarded per user — "best and strong conviction" only.
+            _u_picks = [p for p in (_u_picks_raw or [])
+                        if float(p.get("score") or 0) >= 80]
+            _u_standard_count = (len(_u_picks_raw or []) - len(_u_picks))
+
             if not _u_picks:
-                st.info(
-                    "No unified picks at conviction ≥70 right now. "
-                    "Lanes are demanding (each requires the underlying "
-                    "signal at 60+ to contribute). When 2+ lanes agree "
-                    "on the same coin + side, picks surface here.")
+                # Show how many sub-80 picks exist (transparency) but
+                # honour the strong-only floor.
+                if _u_standard_count:
+                    st.info(
+                        f"No STRONG+ conviction picks right now "
+                        f"({_u_standard_count} weaker picks at 70-79 "
+                        f"filtered out per the elite-conviction floor). "
+                        "When 2+ lanes agree on the same coin AND the "
+                        "composite clears 80, picks surface here.")
+                else:
+                    st.info(
+                        "No elite-conviction picks right now. Market "
+                        "regime is mixed — the 9 signal lanes aren't "
+                        "stacking for any coin. Check 🏆 TOP CONVICTION "
+                        "and 🔭 SETUPS FORMING above, or wait.")
             else:
                 # Lane-name pretty labels + emojis for chip render
                 _u_lane_labels = {
@@ -8803,30 +8829,97 @@ if active_section == "🧪 Paper Trader":
                     "recovery":       ("🔄", "V-Bottom"),
                     "deriv_velocity": ("💱", "Deriv Velocity"),
                 }
-                _u_tier_style = {
-                    "MAX":     ("linear-gradient(90deg,#ffd700,#ff006e,"
-                                "#8b5cf6,#00d4ff)", "#fff", "🟣"),
-                    "HIGH":    ("linear-gradient(90deg,#ff006e,#8b5cf6)",
-                                "#fff", "🔴"),
-                    "STRONG":  ("linear-gradient(90deg,#00d4ff,#2ed47a)",
-                                "#001122", "🟢"),
-                    "STANDARD": ("rgba(255,255,255,0.08)", "#aab", "🔵"),
+                # Per-tier visual treatment for the WHOLE card (gradient
+                # bg tint + glow + tier badge). Matches the SURE SHOT
+                # gold→cyan premium card aesthetic from BEST TRADES NOW.
+                _u_tier_card = {
+                    "MAX": {
+                        "bg": ("linear-gradient(135deg,"
+                               "rgba(255,215,0,0.14),"
+                               "rgba(255,0,110,0.10),"
+                               "rgba(139,92,246,0.10),"
+                               "rgba(0,212,255,0.08))"),
+                        "border": "rgba(255,215,0,0.45)",
+                        "badge_grad": ("linear-gradient(90deg,#ffd700,"
+                                       "#ff006e,#8b5cf6,#00d4ff)"),
+                        "badge_text": "#fff",
+                        "emoji": "🟣",
+                        "glow": ("0 0 24px rgba(255,215,0,0.35),"
+                                 "0 0 48px rgba(255,0,110,0.20)"),
+                    },
+                    "HIGH": {
+                        "bg": ("linear-gradient(135deg,"
+                               "rgba(255,0,110,0.12),"
+                               "rgba(139,92,246,0.10))"),
+                        "border": "rgba(255,0,110,0.40)",
+                        "badge_grad": ("linear-gradient(90deg,#ff006e,"
+                                       "#8b5cf6)"),
+                        "badge_text": "#fff",
+                        "emoji": "🔴",
+                        "glow": "0 0 18px rgba(255,0,110,0.28)",
+                    },
+                    "STRONG": {
+                        "bg": ("linear-gradient(135deg,"
+                               "rgba(0,212,255,0.10),"
+                               "rgba(46,212,122,0.08))"),
+                        "border": "rgba(0,212,255,0.35)",
+                        "badge_grad": ("linear-gradient(90deg,#00d4ff,"
+                                       "#2ed47a)"),
+                        "badge_text": "#001122",
+                        "emoji": "🟢",
+                        "glow": "0 0 14px rgba(0,212,255,0.22)",
+                    },
                 }
-                st.success(
-                    f"**{len(_u_picks)} unified picks firing** at "
-                    "conviction ≥70.")
+
+                # Counter by tier for the success banner
+                _u_n_max = sum(1 for p in _u_picks
+                               if p.get("tier") == "MAX")
+                _u_n_high = sum(1 for p in _u_picks
+                                if p.get("tier") == "HIGH")
+                _u_n_strong = sum(1 for p in _u_picks
+                                  if p.get("tier") == "STRONG")
+                _u_summary = []
+                if _u_n_max:
+                    _u_summary.append(
+                        f"<b style='color:#ffd700'>{_u_n_max} MAX</b>")
+                if _u_n_high:
+                    _u_summary.append(
+                        f"<b style='color:#ff006e'>{_u_n_high} HIGH</b>")
+                if _u_n_strong:
+                    _u_summary.append(
+                        f"<b style='color:#00d4ff'>"
+                        f"{_u_n_strong} STRONG</b>")
+                st.markdown(
+                    f"<div style='display:inline-flex;align-items:center;"
+                    f"gap:10px;padding:8px 16px;border-radius:10px;"
+                    f"background:linear-gradient(90deg,"
+                    f"rgba(255,215,0,0.10),rgba(0,212,255,0.06));"
+                    f"border:1px solid rgba(255,215,0,0.25);"
+                    f"margin-bottom:14px'>"
+                    f"<span style='font-size:1.05rem'>💎</span>"
+                    f"<span style='color:#e6e6e6;font-weight:700;"
+                    f"font-size:0.92rem'>"
+                    f"{len(_u_picks)} elite picks firing</span>"
+                    f"<span style='color:#888;font-size:0.78rem'>·</span>"
+                    f"<span style='color:#aab;font-size:0.82rem'>"
+                    f"{' · '.join(_u_summary)}</span>"
+                    f"</div>",
+                    unsafe_allow_html=True)
+
                 for _u in _u_picks:
                     _u_sym = _u.get("symbol", "?")
                     _u_base = _u.get("base", _u_sym.replace("USDT", ""))
                     _u_side = (_u.get("side") or "LONG").upper()
                     _u_score = float(_u.get("score") or 0)
-                    _u_tier = _u.get("tier", "STANDARD")
+                    _u_tier = _u.get("tier", "STRONG")
                     _u_plan = _u.get("trade_plan") or {}
                     _u_entry = float(_u_plan.get("entry") or 0)
                     _u_stop = float(_u_plan.get("stop") or 0)
                     _u_tp1 = float(_u_plan.get("tp1") or 0)
                     _u_tp2 = float(_u_plan.get("tp2") or 0)
                     _u_rr = float(_u_plan.get("rr") or 0)
+                    _u_n_strong_lanes = int(_u.get("n_strong_lanes")
+                                            or 0)
                     sl_pct = ((_u_stop - _u_entry) / _u_entry * 100
                               if _u_entry > 0 else 0)
                     tp1_pct = ((_u_tp1 - _u_entry) / _u_entry * 100
@@ -8836,69 +8929,134 @@ if active_section == "🧪 Paper Trader":
                     side_emoji = "🟢" if _u_side == "LONG" else "🩸"
                     side_color = ("#2ed47a" if _u_side == "LONG"
                                   else "#ff5c5c")
-                    tier_grad, tier_text, tier_emoji = _u_tier_style.get(
-                        _u_tier, _u_tier_style["STANDARD"])
+                    tier_def = _u_tier_card.get(
+                        _u_tier, _u_tier_card["STRONG"])
 
-                    # Build the chip row showing which lanes fired
+                    # Build the chip row showing which lanes fired —
+                    # styled per side (LONG green / SHORT red) to match
+                    # the side rather than always orange.
+                    _chip_bg_rgb = ("46,212,122" if _u_side == "LONG"
+                                    else "255,92,92")
+                    _chip_fg = ("#2ed47a" if _u_side == "LONG"
+                                else "#ff8585")
                     lane_chips = ""
                     for ln in (_u.get("active_lanes") or [])[:6]:
                         emoji, label = _u_lane_labels.get(
                             ln, ("·", ln))
                         sc = (_u.get("lanes_fired") or {}).get(ln, 0)
                         lane_chips += (
-                            f"<span style='background:rgba(255,107,53,"
-                            f"0.10);color:#ffa657;padding:2px 8px;"
-                            f"border-radius:5px;font-size:0.7rem;"
-                            f"font-weight:700;margin-right:4px;"
-                            f"margin-top:4px;display:inline-block'>"
-                            f"{emoji} {label} {sc:.0f}</span>")
+                            f"<span style='background:rgba("
+                            f"{_chip_bg_rgb},0.12);color:{_chip_fg};"
+                            f"padding:3px 10px;border-radius:6px;"
+                            f"font-size:0.72rem;font-weight:700;"
+                            f"margin-right:5px;margin-top:4px;"
+                            f"display:inline-block;border:1px solid "
+                            f"rgba({_chip_bg_rgb},0.20)'>"
+                            f"{emoji} {label} <b style='opacity:0.85'>"
+                            f"{sc:.0f}</b></span>")
 
-                    with st.container(border=True):
-                        tl, tr = st.columns([6, 1])
-                        tl.markdown(
-                            # Header row — symbol + side + tier + score
-                            f"<div style='display:flex;align-items:center;"
-                            f"gap:8px;flex-wrap:wrap;margin-bottom:6px'>"
+                    # Premium card — full-width gradient surface with
+                    # tier-coded border and glow. Matches the
+                    # SURE SHOT design from BEST TRADES NOW.
+                    with st.container(border=False):
+                        st.markdown(
+                            f"<div style='background:{tier_def['bg']};"
+                            f"border:1px solid {tier_def['border']};"
+                            f"border-radius:14px;padding:14px 18px;"
+                            f"margin-bottom:10px;"
+                            f"box-shadow:{tier_def['glow']}'>"
+                            # Header row — symbol, side, tier badge,
+                            # lane count
+                            f"<div style='display:flex;align-items:"
+                            f"center;gap:10px;flex-wrap:wrap;"
+                            f"margin-bottom:8px'>"
+                            f"<span style='font-size:1.25rem'>"
+                            f"{tier_def['emoji']}</span>"
                             f"<span style='font-weight:800;font-size:"
-                            f"1.05rem'>{_u_base}</span>"
-                            f"<span style='color:#aab;font-size:0.78rem'>"
-                            f"· {_u_sym}</span>"
+                            f"1.15rem;font-family:Space Grotesk,Inter,"
+                            f"sans-serif;letter-spacing:-0.01em'>"
+                            f"{_u_base}</span>"
+                            f"<span style='color:#888;font-size:"
+                            f"0.78rem'>· {_u_sym}</span>"
                             f"<span style='background:{side_color};"
-                            f"color:#06121f;padding:2px 10px;"
-                            f"border-radius:5px;font-size:0.72rem;"
-                            f"font-weight:800'>{side_emoji} {_u_side}"
-                            f"</span>"
-                            f"<span style='background:{tier_grad};"
-                            f"color:{tier_text};padding:2px 10px;"
-                            f"border-radius:5px;font-size:0.72rem;"
-                            f"font-weight:800;letter-spacing:0.02em'>"
-                            f"{tier_emoji} {_u_tier} · {_u_score:.0f}"
-                            f"</span>"
-                            f"<span style='color:#aab;font-size:0.74rem'>"
-                            f"{_u.get('n_strong_lanes', 0)} strong "
-                            f"lanes</span>"
+                            f"color:#06121f;padding:3px 12px;"
+                            f"border-radius:6px;font-size:0.74rem;"
+                            f"font-weight:800'>{side_emoji} "
+                            f"{_u_side}</span>"
+                            f"<span style='background:"
+                            f"{tier_def['badge_grad']};"
+                            f"color:{tier_def['badge_text']};"
+                            f"padding:3px 14px;border-radius:6px;"
+                            f"font-size:0.76rem;font-weight:800;"
+                            f"letter-spacing:0.03em;"
+                            f"box-shadow:0 0 8px "
+                            f"rgba(255,215,0,0.3)'>"
+                            f"💎 {_u_tier} · {_u_score:.0f}</span>"
+                            f"<span style='background:rgba(255,255,"
+                            f"255,0.05);color:#c8d2ed;padding:3px "
+                            f"10px;border-radius:6px;font-size:"
+                            f"0.72rem;font-weight:700;border:1px "
+                            f"solid rgba(255,255,255,0.10)'>"
+                            f"🔗 {_u_n_strong_lanes} strong lanes</span>"
                             f"</div>"
-                            # Lane chips row
-                            f"<div>{lane_chips}</div>"
-                            # Plan row
-                            f"<div style='margin-top:8px;color:#aab;"
-                            f"font-size:0.82rem'>"
-                            f"Entry <code>{_u_entry:g}</code> · SL "
-                            f"<code>{_u_stop:g}</code> "
-                            f"(<span style='color:#ff5c5c'>"
-                            f"{sl_pct:+.2f}%</span>) · TP1 "
-                            f"<code>{_u_tp1:g}</code> "
-                            f"(<span style='color:#2ed47a'>"
-                            f"{tp1_pct:+.2f}%</span>) · TP2 "
-                            f"<code>{_u_tp2:g}</code> "
-                            f"(<span style='color:#2ed47a'>"
-                            f"{tp2_pct:+.2f}%</span>) · R:R "
-                            f"<b>{_u_rr:.2f}</b></div>",
+                            # Lane chips row — wrapping
+                            f"<div style='margin-bottom:10px'>"
+                            f"{lane_chips}</div>"
+                            # Plan row — full plan in premium typography
+                            f"<div style='background:rgba(0,0,0,0.25);"
+                            f"padding:10px 14px;border-radius:8px;"
+                            f"font-size:0.85rem;color:#c8d2ed;"
+                            f"line-height:1.7'>"
+                            f"<b style='color:#fff'>Entry</b> "
+                            f"<code style='background:rgba(255,255,"
+                            f"255,0.08);padding:2px 8px;border-radius:"
+                            f"4px;color:#fff'>{_u_entry:g}</code> "
+                            f"<span style='color:#666'>·</span> "
+                            f"<b style='color:#ff8585'>SL</b> "
+                            f"<code style='background:rgba(255,92,92,"
+                            f"0.12);padding:2px 8px;border-radius:4px;"
+                            f"color:#ff8585'>{_u_stop:g}</code> "
+                            f"<span style='color:#ff5c5c;font-weight:"
+                            f"700'>({sl_pct:+.2f}%)</span> "
+                            f"<span style='color:#666'>·</span> "
+                            f"<b style='color:#2ed47a'>TP1</b> "
+                            f"<code style='background:rgba(46,212,122,"
+                            f"0.12);padding:2px 8px;border-radius:4px;"
+                            f"color:#2ed47a'>{_u_tp1:g}</code> "
+                            f"<span style='color:#2ed47a;font-weight:"
+                            f"700'>({tp1_pct:+.2f}%)</span> "
+                            f"<span style='color:#666'>·</span> "
+                            f"<b style='color:#2ed47a'>TP2</b> "
+                            f"<code style='background:rgba(46,212,122,"
+                            f"0.12);padding:2px 8px;border-radius:4px;"
+                            f"color:#2ed47a'>{_u_tp2:g}</code> "
+                            f"<span style='color:#2ed47a;font-weight:"
+                            f"700'>({tp2_pct:+.2f}%)</span> "
+                            f"<span style='color:#666'>·</span> "
+                            f"<b style='color:#ffd700'>R:R "
+                            f"{_u_rr:.2f}</b>"
+                            f"</div>"
+                            f"</div>",
                             unsafe_allow_html=True)
-                        if tr.button(
+                        # Why + Open button row
+                        wcol, bcol = st.columns([5, 1])
+                        if _u.get("reasons"):
+                            wcol.markdown(
+                                f"<div style='color:#c8d2ed;"
+                                f"font-size:0.80rem;line-height:1.6;"
+                                f"padding:0 4px 8px 4px'>"
+                                f"<b style='color:#ffd700'>"
+                                f"Why this fires:</b> "
+                                f"{' · '.join(_u['reasons'][:4])}"
+                                f"</div>",
+                                unsafe_allow_html=True)
+                        else:
+                            wcol.write("")
+                        if bcol.button(
                                 "📥 Open",
                                 key=f"pt_u_{_u_sym}",
-                                use_container_width=True):
+                                use_container_width=True,
+                                type="primary"):
                             try:
                                 _u_alert = {
                                     "symbol": _u_sym,
@@ -8926,7 +9084,7 @@ if active_section == "🧪 Paper Trader":
                                     st.success(
                                         f"Opened {_u_side} {_u_sym} "
                                         f"at {_u_entry:g} ({_u_tier} "
-                                        f"· {len(_u.get('active_lanes', []))} "
+                                        f"· {_u_n_strong_lanes} "
                                         f"lanes)")
                                     st.rerun()
                                 else:
@@ -8935,10 +9093,6 @@ if active_section == "🧪 Paper Trader":
                                         "rejected.")
                             except Exception as exc:
                                 st.error(f"Open failed: {exc}")
-                        if _u.get("reasons"):
-                            st.caption(
-                                "Why: " + " · ".join(
-                                    _u["reasons"][:4]))
 
         st.divider()
         # Open positions — LIVE fragment (updates in place every 10s).
