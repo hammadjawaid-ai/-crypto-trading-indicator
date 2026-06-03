@@ -128,11 +128,19 @@ def _lane_liq_exhaustion(df: pd.DataFrame,
             if df["volume"].tail(20).mean() else 0)
         if vol_ratio < 3.0:
             return (0.0, "NEUTRAL", "")
+        # OI history from derivatives_velocity is a FLAT list[float] of
+        # sumOpenInterest values — not (ts, value) tuples. The original
+        # `[v for _, v in oi_hist[-4:]]` raised TypeError silently and
+        # the OI gate never confirmed → liq_exhaustion capped at 50.
         oi_confirmed = False
         oi_pct = None
         if oi_hist and len(oi_hist) >= 4:
             try:
-                oi_vals = [v for _, v in oi_hist[-4:]]
+                oi_vals = list(oi_hist[-4:])
+                # Tolerate either flat floats or (ts, value) tuples.
+                if oi_vals and isinstance(oi_vals[0], (tuple, list)):
+                    oi_vals = [v[1] for v in oi_vals]
+                oi_vals = [float(v) for v in oi_vals]
                 if oi_vals[0] > 0:
                     oi_pct = (oi_vals[-1] - oi_vals[0]) / oi_vals[0]
                     oi_confirmed = oi_pct <= -0.05
@@ -201,7 +209,12 @@ def _lane_pattern_scout(symbol: str, df: pd.DataFrame,
 
 
 def _lane_reversal_app(df: pd.DataFrame) -> tuple[float, str, str]:
-    """7 pre-fire reversal conditions (reversal_approach.scan_both_sides)."""
+    """7 pre-fire reversal conditions (reversal_approach.scan_both_sides).
+
+    Lowered gate to 60 — diagnostic showed that real setups peak around
+    57-65 conditions_met=2-3/7. The original 65 cutoff was discarding
+    every real signal.
+    """
     if reversal_approach is None or df is None:
         return (0.0, "NEUTRAL", "")
     try:
@@ -209,7 +222,7 @@ def _lane_reversal_app(df: pd.DataFrame) -> tuple[float, str, str]:
         side = r.get("side", "NEUTRAL")
         sc = float(r.get("score", 0))
         cm = int(r.get("conditions_met", 0))
-        if sc < 65 or side == "NEUTRAL":
+        if sc < 60 or side == "NEUTRAL":
             return (0.0, "NEUTRAL", "")
         return (sc, side, f"reversal pre-conditions {cm}/7")
     except Exception:
@@ -217,30 +230,42 @@ def _lane_reversal_app(df: pd.DataFrame) -> tuple[float, str, str]:
 
 
 def _lane_early_momentum(df: pd.DataFrame) -> tuple[float, str, str]:
-    """early_momentum composite (CVD + TTM + ROC² + SMC + VWAP)."""
+    """early_momentum composite (CVD + TTM + ROC² + SMC + VWAP).
+
+    early_momentum returns side=LONG with score 0-100 where 50=neutral.
+    Original gate >=70 was discarding most real LONG signals. Bump
+    contribution threshold to 60 (LONG) / 40 (SHORT) — early-momentum
+    composite is robust at 60+.
+    """
     if early_momentum is None or df is None:
         return (0.0, "NEUTRAL", "")
     try:
         r = early_momentum.score(df)
         side = r.get("side", "NEUTRAL")
         sc = float(r.get("score", 0))
-        if (side == "LONG" and sc >= 70) or (side == "SHORT" and sc <= 30):
-            sc_norm = sc if side == "LONG" else (100 - sc)
-            return (sc_norm, side, f"early_momentum {side.lower()} composite")
+        if side == "LONG" and sc >= 60:
+            return (sc, "LONG", f"early_momentum long composite (score {sc:.0f})")
+        if side == "SHORT" and sc <= 40:
+            sc_norm = 100 - sc
+            return (sc_norm, "SHORT", f"early_momentum short composite (score {sc:.0f})")
     except Exception:
         pass
     return (0.0, "NEUTRAL", "")
 
 
 def _lane_recovery(df: pd.DataFrame) -> tuple[float, str, str]:
-    """recovery_detector V-bottom (backtested 75% win at 12bar)."""
+    """recovery_detector V-bottom (backtested 75% win at 12bar).
+
+    _v_bottom_bounce returns score=50 when no pattern. Gate >=60 cuts
+    the neutral-but-positive cases.
+    """
     if recovery_detector is None or df is None:
         return (0.0, "NEUTRAL", "")
     try:
         from recovery_detector import _v_bottom_bounce
         r = _v_bottom_bounce(df)
         sc = float(r.get("score") or 0)
-        if sc < 65:
+        if sc < 60:
             return (0.0, "NEUTRAL", "")
         return (sc, "LONG", "V-bottom capitulation pattern")
     except Exception:
@@ -255,7 +280,7 @@ def _lane_deriv_velocity(symbol: str) -> tuple[float, str, str]:
         r = derivatives_velocity.score(symbol, interval="1h")
         side = r.get("side", "NEUTRAL")
         sc = float(r.get("score", 0))
-        if side == "NEUTRAL" or sc < 65:
+        if side == "NEUTRAL" or sc < 60:
             return (0.0, "NEUTRAL", "")
         return (sc, side, f"deriv {side.lower()} (funding+OI)")
     except Exception:
@@ -304,12 +329,15 @@ def score_one(symbol: str, interval: str = "1h",
         except Exception:
             pass
 
-    # Run each lane
+    # Run each lane.
+    # NOTE: never use `df_4h or df` — DataFrames raise on __bool__.
+    # Must be an explicit `is None` check.
+    df_4h_or_1h = df_4h if df_4h is not None else df
     lanes = {
         "vwap_zfade":     _lane_vwap_zfade(df),
         "liq_exhaustion": _lane_liq_exhaustion(df, oi_hist),
         "rebound":        _lane_rebound(symbol, df, pct_24h),
-        "breakout_coil":  _lane_breakout(symbol, df_4h or df, df),
+        "breakout_coil":  _lane_breakout(symbol, df_4h_or_1h, df),
         "pattern_scout":  _lane_pattern_scout(symbol, df, pct_24h),
         "reversal_app":   _lane_reversal_app(df),
         "early_momentum": _lane_early_momentum(df),
@@ -317,40 +345,54 @@ def score_one(symbol: str, interval: str = "1h",
         "deriv_velocity": _lane_deriv_velocity(symbol),
     }
 
-    # Vote: count LONG vs SHORT lanes weighted
-    long_score = 0.0
-    short_score = 0.0
-    long_lanes = []
-    short_lanes = []
-    fired_reasons = []
+    # Vote: collect every LANE firing >=60 with a clear side.
+    long_lanes: list[tuple[str, float, str]] = []
+    short_lanes: list[tuple[str, float, str]] = []
     for name, (sc, side, note) in lanes.items():
-        w = _LANE_WEIGHTS.get(name, 0.0)
         if side == "LONG" and sc >= 60:
-            long_score += sc * w
             long_lanes.append((name, sc, note))
-            fired_reasons.append(f"{name}: {note}")
         elif side == "SHORT" and sc >= 60:
-            short_score += sc * w
             short_lanes.append((name, sc, note))
-            fired_reasons.append(f"{name}: {note}")
 
-    # Pick the dominant side. If neither has meaningful score, skip.
-    if long_score >= short_score and long_score >= 30:
+    # Composite score per side = WEIGHTED AVERAGE over firing weight
+    # (not total weight). Previously: sum(score*w) / sum(all_weights)
+    # produced absurdly low scores when only a few lanes fired (e.g.,
+    # 2 lanes at 75 → 20). Now: 2 lanes at 75 → 75 weighted-avg, plus
+    # a confluence bonus for stacking.
+    def _composite(lanes_list: list[tuple[str, float, str]]) -> float:
+        if not lanes_list:
+            return 0.0
+        weighted_sum = sum(sc * _LANE_WEIGHTS.get(n, 0) for n, sc, _ in lanes_list)
+        weight_sum = sum(_LANE_WEIGHTS.get(n, 0) for n, _, _ in lanes_list)
+        if weight_sum <= 0:
+            return 0.0
+        avg = weighted_sum / weight_sum
+        # Confluence bonus — more lanes agreeing = more conviction.
+        # 1 lane:  +0    (just the weighted average)
+        # 2 lanes: +5
+        # 3 lanes: +10
+        # 4+ lanes: +15
+        n = len(lanes_list)
+        bonus = 0 if n <= 1 else min(15, (n - 1) * 5)
+        return avg + bonus
+
+    long_score = _composite(long_lanes)
+    short_score = _composite(short_lanes)
+
+    # Pick dominant side, with a meaningful firing floor.
+    if long_score >= short_score and long_score >= 60:
         side = "LONG"
-        score = long_score / sum(_LANE_WEIGHTS.values())
-        strong_n = len([1 for n, s, _ in long_lanes if s >= 70])
+        score = long_score
+        strong_n = len([1 for _, s, _ in long_lanes if s >= 70])
         active_lanes = long_lanes
-    elif short_score > long_score and short_score >= 30:
+    elif short_score > long_score and short_score >= 60:
         side = "SHORT"
-        score = short_score / sum(_LANE_WEIGHTS.values())
-        strong_n = len([1 for n, s, _ in short_lanes if s >= 70])
+        score = short_score
+        strong_n = len([1 for _, s, _ in short_lanes if s >= 70])
         active_lanes = short_lanes
     else:
         return _empty(symbol)
 
-    # Conviction bonus: stack multiple lanes -> +5 per extra strong lane
-    if strong_n >= 2:
-        score += min(10, (strong_n - 1) * 5)
     score = float(np.clip(score, 0, 100))
 
     tier = _conviction_tier(score, strong_n)
