@@ -8041,96 +8041,223 @@ if active_section == "🧪 Paper Trader":
                                  if _h_entry > 0 else 0)
                     _h_tp_pct = ((_h_tgt - _h_entry) / _h_entry * 100
                                  if _h_entry > 0 else 0)
+                    # Live R:R from CURRENT price — convincing because
+                    # it shows what the user will ACTUALLY get if they
+                    # click now, not the plan's idealised R:R.
+                    _h_cur = prices.get(_h_sym) or _h_entry
+                    _h_live_rr = 0.0
+                    if _h_cur > 0 and _h_stop > 0 and _h_tgt > 0:
+                        if _h_side == "LONG":
+                            _risk = (_h_cur - _h_stop) / _h_cur
+                            _rew = (_h_tgt - _h_cur) / _h_cur
+                        else:
+                            _risk = (_h_stop - _h_cur) / _h_cur
+                            _rew = (_h_cur - _h_tgt) / _h_cur
+                        if _risk > 0:
+                            _h_live_rr = _rew / _risk
+                    _h_at_zone = _h_live_rr >= 1.3
+                    _h_zone_passed = 0 < _h_live_rr < 1.2
                     # ELITE confirmation?
                     _h_elite = _elite_lookup.get(_h_sym)
                     _h_elite_match = (
                         _h_elite
                         and (_h_elite.get("side") or "").upper() == _h_side)
-                    _h_elite_str = ""
+                    _h_e_lanes = (int(_h_elite.get("n_strong_lanes") or 0)
+                                  if _h_elite_match else 0)
+                    _h_e_score = (float(_h_elite.get("score") or 0)
+                                  if _h_elite_match else 0)
+                    # Regime alignment (from _regime detected above)
+                    try:
+                        _h_regime_label = _regime.get("regime", "")
+                        _h_regime_conf = float(
+                            _regime.get("confidence") or 0)
+                    except Exception:
+                        _h_regime_label = ""
+                        _h_regime_conf = 0
+                    _h_regime_aligned = False
+                    if _h_regime_label == "BULL" and _h_side == "LONG":
+                        _h_regime_aligned = True
+                    elif _h_regime_label == "BEAR" and _h_side == "SHORT":
+                        _h_regime_aligned = True
+                    # CONVERGENCE / SURE SHOT / PREMIUM membership
+                    _h_in_convergence = (
+                        _h_sym in _convergence_syms)
+                    _h_in_sureshot = _h_sym in _sure_shot_syms
+                    _h_in_premium = (
+                        _h_conf >= 80 and _h_fc ==
+                        "forecast confirms · aligned 3/3")
+
+                    # ============ EVIDENCE STACK ============
+                    # Count how many confirming systems agree — this is
+                    # the convincing-ness metric. Build a chip row.
+                    _h_evidence = []
+                    # Scanner confidence
+                    if _h_conf >= 80:
+                        _h_evidence.append(
+                            ("#2ed47a", f"✓ Scanner {_h_conf}%"))
+                    elif _h_conf >= 70:
+                        _h_evidence.append(
+                            ("#5b8eff", f"~ Scanner {_h_conf}%"))
+                    # Forecast alignment
+                    if _h_fc == "forecast confirms · aligned 3/3":
+                        _h_evidence.append(
+                            ("#2ed47a", "✓ Forecast aligned 3/3"))
+                    elif "aligned 2/3" in (_h_fc or ""):
+                        _h_evidence.append(
+                            ("#5b8eff", "~ Forecast 2/3"))
+                    # ELITE composite
                     if _h_elite_match:
-                        _h_e_lanes = int(
-                            _h_elite.get("n_strong_lanes") or 0)
-                        _h_e_score = float(_h_elite.get("score") or 0)
-                        _h_elite_str = (
-                            f"<span style='background:linear-gradient("
-                            f"90deg,#ffd700,#00d4ff);color:#001122;"
-                            f"padding:4px 14px;border-radius:8px;"
-                            f"font-size:0.82rem;font-weight:800;"
-                            f"box-shadow:0 0 12px "
-                            f"rgba(255,215,0,0.5);margin-left:8px'>"
-                            f"⚡ ELITE confirms · {_h_e_score:.0f} · "
-                            f"{_h_e_lanes} lane"
-                            f"{'s' if _h_e_lanes != 1 else ''}</span>")
+                        _h_evidence.append(
+                            ("#ffd700",
+                             f"✓ ELITE composite {_h_e_score:.0f} "
+                             f"({_h_e_lanes}L)"))
+                    # CONVERGENCE
+                    if _h_in_convergence:
+                        _h_evidence.append(
+                            ("#ff006e", "✓ Convergence edge"))
+                    # SURE SHOT
+                    if _h_in_sureshot:
+                        _h_evidence.append(
+                            ("#00d4ff", "✓ Sure Shot"))
+                    # PREMIUM
+                    if _h_in_premium:
+                        _h_evidence.append(
+                            ("#e0a92b", "✓ Premium"))
+                    # Regime alignment
+                    if _h_regime_aligned:
+                        _h_evidence.append(
+                            ("#2ed47a",
+                             f"✓ {_h_regime_label} regime aligned"))
+                    elif _h_regime_label in ("BULL", "BEAR"):
+                        _h_evidence.append(
+                            ("#ff8585",
+                             f"⚠ Counter to {_h_regime_label} regime"))
+                    # Live R:R chip
+                    if _h_at_zone:
+                        _h_evidence.append(
+                            ("#2ed47a",
+                             f"✓ At entry zone · live R:R "
+                             f"{_h_live_rr:.2f}"))
+                    elif _h_zone_passed:
+                        _h_evidence.append(
+                            ("#ff5c5c",
+                             f"⚠ Zone passed · live R:R "
+                             f"{_h_live_rr:.2f}"))
+
+                    _h_evidence_html = "".join(
+                        f"<span style='background:{c}22;color:{c};"
+                        f"padding:3px 10px;border-radius:6px;"
+                        f"font-size:0.74rem;font-weight:700;"
+                        f"border:1px solid {c}55;"
+                        f"display:inline-block;margin:2px 4px 2px 0'>"
+                        f"{t}</span>"
+                        for c, t in _h_evidence)
+
+                    _h_confirm_count = sum(
+                        1 for c, _ in _h_evidence
+                        if c in ("#2ed47a", "#ffd700",
+                                 "#ff006e", "#00d4ff", "#e0a92b"))
+
                     # Hero rank ribbon
                     _h_rank_text = "#1 PICK" if _h_idx == 0 else "#2 PICK"
                     _h_rank_grad = (
                         "linear-gradient(135deg,#ffd700,#ff8c00)"
                         if _h_idx == 0
                         else "linear-gradient(135deg,#c0c0c0,#888)")
-                    # Render the giant card
+                    # Border intensity scales with confirm count
+                    _h_border_intensity = min(0.75,
+                                              0.30 + _h_confirm_count * 0.08)
+                    _h_glow_intensity = min(0.50,
+                                            0.25 + _h_confirm_count * 0.05)
+
+                    # Render the GIANT convincing card
                     st.markdown(
                         f"<div style='background:linear-gradient(135deg,"
-                        f"rgba(255,215,0,0.10),rgba(255,0,110,0.06),"
-                        f"rgba(0,212,255,0.08));"
-                        f"border:2px solid rgba(255,215,0,0.45);"
-                        f"border-radius:18px;padding:20px 24px;"
+                        f"rgba(255,215,0,0.12),rgba(255,0,110,0.07),"
+                        f"rgba(0,212,255,0.10));"
+                        f"border:2px solid rgba(255,215,0,"
+                        f"{_h_border_intensity});"
+                        f"border-radius:20px;padding:22px 26px;"
                         f"margin-bottom:14px;"
-                        f"box-shadow:0 0 32px rgba(255,215,0,0.30),"
-                        f"inset 0 0 24px rgba(255,215,0,0.05)'>"
-                        # Top row — rank ribbon + base name + side + ELITE
+                        f"box-shadow:0 0 40px rgba(255,215,0,"
+                        f"{_h_glow_intensity}),"
+                        f"inset 0 0 30px rgba(255,215,0,0.06)'>"
+                        # Top row — rank ribbon + base + side + score
                         f"<div style='display:flex;align-items:center;"
                         f"gap:12px;flex-wrap:wrap;margin-bottom:10px'>"
                         f"<span style='background:{_h_rank_grad};"
-                        f"color:#1a1a1a;padding:4px 14px;"
-                        f"border-radius:8px;font-size:0.82rem;"
-                        f"font-weight:900;letter-spacing:0.04em'>"
+                        f"color:#1a1a1a;padding:5px 16px;"
+                        f"border-radius:8px;font-size:0.84rem;"
+                        f"font-weight:900;letter-spacing:0.04em;"
+                        f"box-shadow:0 2px 8px rgba(255,215,0,0.3)'>"
                         f"🏆 {_h_rank_text}</span>"
                         f"<span style='font-weight:900;font-size:"
-                        f"1.55rem;font-family:Space Grotesk,Inter,"
-                        f"sans-serif;letter-spacing:-0.02em;color:#fff'>"
+                        f"1.7rem;font-family:Space Grotesk,Inter,"
+                        f"sans-serif;letter-spacing:-0.02em;color:#fff;"
+                        f"text-shadow:0 1px 8px rgba(255,255,255,0.1)'>"
                         f"{_h_base}</span>"
                         f"<span style='color:#888;font-size:0.85rem'>"
                         f"· {_h_sym}</span>"
                         f"<span style='background:{_h_side_color};"
-                        f"color:#06121f;padding:4px 14px;"
-                        f"border-radius:8px;font-size:0.86rem;"
-                        f"font-weight:800'>{_h_side_emoji} "
-                        f"{_h_side}</span>"
+                        f"color:#06121f;padding:5px 16px;"
+                        f"border-radius:8px;font-size:0.92rem;"
+                        f"font-weight:900;letter-spacing:0.04em'>"
+                        f"{_h_side_emoji} {_h_side}</span>"
                         f"<span style='background:linear-gradient(90deg,"
-                        f"#ffd700,#ff006e);color:#fff;padding:4px 14px;"
-                        f"border-radius:8px;font-size:0.86rem;"
-                        f"font-weight:800'>"
-                        f"🎯 SCORE {_h_score}</span>"
-                        f"{_h_elite_str}"
+                        f"#ffd700,#ff006e);color:#fff;padding:5px 16px;"
+                        f"border-radius:8px;font-size:0.92rem;"
+                        f"font-weight:900;letter-spacing:0.02em'>"
+                        f"🎯 {_h_score}/99</span>"
+                        f"<span style='background:rgba(46,212,122,0.15);"
+                        f"color:#2ed47a;padding:5px 14px;"
+                        f"border-radius:8px;font-size:0.82rem;"
+                        f"font-weight:800;border:1px solid "
+                        f"rgba(46,212,122,0.35)'>"
+                        f"{_h_confirm_count} systems agree</span>"
                         f"</div>"
-                        # Plan strip
-                        f"<div style='background:rgba(0,0,0,0.35);"
-                        f"padding:12px 16px;border-radius:10px;"
-                        f"font-size:0.95rem;color:#fff;line-height:1.8;"
-                        f"margin-bottom:10px'>"
-                        f"<b style='color:#fff'>Entry</b> "
+                        # EVIDENCE STACK row — what makes this convincing
+                        f"<div style='margin-bottom:14px;line-height:2.2'>"
+                        f"{_h_evidence_html}</div>"
+                        # Plan strip (bigger, clearer)
+                        f"<div style='background:rgba(0,0,0,0.4);"
+                        f"padding:14px 18px;border-radius:12px;"
+                        f"font-size:1.0rem;color:#fff;line-height:1.8;"
+                        f"border:1px solid rgba(255,255,255,0.06);"
+                        f"margin-bottom:6px'>"
+                        f"<div style='display:flex;flex-wrap:wrap;"
+                        f"gap:14px;align-items:center'>"
+                        f"<span><b style='color:#fff'>Entry</b> "
                         f"<code style='background:rgba(255,255,255,"
-                        f"0.10);padding:3px 10px;border-radius:5px;"
-                        f"color:#fff;font-size:0.95rem'>"
-                        f"{_h_entry:g}</code> "
-                        f"<span style='color:#666'>·</span> "
-                        f"<b style='color:#ff8585'>Stop</b> "
+                        f"0.10);padding:4px 12px;border-radius:6px;"
+                        f"color:#fff;font-size:1.0rem;font-weight:700'>"
+                        f"{_h_entry:g}</code></span>"
+                        f"<span style='color:#444'>│</span>"
+                        f"<span><b style='color:#ff8585'>Stop</b> "
                         f"<code style='background:rgba(255,92,92,0.15);"
-                        f"padding:3px 10px;border-radius:5px;"
-                        f"color:#ff8585'>{_h_stop:g}</code> "
-                        f"<span style='color:#ff5c5c;font-weight:700'>"
-                        f"({_h_sl_pct:+.2f}%)</span> "
-                        f"<span style='color:#666'>·</span> "
-                        f"<b style='color:#2ed47a'>Target</b> "
+                        f"padding:4px 12px;border-radius:6px;"
+                        f"color:#ff8585;font-weight:700'>{_h_stop:g}"
+                        f"</code> <span style='color:#ff5c5c;"
+                        f"font-weight:800;font-size:0.92rem'>"
+                        f"{_h_sl_pct:+.2f}%</span></span>"
+                        f"<span style='color:#444'>│</span>"
+                        f"<span><b style='color:#2ed47a'>Target</b> "
                         f"<code style='background:rgba(46,212,122,"
-                        f"0.15);padding:3px 10px;border-radius:5px;"
-                        f"color:#2ed47a'>{_h_tgt:g}</code> "
-                        f"<span style='color:#2ed47a;font-weight:700'>"
-                        f"({_h_tp_pct:+.2f}%)</span> "
-                        f"<span style='color:#666'>·</span> "
-                        f"<b style='color:#ffd700;font-size:1.0rem'>"
-                        f"R:R {_h_rr:.2f}</b>"
-                        f"</div>"
+                        f"0.15);padding:4px 12px;border-radius:6px;"
+                        f"color:#2ed47a;font-weight:700'>{_h_tgt:g}"
+                        f"</code> <span style='color:#2ed47a;"
+                        f"font-weight:800;font-size:0.92rem'>"
+                        f"{_h_tp_pct:+.2f}%</span></span>"
+                        f"<span style='color:#444'>│</span>"
+                        f"<span><b style='color:#ffd700;"
+                        f"font-size:1.05rem'>R:R {_h_rr:.2f}</b>"
+                        + (f" <span style='color:#888;"
+                           f"font-size:0.85rem'>(live "
+                           f"{_h_live_rr:.2f})</span>"
+                           if _h_live_rr > 0
+                              and abs(_h_live_rr - _h_rr) > 0.1
+                           else "")
+                        + f"</span>"
+                        f"</div></div>"
                         f"</div>",
                         unsafe_allow_html=True)
                     # GIANT button row
@@ -8142,7 +8269,9 @@ if active_section == "🧪 Paper Trader":
                             type="primary",
                             help=(f"Opens a Paper Trader position for "
                                   f"{_h_base} at the planned entry, "
-                                  f"with stop and target pre-set.")):
+                                  f"with stop and target pre-set. "
+                                  f"{_h_confirm_count} confirming "
+                                  f"systems agree.")):
                         try:
                             _h_alert = {
                                 "symbol": _h_sym,
@@ -8177,12 +8306,33 @@ if active_section == "🧪 Paper Trader":
                                     "rejected (may already be open).")
                         except Exception as exc:
                             st.error(f"Open failed: {exc}")
-                    _h_info_col.caption(
-                        f"Conviction score combines: scanner "
-                        f"{_h_conf}% · {_h_fc} · "
-                        f"R:R {_h_rr:.2f}"
-                        + (" · 9-lane composite agrees"
-                           if _h_elite_match else ""))
+                    # Info column — convincing one-liner explaining
+                    # WHY this pick is #1, not just the metrics.
+                    _h_why_bits = []
+                    if _h_in_convergence:
+                        _h_why_bits.append(
+                            "backtested edge (Convergence)")
+                    if _h_in_sureshot:
+                        _h_why_bits.append("Sure Shot meta-filter")
+                    if _h_elite_match and _h_e_lanes >= 2:
+                        _h_why_bits.append(
+                            f"{_h_e_lanes} ELITE lanes agree")
+                    if _h_regime_aligned:
+                        _h_why_bits.append(
+                            f"{_h_regime_label.lower()} regime")
+                    if _h_fc == "forecast confirms · aligned 3/3":
+                        _h_why_bits.append("forecast 3/3")
+                    _h_why = (" · ".join(_h_why_bits[:3])
+                              if _h_why_bits
+                              else f"scanner {_h_conf}% conviction")
+                    _h_info_col.markdown(
+                        f"<div style='padding:8px 14px;color:#c8d2ed;"
+                        f"font-size:0.85rem;line-height:1.5'>"
+                        f"<b style='color:#ffd700'>Why this is "
+                        f"{'#1' if _h_idx == 0 else '#2'}:</b><br>"
+                        f"{_h_why}"
+                        f"</div>",
+                        unsafe_allow_html=True)
 
             for _row in _segmented_picks:
                 # Segment-header row — render the section divider+title
