@@ -34,6 +34,10 @@ screenshot*.png
 # 24/7 Agent bot state — separate paper history for the agent section
 .agent_bot.json
 
+# Signal fire log — persisted STRONG+ signal fires for the
+# 🔥 RECENT FIRES section (machine-specific)
+.signal_fires.json
+
 # Local test scratch files
 .symbol_test.py
 .watchlist_test.py

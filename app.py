@@ -49,6 +49,7 @@ import oracle
 import orderflow
 import live_broker as lb
 import paper_bot
+import signal_fires  # persistent 🔥 RECENT FIRES log
 # 24/7 Agent section modules — deep multi-TF analysis on the portfolio +
 # premium picks from the rest of Binance, with shared chart builders.
 import coin_deep_analyzer
@@ -826,6 +827,11 @@ st.markdown(
 
 # --- Paper trading bot state file (lives next to app.py, gitignored) ------
 PAPER_BOT_FILE = Path(__file__).resolve().parent / ".paper_bot.json"
+
+# --- 🔥 Persistent signal fire log (every STRONG+ pick gets logged with
+# timestamp + entry price so the 🔥 RECENT FIRES section can surface
+# fires that happened while the user was away).
+SIGNAL_FIRES_FILE = Path(__file__).resolve().parent / ".signal_fires.json"
 
 # --- 24/7 Agent bot state file — SEPARATE from paper_bot so the agent
 # section has its own open positions + closed-trade history that doesn't
@@ -5586,6 +5592,175 @@ if active_section == "🧪 Paper Trader":
     # ---- Bank + trade stats — LIVE fragment (updates in place every 10s)
     _live_paper_stats()
 
+    # ====================================================================
+    # 🔥 RECENT FIRES — persistent signal log (last 12 hours)
+    # ====================================================================
+    # The dashboard is stateless — every scan is a fresh snapshot, so a
+    # STRONG+ fire at 03:00 UTC that resets by 04:00 would be invisible
+    # to a user looking at 09:00. signal_fires.py persists every fire
+    # to .signal_fires.json with timestamp + entry, and we surface them
+    # here with post-fire performance (% since fire).
+    #
+    # This is the ENA-MISSING fix: pattern_scout fired ENA at 85 LONG at
+    # 03:00 UTC, but the pattern was gone by 04:00. With this section, a
+    # user who refreshes at 14:00 UTC still sees "🔥 ENA fired LONG 85
+    # at 03:00 → now +28%". They can audit what played out + spot late
+    # entry chances on still-running moves.
+    try:
+        _all_fires = signal_fires.load_fires(SIGNAL_FIRES_FILE)
+        _rf_recent = signal_fires.recent_fires(_all_fires, hours=12.0)
+        # Enrich with current-price performance. `prices` is defined
+        # earlier in this Paper Trader block (line ~5430); fall back to
+        # empty dict if not yet populated.
+        try:
+            _rf_prices = prices or {}
+        except NameError:
+            _rf_prices = {}
+        signal_fires.enrich_perf(_rf_recent, _rf_prices)
+    except Exception:
+        _rf_recent = []
+
+    if _rf_recent:
+        # Premium header — gold/orange gradient (fire colours)
+        _rf_winning = sum(1 for f in _rf_recent if f.get("winning"))
+        _rf_losing = sum(1 for f in _rf_recent
+                         if f.get("winning") is False)
+        _rf_pending = len(_rf_recent) - _rf_winning - _rf_losing
+        st.markdown(
+            "<div style='display:flex;align-items:center;gap:14px;"
+            "margin-top:18px;margin-bottom:6px'>"
+            "<span style='font-size:1.4rem;font-weight:900;"
+            "background:linear-gradient(135deg,#ff6b35,#ffd700,"
+            "#ff006e);-webkit-background-clip:text;"
+            "-webkit-text-fill-color:transparent;background-clip:text;"
+            "letter-spacing:-0.02em'>🔥 RECENT FIRES</span>"
+            "<span style='color:#aab;font-size:0.82rem'>"
+            "every STRONG+ signal logged in the last 12h · "
+            "tracks what played out</span>"
+            "</div>",
+            unsafe_allow_html=True)
+        # Summary chip row
+        _rf_summary = []
+        if _rf_winning:
+            _rf_summary.append(
+                f"<b style='color:#2ed47a'>{_rf_winning} winning</b>")
+        if _rf_losing:
+            _rf_summary.append(
+                f"<b style='color:#ff5c5c'>{_rf_losing} losing</b>")
+        if _rf_pending:
+            _rf_summary.append(
+                f"<b style='color:#aab'>{_rf_pending} pending</b>")
+        st.markdown(
+            f"<div style='display:inline-flex;align-items:center;"
+            f"gap:10px;padding:6px 14px;border-radius:10px;"
+            f"background:linear-gradient(90deg,rgba(255,107,53,0.10),"
+            f"rgba(255,215,0,0.06));border:1px solid "
+            f"rgba(255,107,53,0.25);margin-bottom:10px'>"
+            f"<span style='color:#e6e6e6;font-weight:700;"
+            f"font-size:0.88rem'>{len(_rf_recent)} fires "
+            f"logged</span>"
+            f"<span style='color:#888;font-size:0.78rem'>·</span>"
+            f"<span style='color:#aab;font-size:0.80rem'>"
+            f"{' · '.join(_rf_summary)}</span>"
+            f"</div>",
+            unsafe_allow_html=True)
+
+        # Render each fire as a compact row card
+        _rf_lane_labels = {
+            "vwap_zfade": "🌀", "liq_exhaustion": "💧",
+            "rebound": "🔁", "breakout_coil": "🚀",
+            "pattern_scout": "🎯", "reversal_app": "🔭",
+            "early_momentum": "⚡", "recovery": "🔄",
+            "deriv_velocity": "💱",
+        }
+        for _f in _rf_recent[:15]:
+            _f_sym = _f.get("symbol", "?")
+            _f_base = _f.get("base", _f_sym.replace("USDT", ""))
+            _f_side = (_f.get("side") or "?").upper()
+            _f_score = float(_f.get("score") or 0)
+            _f_tier = _f.get("tier", "STRONG")
+            _f_entry = float(_f.get("entry") or 0)
+            _f_cur = float(_f.get("current_price") or 0)
+            _f_pct = _f.get("pct_since_fire")
+            _f_fired_at = float(_f.get("fired_at") or 0)
+            _f_age_min = max(0, (time.time() - _f_fired_at) / 60.0)
+            if _f_age_min < 60:
+                _f_age_str = f"{_f_age_min:.0f}m ago"
+            else:
+                _f_age_str = f"{_f_age_min/60:.1f}h ago"
+            _f_fired_dt = datetime.fromtimestamp(
+                _f_fired_at, tz=timezone.utc).strftime("%H:%M UTC")
+            _f_side_color = ("#2ed47a" if _f_side == "LONG"
+                             else "#ff5c5c")
+            _f_side_emoji = "🟢" if _f_side == "LONG" else "🩸"
+            # Perf colour + chip
+            if _f_pct is None:
+                _perf_chip = (
+                    "<span style='background:rgba(255,255,255,0.05);"
+                    "color:#888;padding:3px 10px;border-radius:6px;"
+                    "font-size:0.74rem;font-weight:700'>"
+                    "price n/a</span>")
+            else:
+                _perf_color = ("#2ed47a" if _f.get("winning")
+                               else "#ff5c5c" if _f_pct < 0
+                               else "#aab")
+                _perf_chip = (
+                    f"<span style='background:rgba("
+                    f"{'46,212,122' if _f.get('winning') else '255,92,92'}"
+                    f",0.15);color:{_perf_color};padding:3px 12px;"
+                    f"border-radius:6px;font-size:0.78rem;"
+                    f"font-weight:800;border:1px solid "
+                    f"rgba({'46,212,122' if _f.get('winning') else '255,92,92'},0.30)'>"
+                    f"{'+' if _f_pct > 0 else ''}{_f_pct:.2f}%</span>")
+            # Outcome chip
+            _outcome_chip = ""
+            if _f.get("tp1_hit"):
+                _outcome_chip = (
+                    "<span style='background:linear-gradient(90deg,"
+                    "#00d4ff,#2ed47a);color:#001122;padding:3px 10px;"
+                    "border-radius:6px;font-size:0.72rem;"
+                    "font-weight:800'>🎯 TP1 hit</span>")
+            elif _f.get("sl_hit"):
+                _outcome_chip = (
+                    "<span style='background:#ff5c5c33;color:#ff5c5c;"
+                    "padding:3px 10px;border-radius:6px;"
+                    "font-size:0.72rem;font-weight:800;"
+                    "border:1px solid #ff5c5c'>🛑 SL hit</span>")
+            # Lane chips (compact — just emojis)
+            _lane_str = "".join(_rf_lane_labels.get(ln, "·")
+                                for ln in (_f.get("active_lanes") or [])[:6])
+
+            with st.container(border=True):
+                st.markdown(
+                    f"<div style='display:flex;align-items:center;"
+                    f"gap:10px;flex-wrap:wrap'>"
+                    f"<span style='font-weight:800;font-size:1.0rem;"
+                    f"font-family:Space Grotesk,Inter,sans-serif'>"
+                    f"{_f_base}</span>"
+                    f"<span style='background:{_f_side_color};"
+                    f"color:#06121f;padding:3px 10px;border-radius:6px;"
+                    f"font-size:0.72rem;font-weight:800'>"
+                    f"{_f_side_emoji} {_f_side}</span>"
+                    f"<span style='background:linear-gradient(90deg,"
+                    f"#ff6b35,#ffd700);color:#1a1a1a;padding:3px 12px;"
+                    f"border-radius:6px;font-size:0.74rem;"
+                    f"font-weight:800'>"
+                    f"🔥 {_f_tier} · {_f_score:.0f}</span>"
+                    f"<span style='color:#888;font-size:0.78rem'>"
+                    f"fired {_f_fired_dt} · {_f_age_str}</span>"
+                    f"<span style='color:#aab;font-size:0.78rem'>"
+                    f"@ <code>{_f_entry:g}</code></span>"
+                    f"<span style='color:#888;font-size:0.78rem'>→</span>"
+                    f"<span style='color:#fff;font-size:0.82rem;"
+                    f"font-weight:700'>now <code>{_f_cur:g}</code>"
+                    f"</span>"
+                    f"{_perf_chip}"
+                    f"{_outcome_chip}"
+                    f"<span style='color:#aab;font-size:0.85rem;"
+                    f"margin-left:6px'>{_lane_str}</span>"
+                    f"</div>",
+                    unsafe_allow_html=True)
+
     st.divider()
 
     # ---- Main two-column layout: LEFT = open new trade, RIGHT = positions
@@ -8799,6 +8974,23 @@ if active_section == "🧪 Paper Trader":
             _u_picks = [p for p in (_u_picks_raw or [])
                         if float(p.get("score") or 0) >= 80]
             _u_standard_count = (len(_u_picks_raw or []) - len(_u_picks))
+
+            # 🔥 Persist every STRONG+ fire to the log so the
+            # 🔥 RECENT FIRES section at the top of Paper Trader can
+            # show them even after they've reset to neutral. Dedupe
+            # window inside signal_fires prevents log spam.
+            try:
+                _new_fires = signal_fires.record_fires(
+                    SIGNAL_FIRES_FILE, _u_picks,
+                    source="unified", min_score=80.0)
+                if _new_fires:
+                    # Tiny narrator chip so user sees the log captured it
+                    st.caption(
+                        f"🔥 {_new_fires} new fire"
+                        f"{'s' if _new_fires != 1 else ''} logged to "
+                        "RECENT FIRES (above)")
+            except Exception:
+                pass
 
             if not _u_picks:
                 # Show how many sub-80 picks exist (transparency) but
