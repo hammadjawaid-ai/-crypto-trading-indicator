@@ -7991,31 +7991,76 @@ if active_section == "🧪 Paper Trader":
             # ============================================================
             # User: "have 4 or 5 trades to open when it's the best to trade.
             # If there are no such activity so two as it shows now works."
+            # User update: "hero cards can also show long if the system
+            # and everything aligns even in bearish market"
             #
-            # Scale the hero count by how many picks are GENUINELY worth
-            # heroising — not just by count:
-            #   - Always show at least top 2 (current default for quiet
-            #     days with marginal setups)
-            #   - When 3+ picks have BOTH high combined score (>=82, i.e.
-            #     near-HIGH tier) AND ELITE composite confirms the side,
-            #     expand to show ALL such picks, capped at 5.
-            # This means: quiet day = 2 picks (today's behavior preserved).
-            # Active day with multi-system agreement = up to 5 heroes.
-            def _is_double_confirmed(pk, elite_map):
-                """Pick has high combined AND ELITE matches the side."""
+            # New rule (regime-agnostic when multiple proven systems agree):
+            # Count CONFIRMATIONS from proven layers — when 2+ agree on
+            # the same coin + side at strong score, qualify as STRONG
+            # mode hero EVEN IF the regime is decisively against the side.
+            #
+            # The reason: a LONG in BEAR with CONVERGENCE +6.8pp edge +
+            # PREMIUM tier + Pattern Scout strong is a setup the proven
+            # systems are all calling. ENA went +40% during a bear day.
+            # If multiple backtested-edge systems align, trust them over
+            # the regime regardless of which side they call.
+            #
+            # ELITE alone (coin-flip in 25-coin backtest) is NOT enough
+            # by itself — it must be paired with at least one
+            # backtest-validated system (CONVERGENCE / SURE SHOT / PREMIUM)
+            # or another ELITE-equivalent signal.
+            def _count_strong_confirmations(pk, elite_map,
+                                            convergence_syms,
+                                            sure_shot_syms):
+                """Count independent proven-system confirmations for a
+                pick. Returns int >= 0."""
                 combined_pk = pk[0]
-                if combined_pk < 82:
-                    return False
+                fc_label_pk = pk[1]
                 sym = pk[4].get("symbol")
+                side = (pk[4].get("side") or "").upper()
+                conf_pk = int(pk[4].get("confidence") or 0)
+                n = 0
+                # Confirmation 1: CONVERGENCE meta-filter (backtested
+                # +6.8pp edge — strongest standalone confirmation)
+                if sym in convergence_syms:
+                    n += 1
+                # Confirmation 2: SURE SHOT meta-filter (strict 88+
+                # multi-confirm)
+                if sym in sure_shot_syms:
+                    n += 1
+                # Confirmation 3: PREMIUM tier (scanner conf >=80 AND
+                # forecast aligned 3/3)
+                if (conf_pk >= 80 and
+                        fc_label_pk == "forecast confirms · aligned 3/3"):
+                    n += 1
+                # Confirmation 4: ELITE composite (only counts when side
+                # matches and score >=80 — paired confirmation only)
                 e = elite_map.get(sym)
-                if not e:
-                    return False
-                return (e.get("side") or "").upper() == (
-                    pk[4].get("side") or "").upper() \
-                    and float(e.get("score") or 0) >= 80
+                if (e and
+                        (e.get("side") or "").upper() == side and
+                        float(e.get("score") or 0) >= 80):
+                    n += 1
+                return n
 
-            _strong_aligned = [pk for pk in _confirmed_segment
-                              if _is_double_confirmed(pk, _elite_lookup)]
+            def _is_hero_eligible(pk, elite_map,
+                                  convergence_syms, sure_shot_syms):
+                """Eligible for STRONG-mode hero when:
+                  - Combined score >= 82 (HIGH tier territory)
+                  - At least 2 independent proven-system confirmations
+                Regime-agnostic: this catches strong LONGs in BEAR and
+                strong SHORTs in BULL when multiple proven layers
+                independently agree."""
+                if pk[0] < 82:
+                    return False
+                return _count_strong_confirmations(
+                    pk, elite_map, convergence_syms,
+                    sure_shot_syms) >= 2
+
+            _strong_aligned = [
+                pk for pk in _confirmed_segment
+                if _is_hero_eligible(pk, _elite_lookup,
+                                    _convergence_syms,
+                                    _sure_shot_syms)]
             if len(_strong_aligned) >= 3:
                 # Strong activity — show all double-confirmed picks (cap 5)
                 _hero_picks = _strong_aligned[:5]
@@ -8034,8 +8079,10 @@ if active_section == "🧪 Paper Trader":
                 if _hero_mode == "STRONG":
                     _hero_subhead = (
                         f"<b style='color:#2ed47a'>{len(_hero_picks)} "
-                        f"strong setups</b> · alerts engine + ELITE "
-                        "composite both agree · click any button to open")
+                        f"strong setups</b> · 2+ proven systems "
+                        "agree (CONVERGENCE / SURE SHOT / PREMIUM / "
+                        "ELITE) · regime-agnostic · click any button "
+                        "to open")
                 else:
                     _hero_subhead = (
                         f"top {len(_hero_picks)} highest-conviction "
