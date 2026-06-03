@@ -7786,6 +7786,47 @@ if active_section == "🧪 Paper Trader":
         _bot_picks = _bot_picks[:12]   # trim back to 12 display slots
 
         # ============================================================
+        # ⚡ ELITE PRECOMPUTE — fetch ELITE 9-lane composite picks
+        # so we can (a) tag matching TOP CONVICTION cards with an
+        # ⚡ ELITE chip showing 9-lane confirmation, and (b) the
+        # ELITE block below uses the SAME cached data (no double scan).
+        # Cache TTL dropped to 5 min — user wanted fresher signals.
+        # ============================================================
+        try:
+            import importlib
+            import experimental_signals as _elite_mod
+            importlib.reload(_elite_mod)
+        except Exception:
+            _elite_mod = None
+        _elite_scan_fn = None
+        if _elite_mod is not None:
+            _elite_scan_fn = (getattr(_elite_mod, "scan_unified", None)
+                              or getattr(_elite_mod,
+                                         "scan_experimental", None))
+
+        @st.cache_data(ttl=300, show_spinner=False)  # 5 min (was 15)
+        def _load_elite_picks_cached(_v: int = 5):
+            if _elite_scan_fn is None:
+                return []
+            try:
+                return _elite_scan_fn(
+                    scan_n=100, interval="1h",
+                    min_score=70.0, max_picks=20)
+            except Exception:
+                return []
+
+        try:
+            _elite_picks_all = _load_elite_picks_cached()
+        except Exception:
+            _elite_picks_all = []
+        # Lookup: symbol -> ELITE pick (filtered to STRONG+ score >= 80)
+        _elite_lookup = {
+            p.get("symbol"): p
+            for p in (_elite_picks_all or [])
+            if float(p.get("score") or 0) >= 80
+        }
+
+        # ============================================================
         # 🔥 NEW CHIP — track first-seen timestamps in session_state
         # ============================================================
         # User: "should pop up" — when a NEW pick first appears, mark
@@ -7944,6 +7985,204 @@ if active_section == "🧪 Paper Trader":
                 _segmented_picks.extend(
                     [(*pk, "ANTICIPATORY")
                      for pk in _anticipatory_segment])
+
+            # ============================================================
+            # 🎯 TRADE THIS NOW — HERO CARD for the #1 conviction pick
+            # ============================================================
+            # User feedback: "Auto-mark the top 1-2 picks as 'TRADE THIS
+            # NOW' with a giant button". Reduces decision fatigue — the
+            # very best pick (highest combined_score, confirmed segment
+            # only) gets a hero card BEFORE the segmented list. Bonus:
+            # if it's also confirmed by ELITE composite, that's surfaced
+            # in big letters too.
+            #
+            # Selection rule: the highest-priority CONFIRMED pick (not
+            # anticipatory — anticipatory entries have buffered stops
+            # and aren't size-up candidates).
+            _hero_picks = _confirmed_segment[:2] if _confirmed_segment else []
+            if _hero_picks:
+                # Hero header strip
+                st.markdown(
+                    "<div style='display:flex;align-items:center;"
+                    "gap:14px;margin-top:22px;margin-bottom:6px'>"
+                    "<span style='font-size:1.5rem;font-weight:900;"
+                    "background:linear-gradient(135deg,"
+                    "#ffd700,#ff006e,#00d4ff,#2ed47a);"
+                    "-webkit-background-clip:text;"
+                    "-webkit-text-fill-color:transparent;"
+                    "background-clip:text;letter-spacing:-0.02em'>"
+                    "🎯 TRADE THIS NOW</span>"
+                    "<span style='color:#aab;font-size:0.82rem'>"
+                    f"top {len(_hero_picks)} highest-conviction "
+                    "setup{} · click the big button to open"
+                    "</span>"
+                    "</div>".format("s" if len(_hero_picks) > 1 else ""),
+                    unsafe_allow_html=True)
+                for _h_idx, _hp in enumerate(_hero_picks):
+                    _h_combined, _h_fc, _h_trend, _h_align, _h_s = _hp
+                    _h_sym = _h_s.get("symbol", "?")
+                    _h_base = _h_s.get(
+                        "base", _h_sym.replace("USDT", ""))
+                    _h_side = (_h_s.get("side") or "LONG").upper()
+                    _h_score = int(min(99, max(0, _h_combined)))
+                    _h_conf = int(_h_s.get("confidence") or 0)
+                    _h_entry = float(
+                        _h_s.get("entry_low")
+                        or prices.get(_h_sym) or 0)
+                    _h_stop = float(_h_s.get("stop") or 0)
+                    _h_tgt = float(_h_s.get("target") or 0)
+                    _h_tgt2 = float(_h_s.get("target_2") or 0)
+                    _h_rr = float(_h_s.get("rr") or 0)
+                    _h_side_color = ("#2ed47a" if _h_side == "LONG"
+                                     else "#ff5c5c")
+                    _h_side_emoji = "🟢" if _h_side == "LONG" else "🩸"
+                    # SL / TP / R:R percentages
+                    _h_sl_pct = ((_h_stop - _h_entry) / _h_entry * 100
+                                 if _h_entry > 0 else 0)
+                    _h_tp_pct = ((_h_tgt - _h_entry) / _h_entry * 100
+                                 if _h_entry > 0 else 0)
+                    # ELITE confirmation?
+                    _h_elite = _elite_lookup.get(_h_sym)
+                    _h_elite_match = (
+                        _h_elite
+                        and (_h_elite.get("side") or "").upper() == _h_side)
+                    _h_elite_str = ""
+                    if _h_elite_match:
+                        _h_e_lanes = int(
+                            _h_elite.get("n_strong_lanes") or 0)
+                        _h_e_score = float(_h_elite.get("score") or 0)
+                        _h_elite_str = (
+                            f"<span style='background:linear-gradient("
+                            f"90deg,#ffd700,#00d4ff);color:#001122;"
+                            f"padding:4px 14px;border-radius:8px;"
+                            f"font-size:0.82rem;font-weight:800;"
+                            f"box-shadow:0 0 12px "
+                            f"rgba(255,215,0,0.5);margin-left:8px'>"
+                            f"⚡ ELITE confirms · {_h_e_score:.0f} · "
+                            f"{_h_e_lanes} lane"
+                            f"{'s' if _h_e_lanes != 1 else ''}</span>")
+                    # Hero rank ribbon
+                    _h_rank_text = "#1 PICK" if _h_idx == 0 else "#2 PICK"
+                    _h_rank_grad = (
+                        "linear-gradient(135deg,#ffd700,#ff8c00)"
+                        if _h_idx == 0
+                        else "linear-gradient(135deg,#c0c0c0,#888)")
+                    # Render the giant card
+                    st.markdown(
+                        f"<div style='background:linear-gradient(135deg,"
+                        f"rgba(255,215,0,0.10),rgba(255,0,110,0.06),"
+                        f"rgba(0,212,255,0.08));"
+                        f"border:2px solid rgba(255,215,0,0.45);"
+                        f"border-radius:18px;padding:20px 24px;"
+                        f"margin-bottom:14px;"
+                        f"box-shadow:0 0 32px rgba(255,215,0,0.30),"
+                        f"inset 0 0 24px rgba(255,215,0,0.05)'>"
+                        # Top row — rank ribbon + base name + side + ELITE
+                        f"<div style='display:flex;align-items:center;"
+                        f"gap:12px;flex-wrap:wrap;margin-bottom:10px'>"
+                        f"<span style='background:{_h_rank_grad};"
+                        f"color:#1a1a1a;padding:4px 14px;"
+                        f"border-radius:8px;font-size:0.82rem;"
+                        f"font-weight:900;letter-spacing:0.04em'>"
+                        f"🏆 {_h_rank_text}</span>"
+                        f"<span style='font-weight:900;font-size:"
+                        f"1.55rem;font-family:Space Grotesk,Inter,"
+                        f"sans-serif;letter-spacing:-0.02em;color:#fff'>"
+                        f"{_h_base}</span>"
+                        f"<span style='color:#888;font-size:0.85rem'>"
+                        f"· {_h_sym}</span>"
+                        f"<span style='background:{_h_side_color};"
+                        f"color:#06121f;padding:4px 14px;"
+                        f"border-radius:8px;font-size:0.86rem;"
+                        f"font-weight:800'>{_h_side_emoji} "
+                        f"{_h_side}</span>"
+                        f"<span style='background:linear-gradient(90deg,"
+                        f"#ffd700,#ff006e);color:#fff;padding:4px 14px;"
+                        f"border-radius:8px;font-size:0.86rem;"
+                        f"font-weight:800'>"
+                        f"🎯 SCORE {_h_score}</span>"
+                        f"{_h_elite_str}"
+                        f"</div>"
+                        # Plan strip
+                        f"<div style='background:rgba(0,0,0,0.35);"
+                        f"padding:12px 16px;border-radius:10px;"
+                        f"font-size:0.95rem;color:#fff;line-height:1.8;"
+                        f"margin-bottom:10px'>"
+                        f"<b style='color:#fff'>Entry</b> "
+                        f"<code style='background:rgba(255,255,255,"
+                        f"0.10);padding:3px 10px;border-radius:5px;"
+                        f"color:#fff;font-size:0.95rem'>"
+                        f"{_h_entry:g}</code> "
+                        f"<span style='color:#666'>·</span> "
+                        f"<b style='color:#ff8585'>Stop</b> "
+                        f"<code style='background:rgba(255,92,92,0.15);"
+                        f"padding:3px 10px;border-radius:5px;"
+                        f"color:#ff8585'>{_h_stop:g}</code> "
+                        f"<span style='color:#ff5c5c;font-weight:700'>"
+                        f"({_h_sl_pct:+.2f}%)</span> "
+                        f"<span style='color:#666'>·</span> "
+                        f"<b style='color:#2ed47a'>Target</b> "
+                        f"<code style='background:rgba(46,212,122,"
+                        f"0.15);padding:3px 10px;border-radius:5px;"
+                        f"color:#2ed47a'>{_h_tgt:g}</code> "
+                        f"<span style='color:#2ed47a;font-weight:700'>"
+                        f"({_h_tp_pct:+.2f}%)</span> "
+                        f"<span style='color:#666'>·</span> "
+                        f"<b style='color:#ffd700;font-size:1.0rem'>"
+                        f"R:R {_h_rr:.2f}</b>"
+                        f"</div>"
+                        f"</div>",
+                        unsafe_allow_html=True)
+                    # GIANT button row
+                    _h_btn_col, _h_info_col = st.columns([2, 3])
+                    if _h_btn_col.button(
+                            f"📥 TRADE {_h_base} {_h_side} NOW",
+                            key=f"hero_trade_{_h_sym}_{_h_idx}",
+                            use_container_width=True,
+                            type="primary",
+                            help=(f"Opens a Paper Trader position for "
+                                  f"{_h_base} at the planned entry, "
+                                  f"with stop and target pre-set.")):
+                        try:
+                            _h_alert = {
+                                "symbol": _h_sym,
+                                "base": _h_base,
+                                "side": _h_side,
+                                "entry_low": _h_entry,
+                                "stop": _h_stop,
+                                "target": _h_tgt,
+                                "target_2": _h_tgt2,
+                                "confidence": _h_conf,
+                                "rr": _h_rr,
+                                "strength_factor": max(
+                                    0.4, min(1.0,
+                                             (_h_score - 65) / 30 + 0.4)),
+                                "_hero_source": "top_conviction_hero",
+                                "_elite_confirmed": bool(_h_elite_match),
+                            }
+                            _h_pos = paper_bot.open_position(
+                                pb_state, _h_alert, _h_entry)
+                            paper_bot.save_state(
+                                PAPER_BOT_FILE, pb_state)
+                            if _h_pos:
+                                st.success(
+                                    f"Opened {_h_side} {_h_sym} at "
+                                    f"{_h_entry:g} "
+                                    f"(score {_h_score}"
+                                    f"{' · ⚡ ELITE confirmed' if _h_elite_match else ''})")
+                                st.rerun()
+                            else:
+                                st.warning(
+                                    "Not opened — Paper Trader "
+                                    "rejected (may already be open).")
+                        except Exception as exc:
+                            st.error(f"Open failed: {exc}")
+                    _h_info_col.caption(
+                        f"Conviction score combines: scanner "
+                        f"{_h_conf}% · {_h_fc} · "
+                        f"R:R {_h_rr:.2f}"
+                        + (" · 9-lane composite agrees"
+                           if _h_elite_match else ""))
 
             for _row in _segmented_picks:
                 # Segment-header row — render the section divider+title
@@ -8132,6 +8371,33 @@ if active_section == "🧪 Paper Trader":
                         f"0.72rem;font-weight:800;margin-left:4px;"
                         f"box-shadow:0 0 8px rgba(91,142,255,0.4)'>"
                         f"🔭 SETUP FORMING</span>")
+
+                # ⚡ ELITE chip — the 9-lane composite ALSO confirms
+                # this coin at STRONG+ (score >= 80). When this chip is
+                # present, the trade has multiple independent systems
+                # agreeing: alerts engine (TOP CONVICTION's primary
+                # source) PLUS the 9-lane composite. Highest confidence.
+                elite_chip = ""
+                _elite_match = _elite_lookup.get(s["symbol"])
+                if _elite_match:
+                    _e_score = float(_elite_match.get("score") or 0)
+                    _e_lanes = int(
+                        _elite_match.get("n_strong_lanes") or 0)
+                    # Side must match — don't show ⚡ ELITE LONG chip on
+                    # a SHORT card (would be confusing).
+                    _e_side = (_elite_match.get("side") or "").upper()
+                    if _e_side == side:
+                        elite_chip = (
+                            f"<span style='background:linear-gradient("
+                            f"90deg,#ffd700,#ff006e,#00d4ff);"
+                            f"color:#fff;padding:2px 10px;"
+                            f"border-radius:5px;font-size:0.72rem;"
+                            f"font-weight:800;margin-left:4px;"
+                            f"box-shadow:0 0 10px "
+                            f"rgba(255,215,0,0.5)'>"
+                            f"⚡ ELITE {_e_score:.0f}"
+                            f"{f' · {_e_lanes}L' if _e_lanes >= 2 else ''}"
+                            f"</span>")
 
                 # 🔥 NEW chip — pick first appeared in the last 5 min.
                 # Helps the user spot fresh fires at-a-glance without
@@ -8535,7 +8801,7 @@ if active_section == "🧪 Paper Trader":
                         f"{str_label} · {combined_display}</span>"
                         f"{new_chip}"
                         f"{conviction_chip}"
-                        f"{convergence_chip}{sure_shot_chip}"
+                        f"{convergence_chip}{sure_shot_chip}{elite_chip}"
                         f"{setup_forming_chip}{premium_chip}"
                         f"{recovery_chip}{coiled_chip}"
                         f"{early_chip}{long_chip}{rs_chip}{dv_chip}"
@@ -8901,14 +9167,12 @@ if active_section == "🧪 Paper Trader":
                           or getattr(_exp_sig, 'scan_experimental', None))
 
         if _u_scan_fn is not None:
-            # Floor raised to STRONG (80+) — per user, this board should
-            # only surface BEST + STRONG conviction picks, not weak 70-79
-            # standard setups. STANDARD tier is filtered out in display.
-            @st.cache_data(ttl=900, show_spinner=False)
-            def _pt_load_unified(_v: int = 4):
-                # Scan from 70 so we keep STANDARD picks in the data
-                # (other code may need them); we filter display to 80+
-                # below to enforce the "strong + best only" rule.
+            # Reuse the same cached data that the TOP CONVICTION block
+            # above already loaded (`_load_elite_picks_cached`). Avoids
+            # double-scanning the universe. Cache TTL lowered to 5 min
+            # at the source so both sections stay fresh.
+            @st.cache_data(ttl=300, show_spinner=False)
+            def _pt_load_unified(_v: int = 5):
                 return _u_scan_fn(
                     scan_n=100, interval="1h",
                     min_score=70.0, max_picks=20)
