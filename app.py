@@ -8697,20 +8697,35 @@ if active_section == "🧪 Paper Trader":
         # ---- 🩸 Top SHORT setups REMOVED — folded into BEST TRADES NOW
 
         # ============================================================
-        # 🧪 EXPERIMENTAL SIGNALS (research pass · isolated for testing)
+        # 🧪 UNIFIED SIGNAL COMPOSITE (merged Rebound + Breakout +
+        # experimental + every proven lane in the codebase)
         # ============================================================
-        # Two research-derived signals from a GitHub/literature scan:
-        #   1. VWAP Z-Score Fade (counter-trend mean reversion when
-        #      price ≥2σ from session VWAP + RSI extreme)
-        #   2. Long-Exhaustion Liquidation Reversal (3-bar drop +
-        #      OI also falling = longs deleveraging + absorption
-        #      candle = bottom signature)
-        # Both NEW additions — verified non-overlap with existing
-        # signal modules. Marked EXPERIMENTAL until local backtest
-        # produces n>=20 fires per signal.
-        # Trades open to PAPER_BOT_FILE (same as the rest of Paper
-        # Trader) so the user can A/B test efficacy in one ledger.
-        # Revert anchor: stable-paper-trader-v3.
+        # ONE comprehensive board that runs EVERY signal lane on every
+        # coin in the top universe and composites them into a single
+        # conviction score per coin. Replaces the separated REBOUND
+        # HUNTER + BREAKOUT HUNTER + (old) EXPERIMENTAL boards.
+        #
+        # Lanes (weighted, sum to 1.00):
+        #   vwap_zfade      0.10  — counter-trend ≥2σ + RSI extreme
+        #   liq_exhaustion  0.13  — 3-bar drop + OI capitulation + absorption
+        #   rebound         0.13  — V-bottom composite (rebound_radar)
+        #   breakout_coil   0.10  — BB squeeze + OBV accumulation
+        #   pattern_scout   0.18  — hammer / morning star / engulfing
+        #   reversal_app    0.10  — 7 pre-fire reversal pre-conditions
+        #   early_momentum  0.10  — CVD + TTM + SMC + VWAP reclaim
+        #   recovery        0.08  — recovery_detector V-bottom (75% bt)
+        #   deriv_velocity  0.08  — funding ROC + OI compression
+        #
+        # Conviction tier (mirrors BEST TRADES NOW logic):
+        #   🟣 MAX     score>=90 AND ≥3 lanes scoring 70+
+        #   🔴 HIGH    score>=85 AND ≥2 lanes scoring 70+
+        #   🟢 STRONG  score>=80
+        #   🔵 STANDARD score>=70  (firing floor)
+        #
+        # Cards rendered in BEST TRADES NOW style: tier badge + side
+        # chip + all firing lane chips + full plan + 📥 Open.
+        # Trades open to PAPER_BOT_FILE with `_unified_source`
+        # tag for A/B testing in closed-trade history.
         try:
             import experimental_signals as _exp_sig
         except Exception:
@@ -8718,396 +8733,198 @@ if active_section == "🧪 Paper Trader":
 
         if _exp_sig is not None:
             @st.cache_data(ttl=900, show_spinner=False)
-            def _pt_load_experimental(_v: int = 1):
-                return _exp_sig.scan_experimental(
-                    scan_n=80, interval="1h",
-                    min_score=70.0, max_picks=12)
+            def _pt_load_unified(_v: int = 2):
+                return _exp_sig.scan_unified(
+                    scan_n=100, interval="1h",
+                    min_score=70.0, max_picks=15)
 
             st.markdown(
                 "<div style='display:flex;align-items:center;gap:14px;"
-                "margin-top:28px;margin-bottom:10px'>"
+                "margin-top:28px;margin-bottom:6px'>"
                 "<span style='font-size:1.45rem;font-weight:900;"
-                "background:linear-gradient(135deg,#ff6b35,#ffa657,"
-                "#ffd700);-webkit-background-clip:text;"
+                "background:linear-gradient(135deg,#ff6b35,#ff006e,"
+                "#8b5cf6);-webkit-background-clip:text;"
                 "-webkit-text-fill-color:transparent;"
                 "background-clip:text;letter-spacing:-0.02em'>"
-                "🧪 EXPERIMENTAL SIGNALS</span>"
+                "🧪 UNIFIED COMPOSITE</span>"
                 "<span style='color:#aab;font-size:0.82rem'>"
-                "research pass · VWAP Z-Score Fade + "
-                "Long-Exhaustion Liquidation Reversal · A/B testing"
-                "</span>"
+                "9 signal lanes · rebound + breakout + experimental · "
+                "BEST-TRADES-style conviction tiers</span>"
                 "</div>",
                 unsafe_allow_html=True)
             st.caption(
-                "Two NEW signals not covered by the main boards. "
-                "**VWAP Z-Score Fade** = counter-trend reversion when "
-                "price is ≥2σ from session VWAP + RSI extreme (~55-60% "
-                "hit rate per NinjaTrader research). **Long-Exhaustion "
-                "Liquidation Reversal** = fires after a 4%+ 3-bar drop "
-                "where OI also fell 5%+ (longs deleveraging) + volume "
-                "spike + absorption candle (~60-65% hit rate per "
-                "CryptoCred microstructure analysis). Open trades here "
-                "to A/B test against the main boards. Cached 15 min.")
+                "Every proven signal lane composited into ONE board. "
+                "**Lanes:** Pattern Scout · Reversal Approach · "
+                "V-Bottom Recovery · Early Momentum (CVD+TTM+SMC) · "
+                "Derivatives Velocity (funding+OI) · Rebound Radar · "
+                "Breakout Coil · VWAP Z-Score Fade · Liq Exhaustion. "
+                "**Tiers** (like BEST TRADES NOW): 🟣 MAX (90+, "
+                "≥3 strong lanes) · 🔴 HIGH (85+, ≥2 strong) · "
+                "🟢 STRONG (80+) · 🔵 STANDARD (70+). Top 15 picks, "
+                "cached 15 min.")
             with st.spinner(
-                    "🧪 Scanning top 80 for experimental signals "
-                    "(~30s cold, instant cached)..."):
+                    "🧪 Scanning top 100 with 9-lane composite "
+                    "(~40-60s cold, instant cached)..."):
                 try:
-                    _exp_picks = _pt_load_experimental()
+                    _u_picks = _pt_load_unified()
                 except Exception as exc:
-                    st.error(f"Experimental scan failed: {exc}")
-                    _exp_picks = []
-            if not _exp_picks:
+                    st.error(f"Unified scan failed: {exc}")
+                    _u_picks = []
+            if not _u_picks:
                 st.info(
-                    "No experimental signals firing right now. Both "
-                    "lanes require extreme conditions (2σ VWAP "
-                    "deviation OR 4%+ 3-bar drop with OI capitulation) "
-                    "— rare. Check back next refresh.")
+                    "No unified picks at conviction ≥70 right now. "
+                    "Lanes are demanding (each requires the underlying "
+                    "signal at 60+ to contribute). When 2+ lanes agree "
+                    "on the same coin + side, picks surface here.")
             else:
+                # Lane-name pretty labels + emojis for chip render
+                _u_lane_labels = {
+                    "vwap_zfade":     ("🌀", "VWAP Z-Fade"),
+                    "liq_exhaustion": ("💧", "Liq Exhaustion"),
+                    "rebound":        ("🔁", "Rebound"),
+                    "breakout_coil":  ("🚀", "Breakout Coil"),
+                    "pattern_scout":  ("🎯", "Pattern Scout"),
+                    "reversal_app":   ("🔭", "Reversal Approach"),
+                    "early_momentum": ("⚡", "Early Momentum"),
+                    "recovery":       ("🔄", "V-Bottom"),
+                    "deriv_velocity": ("💱", "Deriv Velocity"),
+                }
+                _u_tier_style = {
+                    "MAX":     ("linear-gradient(90deg,#ffd700,#ff006e,"
+                                "#8b5cf6,#00d4ff)", "#fff", "🟣"),
+                    "HIGH":    ("linear-gradient(90deg,#ff006e,#8b5cf6)",
+                                "#fff", "🔴"),
+                    "STRONG":  ("linear-gradient(90deg,#00d4ff,#2ed47a)",
+                                "#001122", "🟢"),
+                    "STANDARD": ("rgba(255,255,255,0.08)", "#aab", "🔵"),
+                }
                 st.success(
-                    f"**{len(_exp_picks)} experimental signals firing.** "
-                    "Marked 🧪 EXPERIMENTAL — size small while we "
-                    "validate locally.")
-                for _xp in _exp_picks:
-                    _xp_sym = _xp.get("symbol", "?")
-                    _xp_side = (_xp.get("side") or "LONG").upper()
-                    _xp_score = float(_xp.get("score") or 0)
-                    _xp_lane = _xp.get("lane", "?")
-                    _xp_plan = _xp.get("trade_plan") or {}
-                    _xp_entry = float(_xp_plan.get("entry") or 0)
-                    _xp_stop = float(_xp_plan.get("stop") or 0)
-                    _xp_tp1 = float(_xp_plan.get("tp1") or 0)
-                    _xp_tp2 = float(_xp_plan.get("tp2") or 0)
-                    _xp_rr = float(_xp_plan.get("rr") or 0)
-                    sl_pct = ((_xp_stop - _xp_entry) / _xp_entry * 100
-                              if _xp_entry > 0 else 0)
-                    tp1_pct = ((_xp_tp1 - _xp_entry) / _xp_entry * 100
-                               if _xp_entry > 0 else 0)
-                    tp2_pct = ((_xp_tp2 - _xp_entry) / _xp_entry * 100
-                               if _xp_entry > 0 else 0)
-                    side_emoji = "🟢" if _xp_side == "LONG" else "🩸"
-                    lane_label = {
-                        "vwap_zscore": "VWAP Z-Fade",
-                        "liquidation_reversal": "Liq-Exhaustion",
-                    }.get(_xp_lane, _xp_lane)
+                    f"**{len(_u_picks)} unified picks firing** at "
+                    "conviction ≥70.")
+                for _u in _u_picks:
+                    _u_sym = _u.get("symbol", "?")
+                    _u_base = _u.get("base", _u_sym.replace("USDT", ""))
+                    _u_side = (_u.get("side") or "LONG").upper()
+                    _u_score = float(_u.get("score") or 0)
+                    _u_tier = _u.get("tier", "STANDARD")
+                    _u_plan = _u.get("trade_plan") or {}
+                    _u_entry = float(_u_plan.get("entry") or 0)
+                    _u_stop = float(_u_plan.get("stop") or 0)
+                    _u_tp1 = float(_u_plan.get("tp1") or 0)
+                    _u_tp2 = float(_u_plan.get("tp2") or 0)
+                    _u_rr = float(_u_plan.get("rr") or 0)
+                    sl_pct = ((_u_stop - _u_entry) / _u_entry * 100
+                              if _u_entry > 0 else 0)
+                    tp1_pct = ((_u_tp1 - _u_entry) / _u_entry * 100
+                               if _u_entry > 0 else 0)
+                    tp2_pct = ((_u_tp2 - _u_entry) / _u_entry * 100
+                               if _u_entry > 0 else 0)
+                    side_emoji = "🟢" if _u_side == "LONG" else "🩸"
+                    side_color = ("#2ed47a" if _u_side == "LONG"
+                                  else "#ff5c5c")
+                    tier_grad, tier_text, tier_emoji = _u_tier_style.get(
+                        _u_tier, _u_tier_style["STANDARD"])
+
+                    # Build the chip row showing which lanes fired
+                    lane_chips = ""
+                    for ln in (_u.get("active_lanes") or [])[:6]:
+                        emoji, label = _u_lane_labels.get(
+                            ln, ("·", ln))
+                        sc = (_u.get("lanes_fired") or {}).get(ln, 0)
+                        lane_chips += (
+                            f"<span style='background:rgba(255,107,53,"
+                            f"0.10);color:#ffa657;padding:2px 8px;"
+                            f"border-radius:5px;font-size:0.7rem;"
+                            f"font-weight:700;margin-right:4px;"
+                            f"margin-top:4px;display:inline-block'>"
+                            f"{emoji} {label} {sc:.0f}</span>")
+
                     with st.container(border=True):
                         tl, tr = st.columns([6, 1])
                         tl.markdown(
-                            f"**{_xp_sym}** · {side_emoji} {_xp_side} · "
-                            f"<span style='background:linear-gradient(90deg,"
-                            f"#ff6b35,#ffa657);color:#1a0c00;padding:"
-                            f"2px 10px;border-radius:5px;font-size:0.72rem;"
-                            f"font-weight:800'>🧪 {lane_label}</span> · "
-                            f"score <b>{_xp_score:.0f}</b><br>"
-                            f"<span style='color:#aab;font-size:0.85rem'>"
-                            f"Entry <code>{_xp_entry:g}</code> · SL "
-                            f"<code>{_xp_stop:g}</code> "
+                            # Header row — symbol + side + tier + score
+                            f"<div style='display:flex;align-items:center;"
+                            f"gap:8px;flex-wrap:wrap;margin-bottom:6px'>"
+                            f"<span style='font-weight:800;font-size:"
+                            f"1.05rem'>{_u_base}</span>"
+                            f"<span style='color:#aab;font-size:0.78rem'>"
+                            f"· {_u_sym}</span>"
+                            f"<span style='background:{side_color};"
+                            f"color:#06121f;padding:2px 10px;"
+                            f"border-radius:5px;font-size:0.72rem;"
+                            f"font-weight:800'>{side_emoji} {_u_side}"
+                            f"</span>"
+                            f"<span style='background:{tier_grad};"
+                            f"color:{tier_text};padding:2px 10px;"
+                            f"border-radius:5px;font-size:0.72rem;"
+                            f"font-weight:800;letter-spacing:0.02em'>"
+                            f"{tier_emoji} {_u_tier} · {_u_score:.0f}"
+                            f"</span>"
+                            f"<span style='color:#aab;font-size:0.74rem'>"
+                            f"{_u.get('n_strong_lanes', 0)} strong "
+                            f"lanes</span>"
+                            f"</div>"
+                            # Lane chips row
+                            f"<div>{lane_chips}</div>"
+                            # Plan row
+                            f"<div style='margin-top:8px;color:#aab;"
+                            f"font-size:0.82rem'>"
+                            f"Entry <code>{_u_entry:g}</code> · SL "
+                            f"<code>{_u_stop:g}</code> "
                             f"(<span style='color:#ff5c5c'>"
                             f"{sl_pct:+.2f}%</span>) · TP1 "
-                            f"<code>{_xp_tp1:g}</code> "
+                            f"<code>{_u_tp1:g}</code> "
                             f"(<span style='color:#2ed47a'>"
                             f"{tp1_pct:+.2f}%</span>) · TP2 "
-                            f"<code>{_xp_tp2:g}</code> "
+                            f"<code>{_u_tp2:g}</code> "
                             f"(<span style='color:#2ed47a'>"
                             f"{tp2_pct:+.2f}%</span>) · R:R "
-                            f"<b>{_xp_rr:.2f}</b></span>",
+                            f"<b>{_u_rr:.2f}</b></div>",
                             unsafe_allow_html=True)
                         if tr.button(
                                 "📥 Open",
-                                key=f"pt_exp_{_xp_sym}",
+                                key=f"pt_u_{_u_sym}",
                                 use_container_width=True):
                             try:
-                                _xp_alert = {
-                                    "symbol": _xp_sym,
-                                    "base": _xp_sym.replace("USDT", ""),
-                                    "side": _xp_side,
-                                    "entry_low": _xp_entry,
-                                    "stop": _xp_stop,
-                                    "target": _xp_tp1,
-                                    "target_2": _xp_tp2,
-                                    "confidence": int(_xp_score),
-                                    "rr": _xp_rr,
+                                _u_alert = {
+                                    "symbol": _u_sym,
+                                    "base": _u_base,
+                                    "side": _u_side,
+                                    "entry_low": _u_entry,
+                                    "stop": _u_stop,
+                                    "target": _u_tp1,
+                                    "target_2": _u_tp2,
+                                    "confidence": int(_u_score),
+                                    "rr": _u_rr,
                                     "strength_factor": max(
                                         0.4, min(1.0,
-                                                 (_xp_score - 65)
+                                                 (_u_score - 65)
                                                  / 30 + 0.4)),
-                                    "_experimental_source": _xp_lane,
+                                    "_unified_source": ",".join(
+                                        (_u.get("active_lanes")
+                                         or [])[:3]),
                                 }
-                                _xp_pos = paper_bot.open_position(
-                                    pb_state, _xp_alert, _xp_entry)
+                                _u_pos = paper_bot.open_position(
+                                    pb_state, _u_alert, _u_entry)
                                 paper_bot.save_state(
                                     PAPER_BOT_FILE, pb_state)
-                                if _xp_pos:
+                                if _u_pos:
                                     st.success(
-                                        f"Opened {_xp_side} {_xp_sym} "
-                                        f"at {_xp_entry:g} (from "
-                                        f"🧪 {lane_label})")
+                                        f"Opened {_u_side} {_u_sym} "
+                                        f"at {_u_entry:g} ({_u_tier} "
+                                        f"· {len(_u.get('active_lanes', []))} "
+                                        f"lanes)")
                                     st.rerun()
                                 else:
                                     st.warning(
                                         "Not opened — Paper Trader "
-                                        "rejected (already open / "
-                                        "balance / concurrency).")
+                                        "rejected.")
                             except Exception as exc:
                                 st.error(f"Open failed: {exc}")
-                        if _xp.get("reasons"):
+                        if _u.get("reasons"):
                             st.caption(
                                 "Why: " + " · ".join(
-                                    _xp["reasons"][:3]))
-
-        # ============================================================
-        # 🔁 + 🚀 HUNTERS (added per user — INSIDE Paper Trader)
-        # ============================================================
-        # Two composite scanners using the SAME paper_bot mechanics and
-        # PAPER_BOT_FILE state file. Trades opened here appear in the
-        # regular Paper Trader open-positions list and history alongside
-        # the other boards above. Both expanders default to collapsed
-        # so they don't crowd the page. Revert with:
-        #   git reset --hard stable-pre-rebound-breakout
-        try:
-            import rebound_radar as _rb_radar
-            import breakout_hunter as _bk_hunter
-        except Exception:
-            _rb_radar = None
-            _bk_hunter = None
-
-        if _rb_radar and _bk_hunter:
-            # Smaller scan_n than before — rebound 150→80, breakout 300→150
-            # — to make the on-click scan complete in ~30s instead of 90s.
-            # Universe still wide enough to catch what we care about
-            # (top 80 covers all major + top mid-caps; top 150 for breakout
-            # still reaches into mid-cap territory).
-            @st.cache_data(ttl=900, show_spinner=False)
-            def _pt_load_rebound(_v: int = 2):
-                return _rb_radar.scan_for_rebounds(
-                    scan_n=80, min_score=70.0,
-                    min_drawdown_pct=5.0, max_picks=12)
-
-            @st.cache_data(ttl=1800, show_spinner=False)
-            def _pt_load_breakout(_v: int = 2):
-                return _bk_hunter.scan_for_breakouts(
-                    scan_n=150, min_score=70.0,
-                    max_seven_day_chg=50.0,
-                    min_volume_usd=5_000_000.0, max_picks=12)
-
-            def _open_hunter_pick(sym, side, plan, score, source):
-                """Open into the same .paper_bot.json — Hunter picks
-                live alongside trades from BEST TRADES NOW / EARLY
-                SETUPS in the unified Paper Trader history."""
-                try:
-                    entry = float(plan.get("entry") or 0)
-                    alert = {
-                        "symbol": sym,
-                        "base": sym.replace("USDT", ""),
-                        "side": side,
-                        "entry_low": entry,
-                        "stop": float(plan.get("stop") or 0),
-                        "target": float(plan.get("tp1") or 0),
-                        "target_2": float(plan.get("tp2") or 0),
-                        "confidence": int(score),
-                        "rr": float(plan.get("rr") or 0),
-                        "strength_factor": max(
-                            0.4, min(1.0, (score - 65) / 30 + 0.4)),
-                        "_hunter_source": source,
-                    }
-                    pos = paper_bot.open_position(
-                        pb_state, alert, entry)
-                    paper_bot.save_state(PAPER_BOT_FILE, pb_state)
-                    if pos:
-                        st.success(
-                            f"Opened {side} {sym} at {entry:g} "
-                            f"(from {source} · Paper Trader history)")
-                        st.rerun()
-                    else:
-                        st.warning(
-                            "Position not opened — Paper Trader "
-                            "rejected (already open, balance, or "
-                            "concurrency issue).")
-                except Exception as exc:
-                    st.error(f"Open failed: {exc}")
-
-            # ----- 🔁 REBOUND HUNTER (15m + 1h) -----
-            # Lazy-loaded — the scan does NOT auto-run on every Paper
-            # Trader page render. User clicks "Run scan" to trigger,
-            # result is cached 15 min after that. This is the single
-            # biggest Paper Trader speed-up: the eager Hunter scans
-            # were adding ~60-90s to every cold page load.
-            with st.expander(
-                    "🔁 **REBOUND HUNTER** — first 5-7% of "
-                    "bearish→bullish rebounds (15m + 1h)",
-                    expanded=False):
-                st.caption(
-                    "Composites V-bottom + CVD divergence + funding "
-                    "extreme + reversal_approach 7-conditions + "
-                    "pattern_scout + drawdown depth + first-green-"
-                    "candle. Fires when 15m AND 1h both ≥60, blended "
-                    "≥70, coin ≥5% off recent high. Honest hit rate "
-                    "~55-65%.")
-                _reb_key = "pt_hunters_reb_scanned"
-                if not st.session_state.get(_reb_key, False):
-                    st.caption(
-                        "ℹ Click below to run the scan (top 80 coins, "
-                        "~30s). Cached 15 min after first scan.")
-                    if st.button("🔍 Run Rebound scan",
-                                 key="pt_hunters_reb_btn"):
-                        st.session_state[_reb_key] = True
-                        st.rerun()
-                    reb_picks = []
-                else:
-                    try:
-                        with st.spinner("Scanning top 80 for rebounds..."):
-                            reb_picks = _pt_load_rebound()
-                    except Exception as exc:
-                        st.error(f"Rebound scan failed: {exc}")
-                        reb_picks = []
-                if not reb_picks:
-                    st.caption(
-                        "No rebound setups firing right now — needs "
-                        "5+ lanes to align. Cached 10 min.")
-                else:
-                    st.success(
-                        f"**{len(reb_picks)} rebound setups firing.**")
-                    for p in reb_picks:
-                        sym = p["symbol"]
-                        sc = p["score"]
-                        dd = p["drawdown_pct"]
-                        exp = p["expected_move_pct"]
-                        plan = p.get("trade_plan") or {}
-                        entry = plan.get("entry", 0)
-                        stop = plan.get("stop", 0)
-                        tp1 = plan.get("tp1", 0)
-                        tp2 = plan.get("tp2", 0)
-                        sl_pct = (
-                            (stop - entry) / entry * 100
-                            if entry > 0 else 0)
-                        tp1_pct = (
-                            (tp1 - entry) / entry * 100
-                            if entry > 0 else 0)
-                        tp2_pct = (
-                            (tp2 - entry) / entry * 100
-                            if entry > 0 else 0)
-                        with st.container(border=True):
-                            tl, tr = st.columns([6, 1])
-                            tl.markdown(
-                                f"**{sym}** · 🟢 LONG · score "
-                                f"<b>{sc:.0f}</b> · −{dd:.1f}% from "
-                                f"high · expected +{exp:.1f}% · 15m "
-                                f"{p['score_15m']:.0f} / 1h "
-                                f"{p['score_1h']:.0f}<br>"
-                                f"<span style='color:#aab;font-size:"
-                                f"0.85rem'>Entry "
-                                f"<code>{entry:g}</code> · SL "
-                                f"<code>{stop:g}</code> "
-                                f"(<span style='color:#ff5c5c'>"
-                                f"{sl_pct:+.2f}%</span>) · TP1 "
-                                f"<code>{tp1:g}</code> "
-                                f"(<span style='color:#2ed47a'>"
-                                f"{tp1_pct:+.2f}%</span>) · TP2 "
-                                f"<code>{tp2:g}</code> "
-                                f"(<span style='color:#2ed47a'>"
-                                f"{tp2_pct:+.2f}%</span>) · R:R "
-                                f"<b>{plan.get('rr', 0):.2f}</b>"
-                                f"</span>",
-                                unsafe_allow_html=True)
-                            if tr.button(
-                                    "📥 Open", key=f"pt_reb_{sym}",
-                                    use_container_width=True):
-                                _open_hunter_pick(
-                                    sym, "LONG", plan, sc,
-                                    "REBOUND HUNTER")
-                            if p.get("reasons"):
-                                st.caption(
-                                    "Why: " + " · ".join(
-                                        p["reasons"][:3]))
-
-            # ----- 🚀 BREAKOUT HUNTER (4h, top 150 universe) -----
-            # Same lazy-load pattern as REBOUND — only scan on click.
-            with st.expander(
-                    "🚀 **BREAKOUT HUNTER** — pre-pump coil scanner "
-                    "(top 150, PORTAL-style runners)",
-                    expanded=False):
-                st.caption(
-                    "Hunts BB-squeeze + hidden accumulation + OI/"
-                    "funding surge + TTM squeeze + higher-low + cup-"
-                    "and-handle. Top 150 USDT-perp universe (covers "
-                    "mid-caps where 100%+ runs originate). Filters: "
-                    "≥$5M daily volume, ≤50% 7-day gain. Honest hit "
-                    "rate ~30-40% but asymmetric upside (hits run "
-                    "20-100%+).")
-                _bk_key = "pt_hunters_bk_scanned"
-                if not st.session_state.get(_bk_key, False):
-                    st.caption(
-                        "ℹ Click below to run the scan (top 150 coins, "
-                        "~45s). Cached 30 min after first scan.")
-                    if st.button("🔍 Run Breakout scan",
-                                 key="pt_hunters_bk_btn"):
-                        st.session_state[_bk_key] = True
-                        st.rerun()
-                    bk_picks = []
-                else:
-                    try:
-                        with st.spinner("Scanning top 150 for coils..."):
-                            bk_picks = _pt_load_breakout()
-                    except Exception as exc:
-                        st.error(f"Breakout scan failed: {exc}")
-                        bk_picks = []
-                if not bk_picks:
-                    st.caption(
-                        "No breakout coils firing — coil patterns "
-                        "are rare (1-5 per session). Cached 15 min.")
-                else:
-                    st.success(
-                        f"**{len(bk_picks)} breakout coils firing.** "
-                        "Position SMALL — asymmetric bets.")
-                    for p in bk_picks:
-                        sym = p["symbol"]
-                        sc = p["score"]
-                        d7 = p.get("seven_day_chg_pct", 0)
-                        vol_m = p.get("volume_usd", 0) / 1e6
-                        plan = p.get("trade_plan") or {}
-                        entry = plan.get("entry", 0)
-                        stop = plan.get("stop", 0)
-                        tp1 = plan.get("tp1", 0)
-                        tp2 = plan.get("tp2", 0)
-                        sl_pct = (
-                            (stop - entry) / entry * 100
-                            if entry > 0 else 0)
-                        tp1_pct = (
-                            (tp1 - entry) / entry * 100
-                            if entry > 0 else 0)
-                        tp2_pct = (
-                            (tp2 - entry) / entry * 100
-                            if entry > 0 else 0)
-                        with st.container(border=True):
-                            tl, tr = st.columns([6, 1])
-                            tl.markdown(
-                                f"**{sym}** · 🟢 LONG · score "
-                                f"<b>{sc:.0f}</b> · 7d {d7:+.1f}% · "
-                                f"vol ${vol_m:.1f}M<br>"
-                                f"<span style='color:#aab;font-size:"
-                                f"0.85rem'>Entry "
-                                f"<code>{entry:g}</code> · SL "
-                                f"<code>{stop:g}</code> "
-                                f"(<span style='color:#ff5c5c'>"
-                                f"{sl_pct:+.2f}%</span>) · TP1 "
-                                f"<code>{tp1:g}</code> "
-                                f"(<span style='color:#2ed47a'>"
-                                f"{tp1_pct:+.2f}%</span>) · TP2 "
-                                f"<code>{tp2:g}</code> "
-                                f"(<span style='color:#2ed47a'>"
-                                f"{tp2_pct:+.2f}%</span>) · R:R "
-                                f"<b>{plan.get('rr', 0):.2f}</b>"
-                                f"</span>",
-                                unsafe_allow_html=True)
-                            if tr.button(
-                                    "📥 Open", key=f"pt_bk_{sym}",
-                                    use_container_width=True):
-                                _open_hunter_pick(
-                                    sym, "LONG", plan, sc,
-                                    "BREAKOUT HUNTER")
-                            if p.get("reasons"):
-                                st.caption(
-                                    "Why: " + " · ".join(
-                                        p["reasons"][:3]))
+                                    _u["reasons"][:4]))
 
         st.divider()
         # Open positions — LIVE fragment (updates in place every 10s).

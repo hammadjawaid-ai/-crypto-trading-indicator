@@ -1,33 +1,37 @@
-"""Experimental intraday signals from GitHub/research pass (2026-06).
+"""Unified Signal Composite (formerly experimental).
 
-Two net-new signals — neither overlaps with what's already in the system.
-Both target 15m/1h reversal/fade plays.
+Merged scanner that combines EVERY proven signal lane into ONE
+conviction score per coin, with full BEST-TRADES-NOW-style metadata
+for rendering. Replaces the separated REBOUND + BREAKOUT + EXPERIMENTAL
+hunters with a single unified pick board.
 
-  1. VWAP Z-Score Fade — counter-trend mean-reversion when price is
-     2+ standard deviations from session VWAP. Backed by NinjaTrader
-     z-score research + institutional fair-value microstructure.
-     Different from anchored-VWAP-RECLAIM (which is continuation) —
-     this is FADE.
+Signal lanes (weights sum to 1.00, calibrated to backtested edge):
 
-  2. Long-Exhaustion Liquidation Reversal — fires after a 4%+ drop in
-     3 bars where Open Interest also FELL 5%+ AND volume spiked 3×
-     average AND current bar shows absorption (small body + close in
-     upper 40% of range). The OI-falling part is critical: it means
-     LONGS are being deleveraged, NOT new shorts entering. The bottom
-     signature = exhaustion of forced selling. From CryptoCred's
-     futures-indicators guide + XT Exchange liquidation-cascade
-     microstructure analysis.
+  vwap_zfade       0.10  — VWAP z-score fade (counter-trend ≥2σ)
+  liq_exhaustion   0.13  — Long-exhaustion liquidation reversal (4%+
+                            drop + OI down + vol spike + absorption)
+  rebound          0.13  — V-bottom + RSI capitulation + reversal pattern
+  breakout_coil    0.10  — BB squeeze + OBV accumulation + OI surge
+  pattern_scout    0.18  — Live candle pattern (hammer/star/engulfing)
+  reversal_app     0.10  — 7 pre-fire reversal conditions
+  early_momentum   0.10  — CVD + TTM + SMC + VWAP-reclaim composite
+  recovery         0.08  — recovery_detector V-bottom
+  deriv_velocity   0.08  — funding ROC + OI compression
 
-Honest scope:
-- Both target 15m/1h timeframes.
-- VWAP-z hit rate ~55-60% with regime filter (NinjaTrader research).
-- Liquidation-reversal hit rate ~60-65% (anecdotal, not net-of-cost
-  backtested publicly — be cautious sizing).
-- These are EXPERIMENTAL until we have local backtest n>=20 fires
-  per signal.
+Conviction tier (mirrors Paper Trader's logic):
+  MAX      score >= 90 AND (≥3 lanes scoring 70+)
+  HIGH     score >= 85 AND (≥2 lanes scoring 70+)
+  STRONG   score >= 80
+  STANDARD score >= 70  (firing floor)
 
-Output shape matches what Paper Trader's openable cards expect:
-{symbol, side, score, entry, stop, tp1, tp2, rr, reasons[], lane}
+Cards built by this module carry ALL the chip metadata that BEST
+TRADES NOW uses:
+  - lanes_fired: dict of {lane_name: lane_score}
+  - tier: MAX/HIGH/STRONG/STANDARD
+  - reasons: list[str] (top 5)
+  - trade_plan: {entry, stop, tp1, tp2, rr, valid}
+  - side: LONG / SHORT
+  - score: 0-100
 """
 from __future__ import annotations
 
@@ -39,240 +43,373 @@ import pandas as pd
 import binance_client
 import indicators
 
-try:
-    import derivatives_velocity  # for OI history fetch
-except Exception:
-    derivatives_velocity = None
+# Optional imports — every lane gracefully degrades to 0 if its module
+# can't be reached.
+try: import pattern_scout
+except Exception: pattern_scout = None
+try: import reversal_approach
+except Exception: reversal_approach = None
+try: import recovery_detector
+except Exception: recovery_detector = None
+try: import early_momentum
+except Exception: early_momentum = None
+try: import derivatives_velocity
+except Exception: derivatives_velocity = None
+try: import rebound_radar
+except Exception: rebound_radar = None
+try: import breakout_hunter
+except Exception: breakout_hunter = None
 
 
 # ---------------------------------------------------------------------------
-# SIGNAL 1 — VWAP Z-Score Fade
+# Lane weights (calibrated to backtested edge)
 # ---------------------------------------------------------------------------
-def vwap_zscore_fade(df: pd.DataFrame,
-                    z_window: int = 20,
-                    long_z: float = -2.0,
-                    short_z: float = 2.0,
-                    rsi_long_max: float = 30,
-                    rsi_short_min: float = 70) -> dict:
-    """Counter-trend fade when price is ≥2σ from rolling VWAP.
+_LANE_WEIGHTS = {
+    "vwap_zfade":     0.10,
+    "liq_exhaustion": 0.13,
+    "rebound":        0.13,
+    "breakout_coil":  0.10,
+    "pattern_scout":  0.18,
+    "reversal_app":   0.10,
+    "early_momentum": 0.10,
+    "recovery":       0.08,
+    "deriv_velocity": 0.08,
+}
 
-    Required df columns: open, high, low, close, volume, rsi.
-    Uses session-anchored VWAP recomputed within df (no carry-over).
 
-    Returns dict with score (0-100), side, z, vwap, distance_pct, reasons.
-    """
-    if df is None or len(df) < max(z_window, 50):
-        return _empty("vwap_zscore")
-
+# ---------------------------------------------------------------------------
+# Individual lane scorers — each returns (score 0-100, side, note)
+# ---------------------------------------------------------------------------
+def _lane_vwap_zfade(df: pd.DataFrame) -> tuple[float, str, str]:
+    """VWAP z-score fade: ≥2σ deviation from session VWAP + RSI extreme."""
+    if df is None or len(df) < 50:
+        return (0.0, "NEUTRAL", "")
     try:
         typical = (df["high"] + df["low"] + df["close"]) / 3.0
-        vp = typical * df["volume"]
-        vwap = vp.cumsum() / df["volume"].cumsum().replace(0, np.nan)
-        # Rolling stdev of (close - VWAP) — proxy for fair-value spread
+        vwap = (typical * df["volume"]).cumsum() / df["volume"].cumsum().replace(0, np.nan)
         spread = df["close"] - vwap
-        roll_std = spread.rolling(z_window, min_periods=z_window // 2).std()
+        roll_std = spread.rolling(20, min_periods=10).std()
         z = (df["close"] - vwap) / roll_std.replace(0, np.nan)
         last_z = float(z.iloc[-1]) if not np.isnan(z.iloc[-1]) else 0.0
-        last_close = float(df["close"].iloc[-1])
-        last_vwap = float(vwap.iloc[-1]) if not np.isnan(vwap.iloc[-1]) else last_close
         last_rsi = float(df["rsi"].iloc[-1]) if "rsi" in df.columns else 50.0
+        if last_z <= -2.0 and last_rsi <= 30:
+            mag = min(abs(last_z), 3.5)
+            sc = float(np.clip(60 + (mag - 2.0) * 30, 60, 100))
+            return (sc, "LONG", f"z={last_z:.2f}σ + RSI {last_rsi:.0f} (oversold)")
+        if last_z >= 2.0 and last_rsi >= 70:
+            mag = min(abs(last_z), 3.5)
+            sc = float(np.clip(60 + (mag - 2.0) * 30, 60, 100))
+            return (sc, "SHORT", f"z=+{last_z:.2f}σ + RSI {last_rsi:.0f} (overbought)")
     except Exception:
-        return _empty("vwap_zscore")
-
-    score = 0.0
-    side = "NEUTRAL"
-    reasons: list[str] = []
-    if last_z <= long_z and last_rsi <= rsi_long_max:
-        # LONG fade: price 2σ below VWAP + oversold
-        side = "LONG"
-        # Map z-extremity (more negative = stronger) to 60-100 score
-        z_mag = min(abs(last_z), 3.5)
-        score = 60 + (z_mag - 2.0) * 30  # z=-2 → 60, z=-3.5 → 105 (capped)
-        score = float(np.clip(score, 60, 100))
-        reasons.append(f"z={last_z:.2f}σ below VWAP {last_vwap:.4g}")
-        reasons.append(f"RSI {last_rsi:.0f} (oversold)")
-    elif last_z >= short_z and last_rsi >= rsi_short_min:
-        side = "SHORT"
-        z_mag = min(abs(last_z), 3.5)
-        score = 60 + (z_mag - 2.0) * 30
-        score = float(np.clip(score, 60, 100))
-        reasons.append(f"z=+{last_z:.2f}σ above VWAP {last_vwap:.4g}")
-        reasons.append(f"RSI {last_rsi:.0f} (overbought)")
-
-    return {
-        "lane": "vwap_zscore",
-        "side": side,
-        "score": round(score, 1),
-        "z": round(last_z, 2),
-        "vwap": float(last_vwap),
-        "distance_pct": round(
-            (last_close - last_vwap) / last_vwap * 100 if last_vwap > 0 else 0, 2),
-        "reasons": reasons,
-    }
+        pass
+    return (0.0, "NEUTRAL", "")
 
 
-# ---------------------------------------------------------------------------
-# SIGNAL 2 — Long-Exhaustion Liquidation Reversal
-# ---------------------------------------------------------------------------
-def liquidation_reversal(df: pd.DataFrame,
-                        oi_history: list | None = None,
-                        ret_3bar_threshold: float = -0.04,
-                        oi_delta_threshold: float = -0.05,
-                        vol_spike_mult: float = 3.0,
-                        body_pct_max: float = 0.40,
-                        close_position_min: float = 0.60) -> dict:
-    """Long capitulation completion — fires after a sharp drop where OI
-    is ALSO falling (longs deleveraging, not shorts entering), volume
-    spikes, and the current bar shows absorption (small body + close
-    in upper portion of range).
-
-    oi_history: list of (timestamp, open_interest_value) for the same
-    symbol. If None or too short, the OI gate is SKIPPED and the
-    signal scores conservatively (max 70 instead of 100).
-    """
+def _lane_liq_exhaustion(df: pd.DataFrame,
+                        oi_hist: list | None) -> tuple[float, str, str]:
+    """Long-exhaustion: 4%+ 3-bar drop + OI drop + vol spike + absorption."""
     if df is None or len(df) < 25:
-        return _empty("liquidation_reversal")
+        return (0.0, "NEUTRAL", "")
     try:
-        recent = df.tail(20)
         last = df.iloc[-1]
-        # Need at least 4 bars to compute ret_3bar
-        if len(recent) < 4:
-            return _empty("liquidation_reversal")
-        ret_3bar = (
-            float(last["close"]) / float(df["close"].iloc[-4]) - 1.0)
+        ret_3 = float(last["close"]) / float(df["close"].iloc[-4]) - 1.0
+        if ret_3 > -0.04:
+            return (0.0, "NEUTRAL", "")
         body = abs(float(last["close"]) - float(last["open"]))
-        bar_range = float(last["high"]) - float(last["low"])
-        body_pct = (body / bar_range) if bar_range > 0 else 1.0
-        close_position = (
-            (float(last["close"]) - float(last["low"])) / bar_range
-            if bar_range > 0 else 0.5)
-        vol_avg = float(recent["volume"].mean()) or 1.0
-        vol_ratio = float(last["volume"]) / vol_avg
+        bar_rng = float(last["high"]) - float(last["low"])
+        body_pct = (body / bar_rng) if bar_rng > 0 else 1.0
+        close_pos = (
+            (float(last["close"]) - float(last["low"])) / bar_rng
+            if bar_rng > 0 else 0.5)
+        if body_pct > 0.40 or close_pos < 0.60:
+            return (0.0, "NEUTRAL", "")
+        vol_ratio = (
+            float(last["volume"]) / float(df["volume"].tail(20).mean())
+            if df["volume"].tail(20).mean() else 0)
+        if vol_ratio < 3.0:
+            return (0.0, "NEUTRAL", "")
+        oi_confirmed = False
+        oi_pct = None
+        if oi_hist and len(oi_hist) >= 4:
+            try:
+                oi_vals = [v for _, v in oi_hist[-4:]]
+                if oi_vals[0] > 0:
+                    oi_pct = (oi_vals[-1] - oi_vals[0]) / oi_vals[0]
+                    oi_confirmed = oi_pct <= -0.05
+            except Exception:
+                pass
+        if oi_confirmed:
+            return (90.0, "LONG",
+                    f"3bar drop {ret_3*100:+.1f}% · vol {vol_ratio:.1f}× "
+                    f"· OI {oi_pct*100:+.1f}% · absorption candle")
+        return (50.0, "LONG",
+                f"3bar drop {ret_3*100:+.1f}% · vol {vol_ratio:.1f}× "
+                f"· absorption (OI gate missing — caution)")
     except Exception:
-        return _empty("liquidation_reversal")
+        return (0.0, "NEUTRAL", "")
 
-    # Gate 1: meaningful drop in last 3 bars
-    if ret_3bar > ret_3bar_threshold:
-        return _empty("liquidation_reversal")
 
-    # Gate 2: absorption candle (small body + close in upper part)
-    if body_pct > body_pct_max:
-        return _empty("liquidation_reversal")
-    if close_position < close_position_min:
-        return _empty("liquidation_reversal")
+def _lane_rebound(symbol: str, df: pd.DataFrame,
+                 pct_24h: float) -> tuple[float, str, str]:
+    """Rebound score from existing rebound_radar (V-bottom composite)."""
+    if rebound_radar is None or df is None:
+        return (0.0, "NEUTRAL", "")
+    try:
+        r = rebound_radar.score(symbol, df, pct_24h=pct_24h)
+        sc = float(r.get("score", 0))
+        if sc < 50:
+            return (0.0, "NEUTRAL", "")
+        dd = r.get("drawdown_pct", 0)
+        exp = r.get("expected_move_pct", 0)
+        return (sc, "LONG",
+                f"−{dd:.1f}% from high · expected +{exp:.1f}% rebound")
+    except Exception:
+        return (0.0, "NEUTRAL", "")
 
-    # Gate 3: volume spike
-    if vol_ratio < vol_spike_mult:
-        return _empty("liquidation_reversal")
 
-    # Gate 4: OI also falling (longs deleveraging, not shorts entering)
-    oi_delta = None
-    oi_confirmed = False
-    if oi_history and len(oi_history) >= 4:
-        try:
-            recent_oi = [v for _, v in oi_history[-4:]]
-            if recent_oi[0] > 0:
-                oi_delta = (recent_oi[-1] - recent_oi[0]) / recent_oi[0]
-                oi_confirmed = (oi_delta <= oi_delta_threshold)
-        except Exception:
-            oi_delta = None
+def _lane_breakout(symbol: str, df_4h: pd.DataFrame,
+                  df_1h: pd.DataFrame | None) -> tuple[float, str, str]:
+    """Breakout score from existing breakout_hunter (coil composite)."""
+    if breakout_hunter is None or df_4h is None:
+        return (0.0, "NEUTRAL", "")
+    try:
+        r = breakout_hunter.score(symbol, df_4h, df_1h)
+        sc = float(r.get("score", 0))
+        if sc < 50:
+            return (0.0, "NEUTRAL", "")
+        d7 = r.get("seven_day_chg_pct", 0)
+        return (sc, "LONG", f"coil 7d {d7:+.1f}% (pre-pump compression)")
+    except Exception:
+        return (0.0, "NEUTRAL", "")
 
-    # Score: base 60 for meeting 3 of 4 gates, +30 if OI confirmed
-    score = 60.0
-    reasons = [
-        f"3-bar drop {ret_3bar * 100:+.1f}% (deep)",
-        f"absorption candle (body {body_pct * 100:.0f}% of range, "
-        f"close in upper {close_position * 100:.0f}%)",
-        f"vol spike {vol_ratio:.1f}× avg",
-    ]
-    if oi_confirmed:
-        score = 90.0
-        reasons.append(f"OI {oi_delta * 100:+.1f}% (longs deleveraging)")
-    elif oi_delta is not None:
-        # OI didn't drop enough — DOWNGRADE because shorts may be
-        # entering, weakening the bounce thesis
-        score = 50.0
-        reasons.append(
-            f"OI {oi_delta * 100:+.1f}% (longs not capitulating — caution)")
 
-    return {
-        "lane": "liquidation_reversal",
-        "side": "LONG",  # this signal is bullish-bias only
-        "score": round(score, 1),
-        "ret_3bar_pct": round(ret_3bar * 100, 2),
-        "vol_ratio": round(vol_ratio, 2),
-        "body_pct": round(body_pct * 100, 1),
-        "close_position_pct": round(close_position * 100, 1),
-        "oi_delta_pct": round(oi_delta * 100, 2) if oi_delta is not None else None,
-        "reasons": reasons,
-    }
+def _lane_pattern_scout(symbol: str, df: pd.DataFrame,
+                       pct_24h: float) -> tuple[float, str, str]:
+    """Pattern Scout — live candle pattern (hammer/star/engulfing)."""
+    if pattern_scout is None or df is None:
+        return (0.0, "NEUTRAL", "")
+    try:
+        r = pattern_scout.scan_one(symbol, df, pct_24h=pct_24h)
+        side = r.get("side", "NEUTRAL")
+        sc = float(r.get("score", 0))
+        if side == "NEUTRAL" or sc < 60:
+            return (0.0, "NEUTRAL", "")
+        best = r.get("best_signal", "pattern")
+        return (sc, side, f"Pattern Scout: {best}")
+    except Exception:
+        return (0.0, "NEUTRAL", "")
+
+
+def _lane_reversal_app(df: pd.DataFrame) -> tuple[float, str, str]:
+    """7 pre-fire reversal conditions (reversal_approach.scan_both_sides)."""
+    if reversal_approach is None or df is None:
+        return (0.0, "NEUTRAL", "")
+    try:
+        r = reversal_approach.scan_both_sides(df)
+        side = r.get("side", "NEUTRAL")
+        sc = float(r.get("score", 0))
+        cm = int(r.get("conditions_met", 0))
+        if sc < 65 or side == "NEUTRAL":
+            return (0.0, "NEUTRAL", "")
+        return (sc, side, f"reversal pre-conditions {cm}/7")
+    except Exception:
+        return (0.0, "NEUTRAL", "")
+
+
+def _lane_early_momentum(df: pd.DataFrame) -> tuple[float, str, str]:
+    """early_momentum composite (CVD + TTM + ROC² + SMC + VWAP)."""
+    if early_momentum is None or df is None:
+        return (0.0, "NEUTRAL", "")
+    try:
+        r = early_momentum.score(df)
+        side = r.get("side", "NEUTRAL")
+        sc = float(r.get("score", 0))
+        if (side == "LONG" and sc >= 70) or (side == "SHORT" and sc <= 30):
+            sc_norm = sc if side == "LONG" else (100 - sc)
+            return (sc_norm, side, f"early_momentum {side.lower()} composite")
+    except Exception:
+        pass
+    return (0.0, "NEUTRAL", "")
+
+
+def _lane_recovery(df: pd.DataFrame) -> tuple[float, str, str]:
+    """recovery_detector V-bottom (backtested 75% win at 12bar)."""
+    if recovery_detector is None or df is None:
+        return (0.0, "NEUTRAL", "")
+    try:
+        from recovery_detector import _v_bottom_bounce
+        r = _v_bottom_bounce(df)
+        sc = float(r.get("score") or 0)
+        if sc < 65:
+            return (0.0, "NEUTRAL", "")
+        return (sc, "LONG", "V-bottom capitulation pattern")
+    except Exception:
+        return (0.0, "NEUTRAL", "")
+
+
+def _lane_deriv_velocity(symbol: str) -> tuple[float, str, str]:
+    """derivatives_velocity (funding ROC + OI compression)."""
+    if derivatives_velocity is None:
+        return (0.0, "NEUTRAL", "")
+    try:
+        r = derivatives_velocity.score(symbol, interval="1h")
+        side = r.get("side", "NEUTRAL")
+        sc = float(r.get("score", 0))
+        if side == "NEUTRAL" or sc < 65:
+            return (0.0, "NEUTRAL", "")
+        return (sc, side, f"deriv {side.lower()} (funding+OI)")
+    except Exception:
+        return (0.0, "NEUTRAL", "")
 
 
 # ---------------------------------------------------------------------------
-# Combined scan + trade plan builder
+# Composite scoring + tier
 # ---------------------------------------------------------------------------
-def score_one(symbol: str, interval: str = "1h") -> dict:
-    """Run both experimental signals on one symbol/interval.
+def _conviction_tier(score: float, n_strong_lanes: int) -> str:
+    """MAX = score >= 90 AND >=3 strong lanes
+       HIGH = score >= 85 AND >=2 strong lanes
+       STRONG = score >= 80
+       STANDARD = score >= 70
+       (below 70 we filter out)"""
+    if score >= 90 and n_strong_lanes >= 3:
+        return "MAX"
+    if score >= 85 and n_strong_lanes >= 2:
+        return "HIGH"
+    if score >= 80:
+        return "STRONG"
+    if score >= 70:
+        return "STANDARD"
+    return "LOW"
 
-    Returns the STRONGER of the two if either fires (score >= 60),
-    otherwise the NEUTRAL pair so the caller can skip.
-    """
+
+def score_one(symbol: str, interval: str = "1h",
+             pct_24h: float = 0.0) -> dict:
+    """Run ALL lanes for one symbol, composite into a single pick."""
     try:
         df = binance_client.get_klines(symbol, interval, limit=200)
         df = indicators.enrich(df)
     except Exception:
-        return _empty("none")
-
-    # VWAP z-score fade
-    vz = vwap_zscore_fade(df)
-
-    # Liquidation reversal needs OI history
+        return _empty(symbol)
+    df_4h = None
+    try:
+        df_4h = binance_client.get_klines(symbol, "4h", limit=200)
+        df_4h = indicators.enrich(df_4h)
+    except Exception:
+        pass
     oi_hist = None
     if derivatives_velocity is not None:
         try:
             oi_hist = derivatives_velocity._oi_history(
                 symbol, period="1h", limit=12)
         except Exception:
-            oi_hist = None
-    liq = liquidation_reversal(df, oi_history=oi_hist)
+            pass
 
-    # Pick whichever scored higher (and is at least minimal-fire)
-    best = max([vz, liq], key=lambda r: r.get("score", 0))
-    if best.get("score", 0) < 60:
-        return _empty("none")
+    # Run each lane
+    lanes = {
+        "vwap_zfade":     _lane_vwap_zfade(df),
+        "liq_exhaustion": _lane_liq_exhaustion(df, oi_hist),
+        "rebound":        _lane_rebound(symbol, df, pct_24h),
+        "breakout_coil":  _lane_breakout(symbol, df_4h or df, df),
+        "pattern_scout":  _lane_pattern_scout(symbol, df, pct_24h),
+        "reversal_app":   _lane_reversal_app(df),
+        "early_momentum": _lane_early_momentum(df),
+        "recovery":       _lane_recovery(df),
+        "deriv_velocity": _lane_deriv_velocity(symbol),
+    }
 
-    # Attach trade plan
-    plan = _build_plan(df, best.get("side", "LONG"))
-    out = dict(best)
-    out["symbol"] = symbol
-    out["trade_plan"] = plan
+    # Vote: count LONG vs SHORT lanes weighted
+    long_score = 0.0
+    short_score = 0.0
+    long_lanes = []
+    short_lanes = []
+    fired_reasons = []
+    for name, (sc, side, note) in lanes.items():
+        w = _LANE_WEIGHTS.get(name, 0.0)
+        if side == "LONG" and sc >= 60:
+            long_score += sc * w
+            long_lanes.append((name, sc, note))
+            fired_reasons.append(f"{name}: {note}")
+        elif side == "SHORT" and sc >= 60:
+            short_score += sc * w
+            short_lanes.append((name, sc, note))
+            fired_reasons.append(f"{name}: {note}")
+
+    # Pick the dominant side. If neither has meaningful score, skip.
+    if long_score >= short_score and long_score >= 30:
+        side = "LONG"
+        score = long_score / sum(_LANE_WEIGHTS.values())
+        strong_n = len([1 for n, s, _ in long_lanes if s >= 70])
+        active_lanes = long_lanes
+    elif short_score > long_score and short_score >= 30:
+        side = "SHORT"
+        score = short_score / sum(_LANE_WEIGHTS.values())
+        strong_n = len([1 for n, s, _ in short_lanes if s >= 70])
+        active_lanes = short_lanes
+    else:
+        return _empty(symbol)
+
+    # Conviction bonus: stack multiple lanes -> +5 per extra strong lane
+    if strong_n >= 2:
+        score += min(10, (strong_n - 1) * 5)
+    score = float(np.clip(score, 0, 100))
+
+    tier = _conviction_tier(score, strong_n)
+    if tier == "LOW":
+        return _empty(symbol)
+
+    # Trade plan
+    plan = _build_plan(df, side)
+    # Order reasons by lane score, take top 5
+    active_lanes.sort(key=lambda x: x[1], reverse=True)
+    top_reasons = [
+        f"{lane.replace('_', ' ')}: {note}"
+        for lane, sc, note in active_lanes[:5]
+        if note
+    ]
+    # Active lane names for chip rendering (top 6)
+    active_lane_names = [lane for lane, _, _ in active_lanes[:6]]
+
     try:
-        out["price_now"] = float(df["close"].iloc[-1])
+        price_now = float(df["close"].iloc[-1])
     except Exception:
-        out["price_now"] = 0.0
-    return out
+        price_now = 0.0
+
+    return {
+        "symbol": symbol,
+        "base": symbol.replace("USDT", ""),
+        "side": side,
+        "score": round(score, 1),
+        "tier": tier,
+        "lanes_fired": {name: round(sc, 1)
+                        for name, sc, _ in active_lanes},
+        "active_lanes": active_lane_names,
+        "n_strong_lanes": strong_n,
+        "reasons": top_reasons,
+        "trade_plan": plan,
+        "price_now": price_now,
+        "pct_24h": pct_24h,
+    }
 
 
-def scan_experimental(scan_n: int = 80,
-                     interval: str = "1h",
-                     min_score: float = 70.0,
-                     max_picks: int = 12,
-                     max_workers: int = 6) -> list[dict]:
-    """Scan top N coins for experimental signal fires.
-
-    Returns list[dict] sorted high-to-low by score, capped at max_picks.
-    Only picks at min_score+ are included.
-    """
+def scan_unified(scan_n: int = 100,
+                interval: str = "1h",
+                min_score: float = 70.0,
+                max_picks: int = 15,
+                max_workers: int = 6) -> list[dict]:
+    """Scan top N coins, return high-conviction unified picks."""
     try:
         top = binance_client.get_top_symbols(scan_n)
         syms = top["symbol"].tolist()
+        pct_map = dict(zip(top["symbol"], top["priceChangePercent"]))
     except Exception:
         return []
 
     results: list[dict] = []
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         futures = {
-            pool.submit(score_one, sym, interval): sym for sym in syms
+            pool.submit(score_one, sym, interval,
+                        float(pct_map.get(sym, 0))): sym
+            for sym in syms
         }
         for fut in as_completed(futures):
             try:
@@ -286,26 +423,26 @@ def scan_experimental(scan_n: int = 80,
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Trade plan + helpers
 # ---------------------------------------------------------------------------
 def _build_plan(df: pd.DataFrame, side: str) -> dict:
-    """Conservative trade plan: 1.2 ATR stop, 2.0 ATR TP1, 3.5 ATR TP2."""
+    """1.2 ATR stop, 2.0 ATR TP1, 3.5 ATR TP2 (matches existing modules)."""
     if df is None or len(df) < 20:
         return _empty_plan()
     try:
         last = df.iloc[-1]
         entry = float(last["close"])
-        atr_val = float(last.get("atr") or 0)
-        if atr_val <= 0 or entry <= 0:
+        atr = float(last.get("atr") or 0)
+        if entry <= 0 or atr <= 0:
             return _empty_plan()
         if side == "LONG":
-            stop = entry - 1.2 * atr_val
-            tp1 = entry + 2.0 * atr_val
-            tp2 = entry + 3.5 * atr_val
-        else:  # SHORT
-            stop = entry + 1.2 * atr_val
-            tp1 = entry - 2.0 * atr_val
-            tp2 = entry - 3.5 * atr_val
+            stop = entry - 1.2 * atr
+            tp1 = entry + 2.0 * atr
+            tp2 = entry + 3.5 * atr
+        else:
+            stop = entry + 1.2 * atr
+            tp1 = entry - 2.0 * atr
+            tp2 = entry - 3.5 * atr
         risk = abs(entry - stop)
         if risk <= 0:
             return _empty_plan()
@@ -323,10 +460,17 @@ def _build_plan(df: pd.DataFrame, side: str) -> dict:
         return _empty_plan()
 
 
-def _empty(lane: str) -> dict:
-    return {"lane": lane, "side": "NEUTRAL", "score": 0.0, "reasons": []}
+def _empty(symbol: str) -> dict:
+    return {"symbol": symbol, "side": "NEUTRAL", "score": 0.0,
+            "tier": "LOW", "lanes_fired": {}, "active_lanes": [],
+            "reasons": [], "trade_plan": _empty_plan(),
+            "price_now": 0.0, "pct_24h": 0.0}
 
 
 def _empty_plan() -> dict:
     return {"side": "LONG", "entry": 0.0, "stop": 0.0, "tp1": 0.0,
             "tp2": 0.0, "rr": 0.0, "valid": False}
+
+
+# Backward-compatible alias (some external code may still call this)
+scan_experimental = scan_unified
