@@ -8697,6 +8697,164 @@ if active_section == "🧪 Paper Trader":
         # ---- 🩸 Top SHORT setups REMOVED — folded into BEST TRADES NOW
 
         # ============================================================
+        # 🧪 EXPERIMENTAL SIGNALS (research pass · isolated for testing)
+        # ============================================================
+        # Two research-derived signals from a GitHub/literature scan:
+        #   1. VWAP Z-Score Fade (counter-trend mean reversion when
+        #      price ≥2σ from session VWAP + RSI extreme)
+        #   2. Long-Exhaustion Liquidation Reversal (3-bar drop +
+        #      OI also falling = longs deleveraging + absorption
+        #      candle = bottom signature)
+        # Both NEW additions — verified non-overlap with existing
+        # signal modules. Marked EXPERIMENTAL until local backtest
+        # produces n>=20 fires per signal.
+        # Trades open to PAPER_BOT_FILE (same as the rest of Paper
+        # Trader) so the user can A/B test efficacy in one ledger.
+        # Revert anchor: stable-paper-trader-v3.
+        try:
+            import experimental_signals as _exp_sig
+        except Exception:
+            _exp_sig = None
+
+        if _exp_sig is not None:
+            @st.cache_data(ttl=900, show_spinner=False)
+            def _pt_load_experimental(_v: int = 1):
+                return _exp_sig.scan_experimental(
+                    scan_n=80, interval="1h",
+                    min_score=70.0, max_picks=12)
+
+            st.markdown(
+                "<div style='display:flex;align-items:center;gap:14px;"
+                "margin-top:28px;margin-bottom:10px'>"
+                "<span style='font-size:1.45rem;font-weight:900;"
+                "background:linear-gradient(135deg,#ff6b35,#ffa657,"
+                "#ffd700);-webkit-background-clip:text;"
+                "-webkit-text-fill-color:transparent;"
+                "background-clip:text;letter-spacing:-0.02em'>"
+                "🧪 EXPERIMENTAL SIGNALS</span>"
+                "<span style='color:#aab;font-size:0.82rem'>"
+                "research pass · VWAP Z-Score Fade + "
+                "Long-Exhaustion Liquidation Reversal · A/B testing"
+                "</span>"
+                "</div>",
+                unsafe_allow_html=True)
+            st.caption(
+                "Two NEW signals not covered by the main boards. "
+                "**VWAP Z-Score Fade** = counter-trend reversion when "
+                "price is ≥2σ from session VWAP + RSI extreme (~55-60% "
+                "hit rate per NinjaTrader research). **Long-Exhaustion "
+                "Liquidation Reversal** = fires after a 4%+ 3-bar drop "
+                "where OI also fell 5%+ (longs deleveraging) + volume "
+                "spike + absorption candle (~60-65% hit rate per "
+                "CryptoCred microstructure analysis). Open trades here "
+                "to A/B test against the main boards. Cached 15 min.")
+            with st.spinner(
+                    "🧪 Scanning top 80 for experimental signals "
+                    "(~30s cold, instant cached)..."):
+                try:
+                    _exp_picks = _pt_load_experimental()
+                except Exception as exc:
+                    st.error(f"Experimental scan failed: {exc}")
+                    _exp_picks = []
+            if not _exp_picks:
+                st.info(
+                    "No experimental signals firing right now. Both "
+                    "lanes require extreme conditions (2σ VWAP "
+                    "deviation OR 4%+ 3-bar drop with OI capitulation) "
+                    "— rare. Check back next refresh.")
+            else:
+                st.success(
+                    f"**{len(_exp_picks)} experimental signals firing.** "
+                    "Marked 🧪 EXPERIMENTAL — size small while we "
+                    "validate locally.")
+                for _xp in _exp_picks:
+                    _xp_sym = _xp.get("symbol", "?")
+                    _xp_side = (_xp.get("side") or "LONG").upper()
+                    _xp_score = float(_xp.get("score") or 0)
+                    _xp_lane = _xp.get("lane", "?")
+                    _xp_plan = _xp.get("trade_plan") or {}
+                    _xp_entry = float(_xp_plan.get("entry") or 0)
+                    _xp_stop = float(_xp_plan.get("stop") or 0)
+                    _xp_tp1 = float(_xp_plan.get("tp1") or 0)
+                    _xp_tp2 = float(_xp_plan.get("tp2") or 0)
+                    _xp_rr = float(_xp_plan.get("rr") or 0)
+                    sl_pct = ((_xp_stop - _xp_entry) / _xp_entry * 100
+                              if _xp_entry > 0 else 0)
+                    tp1_pct = ((_xp_tp1 - _xp_entry) / _xp_entry * 100
+                               if _xp_entry > 0 else 0)
+                    tp2_pct = ((_xp_tp2 - _xp_entry) / _xp_entry * 100
+                               if _xp_entry > 0 else 0)
+                    side_emoji = "🟢" if _xp_side == "LONG" else "🩸"
+                    lane_label = {
+                        "vwap_zscore": "VWAP Z-Fade",
+                        "liquidation_reversal": "Liq-Exhaustion",
+                    }.get(_xp_lane, _xp_lane)
+                    with st.container(border=True):
+                        tl, tr = st.columns([6, 1])
+                        tl.markdown(
+                            f"**{_xp_sym}** · {side_emoji} {_xp_side} · "
+                            f"<span style='background:linear-gradient(90deg,"
+                            f"#ff6b35,#ffa657);color:#1a0c00;padding:"
+                            f"2px 10px;border-radius:5px;font-size:0.72rem;"
+                            f"font-weight:800'>🧪 {lane_label}</span> · "
+                            f"score <b>{_xp_score:.0f}</b><br>"
+                            f"<span style='color:#aab;font-size:0.85rem'>"
+                            f"Entry <code>{_xp_entry:g}</code> · SL "
+                            f"<code>{_xp_stop:g}</code> "
+                            f"(<span style='color:#ff5c5c'>"
+                            f"{sl_pct:+.2f}%</span>) · TP1 "
+                            f"<code>{_xp_tp1:g}</code> "
+                            f"(<span style='color:#2ed47a'>"
+                            f"{tp1_pct:+.2f}%</span>) · TP2 "
+                            f"<code>{_xp_tp2:g}</code> "
+                            f"(<span style='color:#2ed47a'>"
+                            f"{tp2_pct:+.2f}%</span>) · R:R "
+                            f"<b>{_xp_rr:.2f}</b></span>",
+                            unsafe_allow_html=True)
+                        if tr.button(
+                                "📥 Open",
+                                key=f"pt_exp_{_xp_sym}",
+                                use_container_width=True):
+                            try:
+                                _xp_alert = {
+                                    "symbol": _xp_sym,
+                                    "base": _xp_sym.replace("USDT", ""),
+                                    "side": _xp_side,
+                                    "entry_low": _xp_entry,
+                                    "stop": _xp_stop,
+                                    "target": _xp_tp1,
+                                    "target_2": _xp_tp2,
+                                    "confidence": int(_xp_score),
+                                    "rr": _xp_rr,
+                                    "strength_factor": max(
+                                        0.4, min(1.0,
+                                                 (_xp_score - 65)
+                                                 / 30 + 0.4)),
+                                    "_experimental_source": _xp_lane,
+                                }
+                                _xp_pos = paper_bot.open_position(
+                                    pb_state, _xp_alert, _xp_entry)
+                                paper_bot.save_state(
+                                    PAPER_BOT_FILE, pb_state)
+                                if _xp_pos:
+                                    st.success(
+                                        f"Opened {_xp_side} {_xp_sym} "
+                                        f"at {_xp_entry:g} (from "
+                                        f"🧪 {lane_label})")
+                                    st.rerun()
+                                else:
+                                    st.warning(
+                                        "Not opened — Paper Trader "
+                                        "rejected (already open / "
+                                        "balance / concurrency).")
+                            except Exception as exc:
+                                st.error(f"Open failed: {exc}")
+                        if _xp.get("reasons"):
+                            st.caption(
+                                "Why: " + " · ".join(
+                                    _xp["reasons"][:3]))
+
+        # ============================================================
         # 🔁 + 🚀 HUNTERS (added per user — INSIDE Paper Trader)
         # ============================================================
         # Two composite scanners using the SAME paper_bot mechanics and
