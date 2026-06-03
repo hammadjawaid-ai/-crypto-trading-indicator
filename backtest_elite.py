@@ -33,6 +33,8 @@ import argparse
 import sys
 import time
 import io
+import builtins
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
 import pandas as pd
@@ -40,6 +42,16 @@ import pandas as pd
 # Force UTF-8 stdout so sigma/emoji don't crash Windows console
 if hasattr(sys.stdout, "buffer"):
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+
+# Override print() to ALWAYS flush — PowerShell's > redirect block-
+# buffers Python output regardless of -u or PYTHONUNBUFFERED, so
+# progress doesn't reach the file until process exit. Forcing flush
+# at every print call makes the redirected file update line by line.
+_original_print = builtins.print
+def _flushing_print(*args, **kwargs):
+    kwargs.setdefault("flush", True)
+    return _original_print(*args, **kwargs)
+builtins.print = _flushing_print
 
 import binance_client
 import indicators
@@ -180,12 +192,36 @@ def _stats(rows: list[dict]) -> dict:
     }
 
 
+def _process_one_coin(sym: str, bars: int,
+                      lookforward: int, sample_every: int) -> list[dict]:
+    """Fetch klines + walk-forward for a single coin. Returns fires list.
+    Designed for ThreadPoolExecutor — pandas releases the GIL during
+    most computations, so threads parallelize nicely on I/O + numpy."""
+    try:
+        df_1h = binance_client.get_klines(sym, "1h", limit=bars)
+        df_1h = indicators.enrich(df_1h)
+        df_4h = binance_client.get_klines(
+            sym, "4h", limit=max(200, bars // 4))
+        df_4h = indicators.enrich(df_4h)
+    except Exception as exc:
+        print(f"  [{sym}] fetch failed ({exc})")
+        return []
+    fires = _walk_forward_one(
+        sym, df_1h, df_4h,
+        lookforward=lookforward,
+        sample_every=sample_every)
+    return fires
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--coins", type=int, default=15)
     parser.add_argument("--bars", type=int, default=500)
     parser.add_argument("--lookforward", type=int, default=LOOKFORWARD)
     parser.add_argument("--sample-every", type=int, default=SAMPLE_EVERY)
+    parser.add_argument(
+        "--workers", type=int, default=6,
+        help="parallel worker threads (default 6, pandas releases GIL)")
     args = parser.parse_args()
 
     print()
@@ -214,25 +250,27 @@ def main():
 
     all_fires = []
     t0 = time.time()
-    for i, sym in enumerate(syms, 1):
-        coin_t0 = time.time()
-        try:
-            df_1h = binance_client.get_klines(sym, "1h", limit=args.bars)
-            df_1h = indicators.enrich(df_1h)
-            df_4h = binance_client.get_klines(
-                sym, "4h", limit=max(200, args.bars // 4))
-            df_4h = indicators.enrich(df_4h)
-        except Exception as exc:
-            print(f"  [{i}/{len(syms)}] {sym}: fetch failed ({exc})")
-            continue
-        fires = _walk_forward_one(
-            sym, df_1h, df_4h,
-            lookforward=args.lookforward,
-            sample_every=args.sample_every)
-        all_fires.extend(fires)
-        dt = time.time() - coin_t0
-        print(f"  [{i}/{len(syms)}] {sym}: {len(fires)} fires "
-              f"({dt:.1f}s)")
+    done_count = 0
+    with ThreadPoolExecutor(max_workers=args.workers) as pool:
+        futures = {
+            pool.submit(_process_one_coin, sym, args.bars,
+                       args.lookforward, args.sample_every): sym
+            for sym in syms
+        }
+        for fut in as_completed(futures):
+            sym = futures[fut]
+            done_count += 1
+            try:
+                fires = fut.result()
+            except Exception as exc:
+                print(f"  [{done_count}/{len(syms)}] {sym}: "
+                      f"failed ({exc})")
+                continue
+            all_fires.extend(fires)
+            elapsed_total = time.time() - t0
+            print(f"  [{done_count}/{len(syms)}] {sym}: "
+                  f"{len(fires)} fires  "
+                  f"({elapsed_total:.0f}s total elapsed)")
 
     print()
     print(f"Total runtime: {time.time() - t0:.1f}s")
