@@ -447,14 +447,21 @@ def score_from_data(symbol: str,
 
 def _apply_regime_tilt(score: float, side: str,
                       regime_info: dict | None) -> tuple[float, str]:
-    """Regime-aware re-scoring.
+    """Regime-aware re-scoring with HARD REJECTION at high confidence.
 
-    Returns (new_score, regime_note). When regime is BULL/BEAR with
-    high confidence, tilts the score ±5 in alignment with the regime.
-    Counter-regime side gets penalty, with-regime side gets boost.
+    Two-tier behaviour:
 
-    Capped at ±8 to avoid over-amplifying — based on existing
-    market_regime.regime_tilt usage in app.py.
+    1. HARD REJECT (conf > 65%): when the market is decisively in BULL
+       or BEAR, counter-regime picks get score=0 (effectively filtered).
+       Stops the user from seeing strong LONG signals during a clear
+       BEAR (which was exactly the problem in the audit — 14 LONG / 1
+       SHORT showing despite BEAR 59% conf).
+
+    2. SOFT TILT (40% < conf <= 65%): in moderate-confidence regimes,
+       tilt score ±15 max (was ±8). Counter-regime picks get penalty,
+       with-regime picks get boost. Scaled linearly with confidence.
+
+    Returns (new_score, regime_note).
     """
     if not regime_info:
         return score, ""
@@ -462,8 +469,16 @@ def _apply_regime_tilt(score: float, side: str,
     conf = float(regime_info.get("confidence") or 0)
     if conf < 40 or regime in ("CHOP", "TRANSITION", "UNKNOWN", ""):
         return score, ""
-    # Tilt magnitude scales with confidence (40%→0, 100%→8)
-    tilt = (conf - 40) / 60 * 8
+
+    # HARD REJECT — at decisive regimes, refuse counter-regime picks
+    if conf > 65:
+        if regime == "BULL" and side == "SHORT":
+            return 0.0, f"REJECTED counter-BULL ({conf:.0f}%)"
+        if regime == "BEAR" and side == "LONG":
+            return 0.0, f"REJECTED counter-BEAR ({conf:.0f}%)"
+
+    # SOFT TILT — magnitude scales with confidence (40→0, 100→15)
+    tilt = (conf - 40) / 60 * 15
     if regime == "BULL":
         if side == "LONG":
             return min(100, score + tilt), f"BULL +{tilt:.0f}"
