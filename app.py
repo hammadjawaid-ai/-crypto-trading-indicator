@@ -7403,14 +7403,15 @@ if active_section == "🧪 Paper Trader":
         # the market is active. Top 7 LONGs + top 5 SHORTs, then re-rank
         # by score. Floor at combined >=72 already filters out weak ones,
         # so this only shows additional picks IF they qualify.
-        _mixed = (_longs_scored[:7] + _shorts_scored[:5])
-        if len(_mixed) < 12:
+        _mixed = (_longs_scored[:8] + _shorts_scored[:6])
+        if len(_mixed) < 14:
             _used = set(id(t) for t in _mixed)
             _extras = [t for t in (_longs_scored + _shorts_scored)
                        if id(t) not in _used]
-            _mixed = _mixed + _extras[:12 - len(_mixed)]
+            _mixed = _mixed + _extras[:14 - len(_mixed)]
         _mixed.sort(key=lambda t: t[0], reverse=True)
-        _bot_picks = _mixed[:12]
+        _bot_picks = _mixed[:14]  # slice to 14 to give the SURE SHOT
+                                  #  re-sort headroom; final trim is 12.
 
         # Header + caption removed per user (too noisy). The earlier
         # "### 🤖 Bot's top picks" header above already labels the board.
@@ -7568,6 +7569,111 @@ if active_section == "🧪 Paper Trader":
         # them in the main rendering loop instead.
         _sure_shot_syms = {s.get("symbol")
                            for _, _, _, _, s, _ in _sure_shots}
+
+        # ============================================================
+        # PRIORITY RE-SORT — surface SURE SHOT + HIGH/MAX + FRESH first
+        # ============================================================
+        # User: "high and max conviction and also sure shot bets should
+        # be on the top priority". Also surfaces FRESH-entry picks
+        # before stale-entry ones so user catches the window.
+        def _entry_freshness(t):
+            """2 = FRESH (price still at entry zone),
+               1 = NEAR (price within ±2% of entry),
+               0 = PASSED (price moved beyond entry zone).
+            """
+            _c, _fc, _tr, _al, _s = t
+            side = (_s.get("side") or "").upper()
+            entry_low = float(_s.get("entry_low") or 0)
+            sym = _s.get("symbol")
+            cur = prices.get(sym) or entry_low
+            if entry_low <= 0 or cur <= 0:
+                return 0
+            if side == "LONG":
+                if cur <= entry_low * 1.01:
+                    return 2
+                elif cur <= entry_low * 1.02:
+                    return 1
+                else:
+                    return 0
+            else:  # SHORT — mirror
+                if cur >= entry_low * 0.99:
+                    return 2
+                elif cur >= entry_low * 0.98:
+                    return 1
+                else:
+                    return 0
+
+        def _priority_sort_key(t):
+            combined, fc_label, _tr, _al, s = t
+            sym = s.get("symbol")
+            is_sure = sym in _sure_shot_syms
+            is_conv = sym in _convergence_syms
+            is_premium = (combined >= 80
+                          and fc_label == "forecast confirms · aligned 3/3")
+            # Tier rank: MAX=4, HIGH=3, STRONG=2, STANDARD=1, LOW=0
+            if combined >= 90 and (is_conv or is_sure):
+                tier_rank = 4
+            elif combined >= 85 and (is_conv or is_sure or is_premium):
+                tier_rank = 3
+            elif combined >= 80:
+                tier_rank = 2
+            else:
+                tier_rank = 1
+            # Sort key (all descending): sure_shot, tier, freshness, combined
+            return (
+                1 if is_sure else 0,
+                tier_rank,
+                _entry_freshness(t),
+                combined,
+            )
+
+        _bot_picks.sort(key=_priority_sort_key, reverse=True)
+        _bot_picks = _bot_picks[:12]   # trim back to 12 display slots
+
+        # ============================================================
+        # 🔥 NEW CHIP — track first-seen timestamps in session_state
+        # ============================================================
+        # User: "should pop up" — when a NEW pick first appears, mark
+        # it with a 🔥 NEW chip for 5 minutes so the user can spot it
+        # at-a-glance without re-reading every card. Also fires a
+        # st.toast notification once per new pick per session.
+        _now_ts = int(time.time())
+        _new_chip_window_s = 300  # 5 min
+        _FIRST_SEEN_KEY = "_picks_first_seen"
+        _first_seen_map = st.session_state.get(_FIRST_SEEN_KEY) or {}
+        _NOTIFIED_KEY = "_picks_notified"
+        _notified_set = st.session_state.get(_NOTIFIED_KEY) or set()
+        _current_sym_sides = set()
+        for _c2, _fc2, _tr2, _al2, _s2 in _bot_picks:
+            _key2 = (_s2.get("symbol"), (_s2.get("side") or "").upper())
+            _current_sym_sides.add(_key2)
+            if _key2 not in _first_seen_map:
+                _first_seen_map[_key2] = _now_ts
+                # First-time fire — toast notify if it's HIGH-tier+
+                if (_c2 >= 85
+                        or _s2.get("symbol") in _sure_shot_syms
+                        or _s2.get("symbol") in _convergence_syms):
+                    _notif_id = f"{_key2}_{_now_ts // 60}"
+                    if _notif_id not in _notified_set:
+                        st.toast(
+                            f"🔥 NEW high-conviction pick: "
+                            f"{_s2.get('base', _key2[0])} "
+                            f"· {_key2[1]} · score {_c2:.0f}",
+                            icon="🔥")
+                        _notified_set.add(_notif_id)
+        # Prune first_seen entries that aren't in the current pick list
+        _first_seen_map = {
+            k: v for k, v in _first_seen_map.items()
+            if k in _current_sym_sides
+        }
+        st.session_state[_FIRST_SEEN_KEY] = _first_seen_map
+        st.session_state[_NOTIFIED_KEY] = _notified_set
+        # Expose helper set: which picks should show 🔥 NEW chip
+        _new_picks_syms = {
+            k for k, ts in _first_seen_map.items()
+            if (_now_ts - ts) <= _new_chip_window_s
+        }
+
         if False and _sure_shots:
             st.markdown(
                 "<div style='display:flex;align-items:center;gap:10px;"
@@ -7871,6 +7977,21 @@ if active_section == "🧪 Paper Trader":
                         f"0.72rem;font-weight:800;margin-left:4px;"
                         f"box-shadow:0 0 8px rgba(91,142,255,0.4)'>"
                         f"🔭 SETUP FORMING</span>")
+
+                # 🔥 NEW chip — pick first appeared in the last 5 min.
+                # Helps the user spot fresh fires at-a-glance without
+                # re-reading every card.
+                new_chip = ""
+                _pick_key_now = (s["symbol"], side)
+                if _pick_key_now in _new_picks_syms:
+                    new_chip = (
+                        f"<span style='background:linear-gradient(90deg,"
+                        f"#ff6b35,#ffa657,#ffd700);color:#1a0c00;"
+                        f"padding:2px 10px;border-radius:5px;font-size:"
+                        f"0.72rem;font-weight:800;margin-left:4px;"
+                        f"animation:pulse 1.5s ease-in-out infinite;"
+                        f"box-shadow:0 0 10px rgba(255,107,53,0.6)'>"
+                        f"🔥 NEW</span>")
 
                 # ============================================================
                 # 🏆 CONVICTION TIER — multi-layer fusion badge.
@@ -8257,6 +8378,7 @@ if active_section == "🧪 Paper Trader":
                         f"color:{str_color};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:700'>"
                         f"{str_label} · {combined_display}</span>"
+                        f"{new_chip}"
                         f"{conviction_chip}"
                         f"{convergence_chip}{sure_shot_chip}"
                         f"{setup_forming_chip}{premium_chip}"
