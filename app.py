@@ -9537,17 +9537,18 @@ if active_section == "🧪 Paper Trader":
                 "border-radius:10px;padding:10px 14px;"
                 "margin:8px 0 14px 0;font-size:0.82rem;color:#e0a92b;"
                 "line-height:1.5'>"
-                "<b>⚠ Honest read (25-coin backtest, n=698):</b> "
-                "ELITE's standalone edge is ~48% win — essentially a "
-                "coin flip across every tier and lane-count slice. "
-                "The math + trend gates work as designed, but the "
-                "alpha here is <b>multi-system confirmation</b>: when "
-                "an ELITE pick also lights up the ⚡ ELITE chip on a "
-                "TOP CONVICTION card, that's the trade. The "
-                "backtest-validated edges (<b>CONVERGENCE +6.8pp</b>, "
-                "<b>SURE SHOT</b>, <b>PREMIUM</b>) live on TOP "
-                "CONVICTION above. Use this board to <i>confirm</i> "
-                "what's strong there, not as a primary signal source."
+                "<b>⚠ Honest read (150-coin backtest, n=6122):</b> "
+                "ELITE's standalone edge is ~43% win — actually below "
+                "coin flip. ONE configuration has real edge: <b>3+ "
+                "lane confluence (53% win, n=124)</b> — shown in the "
+                "🎯 STRONGEST section. 1-2 lane picks are <b>not</b> "
+                "a standalone edge. Use them only when they ALSO show "
+                "<b>⚡ CONVERGENCE</b>, <b>💎 SURE SHOT</b>, or "
+                "<b>🏆 PREMIUM</b> chips on TOP CONVICTION above — "
+                "those are the backtest-validated edges (CONVERGENCE "
+                "<b>+6.8pp uplift</b>, SURE SHOT meta-filter). "
+                "Bottom line: trust 🎯 STRONGEST, treat 1-2 lane "
+                "picks as confirmation-only."
                 "</div>",
                 unsafe_allow_html=True)
             with st.spinner(
@@ -9701,24 +9702,27 @@ if active_section == "🧪 Paper Trader":
                     unsafe_allow_html=True)
 
                 # ========================================================
-                # SECTIONING — multi-lane (2+) on top, single-lane below
+                # SECTIONING — STRONGEST (3+ lanes) vs lower confidence
                 # ========================================================
-                # Per user: "2 lanes affirms shows strong prediction and
-                # confidence score show those coins in this section on
-                # top that have best confidence scores and rest in the
-                # lower order".
-                # Multi-lane = visually prioritized (multiple systems
-                # agreeing is the convincing signal even if the backtest
-                # showed no statistical win-rate edge per lane count —
-                # the user wants 2+ lanes UP TOP as strongest evidence).
+                # 150-coin walk-forward backtest (n=6122) settled the
+                # lane-count question:
+                #   1 lane:  43.2% win (n=4852)  - losing
+                #   2 lanes: 42.0% win (n=1137)  - losing
+                #   3 lanes: 53.2% win (n=124)   - REAL edge
+                #   4+ lanes: 66.7% win (n=9)    - strong but rare
+                # 3+ lanes is the only confluence count with backtested
+                # edge. Below that, lane count alone doesn't predict
+                # winners — picks need additional confirmations (e.g.,
+                # CONVERGENCE / SURE SHOT chip on the same coin in
+                # TOP CONVICTION) to be trustworthy.
                 _u_multi = sorted(
                     [p for p in _u_picks
-                     if len(p.get("active_lanes") or []) >= 2],
+                     if len(p.get("active_lanes") or []) >= 3],
                     key=lambda p: float(p.get("score") or 0),
                     reverse=True)
                 _u_single = sorted(
                     [p for p in _u_picks
-                     if len(p.get("active_lanes") or []) <= 1],
+                     if len(p.get("active_lanes") or []) <= 2],
                     key=lambda p: float(p.get("score") or 0),
                     reverse=True)
 
@@ -9746,16 +9750,17 @@ if active_section == "🧪 Paper Trader":
                                 "<span style='font-size:1.05rem;"
                                 "font-weight:900;color:#2ed47a;"
                                 "letter-spacing:0.02em'>"
-                                "🎯 STRONGEST — multi-lane "
-                                "confirmation</span>"
+                                "🎯 STRONGEST — backtested edge"
+                                "</span>"
                                 f"<span style='color:#aab;"
                                 f"font-size:0.78rem'>{_u_sec_n} pick"
                                 f"{'s' if _u_sec_n != 1 else ''} · "
-                                "2+ signal lanes agree on side · "
-                                "ranked by confidence score</span>"
+                                "3+ signal lanes agree (53% win in "
+                                "150-coin backtest) · highest "
+                                "confidence first</span>"
                                 "</div>",
                                 unsafe_allow_html=True)
-                        else:  # SINGLE
+                        else:  # SINGLE/LOWER (1-2 lanes)
                             st.markdown(
                                 "<div style='display:flex;align-items:"
                                 "center;gap:12px;margin-top:18px;"
@@ -9763,13 +9768,15 @@ if active_section == "🧪 Paper Trader":
                                 "<span style='font-size:1.0rem;"
                                 "font-weight:800;color:#8b8d98;"
                                 "letter-spacing:0.02em'>"
-                                "🔵 SINGLE-LANE — lower confidence"
+                                "🔵 LOWER CONFIDENCE — 1-2 lanes"
                                 "</span>"
                                 f"<span style='color:#888;"
                                 f"font-size:0.78rem'>{_u_sec_n} pick"
                                 f"{'s' if _u_sec_n != 1 else ''} · "
-                                "1 lane only · use as watchlist "
-                                "rather than primary action</span>"
+                                "lane count alone doesn't predict "
+                                "wins (~43%) — only act when these "
+                                "ALSO show ⚡ CONVERGENCE / "
+                                "💎 SURE SHOT on TOP CONVICTION</span>"
                                 "</div>",
                                 unsafe_allow_html=True)
                         continue
