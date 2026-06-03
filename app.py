@@ -9700,7 +9700,81 @@ if active_section == "🧪 Paper Trader":
                     f"</div>",
                     unsafe_allow_html=True)
 
-                for _u in _u_picks:
+                # ========================================================
+                # SECTIONING — multi-lane (2+) on top, single-lane below
+                # ========================================================
+                # Per user: "2 lanes affirms shows strong prediction and
+                # confidence score show those coins in this section on
+                # top that have best confidence scores and rest in the
+                # lower order".
+                # Multi-lane = visually prioritized (multiple systems
+                # agreeing is the convincing signal even if the backtest
+                # showed no statistical win-rate edge per lane count —
+                # the user wants 2+ lanes UP TOP as strongest evidence).
+                _u_multi = sorted(
+                    [p for p in _u_picks
+                     if len(p.get("active_lanes") or []) >= 2],
+                    key=lambda p: float(p.get("score") or 0),
+                    reverse=True)
+                _u_single = sorted(
+                    [p for p in _u_picks
+                     if len(p.get("active_lanes") or []) <= 1],
+                    key=lambda p: float(p.get("score") or 0),
+                    reverse=True)
+
+                # Build the rendering iterator with section dividers
+                _u_render_list = []
+                if _u_multi:
+                    _u_render_list.append(("__SECTION__", "MULTI",
+                                          len(_u_multi)))
+                    _u_render_list.extend([("PICK", p) for p in _u_multi])
+                if _u_single:
+                    _u_render_list.append(("__SECTION__", "SINGLE",
+                                          len(_u_single)))
+                    _u_render_list.extend([("PICK", p) for p in _u_single])
+
+                for _u_row in _u_render_list:
+                    # Section divider rendering
+                    if _u_row[0] == "__SECTION__":
+                        _u_sec_kind = _u_row[1]
+                        _u_sec_n = _u_row[2]
+                        if _u_sec_kind == "MULTI":
+                            st.markdown(
+                                "<div style='display:flex;align-items:"
+                                "center;gap:12px;margin-top:18px;"
+                                "margin-bottom:8px'>"
+                                "<span style='font-size:1.05rem;"
+                                "font-weight:900;color:#2ed47a;"
+                                "letter-spacing:0.02em'>"
+                                "🎯 STRONGEST — multi-lane "
+                                "confirmation</span>"
+                                f"<span style='color:#aab;"
+                                f"font-size:0.78rem'>{_u_sec_n} pick"
+                                f"{'s' if _u_sec_n != 1 else ''} · "
+                                "2+ signal lanes agree on side · "
+                                "ranked by confidence score</span>"
+                                "</div>",
+                                unsafe_allow_html=True)
+                        else:  # SINGLE
+                            st.markdown(
+                                "<div style='display:flex;align-items:"
+                                "center;gap:12px;margin-top:18px;"
+                                "margin-bottom:8px'>"
+                                "<span style='font-size:1.0rem;"
+                                "font-weight:800;color:#8b8d98;"
+                                "letter-spacing:0.02em'>"
+                                "🔵 SINGLE-LANE — lower confidence"
+                                "</span>"
+                                f"<span style='color:#888;"
+                                f"font-size:0.78rem'>{_u_sec_n} pick"
+                                f"{'s' if _u_sec_n != 1 else ''} · "
+                                "1 lane only · use as watchlist "
+                                "rather than primary action</span>"
+                                "</div>",
+                                unsafe_allow_html=True)
+                        continue
+                    # Regular pick row
+                    _u = _u_row[1]
                     _u_sym = _u.get("symbol", "?")
                     _u_base = _u.get("base", _u_sym.replace("USDT", ""))
                     _u_side = (_u.get("side") or "LONG").upper()
