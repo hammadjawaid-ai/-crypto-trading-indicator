@@ -10120,6 +10120,21 @@ if active_section == "🧪 Paper Trader":
                 _f_cur = float(_f.get("current_price") or 0)
                 _f_pct = _f.get("pct_since_fire")
                 _f_fired_at = float(_f.get("fired_at") or 0)
+                # Plan levels stored with the fire (from trade_plan)
+                _f_sl = float(_f.get("stop") or 0)
+                _f_tp1 = float(_f.get("tp1") or 0)
+                _f_tp2 = float(_f.get("tp2") or 0)
+                # TP3 not in current trade_plan output from
+                # experimental_signals._build_plan — show only TP1/TP2.
+                # Compute % distance from entry, sign-aware per side
+                def _pct_to_entry(level, entry):
+                    if entry <= 0 or level <= 0:
+                        return None
+                    return (level - entry) / entry * 100
+                _f_sl_pct = _pct_to_entry(_f_sl, _f_entry)
+                _f_tp1_pct = _pct_to_entry(_f_tp1, _f_entry)
+                _f_tp2_pct = _pct_to_entry(_f_tp2, _f_entry)
+                _f_rr = float(_f.get("rr") or 0)
                 _f_age_min = max(
                     0, (time.time() - _f_fired_at) / 60.0)
                 if _f_age_min < 60:
@@ -10172,6 +10187,47 @@ if active_section == "🧪 Paper Trader":
                     _rf_lane_labels.get(ln, "·")
                     for ln in (_f.get("active_lanes") or [])[:6])
 
+                # Plan row — entry zone + SL/TP1/TP2 with percentages
+                # so the user can see the FULL trade plan that was on
+                # the table when this signal fired. Helpful for audit:
+                # were TP1/TP2 ever reached?
+                def _level_cell(label, level, pct, color):
+                    if level <= 0:
+                        return ""
+                    pct_str = (f" <span style='color:{color};"
+                              f"font-weight:700'>"
+                              f"({'+' if pct and pct > 0 else ''}"
+                              f"{pct:.2f}%)</span>"
+                              if pct is not None else "")
+                    return (
+                        f"<span style='color:#aab;"
+                        f"font-size:0.74rem'>"
+                        f"<b style='color:{color}'>{label}</b> "
+                        f"<code style='background:rgba("
+                        f"{('46,212,122' if color == '#2ed47a' else '255,92,92') if label in ('TP1','TP2','SL') else '255,255,255'},"
+                        f"0.10);padding:1px 6px;"
+                        f"border-radius:4px;color:{color}'>"
+                        f"{level:g}</code>{pct_str}</span>")
+
+                _plan_row = (
+                    f"<div style='display:flex;flex-wrap:wrap;"
+                    f"gap:12px;margin-top:6px;padding-top:6px;"
+                    f"border-top:1px solid rgba(255,255,255,0.05);"
+                    f"line-height:1.6'>"
+                    + _level_cell(
+                        "Entry", _f_entry, None, "#fff")
+                    + _level_cell(
+                        "SL", _f_sl, _f_sl_pct, "#ff5c5c")
+                    + _level_cell(
+                        "TP1", _f_tp1, _f_tp1_pct, "#2ed47a")
+                    + _level_cell(
+                        "TP2", _f_tp2, _f_tp2_pct, "#2ed47a")
+                    + (f"<span style='color:#ffd700;"
+                       f"font-size:0.74rem;font-weight:700'>"
+                       f"R:R {_f_rr:.2f}</span>"
+                       if _f_rr > 0 else "")
+                    + "</div>")
+
                 with st.container(border=True):
                     st.markdown(
                         f"<div style='display:flex;align-items:"
@@ -10193,9 +10249,6 @@ if active_section == "🧪 Paper Trader":
                         f"<span style='color:#888;"
                         f"font-size:0.78rem'>fired {_f_fired_dt} · "
                         f"{_f_age_str}</span>"
-                        f"<span style='color:#aab;"
-                        f"font-size:0.78rem'>@ <code>"
-                        f"{_f_entry:g}</code></span>"
                         f"<span style='color:#888;"
                         f"font-size:0.78rem'>→</span>"
                         f"<span style='color:#fff;"
@@ -10206,7 +10259,8 @@ if active_section == "🧪 Paper Trader":
                         f"<span style='color:#aab;"
                         f"font-size:0.85rem;margin-left:6px'>"
                         f"{_lane_str}</span>"
-                        f"</div>",
+                        f"</div>"
+                        f"{_plan_row}",
                         unsafe_allow_html=True)
 
         st.divider()
