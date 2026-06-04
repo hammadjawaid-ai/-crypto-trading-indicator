@@ -10191,18 +10191,20 @@ if active_section == "🧪 Paper Trader":
             signal_fires.enrich_perf(_rf_recent, _rf_prices)
         except Exception:
             _rf_recent = []
-        # Per user: 'should show more no? that was the idea'. Relaxed
-        # filter — catch any of:
-        #   - score >= 80 (STRONG tier)
-        #   - OR 2+ lanes firing (any multi-lane confluence)
-        # In a BEAR-regime market, even the strongest fires often
-        # have <3 lanes (e.g., solo Pattern Scout at 97). This bar is
-        # low enough to surface meaningful audit data while still
-        # filtering out weak 70-79 picks.
+        # Per user: 'score threshold is good to be tight so I can evident
+        # results on trades it works that way'. Tight score AND lenient
+        # lane filter:
+        #   - score >= 85 (HIGH/MAX tier — tight)
+        #   - OR 2+ lanes firing (multi-system confluence)
+        # Tight score catches the strongest solo signals (Pattern Scout
+        # 90+, dist_top firing strong). 2+ lane filter catches multi-
+        # system agreement even at lower individual scores. Together
+        # they balance quality (tight score) with visibility (multi-lane
+        # confluence shows even if individual scores are moderate).
         _rf_total_before_filter = len(_rf_recent)
         _rf_recent = [
             f for f in _rf_recent
-            if (float(f.get("score") or 0) >= 80
+            if (float(f.get("score") or 0) >= 85
                 or len(f.get("active_lanes") or []) >= 2)
         ]
         _rf_recent = sorted(
@@ -10227,7 +10229,7 @@ if active_section == "🧪 Paper Trader":
                 "background-clip:text;letter-spacing:-0.02em'>"
                 "📊 RECENT TRADES</span>"
                 "<span style='color:#aab;font-size:0.82rem'>"
-                "score ≥80 OR 2+ lanes · last 12h · standalone "
+                "score ≥85 OR 2+ lanes · last 12h · standalone "
                 "audit log · 🎯 badge = backtest-validated 3+ lane "
                 "edge</span>"
                 "</div>",
