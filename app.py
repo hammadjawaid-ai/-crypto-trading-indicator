@@ -1095,6 +1095,57 @@ def compute_unified_best_picks(interval: str, scan_n: int = 50,
     except Exception:
         pass
 
+    # === D-TIER: 🚨 TOP RISK — dist_top SHORTs (priority 75) ==========
+    # Per user: surface dist_top fires on TOP CONVICTION so NEAR-style
+    # tops aren't missed even when the alerts engine doesn't see SHORT.
+    # Priority 75 = between A-tier (85, Pattern Scout STRONG) and
+    # B-tier (70, Setups Forming) — these are leading SHORT signals
+    # that catch parabolic tops with backtested edge.
+    try:
+        import experimental_signals as _exp_for_tc
+        # Use the cached ELITE scan if available, otherwise scan
+        _elite_picks_for_tc = _exp_for_tc.scan_unified(
+            scan_n=scan_n, interval=interval,
+            min_score=60.0, max_picks=30)
+        for p in (_elite_picks_for_tc or []):
+            sym = p.get("symbol")
+            if not sym or sym in picks_by_sym:
+                continue
+            # Must have dist_top as one of the active lanes AND be SHORT
+            active = p.get("active_lanes") or []
+            if "dist_top" not in active:
+                continue
+            if (p.get("side") or "").upper() != "SHORT":
+                continue
+            plan = p.get("trade_plan") or {}
+            picks_by_sym[sym] = {
+                "tier": "D",
+                "tier_label": "🚨 TOP RISK",
+                "tier_color": "#ff5c5c",
+                "tier_gradient":
+                    "linear-gradient(135deg,#ff3d57,#ff8c00,#ffd700)",
+                "priority": 75,
+                "symbol": sym,
+                "base": p.get(
+                    "base", sym.replace("USDT", "")),
+                "side": "SHORT",
+                "score": float(p.get("score") or 0),
+                "entry": plan.get("entry"),
+                "stop": plan.get("stop"),
+                "target": plan.get("tp1"),
+                "target_2": plan.get("tp2"),
+                "rr": plan.get("rr"),
+                "best_signal": "distribution_top",
+                "reasons": p.get("reasons") or [],
+                "source": "dist_top",
+                "pct_24h": p.get("pct_24h", 0),
+                "price": p.get("price_now"),
+                "has_plan": plan.get("entry") is not None,
+                "lanes_fired": p.get("lanes_fired") or {},
+            }
+    except Exception:
+        pass
+
     # Rank by priority then score, take top 8
     ranked = sorted(picks_by_sym.values(),
                     key=lambda p: (p["priority"], p["score"]),
@@ -10110,13 +10161,19 @@ if active_section == "🧪 Paper Trader":
             signal_fires.enrich_perf(_rf_recent, _rf_prices)
         except Exception:
             _rf_recent = []
-        # Sort by score desc (highest first), then lane count desc.
-        # Show top 15. Each pick gets a STRONGEST badge if 3+ lanes
-        # (the backtest-validated 53% win zone). Previous attempt to
-        # FILTER to 3+ lanes hid the section entirely because most
-        # fires are 1-lane (pattern_scout solo) — making the audit
-        # log useless. Instead, show all and badge the strong ones.
+        # Per user: 'treat it separately, only the strongest and most
+        # confident ones'. STRONGEST = either of:
+        #   - score >= 85 (HIGH/MAX tier on ELITE)
+        #   - OR 3+ lanes firing (backtest-validated 53% win edge)
+        # This catches the SOLO Pattern Scout picks at high scores
+        # (which won't have 3 lanes but ARE strong on their own) AND
+        # the multi-lane confluence picks.
         _rf_total_before_filter = len(_rf_recent)
+        _rf_recent = [
+            f for f in _rf_recent
+            if (float(f.get("score") or 0) >= 85
+                or len(f.get("active_lanes") or []) >= 3)
+        ]
         _rf_recent = sorted(
             _rf_recent,
             key=lambda f: (
@@ -10139,9 +10196,9 @@ if active_section == "🧪 Paper Trader":
                 "background-clip:text;letter-spacing:-0.02em'>"
                 "📊 RECENT TRADES</span>"
                 "<span style='color:#aab;font-size:0.82rem'>"
-                "every STRONG+ signal in the last 12h · ranked by "
-                "lane count + score · 🎯 badge = 3+ lanes "
-                "(backtested 53% win)</span>"
+                "STRONGEST + most confident fires only · score ≥85 "
+                "OR 3+ lanes · last 12h · standalone audit log "
+                "(independent of ELITE board)</span>"
                 "</div>",
                 unsafe_allow_html=True)
             # Summary chip row
