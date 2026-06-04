@@ -5485,10 +5485,20 @@ if active_section == "🧪 Paper Trader":
                             f"{emoji} Closed {cl['base']} · "
                             f"{cl['pnl_pct']:+.2f}%", icon="🧪")
                         st.rerun(scope="fragment")
-                st.progress(health, text=(
-                    f"🎯 {health}% toward target"
-                    if health >= 50
-                    else f"⚠️ {100 - health}% toward stop"))
+                # Health is 0-100 with 50 = entry (break-even).
+                #   50-100 range = profit zone (entry → target)
+                #   0-50 range  = loss zone (entry → stop)
+                # The user-facing text needs the % within the relevant
+                # zone, not the % of the full bar — previously
+                # `100 - health` said "56% toward stop" when we'd only
+                # traveled 10% from entry to stop.
+                if health >= 50:
+                    _zone_pct = int((health - 50) * 2)  # % to target
+                    _zone_text = f"🎯 {_zone_pct}% toward target"
+                else:
+                    _zone_pct = int((50 - health) * 2)  # % to stop
+                    _zone_text = f"⚠️ {_zone_pct}% toward stop"
+                st.progress(health, text=_zone_text)
                 _render_position_chart(
                     p["symbol"], p["side"],
                     entry_v, stop_v, target_v, cur)
@@ -5712,31 +5722,40 @@ if active_section == "🧪 Paper Trader":
     # ============================================================
     # 💾 BROWSER BACKUP RESTORE BANNER
     # ============================================================
-    # When pb_state is empty (file was wiped, session_state cleared)
-    # BUT the user's browser has a localStorage backup from a prior
-    # session, render a JS-powered banner that:
-    #   1. Reads localStorage paper_bot_state
-    #   2. If it has more closed trades than current state, shows a
-    #      big "🔄 RESTORE TRADES FROM BROWSER BACKUP" button
-    #   3. Clicking the button reloads with ?restore_lb=<base64> which
-    #      the load logic at the top picks up and restores from
+    # Fires when localStorage has MORE closed trades than current
+    # state — not just when state is fully empty. So if the user
+    # has 1 open position but lost their 40 closed trades to a
+    # container restart, the banner still appears.
     _current_open = len(pb_state.get("open") or [])
     _current_closed = len(pb_state.get("closed") or [])
-    if _current_open == 0 and _current_closed == 0:
-        # Render a JS detector — if localStorage has data and current
-        # state is empty, surface a one-click restore button.
+    # Always render the JS — let it decide whether to show banner.
+    # Passes the current closed count so JS can compare against
+    # localStorage's count and only surface the banner when there's
+    # genuine data loss to recover from.
+    if True:
         import streamlit.components.v1 as _stc_restore
-        _stc_restore.html(
-            """
+        # Build the JS once with placeholder tokens that get replaced
+        # AFTER the string literal is constructed — avoids f-string
+        # vs JS template-literal conflicts.
+        _restore_js = ("""
             <div id="lb_restore_zone" style="display:none"></div>
             <script>
+            const CURRENT_CLOSED = __PY_CURRENT_CLOSED__;
+            const CURRENT_OPEN = __PY_CURRENT_OPEN__;
             try {
                 const raw = localStorage.getItem('paper_bot_state');
                 const ts = localStorage.getItem('paper_bot_state_ts');
                 const n_closed = parseInt(
                     localStorage.getItem('paper_bot_state_n_closed')
                     || '0', 10);
-                if (raw && (n_closed > 0 || raw.includes('"open":[{'))) {
+                // Show banner if browser has MEANINGFULLY MORE data.
+                // 'Meaningfully' = at least 3 more closed trades, OR
+                // current is fully empty + browser has any data.
+                const fully_empty = (CURRENT_OPEN === 0
+                                     && CURRENT_CLOSED === 0);
+                const lost_history = (n_closed >= CURRENT_CLOSED + 3);
+                const should_show = raw && (fully_empty || lost_history);
+                if (should_show) {
                     const enc = btoa(unescape(encodeURIComponent(raw)));
                     const age_min = ts ? Math.round(
                         (Date.now() - parseInt(ts, 10)) / 60000) : null;
@@ -5795,8 +5814,15 @@ if active_section == "🧪 Paper Trader":
                 console.error('localStorage restore check failed:', e);
             }
             </script>
-            """,
-            height=0)
+            """)
+        # Substitute the Python values into the JS placeholders, then
+        # render. .replace() is safer than f-string when the body has
+        # lots of JS template-literal syntax ${...} and object braces.
+        _restore_js = _restore_js.replace(
+            "__PY_CURRENT_CLOSED__", str(_current_closed))
+        _restore_js = _restore_js.replace(
+            "__PY_CURRENT_OPEN__", str(_current_open))
+        _stc_restore.html(_restore_js, height=0)
 
     # ---- Bank + trade stats — LIVE fragment (updates in place every 10s)
     _live_paper_stats()
