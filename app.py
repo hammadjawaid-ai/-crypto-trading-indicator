@@ -10053,17 +10053,35 @@ if active_section == "🧪 Paper Trader":
                     key=lambda p: float(p.get("score") or 0),
                     reverse=True)
                 _u_top_risk_syms = {p.get("symbol") for p in _u_top_risk}
-                # Remaining picks (excluding TOP RISK) split by lane count
+                # Remaining picks (excluding TOP RISK) — STRONGEST now
+                # broadened to include HIGH+ tier 2-lane picks per user
+                # (the HOME LONG winning trade was tier=HIGH score=88 with
+                # 2 lanes — Pattern Scout 98 + Early Momentum 90. Should
+                # be featured, not buried in 'lower confidence').
                 _u_other = [p for p in _u_picks
                            if p.get("symbol") not in _u_top_risk_syms]
+                def _is_strongest(p):
+                    n_lanes = len(p.get("active_lanes") or [])
+                    tier = p.get("tier") or ""
+                    sc = float(p.get("score") or 0)
+                    # Strongest = 3+ lanes (backtest-validated edge)
+                    # OR HIGH/MAX tier (score >= 85) with at least 2 lanes
+                    if n_lanes >= 3:
+                        return True
+                    if n_lanes >= 2 and (
+                            tier in ("HIGH", "MAX") or sc >= 85):
+                        return True
+                    return False
                 _u_multi = sorted(
-                    [p for p in _u_other
-                     if len(p.get("active_lanes") or []) >= 3],
-                    key=lambda p: float(p.get("score") or 0),
+                    [p for p in _u_other if _is_strongest(p)],
+                    key=lambda p: (
+                        len(p.get("active_lanes") or []),
+                        float(p.get("score") or 0)),
                     reverse=True)
+                _u_strongest_syms = {p.get("symbol") for p in _u_multi}
                 _u_single = sorted(
                     [p for p in _u_other
-                     if len(p.get("active_lanes") or []) <= 2],
+                     if p.get("symbol") not in _u_strongest_syms],
                     key=lambda p: float(p.get("score") or 0),
                     reverse=True)
 
@@ -10122,14 +10140,14 @@ if active_section == "🧪 Paper Trader":
                                 "<span style='font-size:1.05rem;"
                                 "font-weight:900;color:#2ed47a;"
                                 "letter-spacing:0.02em'>"
-                                "🎯 STRONGEST — backtested edge"
+                                "🎯 STRONGEST — high conviction"
                                 "</span>"
                                 f"<span style='color:#aab;"
                                 f"font-size:0.78rem'>{_u_sec_n} pick"
                                 f"{'s' if _u_sec_n != 1 else ''} · "
-                                "3+ signal lanes agree (53% win in "
-                                "150-coin backtest) · highest "
-                                "confidence first</span>"
+                                "3+ lanes OR HIGH/MAX tier with 2+ "
+                                "lanes · the pattern your HOME LONG "
+                                "winner used</span>"
                                 "</div>",
                                 unsafe_allow_html=True)
                         else:  # SINGLE/LOWER (1-2 lanes)
