@@ -7895,13 +7895,16 @@ if active_section == "🧪 Paper Trader":
                                          "scan_experimental", None))
 
         @st.cache_data(ttl=300, show_spinner=False)  # 5 min (was 15)
-        def _load_elite_picks_cached(_v: int = 5):
+        def _load_elite_picks_cached(_v: int = 6):
             if _elite_scan_fn is None:
                 return []
             try:
+                # Expanded scan: top 150 coins (was 100), 40 max picks
+                # (was 20). User wanted more visibility — covers
+                # basically every actively-traded USDT perp.
                 return _elite_scan_fn(
-                    scan_n=100, interval="1h",
-                    min_score=70.0, max_picks=20)
+                    scan_n=150, interval="1h",
+                    min_score=70.0, max_picks=40)
             except Exception:
                 return []
 
@@ -9635,10 +9638,11 @@ if active_section == "🧪 Paper Trader":
             # double-scanning the universe. Cache TTL lowered to 5 min
             # at the source so both sections stay fresh.
             @st.cache_data(ttl=300, show_spinner=False)
-            def _pt_load_unified(_v: int = 5):
+            def _pt_load_unified(_v: int = 6):
+                # Match _load_elite_picks_cached: 150 coins / 40 picks
                 return _u_scan_fn(
-                    scan_n=100, interval="1h",
-                    min_score=70.0, max_picks=20)
+                    scan_n=150, interval="1h",
+                    min_score=70.0, max_picks=40)
 
             # Premium header — gold→pink→cyan gradient matching
             # 🏆 TOP CONVICTION and 💎 SURE SHOT branding.
@@ -10187,18 +10191,19 @@ if active_section == "🧪 Paper Trader":
             signal_fires.enrich_perf(_rf_recent, _rf_prices)
         except Exception:
             _rf_recent = []
-        # Per user: 'treat it separately, only the strongest and most
-        # confident ones'. STRONGEST = either of:
-        #   - score >= 85 (HIGH/MAX tier on ELITE)
-        #   - OR 3+ lanes firing (backtest-validated 53% win edge)
-        # This catches the SOLO Pattern Scout picks at high scores
-        # (which won't have 3 lanes but ARE strong on their own) AND
-        # the multi-lane confluence picks.
+        # Per user: 'should show more no? that was the idea'. Relaxed
+        # filter — catch any of:
+        #   - score >= 80 (STRONG tier)
+        #   - OR 2+ lanes firing (any multi-lane confluence)
+        # In a BEAR-regime market, even the strongest fires often
+        # have <3 lanes (e.g., solo Pattern Scout at 97). This bar is
+        # low enough to surface meaningful audit data while still
+        # filtering out weak 70-79 picks.
         _rf_total_before_filter = len(_rf_recent)
         _rf_recent = [
             f for f in _rf_recent
-            if (float(f.get("score") or 0) >= 85
-                or len(f.get("active_lanes") or []) >= 3)
+            if (float(f.get("score") or 0) >= 80
+                or len(f.get("active_lanes") or []) >= 2)
         ]
         _rf_recent = sorted(
             _rf_recent,
@@ -10222,9 +10227,9 @@ if active_section == "🧪 Paper Trader":
                 "background-clip:text;letter-spacing:-0.02em'>"
                 "📊 RECENT TRADES</span>"
                 "<span style='color:#aab;font-size:0.82rem'>"
-                "STRONGEST + most confident fires only · score ≥85 "
-                "OR 3+ lanes · last 12h · standalone audit log "
-                "(independent of ELITE board)</span>"
+                "score ≥80 OR 2+ lanes · last 12h · standalone "
+                "audit log · 🎯 badge = backtest-validated 3+ lane "
+                "edge</span>"
                 "</div>",
                 unsafe_allow_html=True)
             # Summary chip row
