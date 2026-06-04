@@ -8045,6 +8045,88 @@ if active_section == "🧪 Paper Trader":
         }
 
         # ============================================================
+        # 🚨 BEST-OF-BEST BROWSER NOTIFICATIONS
+        # ============================================================
+        # User: 'I want to be notified for the best of the best trades
+        # only not everything even when I am working on something else'.
+        # Uses the existing _inject_browser_alerts infrastructure with
+        # a dedicated localStorage key so notifications don't conflict
+        # with the general alerts/news streams.
+        #
+        # Criteria (matches the 🚨 ACT NOW chip):
+        #   - TOP CONVICTION combined >= 85
+        #   - 2+ proven backtested confirmations:
+        #     (CONVERGENCE OR SURE SHOT OR PREMIUM)
+        #   - ELITE composite agrees (score>=80 OR 3+ lanes), same side
+        #   - Live R:R >= 1.5
+        # Same gate as ACT NOW chip — these are unanimous-vote setups.
+        if alerts_on:
+            _best_alerts = []
+            for _pk in _bot_picks:
+                _pk_combined = _pk[0]
+                _pk_fc_label = _pk[1]
+                _pk_s = _pk[4]
+                _pk_sym = _pk_s.get("symbol")
+                _pk_side = (_pk_s.get("side") or "").upper()
+                _pk_conf = int(_pk_s.get("confidence") or 0)
+                if _pk_combined < 85:
+                    continue
+                # Live R:R from current price
+                _pk_cur = (prices.get(_pk_sym)
+                           or float(_pk_s.get("entry_low") or 0))
+                _pk_stop = float(_pk_s.get("stop") or 0)
+                _pk_tgt = float(_pk_s.get("target") or 0)
+                _pk_live_rr = 0.0
+                if _pk_cur > 0 and _pk_stop > 0 and _pk_tgt > 0:
+                    if _pk_side == "LONG":
+                        _risk = (_pk_cur - _pk_stop) / _pk_cur
+                        _rew = (_pk_tgt - _pk_cur) / _pk_cur
+                    else:
+                        _risk = (_pk_stop - _pk_cur) / _pk_cur
+                        _rew = (_pk_cur - _pk_tgt) / _pk_cur
+                    if _risk > 0:
+                        _pk_live_rr = _rew / _risk
+                if _pk_live_rr < 1.5:
+                    continue
+                # Count proven systems agreeing
+                _pk_proven = sum([
+                    int(_pk_sym in _convergence_syms),
+                    int(_pk_sym in _sure_shot_syms),
+                    int(_pk_conf >= 80
+                        and _pk_fc_label
+                        == "forecast confirms · aligned 3/3"),
+                ])
+                if _pk_proven < 2:
+                    continue
+                # ELITE check
+                _pk_elite = _elite_lookup.get(_pk_sym)
+                _pk_elite_ok = (
+                    _pk_elite is not None
+                    and (_pk_elite.get("side") or "").upper()
+                        == _pk_side
+                    and (float(_pk_elite.get("score") or 0) >= 80
+                         or int(_pk_elite.get("n_strong_lanes")
+                                or 0) >= 3))
+                if not _pk_elite_ok:
+                    continue
+                # All gates passed — this is a BEST-OF-BEST signal
+                _pk_base = _pk_s.get(
+                    "base", _pk_sym.replace("USDT", ""))
+                _best_alerts.append({
+                    "id": f"actnow:{_pk_sym}:{_pk_side}",
+                    "title": (f"🚨 ACT NOW — {_pk_base} "
+                              f"{_pk_side}"),
+                    "body": (f"score {int(_pk_combined)} · "
+                             f"{_pk_proven}-system confirm · "
+                             f"live R:R {_pk_live_rr:.2f} · "
+                             "open from TOP CONVICTION"),
+                })
+            if _best_alerts:
+                _inject_browser_alerts(
+                    _best_alerts, refresh_secs=0,
+                    key="ti_notified_act_now")
+
+        # ============================================================
         # 🔥 NEW CHIP — track first-seen timestamps in session_state
         # ============================================================
         # User: "should pop up" — when a NEW pick first appears, mark
