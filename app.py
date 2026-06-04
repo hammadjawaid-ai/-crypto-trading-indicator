@@ -8337,6 +8337,32 @@ if active_section == "🧪 Paper Trader":
 
                     # Hero rank ribbon — distinct per position so the user
                     # sees ranking at a glance when 3-5 heroes render.
+                    # Compute alive-time for the hero card from the
+                    # session_state first-seen map (same source as the
+                    # 🔥 NEW chip on bot picks).
+                    _h_pick_key = (_h_sym, _h_side)
+                    _h_first_seen = _first_seen_map.get(
+                        _h_pick_key, _now_ts)
+                    _h_alive_sec = max(0, _now_ts - _h_first_seen)
+                    _h_alive_min = _h_alive_sec / 60.0
+                    if _h_alive_sec < 60:
+                        _h_alive_str = "just appeared"
+                        _h_alive_color = "#ffd700"  # gold — fresh
+                    elif _h_alive_min < 60:
+                        _h_alive_str = f"alive {_h_alive_min:.0f}m"
+                        _h_alive_color = "#2ed47a"  # green — recent
+                    elif _h_alive_min < 240:
+                        _h_alive_str = (
+                            f"alive {_h_alive_min/60:.1f}h")
+                        _h_alive_color = "#5b8eff"  # blue — older
+                    else:
+                        _h_alive_str = (
+                            f"alive {_h_alive_min/60:.0f}h")
+                        _h_alive_color = "#8b8d98"  # grey — old
+                    _h_first_seen_dt = datetime.fromtimestamp(
+                        _h_first_seen, tz=timezone.utc).strftime(
+                            "%H:%M UTC")
+
                     _h_rank_text = f"#{_h_idx + 1} PICK"
                     _h_rank_grads = [
                         "linear-gradient(135deg,#ffd700,#ff8c00)",    # #1 gold
@@ -8401,6 +8427,20 @@ if active_section == "🧪 Paper Trader":
                         f"font-weight:800;border:1px solid "
                         f"rgba(46,212,122,0.35)'>"
                         f"{_h_confirm_count} systems agree</span>"
+                        # 🕐 ALIVE chip — when did this signal first
+                        # appear? Colours: gold (<1min, just appeared),
+                        # green (<60min, fresh), blue (1-4h, older),
+                        # grey (>4h, stale).
+                        f"<span style='background:rgba("
+                        f"{int(_h_alive_color[1:3],16)},"
+                        f"{int(_h_alive_color[3:5],16)},"
+                        f"{int(_h_alive_color[5:7],16)},0.12);"
+                        f"color:{_h_alive_color};padding:5px 14px;"
+                        f"border-radius:8px;font-size:0.82rem;"
+                        f"font-weight:800;border:1px solid "
+                        f"{_h_alive_color}55'>"
+                        f"🕐 {_h_alive_str} · since {_h_first_seen_dt}"
+                        f"</span>"
                         f"</div>"
                         # EVIDENCE STACK row — what makes this convincing
                         f"<div style='margin-bottom:14px;line-height:2.2'>"
