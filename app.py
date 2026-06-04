@@ -5140,6 +5140,108 @@ if active_section == "🧪 Paper Trader":
                             "history.")
                         st.rerun()
 
+            # ============================================================
+            # 📊 CSV IMPORT — restore closed-trade history from CSV export
+            # ============================================================
+            # If the user has the closed-trades CSV (downloaded earlier
+            # via the existing ⬇ CSV button), they can re-import it
+            # here to restore their historical track record. Merges
+            # into pb_state["closed"], deduped by (symbol, exit_at).
+            # Closed trades are display-only data — no signal scoring
+            # depends on them — so import is fully safe.
+            st.markdown(
+                "<hr style='border:0;border-top:1px solid "
+                "rgba(255,255,255,0.08);margin:14px 0 8px 0'>",
+                unsafe_allow_html=True)
+            st.caption(
+                "**📊 Restore closed-trade history from a previously-"
+                "downloaded CSV** — useful if you have the closed-"
+                "trades CSV from before a Streamlit Cloud restart but "
+                "not the full JSON. Imports are deduped — safe to "
+                "upload the same CSV twice.")
+            _csv_upload = st.file_uploader(
+                "Upload closed_trades.csv",
+                type=["csv"], key="pb_bk_csv_import",
+                help="The CSV format must match what the ⬇ CSV "
+                     "download button produces. Imports rows as "
+                     "closed trades, deduped by symbol+exit_at.")
+            if _csv_upload is not None:
+                try:
+                    import pandas as _csv_pd
+                    _csv_df = _csv_pd.read_csv(_csv_upload)
+                except Exception as exc:
+                    st.error(f"Could not parse CSV: {exc}")
+                    _csv_df = None
+                if _csv_df is not None and not _csv_df.empty:
+                    # Build set of existing closed-trade IDs (symbol, exit_at)
+                    _existing_ids = {
+                        (c.get("symbol"), c.get("exit_at"))
+                        for c in (pb_state.get("closed") or [])
+                    }
+                    # Coerce each row into the closed-trade dict shape
+                    _to_add = []
+                    for _row in _csv_df.itertuples(index=False):
+                        try:
+                            _r = dict(_row._asdict())
+                            _sym = _r.get("symbol")
+                            _exit_at = _r.get("exit_at")
+                            if not _sym or _exit_at is None:
+                                continue
+                            try:
+                                _exit_at = float(_exit_at)
+                            except Exception:
+                                continue
+                            if (_sym, _exit_at) in _existing_ids:
+                                continue
+                            # Coerce numeric fields safely
+                            for _k in ("entry", "stop", "target",
+                                      "target_2", "qty", "original_qty",
+                                      "notional", "leverage", "margin",
+                                      "opened_at", "exit",
+                                      "pnl_usd", "pnl_pct",
+                                      "original_stop", "confidence",
+                                      "rr", "partial_at"):
+                                if _k in _r and _r[_k] is not None:
+                                    try:
+                                        _r[_k] = float(_r[_k])
+                                    except (ValueError, TypeError):
+                                        pass
+                            _r["exit_at"] = _exit_at
+                            _to_add.append(_r)
+                        except Exception:
+                            continue
+                    st.info(
+                        f"Found **{len(_csv_df)}** rows · "
+                        f"**{len(_to_add)}** new (after dedup) · "
+                        f"**{len(_csv_df) - len(_to_add)}** already "
+                        "in history")
+                    if _to_add and st.button(
+                            f"✅ Import {len(_to_add)} closed trade"
+                            f"{'s' if len(_to_add) != 1 else ''}",
+                            key="pb_bk_csv_import_btn",
+                            type="primary",
+                            use_container_width=True):
+                        _merged = list(pb_state.get("closed") or [])
+                        _merged.extend(_to_add)
+                        # Sort by exit_at ascending so equity curve
+                        # renders chronologically
+                        _merged.sort(
+                            key=lambda c: c.get("exit_at") or 0)
+                        pb_state["closed"] = _merged
+                        # Update balance to reflect imported P&L
+                        _imported_pnl = sum(
+                            float(c.get("pnl_usd") or 0)
+                            for c in _to_add)
+                        pb_state["balance"] = float(
+                            pb_state.get("balance") or 0) + _imported_pnl
+                        paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                        st.success(
+                            f"Imported {len(_to_add)} closed trades · "
+                            f"net P&L ${_imported_pnl:+,.2f} added to "
+                            "balance. Equity curve + history now reflect "
+                            "the full record.")
+                        st.rerun()
+
         # ♻ Restore last reset — pulls back the open positions that were
         # force-closed by the most recent auto-reset. Use this if the
         # bot just auto-reset and wiped trades you still wanted open.
