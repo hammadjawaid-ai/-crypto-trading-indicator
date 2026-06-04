@@ -8650,22 +8650,6 @@ if active_section == "🧪 Paper Trader":
                                   f"with stop and target pre-set. "
                                   f"{_h_confirm_count} confirming "
                                   f"systems agree.")):
-                        # LIVE R:R GATE on the giant hero button too
-                        _h_rr_key = f"hero_rr_override_{_h_sym}_{_h_idx}"
-                        _h_rr_override = bool(
-                            st.session_state.get(_h_rr_key))
-                        if (0 < _h_live_rr < 1.5
-                                and not _h_rr_override):
-                            st.session_state[_h_rr_key] = True
-                            st.warning(
-                                f"⚠ **Live R:R {_h_live_rr:.2f}** below "
-                                f"1.5 threshold. Even the hero card's "
-                                f"top pick can degrade when opened past "
-                                f"the entry zone. Click again to "
-                                f"override.")
-                            st.stop()
-                        if _h_rr_key in st.session_state:
-                            del st.session_state[_h_rr_key]
                         try:
                             _h_alert = {
                                 "symbol": _h_sym,
@@ -8962,16 +8946,6 @@ if active_section == "🧪 Paper Trader":
                 # This is the highest-opportunity signal the system can
                 # produce. Manual click still required - this chip just
                 # makes sure you don't miss it.
-                # STRICTER FILTER (per user push for higher win rate):
-                # Now requires ALL FOUR systems to agree, not 2-of-3:
-                #   CONVERGENCE (+6.8pp validated edge)
-                #   SURE SHOT (strict meta-filter)
-                #   PREMIUM (scanner 80% + forecast 3/3)
-                #   ELITE composite (>=80 OR 3+ lanes, side matches)
-                # AND combined >= 85, AND live R:R >= 1.5.
-                # Fires rarely (maybe 0-2 per day) but the picks that
-                # do fire are the closest the system gets to a
-                # multi-system unanimous vote — target ~70-75% win.
                 act_now_chip = ""
                 _an_elite = _elite_lookup.get(s["symbol"])
                 _an_elite_matches = (
@@ -8983,21 +8957,16 @@ if active_section == "🧪 Paper Trader":
                 _an_elite_3lanes = (
                     _an_elite_matches
                     and int(_an_elite.get("n_strong_lanes") or 0) >= 3)
-                _an_elite_ok = (_an_elite_score_strong
-                                or _an_elite_3lanes)
-                _an_in_convergence = s["symbol"] in _convergence_syms
-                _an_in_sureshot = s["symbol"] in _sure_shot_syms
-                _an_is_premium = (
-                    conf >= 80
-                    and fc_label == "forecast confirms · aligned 3/3")
+                _an_proven_count = sum([
+                    int(s["symbol"] in _convergence_syms),
+                    int(s["symbol"] in _sure_shot_syms),
+                    int(conf >= 80 and fc_label ==
+                        "forecast confirms · aligned 3/3"),
+                ])
                 _an_live_rr_ok = _live_rr >= 1.5
-                # 4-of-4 unanimous requirement (was 2-of-3 + ELITE OR)
-                _an_unanimous = (_an_in_convergence
-                                 and _an_in_sureshot
-                                 and _an_is_premium
-                                 and _an_elite_ok)
                 if (combined >= 85
-                        and _an_unanimous
+                        and _an_proven_count >= 2
+                        and (_an_elite_score_strong or _an_elite_3lanes)
                         and _an_live_rr_ok):
                     act_now_chip = (
                         f"<span style='background:linear-gradient("
@@ -9477,30 +9446,6 @@ if active_section == "🧪 Paper Trader":
                     if pb.button("📥", key=f"pb_pick_{sid}",
                                  help=_btn_help,
                                  use_container_width=True):
-                        # LIVE R:R GATE (per user, win-rate push):
-                        # Refuse opens when price has drifted past the
-                        # entry zone and live R:R < 1.5. The ONDO trade
-                        # was opened above the zone with degraded R:R —
-                        # this guard prevents that. To override, the
-                        # user can click again within 30s (session_state
-                        # confirm flag) for an explicit override.
-                        _rr_gate_key = f"pb_rr_override_{sid}"
-                        _rr_override_active = bool(
-                            st.session_state.get(_rr_gate_key))
-                        if (0 < _live_rr < 1.5
-                                and not _rr_override_active):
-                            st.session_state[_rr_gate_key] = True
-                            st.warning(
-                                f"⚠ **Live R:R {_live_rr:.2f}** below "
-                                f"1.5 threshold (plan was {rr:.2f}). "
-                                "Price drifted past the entry zone — "
-                                "opening here gives degraded reward "
-                                "vs risk. Click 📥 again to override "
-                                "and open anyway.")
-                            st.stop()
-                        # Clear the override flag on successful open
-                        if _rr_gate_key in st.session_state:
-                            del st.session_state[_rr_gate_key]
                         _open_setup = dict(s)
                         if s.get("premium_eligible"):
                             _open_setup["chase_tp2_eligible"] = True
@@ -9568,22 +9513,6 @@ if active_section == "🧪 Paper Trader":
                                       f"can produce."),
                                 use_container_width=True,
                                 type="primary"):
-                            # LIVE R:R GATE — same rule as the 📥 button
-                            _rr_gate_key_e = f"pb_rr_override_e_{sid}"
-                            _rr_override_e = bool(
-                                st.session_state.get(_rr_gate_key_e))
-                            if (0 < _live_rr < 1.5
-                                    and not _rr_override_e):
-                                st.session_state[_rr_gate_key_e] = True
-                                st.warning(
-                                    f"⚠ **Live R:R {_live_rr:.2f}** below "
-                                    f"1.5 threshold (plan was {rr:.2f}). "
-                                    "Even ELITE-confirmed trades degrade "
-                                    "when opened past the entry zone. "
-                                    "Click ⚡ ELITE again to override.")
-                                st.stop()
-                            if _rr_gate_key_e in st.session_state:
-                                del st.session_state[_rr_gate_key_e]
                             _elite_setup = dict(s)
                             # Use full strength factor — both systems agree
                             _elite_setup["strength_factor"] = max(
