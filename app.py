@@ -8963,15 +8963,16 @@ if active_section == "🧪 Paper Trader":
                 # produce. Manual click still required - this chip just
                 # makes sure you don't miss it.
                 # STRICTER FILTER (per user push for higher win rate):
-                # Now requires ALL FOUR systems to agree, not 2-of-3:
+                # Now requires 3 of 4 systems to agree, not 2-of-3:
                 #   CONVERGENCE (+6.8pp validated edge)
                 #   SURE SHOT (strict meta-filter)
                 #   PREMIUM (scanner 80% + forecast 3/3)
                 #   ELITE composite (>=80 OR 3+ lanes, side matches)
                 # AND combined >= 85, AND live R:R >= 1.5.
-                # Fires rarely (maybe 0-2 per day) but the picks that
-                # do fire are the closest the system gets to a
-                # multi-system unanimous vote — target ~70-75% win.
+                # 3-of-4 strikes the balance between strictness and
+                # signal frequency — 4-of-4 was too restrictive (fired
+                # 0-2/day), 3-of-4 catches more genuine multi-system
+                # agreement while still excluding noise. Target ~68-72%.
                 act_now_chip = ""
                 _an_elite = _elite_lookup.get(s["symbol"])
                 _an_elite_matches = (
@@ -8991,13 +8992,15 @@ if active_section == "🧪 Paper Trader":
                     conf >= 80
                     and fc_label == "forecast confirms · aligned 3/3")
                 _an_live_rr_ok = _live_rr >= 1.5
-                # 4-of-4 unanimous requirement (was 2-of-3 + ELITE OR)
-                _an_unanimous = (_an_in_convergence
-                                 and _an_in_sureshot
-                                 and _an_is_premium
-                                 and _an_elite_ok)
+                # Count systems agreeing — need 3 of 4 to fire ACT NOW
+                _an_systems_agreeing = sum([
+                    int(_an_in_convergence),
+                    int(_an_in_sureshot),
+                    int(_an_is_premium),
+                    int(_an_elite_ok),
+                ])
                 if (combined >= 85
-                        and _an_unanimous
+                        and _an_systems_agreeing >= 3
                         and _an_live_rr_ok):
                     act_now_chip = (
                         f"<span style='background:linear-gradient("
