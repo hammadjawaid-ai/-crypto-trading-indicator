@@ -484,20 +484,27 @@ def score_from_data(symbol: str,
 
 
 def _apply_regime_tilt(score: float, side: str,
-                      regime_info: dict | None) -> tuple[float, str]:
-    """Regime-aware re-scoring with HARD REJECTION at high confidence.
+                      regime_info: dict | None,
+                      n_lanes: int = 0) -> tuple[float, str]:
+    """Regime-aware re-scoring with HARD REJECTION + extreme-signal override.
 
-    Two-tier behaviour:
+    Three-tier behaviour:
 
-    1. HARD REJECT (conf > 65%): when the market is decisively in BULL
-       or BEAR, counter-regime picks get score=0 (effectively filtered).
-       Stops the user from seeing strong LONG signals during a clear
-       BEAR (which was exactly the problem in the audit — 14 LONG / 1
-       SHORT showing despite BEAR 59% conf).
+    1. EXTREME OVERRIDE (NEW): when a counter-regime pick has very strong
+       underlying conviction (raw score >= 90 OR 3+ lanes firing on the
+       same side), SKIP the hard reject and apply only the soft tilt
+       penalty. Reasoning: if 3 independent lanes agree on counter-
+       regime, that's strong evidence the regime is shifting or this
+       coin is decoupling — auto-killing those picks throws away the
+       best contrarian setups (bull reversals in BEAR, bear breakdowns
+       in BULL).
 
-    2. SOFT TILT (40% < conf <= 65%): in moderate-confidence regimes,
-       tilt score ±15 max (was ±8). Counter-regime picks get penalty,
-       with-regime picks get boost. Scaled linearly with confidence.
+    2. HARD REJECT (conf > 65%): for less-strong counter-regime picks,
+       refuse them so the board doesn't fill with against-the-trend
+       noise.
+
+    3. SOFT TILT (40% < conf <= 65%): moderate-confidence regimes get
+       a graded ±15 max tilt scaled linearly with confidence.
 
     Returns (new_score, regime_note).
     """
@@ -508,12 +515,20 @@ def _apply_regime_tilt(score: float, side: str,
     if conf < 40 or regime in ("CHOP", "TRANSITION", "UNKNOWN", ""):
         return score, ""
 
+    # Detect counter-regime side
+    is_counter = (
+        (regime == "BULL" and side == "SHORT")
+        or (regime == "BEAR" and side == "LONG"))
+
     # HARD REJECT — at decisive regimes, refuse counter-regime picks
-    if conf > 65:
-        if regime == "BULL" and side == "SHORT":
-            return 0.0, f"REJECTED counter-BULL ({conf:.0f}%)"
-        if regime == "BEAR" and side == "LONG":
-            return 0.0, f"REJECTED counter-BEAR ({conf:.0f}%)"
+    # UNLESS the extreme override criteria are met
+    if conf > 65 and is_counter:
+        extreme_score = score >= 90
+        extreme_lanes = n_lanes >= 3
+        if not (extreme_score or extreme_lanes):
+            tag = "BULL" if regime == "BULL" else "BEAR"
+            return 0.0, f"REJECTED counter-{tag} ({conf:.0f}%)"
+        # Extreme override active — fall through to soft tilt
 
     # SOFT TILT — magnitude scales with confidence (40→0, 100→15)
     tilt = (conf - 40) / 60 * 15
@@ -521,12 +536,18 @@ def _apply_regime_tilt(score: float, side: str,
         if side == "LONG":
             return min(100, score + tilt), f"BULL +{tilt:.0f}"
         elif side == "SHORT":
-            return max(0, score - tilt), f"BULL -{tilt:.0f}"
+            # Counter-BULL — note when override saved this pick
+            tag = ("BULL OVERRIDE -" if conf > 65
+                   else "BULL -")
+            return max(0, score - tilt), f"{tag}{tilt:.0f}"
     elif regime == "BEAR":
         if side == "SHORT":
             return min(100, score + tilt), f"BEAR +{tilt:.0f}"
         elif side == "LONG":
-            return max(0, score - tilt), f"BEAR -{tilt:.0f}"
+            # Counter-BEAR — note when override saved this pick
+            tag = ("BEAR OVERRIDE -" if conf > 65
+                   else "BEAR -")
+            return max(0, score - tilt), f"{tag}{tilt:.0f}"
     return score, ""
 
 
@@ -589,11 +610,13 @@ def _composite_from_lanes(symbol: str, df: pd.DataFrame,
     score = float(np.clip(score, 0, 100))
 
     # Apply regime tilt — BULL boosts LONGs, BEAR boosts SHORTs. Counter-
-    # regime side gets penalty. Mirrors the existing tilt logic in
-    # app.py so ELITE adapts to current market direction.
+    # regime side gets penalty (or hard-reject at conf>65), UNLESS the
+    # extreme-signal override fires (score>=90 OR 3+ lanes firing).
+    # Pass n_lanes so the override can evaluate.
     regime_note = ""
     if regime_info:
-        score, regime_note = _apply_regime_tilt(score, side, regime_info)
+        score, regime_note = _apply_regime_tilt(
+            score, side, regime_info, n_lanes=len(active_lanes))
 
     tier = _conviction_tier(score, strong_n)
     if tier == "LOW":
