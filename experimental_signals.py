@@ -622,8 +622,9 @@ def _composite_from_lanes(symbol: str, df: pd.DataFrame,
     if tier == "LOW":
         return _empty(symbol)
 
-    # Trade plan
-    plan = _build_plan(df, side)
+    # Trade plan — TP1/TP2 now scale with conviction tier so MAX/HIGH
+    # picks reach further than STANDARD. Stops stay tight (1.2 ATR).
+    plan = _build_plan(df, side, tier=tier)
     # Order reasons by lane score, take top 5
     active_lanes.sort(key=lambda x: x[1], reverse=True)
     top_reasons = [
@@ -742,8 +743,32 @@ def scan_unified(scan_n: int = 100,
 # ---------------------------------------------------------------------------
 # Trade plan + helpers
 # ---------------------------------------------------------------------------
-def _build_plan(df: pd.DataFrame, side: str) -> dict:
-    """1.2 ATR stop, 2.0 ATR TP1, 3.5 ATR TP2 (matches existing modules)."""
+# TP/SL ATR multipliers per conviction tier (per user — bigger
+# conviction reaches for bigger targets, stops stay tight so R:R
+# actually IMPROVES at higher tiers):
+#   STANDARD: 2.0 / 3.5 (the original — base case)
+#   STRONG:   2.2 / 4.0
+#   HIGH:     2.5 / 4.5
+#   MAX:      3.0 / 5.5  (strongest conviction = widest target)
+# Stop stays at 1.2 ATR across all tiers — keeps drawdown
+# predictable, and R:R climbs with conviction:
+#   STANDARD R:R = 1.67  (TP1/Stop = 2.0/1.2)
+#   STRONG   R:R = 1.83  (2.2/1.2)
+#   HIGH     R:R = 2.08  (2.5/1.2)
+#   MAX      R:R = 2.50  (3.0/1.2)
+_TIER_ATR_MULTIPLIERS = {
+    "STANDARD": {"stop": 1.2, "tp1": 2.0, "tp2": 3.5},
+    "STRONG":   {"stop": 1.2, "tp1": 2.2, "tp2": 4.0},
+    "HIGH":     {"stop": 1.2, "tp1": 2.5, "tp2": 4.5},
+    "MAX":      {"stop": 1.2, "tp1": 3.0, "tp2": 5.5},
+}
+
+
+def _build_plan(df: pd.DataFrame, side: str,
+               tier: str = "STANDARD") -> dict:
+    """Tier-scaled trade plan. Stops constant at 1.2 ATR; TPs widen
+    for HIGH/MAX so the trade can reach further when conviction
+    supports it. R:R improves at higher tiers (1.67 -> 2.50)."""
     if df is None or len(df) < 20:
         return _empty_plan()
     try:
@@ -752,14 +777,16 @@ def _build_plan(df: pd.DataFrame, side: str) -> dict:
         atr = float(last.get("atr") or 0)
         if entry <= 0 or atr <= 0:
             return _empty_plan()
+        m = _TIER_ATR_MULTIPLIERS.get(
+            tier, _TIER_ATR_MULTIPLIERS["STANDARD"])
         if side == "LONG":
-            stop = entry - 1.2 * atr
-            tp1 = entry + 2.0 * atr
-            tp2 = entry + 3.5 * atr
+            stop = entry - m["stop"] * atr
+            tp1 = entry + m["tp1"] * atr
+            tp2 = entry + m["tp2"] * atr
         else:
-            stop = entry + 1.2 * atr
-            tp1 = entry - 2.0 * atr
-            tp2 = entry - 3.5 * atr
+            stop = entry + m["stop"] * atr
+            tp1 = entry - m["tp1"] * atr
+            tp2 = entry - m["tp2"] * atr
         risk = abs(entry - stop)
         if risk <= 0:
             return _empty_plan()
@@ -772,6 +799,7 @@ def _build_plan(df: pd.DataFrame, side: str) -> dict:
             "tp2": float(tp2),
             "rr": round(float(rr), 2),
             "valid": rr >= 1.5,
+            "tier": tier,  # echoed for downstream display
         }
     except Exception:
         return _empty_plan()
