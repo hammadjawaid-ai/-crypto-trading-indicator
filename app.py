@@ -10110,15 +10110,19 @@ if active_section == "🧪 Paper Trader":
             signal_fires.enrich_perf(_rf_recent, _rf_prices)
         except Exception:
             _rf_recent = []
-        # Filter to STRONGEST fires only: 3+ lanes (backtested edge per
-        # 150-coin study: 53.2% win at 3 lanes vs 43% at 1-2 lanes).
-        # Anything below 3 lanes is essentially a coin flip — don't
-        # waste board real estate on those.
+        # Sort by score desc (highest first), then lane count desc.
+        # Show top 15. Each pick gets a STRONGEST badge if 3+ lanes
+        # (the backtest-validated 53% win zone). Previous attempt to
+        # FILTER to 3+ lanes hid the section entirely because most
+        # fires are 1-lane (pattern_scout solo) — making the audit
+        # log useless. Instead, show all and badge the strong ones.
         _rf_total_before_filter = len(_rf_recent)
-        _rf_recent = [
-            f for f in _rf_recent
-            if len(f.get("active_lanes") or []) >= 3
-        ]
+        _rf_recent = sorted(
+            _rf_recent,
+            key=lambda f: (
+                len(f.get("active_lanes") or []),
+                float(f.get("score") or 0)),
+            reverse=True)
         if _rf_recent:
             # Premium header
             _rf_winning = sum(1 for f in _rf_recent if f.get("winning"))
@@ -10135,15 +10139,11 @@ if active_section == "🧪 Paper Trader":
                 "background-clip:text;letter-spacing:-0.02em'>"
                 "📊 RECENT TRADES</span>"
                 "<span style='color:#aab;font-size:0.82rem'>"
-                "STRONGEST fires only (3+ lanes — backtested 53% win) · "
-                "last 12h · audit log</span>"
+                "every STRONG+ signal in the last 12h · ranked by "
+                "lane count + score · 🎯 badge = 3+ lanes "
+                "(backtested 53% win)</span>"
                 "</div>",
                 unsafe_allow_html=True)
-            if _rf_total_before_filter > len(_rf_recent):
-                _filtered_out = _rf_total_before_filter - len(_rf_recent)
-                st.caption(
-                    f"_{_filtered_out} weaker fires (1-2 lanes) "
-                    "filtered out — they're coin flips per backtest._")
             # Summary chip row
             _rf_summary = []
             if _rf_winning:
@@ -10303,6 +10303,21 @@ if active_section == "🧪 Paper Trader":
                        if _f_rr > 0 else "")
                     + "</div>")
 
+                # STRONGEST badge for 3+ lane fires — these are
+                # the backtest-validated edge (53% win)
+                _f_n_lanes = len(_f.get("active_lanes") or [])
+                _strongest_badge = ""
+                if _f_n_lanes >= 3:
+                    _strongest_badge = (
+                        f"<span style='background:linear-gradient("
+                        f"135deg,#ffd700,#ff006e,#00d4ff);"
+                        f"color:#fff;padding:4px 14px;"
+                        f"border-radius:7px;font-size:0.88rem;"
+                        f"font-weight:900;"
+                        f"box-shadow:0 0 12px rgba(255,215,0,0.5);"
+                        f"letter-spacing:0.04em'>"
+                        f"🎯 STRONGEST · {_f_n_lanes}L</span>")
+
                 with st.container(border=True):
                     st.markdown(
                         f"<div style='padding:6px 4px'>"
@@ -10324,6 +10339,7 @@ if active_section == "🧪 Paper Trader":
                         f"padding:4px 14px;border-radius:7px;"
                         f"font-size:0.88rem;font-weight:900'>"
                         f"🔥 {_f_tier} · {_f_score:.0f}</span>"
+                        f"{_strongest_badge}"
                         f"<span style='color:#aab;"
                         f"font-size:0.88rem;font-weight:600'>"
                         f"fired {_f_fired_dt} · "
