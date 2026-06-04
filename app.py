@@ -4161,7 +4161,7 @@ if active_section == "🔍 Market Scanner":
 # ===========================================================================
 if active_section == "🔮 Forecast":
     _fc_live = st.checkbox(
-        "🔴 Live forecast — keep it auto-refreshing every 15 min",
+        "🔴 Live forecast — keep it auto-refreshing every 5 min",
         value=False, key="forecast_live",
         help="Re-runs the forecast on an interval so the predictions and "
              "their alerts stay current without you refreshing the page.")
@@ -4175,7 +4175,7 @@ if active_section == "🔮 Forecast":
     except Exception as exc:
         st.error(f"Could not build the forecast right now: {exc}")
     if _fc_live:
-        _inject_autorefresh(900)
+        _inject_autorefresh(300)
 
 
 # ===========================================================================
@@ -10803,11 +10803,12 @@ if active_section == "🧪 Paper Trader":
             "<span style='color:#ff3d57;font-size:0.78rem;font-weight:700'>"
             "🔴 LIVE MODE</span>"
             "<span style='color:#aab;font-size:0.78rem'>"
-            "page auto-refreshes every 15 min · Pattern Scout re-scans "
-            "every 10 min · live position P&amp;L updates every 10s</span>"
+            "page auto-refreshes every 5 min · new setups + fires "
+            "appear naturally · live position P&amp;L updates every "
+            "10s</span>"
             "</div>",
             unsafe_allow_html=True)
-        _inject_autorefresh(900)
+        _inject_autorefresh(300)
 
 
 # ===========================================================================
