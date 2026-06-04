@@ -5751,14 +5751,26 @@ if active_section == "🧪 Paper Trader":
     _live_paper_stats()
 
     # ====================================================================
-    # 🔥 RECENT FIRES — REVERTED per user feedback "too confusing"
+    # 📊 RECENT TRADES (last 12h) — what if you'd opened these?
     # ====================================================================
-    # The signal_fires.py module is kept (it still records fires in the
-    # background — harmless, useful for future audit). The visible block
-    # is disabled below. To re-enable, change `if False:` to
-    # `if _rf_recent:` and the existing code below renders unchanged.
-    _rf_recent = []
-    if False and _rf_recent:
+    # Per user: "show them as trades, not setups forming". Each card
+    # shows a STRONG+ signal that fired in the last 12h, framed as a
+    # hypothetical trade: entry price, current price, % since fire,
+    # whether TP1/SL was touched. Acts as accountability + audit:
+    # the user can see which lane combos actually win without having
+    # to remember what fired hours ago.
+    try:
+        _all_fires_now = signal_fires.load_fires(SIGNAL_FIRES_FILE)
+        _rf_recent = signal_fires.recent_fires(
+            _all_fires_now, hours=12.0)
+        try:
+            _rf_prices = prices or {}
+        except NameError:
+            _rf_prices = {}
+        signal_fires.enrich_perf(_rf_recent, _rf_prices)
+    except Exception:
+        _rf_recent = []
+    if _rf_recent:
         # Premium header — gold/orange gradient (fire colours)
         _rf_winning = sum(1 for f in _rf_recent if f.get("winning"))
         _rf_losing = sum(1 for f in _rf_recent
@@ -5771,10 +5783,10 @@ if active_section == "🧪 Paper Trader":
             "background:linear-gradient(135deg,#ff6b35,#ffd700,"
             "#ff006e);-webkit-background-clip:text;"
             "-webkit-text-fill-color:transparent;background-clip:text;"
-            "letter-spacing:-0.02em'>🔥 RECENT FIRES</span>"
+            "letter-spacing:-0.02em'>📊 RECENT TRADES</span>"
             "<span style='color:#aab;font-size:0.82rem'>"
-            "every STRONG+ signal logged in the last 12h · "
-            "tracks what played out</span>"
+            "every STRONG+ signal in the last 12h, treated as a "
+            "trade · audit which lane combos actually win</span>"
             "</div>",
             unsafe_allow_html=True)
         # Summary chip row
@@ -8801,6 +8813,59 @@ if active_section == "🧪 Paper Trader":
                             f"{f' · {_e_lanes}L' if _e_lanes >= 2 else ''}"
                             f"</span>")
 
+                # ============================================================
+                # 🚨 ACT NOW — highest-opportunity indicator
+                # ============================================================
+                # Per user: 'a indication to open right away if the
+                # confidence and all the data depicts that its high
+                # opportunity'. NO auto-open — just a visually loud
+                # marker that stops the user mid-scroll.
+                #
+                # Fires ONLY when ALL of these stack:
+                #   - combined >= 85 (HIGH tier)
+                #   - 2+ proven backtested confirmations agree:
+                #     (CONVERGENCE OR SURE SHOT OR PREMIUM-and-conf>=80)
+                #   - ELITE composite ALSO confirms the same side at >=80
+                #     OR 3+ ELITE lanes fire on same side (backtested
+                #     65.7% win rate)
+                #   - Live R:R from current price >= 1.5
+                # This is the highest-opportunity signal the system can
+                # produce. Manual click still required - this chip just
+                # makes sure you don't miss it.
+                act_now_chip = ""
+                _an_elite = _elite_lookup.get(s["symbol"])
+                _an_elite_matches = (
+                    _an_elite is not None
+                    and (_an_elite.get("side") or "").upper() == side)
+                _an_elite_score_strong = (
+                    _an_elite_matches
+                    and float(_an_elite.get("score") or 0) >= 80)
+                _an_elite_3lanes = (
+                    _an_elite_matches
+                    and int(_an_elite.get("n_strong_lanes") or 0) >= 3)
+                _an_proven_count = sum([
+                    int(s["symbol"] in _convergence_syms),
+                    int(s["symbol"] in _sure_shot_syms),
+                    int(conf >= 80 and fc_label ==
+                        "forecast confirms · aligned 3/3"),
+                ])
+                _an_live_rr_ok = _live_rr >= 1.5
+                if (combined >= 85
+                        and _an_proven_count >= 2
+                        and (_an_elite_score_strong or _an_elite_3lanes)
+                        and _an_live_rr_ok):
+                    act_now_chip = (
+                        f"<span style='background:linear-gradient("
+                        f"90deg,#ff3d57,#ff8c00,#ffd700);"
+                        f"color:#1a0c00;padding:3px 12px;"
+                        f"border-radius:6px;font-size:0.74rem;"
+                        f"font-weight:900;margin-left:4px;"
+                        f"letter-spacing:0.06em;"
+                        f"animation:pulse 1.2s ease-in-out infinite;"
+                        f"box-shadow:0 0 14px rgba(255,61,87,0.7),"
+                        f"0 0 28px rgba(255,140,0,0.4)'>"
+                        f"🚨 ACT NOW</span>")
+
                 # 🔥 NEW chip — pick first appeared in the last 5 min.
                 # Helps the user spot fresh fires at-a-glance without
                 # re-reading every card.
@@ -9211,6 +9276,7 @@ if active_section == "🧪 Paper Trader":
                         f"color:{str_color};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:700'>"
                         f"{str_label} · {combined_display}</span>"
+                        f"{act_now_chip}"
                         f"{new_chip}"
                         f"{conviction_chip}"
                         f"{convergence_chip}{sure_shot_chip}{elite_chip}"
