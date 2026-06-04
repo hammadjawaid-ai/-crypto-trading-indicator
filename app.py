@@ -5587,67 +5587,41 @@ if active_section == "🧪 Paper Trader":
                             f"{emoji} Closed {cl['base']} · "
                             f"{cl['pnl_pct']:+.2f}%", icon="🧪")
                         st.rerun(scope="fragment")
-                # Health is 0-100 with 50 = entry (break-even).
-                #   50-100 range = profit zone (entry → target)
-                #   0-50 range  = loss zone (entry → stop)
+                # SIMPLE text-only progress display (per user — bar was
+                # too busy). Single line with the % distances + colour
+                # only on the active direction. Drops the gradient bar
+                # entirely.
+                #   Health 0-100: 50 = entry, >50 winning, <50 losing
                 if health >= 50:
-                    _zone_pct = int((health - 50) * 2)  # % to target
-                    _zone_text = f"🎯 {_zone_pct}% toward target"
+                    _zone_pct = int((health - 50) * 2)
+                    _zone_text = (
+                        f"🎯 <b style='color:#2ed47a'>"
+                        f"{_zone_pct}%</b> toward target")
                 else:
-                    _zone_pct = int((50 - health) * 2)  # % to stop
-                    _zone_text = f"⚠️ {_zone_pct}% toward stop"
-                # Custom HTML progress bar — replaces st.progress so we
-                # can colour-code by zone (green when winning, red when
-                # losing, neutral at entry). The fill is positioned
-                # from the center (50%) outward toward target/stop so
-                # the visual maps directly to the trade's progress.
-                #   Winning: green bar extending RIGHT from center
-                #   Losing:  red bar extending LEFT from center
-                #   At entry: tiny grey marker at center
-                if health > 51:
-                    # Winning — green bar from 50% toward 100%
-                    _fill_left = 50
-                    _fill_width = health - 50
-                    _fill_grad = (
-                        "linear-gradient(90deg,#2ed47a,#00d4ff)")
-                    _bar_text_color = "#2ed47a"
-                elif health < 49:
-                    # Losing — red bar from 50% backward toward 0%
-                    _fill_left = health
-                    _fill_width = 50 - health
-                    _fill_grad = (
-                        "linear-gradient(90deg,#ff3d57,#ff8c00)")
-                    _bar_text_color = "#ff5c5c"
-                else:
-                    # At entry — neutral grey marker at center
-                    _fill_left = 49
-                    _fill_width = 2
-                    _fill_grad = "#8b8d98"
-                    _bar_text_color = "#aab"
+                    _zone_pct = int((50 - health) * 2)
+                    _zone_text = (
+                        f"⚠️ <b style='color:#ff5c5c'>"
+                        f"{_zone_pct}%</b> toward stop")
+                # Thin neutral bar with text above — visual is clean
+                # because the colour is on the % text, not the bar.
                 st.markdown(
-                    f"<div style='position:relative;height:24px;"
-                    f"background:rgba(255,255,255,0.04);"
-                    f"border-radius:6px;overflow:hidden;"
-                    f"border:1px solid rgba(255,255,255,0.08);"
-                    f"margin:4px 0 8px 0'>"
-                    # Center line at 50% (entry point)
-                    f"<div style='position:absolute;left:50%;top:0;"
-                    f"bottom:0;width:1px;"
-                    f"background:rgba(255,255,255,0.25);"
-                    f"z-index:2'></div>"
-                    # Fill
-                    f"<div style='position:absolute;left:{_fill_left}%;"
-                    f"top:0;bottom:0;width:{_fill_width}%;"
-                    f"background:{_fill_grad};"
-                    f"box-shadow:0 0 10px "
-                    f"{_bar_text_color}66;z-index:1'></div>"
-                    # Text overlay
-                    f"<div style='position:absolute;inset:0;"
-                    f"display:flex;align-items:center;"
-                    f"justify-content:center;font-size:0.78rem;"
-                    f"font-weight:800;color:{_bar_text_color};"
-                    f"z-index:3;text-shadow:0 1px 4px "
-                    f"rgba(0,0,0,0.7)'>{_zone_text}</div>"
+                    f"<div style='display:flex;align-items:center;"
+                    f"justify-content:space-between;gap:12px;"
+                    f"margin:6px 0 4px 0;font-size:0.85rem'>"
+                    f"<span>{_zone_text}</span>"
+                    f"<span style='color:#8b8d98;font-size:0.78rem'>"
+                    f"entry → now → {('target' if health >= 50 else 'stop')}"
+                    f"</span>"
+                    f"</div>"
+                    # Minimal solid bar — single neutral blue colour,
+                    # filled to the % of the active zone so user sees
+                    # a quick visual reference without the noise.
+                    f"<div style='height:6px;background:rgba(255,255,"
+                    f"255,0.06);border-radius:3px;overflow:hidden;"
+                    f"margin-bottom:8px'>"
+                    f"<div style='height:100%;width:{_zone_pct}%;"
+                    f"background:{'#2ed47a' if health >= 50 else '#ff5c5c'};"
+                    f"border-radius:3px'></div>"
                     f"</div>",
                     unsafe_allow_html=True)
                 _render_position_chart(
@@ -9913,8 +9887,11 @@ if active_section == "🧪 Paper Trader":
             # Per user: revert to score-only filter. The real value of
             # ELITE is the ⚡ confirmation chip on TOP CONVICTION cards
             # (already wired), not the standalone board.
+            # User: 'Elite Conviction isnt showing anything why?' — drop
+            # display floor from 80 to 75 so STANDARD-tier picks surface
+            # too. Sectioning still highlights the 3+ lane edge.
             _u_picks = [p for p in (_u_picks_raw or [])
-                        if float(p.get("score") or 0) >= 80]
+                        if float(p.get("score") or 0) >= 75]
             _u_standard_count = (len(_u_picks_raw or []) - len(_u_picks))
 
             # 🔥 Persist every STRONG+ fire to the log so the
@@ -10374,7 +10351,7 @@ if active_section == "🧪 Paper Trader":
         try:
             _all_fires_now = signal_fires.load_fires(SIGNAL_FIRES_FILE)
             _rf_recent = signal_fires.recent_fires(
-                _all_fires_now, hours=12.0)
+                _all_fires_now, hours=24.0)  # 24h window for more activity
             try:
                 _rf_prices = prices or {}
             except NameError:
@@ -10382,20 +10359,17 @@ if active_section == "🧪 Paper Trader":
             signal_fires.enrich_perf(_rf_recent, _rf_prices)
         except Exception:
             _rf_recent = []
-        # Per user: 'score threshold is good to be tight so I can evident
-        # results on trades it works that way'. Tight score AND lenient
-        # lane filter:
-        #   - score >= 85 (HIGH/MAX tier — tight)
+        # Per user: 'should show recent firsts updated more often so I
+        # can see new momentum movements, early movements, coils,
+        # pattern scout'. Relaxed filter:
+        #   - score >= 80 (STRONG tier — was 85)
         #   - OR 2+ lanes firing (multi-system confluence)
-        # Tight score catches the strongest solo signals (Pattern Scout
-        # 90+, dist_top firing strong). 2+ lane filter catches multi-
-        # system agreement even at lower individual scores. Together
-        # they balance quality (tight score) with visibility (multi-lane
-        # confluence shows even if individual scores are moderate).
+        # Catches more momentum / breakout / coil / pattern_scout fires
+        # so the audit log stays alive with recent activity.
         _rf_total_before_filter = len(_rf_recent)
         _rf_recent = [
             f for f in _rf_recent
-            if (float(f.get("score") or 0) >= 85
+            if (float(f.get("score") or 0) >= 80
                 or len(f.get("active_lanes") or []) >= 2)
         ]
         _rf_recent = sorted(
