@@ -59,6 +59,11 @@ try: import rebound_radar
 except Exception: rebound_radar = None
 try: import breakout_hunter
 except Exception: breakout_hunter = None
+# Distribution-top detector — catches SHORT setups like NEAR -25%.
+# 10th lane added specifically because the other 9 lanes are heavily
+# LONG-biased (4 are LONG-only).
+try: import distribution_top
+except Exception: distribution_top = None
 # Market regime — used to tilt composite scores toward the currently
 # winning side (BULL→LONG, BEAR→SHORT). Imported lazily; if missing,
 # composite stays neutral.
@@ -69,16 +74,19 @@ except Exception: market_regime = None
 # ---------------------------------------------------------------------------
 # Lane weights (calibrated to backtested edge)
 # ---------------------------------------------------------------------------
+# Re-balanced after adding dist_top (10th lane). Weights sum to 1.0 but
+# this isn't strictly required — score normalizes by firing weight.
 _LANE_WEIGHTS = {
-    "vwap_zfade":     0.10,
-    "liq_exhaustion": 0.13,
-    "rebound":        0.13,
-    "breakout_coil":  0.10,
-    "pattern_scout":  0.18,
-    "reversal_app":   0.10,
-    "early_momentum": 0.10,
-    "recovery":       0.08,
-    "deriv_velocity": 0.08,
+    "vwap_zfade":     0.09,
+    "liq_exhaustion": 0.12,
+    "rebound":        0.12,
+    "breakout_coil":  0.09,
+    "pattern_scout":  0.16,
+    "reversal_app":   0.09,
+    "early_momentum": 0.09,
+    "recovery":       0.07,
+    "deriv_velocity": 0.07,
+    "dist_top":       0.10,   # NEW — top/distribution SHORT detector
 }
 
 
@@ -382,6 +390,34 @@ def _lane_deriv_velocity(symbol: str) -> tuple[float, str, str]:
         return (0.0, "NEUTRAL", "")
 
 
+def _lane_dist_top(df: pd.DataFrame,
+                  df_4h: pd.DataFrame | None = None) -> tuple[float, str, str]:
+    """Distribution-top detector — fires SHORT when price is near a
+    recent high with overheated conditions (rapid rise + RSI overbought
+    + leading distribution signals).
+
+    Lower firing floor (50) than other lanes (60) because by design the
+    leading distribution signals fire AT the peak with limited
+    confirmation — by the time we wait for 60+ score, price has already
+    dropped 5-10% and the SHORT entry is degraded.
+
+    The 4h_df is passed for multi-TF confirmation.
+    """
+    if distribution_top is None or df is None:
+        return (0.0, "NEUTRAL", "")
+    try:
+        r = distribution_top.score(df, df_4h)
+        sc = float(r.get("score") or 0)
+        if sc < 50:
+            return (0.0, "NEUTRAL", "")
+        # Bonus when 4h also shows top conditions
+        reasons = r.get("reasons") or []
+        note = "; ".join(reasons[:3]) if reasons else "distribution top"
+        return (sc, "SHORT", note)
+    except Exception:
+        return (0.0, "NEUTRAL", "")
+
+
 # ---------------------------------------------------------------------------
 # Composite scoring + tier
 # ---------------------------------------------------------------------------
@@ -440,6 +476,8 @@ def score_from_data(symbol: str,
         # backtest measures the OTHER 8 lanes' edge honestly.
         "deriv_velocity": ((0.0, "NEUTRAL", "") if skip_deriv
                            else _lane_deriv_velocity(symbol)),
+        # dist_top: catches NEAR-style SHORT setups at distribution tops
+        "dist_top":       _lane_dist_top(df, df_4h),
     }
     return _composite_from_lanes(symbol, df, lanes, pct_24h,
                                 regime_info=regime_info)
@@ -498,13 +536,18 @@ def _composite_from_lanes(symbol: str, df: pd.DataFrame,
     """Run the side-vote + composite math on already-scored lanes.
     Extracted so score_from_data and any future caller share one path."""
 
-    # Vote: collect every LANE firing >=60 with a clear side.
+    # Vote: collect every LANE firing >= its per-lane floor with a side.
+    # dist_top uses 50 as its floor (leading distribution signals fire
+    # AT the peak before confirming signals arrive — by the time score
+    # would clear 60, price has dropped 5-10%). All other lanes use 60.
+    _per_lane_floor = {"dist_top": 50}
     long_lanes: list[tuple[str, float, str]] = []
     short_lanes: list[tuple[str, float, str]] = []
     for name, (sc, side, note) in lanes.items():
-        if side == "LONG" and sc >= 60:
+        floor = _per_lane_floor.get(name, 60)
+        if side == "LONG" and sc >= floor:
             long_lanes.append((name, sc, note))
-        elif side == "SHORT" and sc >= 60:
+        elif side == "SHORT" and sc >= floor:
             short_lanes.append((name, sc, note))
 
     # Composite score per side = WEIGHTED AVERAGE over firing weight.

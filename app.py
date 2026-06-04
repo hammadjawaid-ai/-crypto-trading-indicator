@@ -5809,7 +5809,7 @@ if active_section == "🧪 Paper Trader":
             "rebound": "🔁", "breakout_coil": "🚀",
             "pattern_scout": "🎯", "reversal_app": "🔭",
             "early_momentum": "⚡", "recovery": "🔄",
-            "deriv_velocity": "💱",
+            "deriv_velocity": "💱", "dist_top": "⚠️",
         }
         for _f in _rf_recent[:15]:
             _f_sym = _f.get("symbol", "?")
@@ -9781,6 +9781,7 @@ if active_section == "🧪 Paper Trader":
                     "early_momentum": ("⚡", "Early Momentum"),
                     "recovery":       ("🔄", "V-Bottom"),
                     "deriv_velocity": ("💱", "Deriv Velocity"),
+                    "dist_top":       ("⚠️", "Top Risk"),
                 }
                 # Per-tier visual treatment for the WHOLE card (gradient
                 # bg tint + glow + tier badge). Matches the SURE SHOT
