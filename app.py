@@ -9783,19 +9783,48 @@ if active_section == "🧪 Paper Trader":
                 # winners — picks need additional confirmations (e.g.,
                 # CONVERGENCE / SURE SHOT chip on the same coin in
                 # TOP CONVICTION) to be trustworthy.
+                # ========================================================
+                # 🚨 TOP RISK section — dedicated dist_top SHORTs
+                # ========================================================
+                # Per user: surface dist_top fires prominently in ELITE
+                # (instead of promoting them to TOP CONVICTION). The
+                # dist_top lane is the SHORT-specific top-detection lane
+                # that catches NEAR-style -25% drops. When it fires,
+                # the pick deserves its own visually-distinct slot.
+                #
+                # A pick goes into TOP RISK if dist_top is one of its
+                # firing lanes. The remaining picks fall into the
+                # existing STRONGEST (3+ lanes) and LOWER CONFIDENCE
+                # (1-2 lanes) sections.
+                def _has_dist_top(p):
+                    return "dist_top" in (p.get("active_lanes") or [])
+
+                _u_top_risk = sorted(
+                    [p for p in _u_picks if _has_dist_top(p)],
+                    key=lambda p: float(p.get("score") or 0),
+                    reverse=True)
+                _u_top_risk_syms = {p.get("symbol") for p in _u_top_risk}
+                # Remaining picks (excluding TOP RISK) split by lane count
+                _u_other = [p for p in _u_picks
+                           if p.get("symbol") not in _u_top_risk_syms]
                 _u_multi = sorted(
-                    [p for p in _u_picks
+                    [p for p in _u_other
                      if len(p.get("active_lanes") or []) >= 3],
                     key=lambda p: float(p.get("score") or 0),
                     reverse=True)
                 _u_single = sorted(
-                    [p for p in _u_picks
+                    [p for p in _u_other
                      if len(p.get("active_lanes") or []) <= 2],
                     key=lambda p: float(p.get("score") or 0),
                     reverse=True)
 
                 # Build the rendering iterator with section dividers
                 _u_render_list = []
+                if _u_top_risk:
+                    _u_render_list.append(("__SECTION__", "TOP_RISK",
+                                          len(_u_top_risk)))
+                    _u_render_list.extend(
+                        [("PICK", p) for p in _u_top_risk])
                 if _u_multi:
                     _u_render_list.append(("__SECTION__", "MULTI",
                                           len(_u_multi)))
@@ -9810,7 +9839,33 @@ if active_section == "🧪 Paper Trader":
                     if _u_row[0] == "__SECTION__":
                         _u_sec_kind = _u_row[1]
                         _u_sec_n = _u_row[2]
-                        if _u_sec_kind == "MULTI":
+                        if _u_sec_kind == "TOP_RISK":
+                            # Distinct red/orange treatment — these are
+                            # SHORTs at potential distribution tops
+                            st.markdown(
+                                "<div style='display:flex;align-items:"
+                                "center;gap:12px;margin-top:18px;"
+                                "margin-bottom:8px;padding:8px 14px;"
+                                "background:linear-gradient(90deg,"
+                                "rgba(255,61,87,0.10),"
+                                "rgba(255,140,0,0.06));"
+                                "border:1px solid rgba(255,61,87,0.30);"
+                                "border-radius:10px'>"
+                                "<span style='font-size:1.05rem;"
+                                "font-weight:900;color:#ff5c5c;"
+                                "letter-spacing:0.02em'>"
+                                "🚨 TOP RISK — distribution SHORT "
+                                "setups</span>"
+                                f"<span style='color:#ffa657;"
+                                f"font-size:0.78rem'>{_u_sec_n} pick"
+                                f"{'s' if _u_sec_n != 1 else ''} · "
+                                "dist_top lane firing (parabolic + "
+                                "RSI extreme + at recent high) · "
+                                "catches NEAR-style -20% drops "
+                                "BEFORE they happen</span>"
+                                "</div>",
+                                unsafe_allow_html=True)
+                        elif _u_sec_kind == "MULTI":
                             st.markdown(
                                 "<div style='display:flex;align-items:"
                                 "center;gap:12px;margin-top:18px;"
