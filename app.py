@@ -5750,166 +5750,9 @@ if active_section == "🧪 Paper Trader":
     # ---- Bank + trade stats — LIVE fragment (updates in place every 10s)
     _live_paper_stats()
 
-    # ====================================================================
-    # 📊 RECENT TRADES (last 12h) — what if you'd opened these?
-    # ====================================================================
-    # Per user: "show them as trades, not setups forming". Each card
-    # shows a STRONG+ signal that fired in the last 12h, framed as a
-    # hypothetical trade: entry price, current price, % since fire,
-    # whether TP1/SL was touched. Acts as accountability + audit:
-    # the user can see which lane combos actually win without having
-    # to remember what fired hours ago.
-    try:
-        _all_fires_now = signal_fires.load_fires(SIGNAL_FIRES_FILE)
-        _rf_recent = signal_fires.recent_fires(
-            _all_fires_now, hours=12.0)
-        try:
-            _rf_prices = prices or {}
-        except NameError:
-            _rf_prices = {}
-        signal_fires.enrich_perf(_rf_recent, _rf_prices)
-    except Exception:
-        _rf_recent = []
-    if _rf_recent:
-        # Premium header — gold/orange gradient (fire colours)
-        _rf_winning = sum(1 for f in _rf_recent if f.get("winning"))
-        _rf_losing = sum(1 for f in _rf_recent
-                         if f.get("winning") is False)
-        _rf_pending = len(_rf_recent) - _rf_winning - _rf_losing
-        st.markdown(
-            "<div style='display:flex;align-items:center;gap:14px;"
-            "margin-top:18px;margin-bottom:6px'>"
-            "<span style='font-size:1.4rem;font-weight:900;"
-            "background:linear-gradient(135deg,#ff6b35,#ffd700,"
-            "#ff006e);-webkit-background-clip:text;"
-            "-webkit-text-fill-color:transparent;background-clip:text;"
-            "letter-spacing:-0.02em'>📊 RECENT TRADES</span>"
-            "<span style='color:#aab;font-size:0.82rem'>"
-            "every STRONG+ signal in the last 12h, treated as a "
-            "trade · audit which lane combos actually win</span>"
-            "</div>",
-            unsafe_allow_html=True)
-        # Summary chip row
-        _rf_summary = []
-        if _rf_winning:
-            _rf_summary.append(
-                f"<b style='color:#2ed47a'>{_rf_winning} winning</b>")
-        if _rf_losing:
-            _rf_summary.append(
-                f"<b style='color:#ff5c5c'>{_rf_losing} losing</b>")
-        if _rf_pending:
-            _rf_summary.append(
-                f"<b style='color:#aab'>{_rf_pending} pending</b>")
-        st.markdown(
-            f"<div style='display:inline-flex;align-items:center;"
-            f"gap:10px;padding:6px 14px;border-radius:10px;"
-            f"background:linear-gradient(90deg,rgba(255,107,53,0.10),"
-            f"rgba(255,215,0,0.06));border:1px solid "
-            f"rgba(255,107,53,0.25);margin-bottom:10px'>"
-            f"<span style='color:#e6e6e6;font-weight:700;"
-            f"font-size:0.88rem'>{len(_rf_recent)} fires "
-            f"logged</span>"
-            f"<span style='color:#888;font-size:0.78rem'>·</span>"
-            f"<span style='color:#aab;font-size:0.80rem'>"
-            f"{' · '.join(_rf_summary)}</span>"
-            f"</div>",
-            unsafe_allow_html=True)
-
-        # Render each fire as a compact row card
-        _rf_lane_labels = {
-            "vwap_zfade": "🌀", "liq_exhaustion": "💧",
-            "rebound": "🔁", "breakout_coil": "🚀",
-            "pattern_scout": "🎯", "reversal_app": "🔭",
-            "early_momentum": "⚡", "recovery": "🔄",
-            "deriv_velocity": "💱", "dist_top": "⚠️",
-        }
-        for _f in _rf_recent[:15]:
-            _f_sym = _f.get("symbol", "?")
-            _f_base = _f.get("base", _f_sym.replace("USDT", ""))
-            _f_side = (_f.get("side") or "?").upper()
-            _f_score = float(_f.get("score") or 0)
-            _f_tier = _f.get("tier", "STRONG")
-            _f_entry = float(_f.get("entry") or 0)
-            _f_cur = float(_f.get("current_price") or 0)
-            _f_pct = _f.get("pct_since_fire")
-            _f_fired_at = float(_f.get("fired_at") or 0)
-            _f_age_min = max(0, (time.time() - _f_fired_at) / 60.0)
-            if _f_age_min < 60:
-                _f_age_str = f"{_f_age_min:.0f}m ago"
-            else:
-                _f_age_str = f"{_f_age_min/60:.1f}h ago"
-            _f_fired_dt = datetime.fromtimestamp(
-                _f_fired_at, tz=timezone.utc).strftime("%H:%M UTC")
-            _f_side_color = ("#2ed47a" if _f_side == "LONG"
-                             else "#ff5c5c")
-            _f_side_emoji = "🟢" if _f_side == "LONG" else "🩸"
-            # Perf colour + chip
-            if _f_pct is None:
-                _perf_chip = (
-                    "<span style='background:rgba(255,255,255,0.05);"
-                    "color:#888;padding:3px 10px;border-radius:6px;"
-                    "font-size:0.74rem;font-weight:700'>"
-                    "price n/a</span>")
-            else:
-                _perf_color = ("#2ed47a" if _f.get("winning")
-                               else "#ff5c5c" if _f_pct < 0
-                               else "#aab")
-                _perf_chip = (
-                    f"<span style='background:rgba("
-                    f"{'46,212,122' if _f.get('winning') else '255,92,92'}"
-                    f",0.15);color:{_perf_color};padding:3px 12px;"
-                    f"border-radius:6px;font-size:0.78rem;"
-                    f"font-weight:800;border:1px solid "
-                    f"rgba({'46,212,122' if _f.get('winning') else '255,92,92'},0.30)'>"
-                    f"{'+' if _f_pct > 0 else ''}{_f_pct:.2f}%</span>")
-            # Outcome chip
-            _outcome_chip = ""
-            if _f.get("tp1_hit"):
-                _outcome_chip = (
-                    "<span style='background:linear-gradient(90deg,"
-                    "#00d4ff,#2ed47a);color:#001122;padding:3px 10px;"
-                    "border-radius:6px;font-size:0.72rem;"
-                    "font-weight:800'>🎯 TP1 hit</span>")
-            elif _f.get("sl_hit"):
-                _outcome_chip = (
-                    "<span style='background:#ff5c5c33;color:#ff5c5c;"
-                    "padding:3px 10px;border-radius:6px;"
-                    "font-size:0.72rem;font-weight:800;"
-                    "border:1px solid #ff5c5c'>🛑 SL hit</span>")
-            # Lane chips (compact — just emojis)
-            _lane_str = "".join(_rf_lane_labels.get(ln, "·")
-                                for ln in (_f.get("active_lanes") or [])[:6])
-
-            with st.container(border=True):
-                st.markdown(
-                    f"<div style='display:flex;align-items:center;"
-                    f"gap:10px;flex-wrap:wrap'>"
-                    f"<span style='font-weight:800;font-size:1.0rem;"
-                    f"font-family:Space Grotesk,Inter,sans-serif'>"
-                    f"{_f_base}</span>"
-                    f"<span style='background:{_f_side_color};"
-                    f"color:#06121f;padding:3px 10px;border-radius:6px;"
-                    f"font-size:0.72rem;font-weight:800'>"
-                    f"{_f_side_emoji} {_f_side}</span>"
-                    f"<span style='background:linear-gradient(90deg,"
-                    f"#ff6b35,#ffd700);color:#1a1a1a;padding:3px 12px;"
-                    f"border-radius:6px;font-size:0.74rem;"
-                    f"font-weight:800'>"
-                    f"🔥 {_f_tier} · {_f_score:.0f}</span>"
-                    f"<span style='color:#888;font-size:0.78rem'>"
-                    f"fired {_f_fired_dt} · {_f_age_str}</span>"
-                    f"<span style='color:#aab;font-size:0.78rem'>"
-                    f"@ <code>{_f_entry:g}</code></span>"
-                    f"<span style='color:#888;font-size:0.78rem'>→</span>"
-                    f"<span style='color:#fff;font-size:0.82rem;"
-                    f"font-weight:700'>now <code>{_f_cur:g}</code>"
-                    f"</span>"
-                    f"{_perf_chip}"
-                    f"{_outcome_chip}"
-                    f"<span style='color:#aab;font-size:0.85rem;"
-                    f"margin-left:6px'>{_lane_str}</span>"
-                    f"</div>",
-                    unsafe_allow_html=True)
+    # 📊 RECENT TRADES section moved BELOW ELITE CONVICTION per user.
+    # See _render_recent_trades_block() defined below + called from
+    # within the ELITE block.
 
     st.divider()
 
@@ -10193,6 +10036,178 @@ if active_section == "🧪 Paper Trader":
                                         "rejected.")
                             except Exception as exc:
                                 st.error(f"Open failed: {exc}")
+
+        # ====================================================================
+        # 📊 RECENT TRADES (last 12h) — what if you'd opened these?
+        # ====================================================================
+        # Per user: positioned right below ELITE CONVICTION. Each card
+        # shows a STRONG+ signal that fired in the last 12h, framed as a
+        # hypothetical trade: entry price, current price, % since fire,
+        # whether TP1/SL was touched. Acts as accountability + audit.
+        try:
+            _all_fires_now = signal_fires.load_fires(SIGNAL_FIRES_FILE)
+            _rf_recent = signal_fires.recent_fires(
+                _all_fires_now, hours=12.0)
+            try:
+                _rf_prices = prices or {}
+            except NameError:
+                _rf_prices = {}
+            signal_fires.enrich_perf(_rf_recent, _rf_prices)
+        except Exception:
+            _rf_recent = []
+        if _rf_recent:
+            # Premium header
+            _rf_winning = sum(1 for f in _rf_recent if f.get("winning"))
+            _rf_losing = sum(1 for f in _rf_recent
+                             if f.get("winning") is False)
+            _rf_pending = len(_rf_recent) - _rf_winning - _rf_losing
+            st.markdown(
+                "<div style='display:flex;align-items:center;gap:14px;"
+                "margin-top:24px;margin-bottom:6px'>"
+                "<span style='font-size:1.4rem;font-weight:900;"
+                "background:linear-gradient(135deg,#ff6b35,#ffd700,"
+                "#ff006e);-webkit-background-clip:text;"
+                "-webkit-text-fill-color:transparent;"
+                "background-clip:text;letter-spacing:-0.02em'>"
+                "📊 RECENT TRADES</span>"
+                "<span style='color:#aab;font-size:0.82rem'>"
+                "every STRONG+ signal in the last 12h, treated as a "
+                "trade · audit which lane combos actually win</span>"
+                "</div>",
+                unsafe_allow_html=True)
+            # Summary chip row
+            _rf_summary = []
+            if _rf_winning:
+                _rf_summary.append(
+                    f"<b style='color:#2ed47a'>{_rf_winning} winning</b>")
+            if _rf_losing:
+                _rf_summary.append(
+                    f"<b style='color:#ff5c5c'>{_rf_losing} losing</b>")
+            if _rf_pending:
+                _rf_summary.append(
+                    f"<b style='color:#aab'>{_rf_pending} pending</b>")
+            st.markdown(
+                f"<div style='display:inline-flex;align-items:center;"
+                f"gap:10px;padding:6px 14px;border-radius:10px;"
+                f"background:linear-gradient(90deg,"
+                f"rgba(255,107,53,0.10),rgba(255,215,0,0.06));"
+                f"border:1px solid rgba(255,107,53,0.25);"
+                f"margin-bottom:10px'>"
+                f"<span style='color:#e6e6e6;font-weight:700;"
+                f"font-size:0.88rem'>{len(_rf_recent)} fires "
+                f"logged</span>"
+                f"<span style='color:#888;font-size:0.78rem'>·</span>"
+                f"<span style='color:#aab;font-size:0.80rem'>"
+                f"{' · '.join(_rf_summary)}</span>"
+                f"</div>",
+                unsafe_allow_html=True)
+
+            _rf_lane_labels = {
+                "vwap_zfade": "🌀", "liq_exhaustion": "💧",
+                "rebound": "🔁", "breakout_coil": "🚀",
+                "pattern_scout": "🎯", "reversal_app": "🔭",
+                "early_momentum": "⚡", "recovery": "🔄",
+                "deriv_velocity": "💱", "dist_top": "⚠️",
+            }
+            for _f in _rf_recent[:15]:
+                _f_sym = _f.get("symbol", "?")
+                _f_base = _f.get(
+                    "base", _f_sym.replace("USDT", ""))
+                _f_side = (_f.get("side") or "?").upper()
+                _f_score = float(_f.get("score") or 0)
+                _f_tier = _f.get("tier", "STRONG")
+                _f_entry = float(_f.get("entry") or 0)
+                _f_cur = float(_f.get("current_price") or 0)
+                _f_pct = _f.get("pct_since_fire")
+                _f_fired_at = float(_f.get("fired_at") or 0)
+                _f_age_min = max(
+                    0, (time.time() - _f_fired_at) / 60.0)
+                if _f_age_min < 60:
+                    _f_age_str = f"{_f_age_min:.0f}m ago"
+                else:
+                    _f_age_str = f"{_f_age_min/60:.1f}h ago"
+                _f_fired_dt = datetime.fromtimestamp(
+                    _f_fired_at, tz=timezone.utc).strftime(
+                        "%H:%M UTC")
+                _f_side_color = ("#2ed47a" if _f_side == "LONG"
+                                 else "#ff5c5c")
+                _f_side_emoji = "🟢" if _f_side == "LONG" else "🩸"
+                if _f_pct is None:
+                    _perf_chip = (
+                        "<span style='background:rgba("
+                        "255,255,255,0.05);color:#888;"
+                        "padding:3px 10px;border-radius:6px;"
+                        "font-size:0.74rem;font-weight:700'>"
+                        "price n/a</span>")
+                else:
+                    _perf_color = ("#2ed47a" if _f.get("winning")
+                                   else "#ff5c5c" if _f_pct < 0
+                                   else "#aab")
+                    _rgb = ("46,212,122"
+                            if _f.get("winning") else "255,92,92")
+                    _perf_chip = (
+                        f"<span style='background:rgba({_rgb},"
+                        f"0.15);color:{_perf_color};"
+                        f"padding:3px 12px;border-radius:6px;"
+                        f"font-size:0.78rem;font-weight:800;"
+                        f"border:1px solid rgba({_rgb},0.30)'>"
+                        f"{'+' if _f_pct > 0 else ''}"
+                        f"{_f_pct:.2f}%</span>")
+                _outcome_chip = ""
+                if _f.get("tp1_hit"):
+                    _outcome_chip = (
+                        "<span style='background:linear-gradient("
+                        "90deg,#00d4ff,#2ed47a);color:#001122;"
+                        "padding:3px 10px;border-radius:6px;"
+                        "font-size:0.72rem;font-weight:800'>"
+                        "🎯 TP1 hit</span>")
+                elif _f.get("sl_hit"):
+                    _outcome_chip = (
+                        "<span style='background:#ff5c5c33;"
+                        "color:#ff5c5c;padding:3px 10px;"
+                        "border-radius:6px;font-size:0.72rem;"
+                        "font-weight:800;border:1px solid "
+                        "#ff5c5c'>🛑 SL hit</span>")
+                _lane_str = "".join(
+                    _rf_lane_labels.get(ln, "·")
+                    for ln in (_f.get("active_lanes") or [])[:6])
+
+                with st.container(border=True):
+                    st.markdown(
+                        f"<div style='display:flex;align-items:"
+                        f"center;gap:10px;flex-wrap:wrap'>"
+                        f"<span style='font-weight:800;"
+                        f"font-size:1.0rem;font-family:"
+                        f"Space Grotesk,Inter,sans-serif'>"
+                        f"{_f_base}</span>"
+                        f"<span style='background:{_f_side_color};"
+                        f"color:#06121f;padding:3px 10px;"
+                        f"border-radius:6px;font-size:0.72rem;"
+                        f"font-weight:800'>"
+                        f"{_f_side_emoji} {_f_side}</span>"
+                        f"<span style='background:linear-gradient("
+                        f"90deg,#ff6b35,#ffd700);color:#1a1a1a;"
+                        f"padding:3px 12px;border-radius:6px;"
+                        f"font-size:0.74rem;font-weight:800'>"
+                        f"🔥 {_f_tier} · {_f_score:.0f}</span>"
+                        f"<span style='color:#888;"
+                        f"font-size:0.78rem'>fired {_f_fired_dt} · "
+                        f"{_f_age_str}</span>"
+                        f"<span style='color:#aab;"
+                        f"font-size:0.78rem'>@ <code>"
+                        f"{_f_entry:g}</code></span>"
+                        f"<span style='color:#888;"
+                        f"font-size:0.78rem'>→</span>"
+                        f"<span style='color:#fff;"
+                        f"font-size:0.82rem;font-weight:700'>"
+                        f"now <code>{_f_cur:g}</code></span>"
+                        f"{_perf_chip}"
+                        f"{_outcome_chip}"
+                        f"<span style='color:#aab;"
+                        f"font-size:0.85rem;margin-left:6px'>"
+                        f"{_lane_str}</span>"
+                        f"</div>",
+                        unsafe_allow_html=True)
 
         st.divider()
         # Open positions — LIVE fragment (updates in place every 10s).
