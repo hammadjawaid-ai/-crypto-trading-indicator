@@ -4901,6 +4901,36 @@ if active_section == "🧪 Paper Trader":
     #   4. After every render we update the session cache from
     #      the (now possibly-modified) pb_state at line 5543
     pb_state = paper_bot.load_state(PAPER_BOT_FILE)
+
+    # ============================================================
+    # 💾 BROWSER localStorage QUERY-PARAM RESTORE
+    # ============================================================
+    # If the user clicked "Restore from browser backup" earlier, the
+    # JS pushed the localStorage payload into a query param. Reading
+    # it here BEFORE the session_state check lets us recover from the
+    # absolute worst case: container restart + session_state cleared
+    # + file wiped + user just opened a fresh tab.
+    try:
+        _restore_payload = st.query_params.get("restore_lb")
+        if _restore_payload:
+            import base64 as _b64
+            try:
+                _decoded = _b64.b64decode(_restore_payload).decode("utf-8")
+                _restored_state = json.loads(_decoded)
+                if isinstance(_restored_state, dict):
+                    pb_state = _restored_state
+                    paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                    st.success(
+                        f"✅ Restored from browser backup: "
+                        f"{len(pb_state.get('open') or [])} open · "
+                        f"{len(pb_state.get('closed') or [])} closed")
+                    # Clear the query param so we don't loop
+                    del st.query_params["restore_lb"]
+            except Exception as _exc:
+                st.error(f"Restore failed: {_exc}")
+    except Exception:
+        pass
+
     _SESSION_KEY = "_paper_bot_session_cache"
     _cached = st.session_state.get(_SESSION_KEY)
     if isinstance(_cached, dict):
@@ -5588,6 +5618,134 @@ if active_section == "🧪 Paper Trader":
     # that wipes the file doesn't destroy the user's open trades and
     # history within the same browser session.
     st.session_state[_SESSION_KEY] = json.loads(json.dumps(pb_state))
+
+    # ============================================================
+    # 💾 BROWSER localStorage AUTO-SAVE
+    # ============================================================
+    # Streamlit Cloud's filesystem is ephemeral — every code push
+    # restarts the container and wipes .paper_bot.json. session_state
+    # also clears on container restart. The ONE place data CAN survive
+    # is the user's browser localStorage (per-device, but persistent
+    # forever until the user clears their browser data).
+    #
+    # We silently mirror pb_state to localStorage on every render via
+    # injected JS. On load (top of Paper Trader), we check localStorage
+    # via JS and offer a one-click restore if file/session are empty
+    # but the browser has a backup.
+    import streamlit.components.v1 as _stc
+    import base64 as _b64
+    try:
+        _pb_json = json.dumps(pb_state, ensure_ascii=False)
+        # Base64-encode so we don't have to escape quotes/newlines
+        # inside the JS string literal.
+        _pb_b64 = _b64.b64encode(
+            _pb_json.encode("utf-8")).decode("ascii")
+        _stc.html(
+            f"""<script>
+            try {{
+                const data = atob('{_pb_b64}');
+                localStorage.setItem('paper_bot_state', data);
+                localStorage.setItem(
+                    'paper_bot_state_ts', Date.now().toString());
+                localStorage.setItem(
+                    'paper_bot_state_n_closed',
+                    '{len(pb_state.get('closed') or [])}');
+            }} catch(e) {{
+                console.error('localStorage save failed:', e);
+            }}
+            </script>""",
+            height=0)
+    except Exception:
+        pass  # best-effort; localStorage failure is non-critical
+
+    # ============================================================
+    # 💾 BROWSER BACKUP RESTORE BANNER
+    # ============================================================
+    # When pb_state is empty (file was wiped, session_state cleared)
+    # BUT the user's browser has a localStorage backup from a prior
+    # session, render a JS-powered banner that:
+    #   1. Reads localStorage paper_bot_state
+    #   2. If it has more closed trades than current state, shows a
+    #      big "🔄 RESTORE TRADES FROM BROWSER BACKUP" button
+    #   3. Clicking the button reloads with ?restore_lb=<base64> which
+    #      the load logic at the top picks up and restores from
+    _current_open = len(pb_state.get("open") or [])
+    _current_closed = len(pb_state.get("closed") or [])
+    if _current_open == 0 and _current_closed == 0:
+        # Render a JS detector — if localStorage has data and current
+        # state is empty, surface a one-click restore button.
+        import streamlit.components.v1 as _stc_restore
+        _stc_restore.html(
+            """
+            <div id="lb_restore_zone" style="display:none"></div>
+            <script>
+            try {
+                const raw = localStorage.getItem('paper_bot_state');
+                const ts = localStorage.getItem('paper_bot_state_ts');
+                const n_closed = parseInt(
+                    localStorage.getItem('paper_bot_state_n_closed')
+                    || '0', 10);
+                if (raw && (n_closed > 0 || raw.includes('"open":[{'))) {
+                    const enc = btoa(unescape(encodeURIComponent(raw)));
+                    const age_min = ts ? Math.round(
+                        (Date.now() - parseInt(ts, 10)) / 60000) : null;
+                    const age_txt = age_min !== null
+                        ? (age_min < 60 ? `${age_min} min ago`
+                          : age_min < 1440
+                            ? `${Math.round(age_min/60)}h ago`
+                            : `${Math.round(age_min/1440)}d ago`)
+                        : 'unknown';
+                    const top = window.parent.document.body;
+                    const banner = document.createElement('div');
+                    banner.style.cssText = `
+                      background:linear-gradient(135deg,
+                        rgba(255,215,0,0.18),rgba(46,212,122,0.10));
+                      border:2px solid rgba(255,215,0,0.55);
+                      border-radius:12px;padding:14px 18px;
+                      margin:14px 0;color:#fff;
+                      font-family:-apple-system,Segoe UI,sans-serif;
+                      box-shadow:0 0 24px rgba(255,215,0,0.30);
+                    `;
+                    banner.innerHTML = `
+                      <div style="font-size:1.05rem;font-weight:900;
+                        color:#ffd700;margin-bottom:6px">
+                        💾 Browser backup found — ${n_closed} closed
+                        trade${n_closed!==1?'s':''} saved ${age_txt}
+                      </div>
+                      <div style="color:#c8d2ed;font-size:0.88rem;
+                        margin-bottom:10px;line-height:1.5">
+                        Your trade history is gone from this session
+                        (Streamlit Cloud restarted the container), but
+                        your browser still has the backup. Click to
+                        restore.
+                      </div>
+                      <button id="lb_restore_btn" style="
+                        background:linear-gradient(90deg,#ffd700,#ff8c00);
+                        color:#1a1a1a;border:none;padding:10px 22px;
+                        border-radius:8px;font-size:0.95rem;
+                        font-weight:900;cursor:pointer;
+                        box-shadow:0 2px 8px rgba(255,215,0,0.4);
+                      ">🔄 RESTORE TRADES FROM BROWSER BACKUP</button>
+                    `;
+                    // Insert at top of main content
+                    const main = window.parent.document.querySelector(
+                        'section.main, [data-testid="stMain"]');
+                    if (main && main.firstChild) {
+                        main.insertBefore(banner, main.firstChild);
+                    }
+                    banner.querySelector('#lb_restore_btn')
+                      .addEventListener('click', () => {
+                        const url = new URL(window.parent.location.href);
+                        url.searchParams.set('restore_lb', enc);
+                        window.parent.location.href = url.toString();
+                      });
+                }
+            } catch(e) {
+                console.error('localStorage restore check failed:', e);
+            }
+            </script>
+            """,
+            height=0)
 
     # ---- Bank + trade stats — LIVE fragment (updates in place every 10s)
     _live_paper_stats()
