@@ -5488,17 +5488,66 @@ if active_section == "🧪 Paper Trader":
                 # Health is 0-100 with 50 = entry (break-even).
                 #   50-100 range = profit zone (entry → target)
                 #   0-50 range  = loss zone (entry → stop)
-                # The user-facing text needs the % within the relevant
-                # zone, not the % of the full bar — previously
-                # `100 - health` said "56% toward stop" when we'd only
-                # traveled 10% from entry to stop.
                 if health >= 50:
                     _zone_pct = int((health - 50) * 2)  # % to target
                     _zone_text = f"🎯 {_zone_pct}% toward target"
                 else:
                     _zone_pct = int((50 - health) * 2)  # % to stop
                     _zone_text = f"⚠️ {_zone_pct}% toward stop"
-                st.progress(health, text=_zone_text)
+                # Custom HTML progress bar — replaces st.progress so we
+                # can colour-code by zone (green when winning, red when
+                # losing, neutral at entry). The fill is positioned
+                # from the center (50%) outward toward target/stop so
+                # the visual maps directly to the trade's progress.
+                #   Winning: green bar extending RIGHT from center
+                #   Losing:  red bar extending LEFT from center
+                #   At entry: tiny grey marker at center
+                if health > 51:
+                    # Winning — green bar from 50% toward 100%
+                    _fill_left = 50
+                    _fill_width = health - 50
+                    _fill_grad = (
+                        "linear-gradient(90deg,#2ed47a,#00d4ff)")
+                    _bar_text_color = "#2ed47a"
+                elif health < 49:
+                    # Losing — red bar from 50% backward toward 0%
+                    _fill_left = health
+                    _fill_width = 50 - health
+                    _fill_grad = (
+                        "linear-gradient(90deg,#ff3d57,#ff8c00)")
+                    _bar_text_color = "#ff5c5c"
+                else:
+                    # At entry — neutral grey marker at center
+                    _fill_left = 49
+                    _fill_width = 2
+                    _fill_grad = "#8b8d98"
+                    _bar_text_color = "#aab"
+                st.markdown(
+                    f"<div style='position:relative;height:24px;"
+                    f"background:rgba(255,255,255,0.04);"
+                    f"border-radius:6px;overflow:hidden;"
+                    f"border:1px solid rgba(255,255,255,0.08);"
+                    f"margin:4px 0 8px 0'>"
+                    # Center line at 50% (entry point)
+                    f"<div style='position:absolute;left:50%;top:0;"
+                    f"bottom:0;width:1px;"
+                    f"background:rgba(255,255,255,0.25);"
+                    f"z-index:2'></div>"
+                    # Fill
+                    f"<div style='position:absolute;left:{_fill_left}%;"
+                    f"top:0;bottom:0;width:{_fill_width}%;"
+                    f"background:{_fill_grad};"
+                    f"box-shadow:0 0 10px "
+                    f"{_bar_text_color}66;z-index:1'></div>"
+                    # Text overlay
+                    f"<div style='position:absolute;inset:0;"
+                    f"display:flex;align-items:center;"
+                    f"justify-content:center;font-size:0.78rem;"
+                    f"font-weight:800;color:{_bar_text_color};"
+                    f"z-index:3;text-shadow:0 1px 4px "
+                    f"rgba(0,0,0,0.7)'>{_zone_text}</div>"
+                    f"</div>",
+                    unsafe_allow_html=True)
                 _render_position_chart(
                     p["symbol"], p["side"],
                     entry_v, stop_v, target_v, cur)
@@ -10528,6 +10577,92 @@ if active_section == "🧪 Paper Trader":
     _ct_head, _ct_dl = st.columns([6, 1])
     _ct_head.markdown(
         f"#### 📜 Closed trades ({len(pb_state['closed'])})")
+
+    # ============================================================
+    # 💾 BACKUP STATUS — visible confirmation that data is safe
+    # ============================================================
+    # User keeps reporting closed trades vanish. Show a JS-powered
+    # status chip that reads localStorage and confirms:
+    #   - If browser HAS backup matching current count -> green chip
+    #   - If browser has MORE than current -> orange chip + 1-click
+    #     restore button (in addition to the top-of-page banner)
+    #   - If browser has nothing yet -> grey chip telling user to
+    #     wait for next save
+    # Plus an ALWAYS-VISIBLE manual JSON download button below so
+    # the user can grab a backup file any time as belt-and-suspenders.
+    import streamlit.components.v1 as _stc_status
+    import json as _json_status
+    _backup_payload = _json_status.dumps(pb_state, ensure_ascii=False)
+    _status_html = ("""
+        <div id="lb_status_zone" style="margin:6px 0 10px 0;
+            font-family:-apple-system,Segoe UI,sans-serif;
+            font-size:0.85rem"></div>
+        <script>
+        try {
+            const cur_closed = __PY_CLOSED__;
+            const cur_open = __PY_OPEN__;
+            const raw = localStorage.getItem('paper_bot_state');
+            const ts = localStorage.getItem('paper_bot_state_ts');
+            const n_closed = parseInt(
+                localStorage.getItem('paper_bot_state_n_closed')
+                || '0', 10);
+            const age_min = ts ? Math.round(
+                (Date.now() - parseInt(ts, 10)) / 60000) : null;
+            const age_txt = age_min !== null
+                ? (age_min < 1 ? 'just now'
+                  : age_min < 60 ? `${age_min}m ago`
+                  : age_min < 1440
+                    ? `${Math.round(age_min/60)}h ago`
+                    : `${Math.round(age_min/1440)}d ago`)
+                : 'never';
+            const zone = document.getElementById('lb_status_zone');
+            if (!raw) {
+                zone.innerHTML = `<span style="color:#888">
+                    💾 No browser backup yet — will save on next render.
+                </span>`;
+            } else if (n_closed > cur_closed + 2) {
+                zone.innerHTML = `<span style="color:#ff8c00;
+                    font-weight:700">
+                    ⚠ Browser has ${n_closed} closed trades but you're
+                    only seeing ${cur_closed} — scroll up + click
+                    🔄 RESTORE banner to recover.
+                </span>`;
+            } else {
+                zone.innerHTML = `<span style="color:#2ed47a;
+                    font-weight:700">
+                    ✓ Backed up to browser ${age_txt}
+                    (${n_closed} closed · ${cur_open} open).
+                    Safe across Streamlit Cloud restarts on this device.
+                </span>`;
+            }
+        } catch(e) {
+            const zone = document.getElementById('lb_status_zone');
+            if (zone) zone.innerHTML = `<span style="color:#888">
+                💾 backup status unavailable</span>`;
+        }
+        </script>
+        """)
+    _status_html = _status_html.replace(
+        "__PY_CLOSED__", str(len(pb_state.get("closed") or [])))
+    _status_html = _status_html.replace(
+        "__PY_OPEN__", str(len(pb_state.get("open") or [])))
+    _stc_status.html(_status_html, height=40)
+
+    # Always-visible manual download as the final safety net.
+    # Even if localStorage fails / browser switches, this file is
+    # gold — drag-drop into the Settings expander to restore.
+    _ct_dl.download_button(
+        "💾 Backup",
+        data=_backup_payload.encode("utf-8"),
+        file_name=f"paper_bot_backup_"
+                  f"{datetime.utcnow().strftime('%Y%m%d_%H%M')}.json",
+        mime="application/json",
+        use_container_width=True,
+        help="Manual JSON backup. Save this file regularly — "
+             "drag-drop it into the Settings expander to restore "
+             "state after any data loss. Belt-and-suspenders on top "
+             "of the auto browser-localStorage backup.")
+
     if pb_state["closed"]:
         cs_recent = sorted(pb_state["closed"],
                            key=lambda c: c.get("exit_at", 0),
