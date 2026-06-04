@@ -10055,6 +10055,15 @@ if active_section == "🧪 Paper Trader":
             signal_fires.enrich_perf(_rf_recent, _rf_prices)
         except Exception:
             _rf_recent = []
+        # Filter to STRONGEST fires only: 3+ lanes (backtested edge per
+        # 150-coin study: 53.2% win at 3 lanes vs 43% at 1-2 lanes).
+        # Anything below 3 lanes is essentially a coin flip — don't
+        # waste board real estate on those.
+        _rf_total_before_filter = len(_rf_recent)
+        _rf_recent = [
+            f for f in _rf_recent
+            if len(f.get("active_lanes") or []) >= 3
+        ]
         if _rf_recent:
             # Premium header
             _rf_winning = sum(1 for f in _rf_recent if f.get("winning"))
@@ -10071,10 +10080,15 @@ if active_section == "🧪 Paper Trader":
                 "background-clip:text;letter-spacing:-0.02em'>"
                 "📊 RECENT TRADES</span>"
                 "<span style='color:#aab;font-size:0.82rem'>"
-                "every STRONG+ signal in the last 12h, treated as a "
-                "trade · audit which lane combos actually win</span>"
+                "STRONGEST fires only (3+ lanes — backtested 53% win) · "
+                "last 12h · audit log</span>"
                 "</div>",
                 unsafe_allow_html=True)
+            if _rf_total_before_filter > len(_rf_recent):
+                _filtered_out = _rf_total_before_filter - len(_rf_recent)
+                st.caption(
+                    f"_{_filtered_out} weaker fires (1-2 lanes) "
+                    "filtered out — they're coin flips per backtest._")
             # Summary chip row
             _rf_summary = []
             if _rf_winning:
@@ -10187,80 +10201,100 @@ if active_section == "🧪 Paper Trader":
                     _rf_lane_labels.get(ln, "·")
                     for ln in (_f.get("active_lanes") or [])[:6])
 
-                # Plan row — entry zone + SL/TP1/TP2 with percentages
-                # so the user can see the FULL trade plan that was on
-                # the table when this signal fired. Helpful for audit:
-                # were TP1/TP2 ever reached?
-                def _level_cell(label, level, pct, color):
+                # Plan row — entry zone + SL/TP1/TP2 with percentages.
+                # BIGGER FONTS so numbers are actually readable.
+                def _level_cell(label, level, pct, color, rgb):
                     if level <= 0:
                         return ""
-                    pct_str = (f" <span style='color:{color};"
-                              f"font-weight:700'>"
-                              f"({'+' if pct and pct > 0 else ''}"
-                              f"{pct:.2f}%)</span>"
-                              if pct is not None else "")
+                    pct_str = (
+                        f" <span style='color:{color};"
+                        f"font-weight:800;font-size:0.92rem'>"
+                        f"({'+' if pct and pct > 0 else ''}"
+                        f"{pct:.2f}%)</span>"
+                        if pct is not None else "")
                     return (
-                        f"<span style='color:#aab;"
-                        f"font-size:0.74rem'>"
-                        f"<b style='color:{color}'>{label}</b> "
-                        f"<code style='background:rgba("
-                        f"{('46,212,122' if color == '#2ed47a' else '255,92,92') if label in ('TP1','TP2','SL') else '255,255,255'},"
-                        f"0.10);padding:1px 6px;"
-                        f"border-radius:4px;color:{color}'>"
-                        f"{level:g}</code>{pct_str}</span>")
+                        f"<span style='display:inline-flex;"
+                        f"align-items:center;gap:6px;"
+                        f"font-size:0.92rem'>"
+                        f"<b style='color:{color};font-size:0.95rem'>"
+                        f"{label}</b>"
+                        f"<code style='background:rgba({rgb},0.15);"
+                        f"padding:3px 10px;border-radius:6px;"
+                        f"color:{color};font-size:0.98rem;"
+                        f"font-weight:700'>{level:g}</code>"
+                        f"{pct_str}</span>")
 
                 _plan_row = (
                     f"<div style='display:flex;flex-wrap:wrap;"
-                    f"gap:12px;margin-top:6px;padding-top:6px;"
-                    f"border-top:1px solid rgba(255,255,255,0.05);"
-                    f"line-height:1.6'>"
+                    f"gap:16px;margin-top:10px;padding-top:10px;"
+                    f"border-top:1px solid rgba(255,255,255,0.08);"
+                    f"line-height:1.9;align-items:center'>"
                     + _level_cell(
-                        "Entry", _f_entry, None, "#fff")
+                        "Entry", _f_entry, None, "#fff",
+                        "255,255,255")
                     + _level_cell(
-                        "SL", _f_sl, _f_sl_pct, "#ff5c5c")
+                        "SL", _f_sl, _f_sl_pct, "#ff5c5c",
+                        "255,92,92")
                     + _level_cell(
-                        "TP1", _f_tp1, _f_tp1_pct, "#2ed47a")
+                        "TP1", _f_tp1, _f_tp1_pct, "#2ed47a",
+                        "46,212,122")
                     + _level_cell(
-                        "TP2", _f_tp2, _f_tp2_pct, "#2ed47a")
+                        "TP2", _f_tp2, _f_tp2_pct, "#2ed47a",
+                        "46,212,122")
                     + (f"<span style='color:#ffd700;"
-                       f"font-size:0.74rem;font-weight:700'>"
+                       f"font-size:0.98rem;font-weight:800;"
+                       f"padding-left:6px'>"
                        f"R:R {_f_rr:.2f}</span>"
                        if _f_rr > 0 else "")
                     + "</div>")
 
                 with st.container(border=True):
                     st.markdown(
+                        f"<div style='padding:6px 4px'>"
+                        # Header row — bigger sizes throughout
                         f"<div style='display:flex;align-items:"
-                        f"center;gap:10px;flex-wrap:wrap'>"
-                        f"<span style='font-weight:800;"
-                        f"font-size:1.0rem;font-family:"
-                        f"Space Grotesk,Inter,sans-serif'>"
+                        f"center;gap:12px;flex-wrap:wrap'>"
+                        f"<span style='font-weight:900;"
+                        f"font-size:1.25rem;font-family:"
+                        f"Space Grotesk,Inter,sans-serif;"
+                        f"letter-spacing:-0.01em'>"
                         f"{_f_base}</span>"
                         f"<span style='background:{_f_side_color};"
-                        f"color:#06121f;padding:3px 10px;"
-                        f"border-radius:6px;font-size:0.72rem;"
-                        f"font-weight:800'>"
+                        f"color:#06121f;padding:4px 14px;"
+                        f"border-radius:7px;font-size:0.85rem;"
+                        f"font-weight:900'>"
                         f"{_f_side_emoji} {_f_side}</span>"
                         f"<span style='background:linear-gradient("
                         f"90deg,#ff6b35,#ffd700);color:#1a1a1a;"
-                        f"padding:3px 12px;border-radius:6px;"
-                        f"font-size:0.74rem;font-weight:800'>"
+                        f"padding:4px 14px;border-radius:7px;"
+                        f"font-size:0.88rem;font-weight:900'>"
                         f"🔥 {_f_tier} · {_f_score:.0f}</span>"
-                        f"<span style='color:#888;"
-                        f"font-size:0.78rem'>fired {_f_fired_dt} · "
-                        f"{_f_age_str}</span>"
-                        f"<span style='color:#888;"
-                        f"font-size:0.78rem'>→</span>"
-                        f"<span style='color:#fff;"
-                        f"font-size:0.82rem;font-weight:700'>"
-                        f"now <code>{_f_cur:g}</code></span>"
+                        f"<span style='color:#aab;"
+                        f"font-size:0.88rem;font-weight:600'>"
+                        f"fired {_f_fired_dt} · "
+                        f"<b style='color:#fff'>"
+                        f"{_f_age_str}</b></span>"
+                        f"</div>"
+                        # Current price + performance row
+                        f"<div style='display:flex;align-items:"
+                        f"center;gap:14px;flex-wrap:wrap;"
+                        f"margin-top:8px'>"
+                        f"<span style='color:#aab;"
+                        f"font-size:0.95rem'>now "
+                        f"<code style='background:rgba("
+                        f"255,255,255,0.08);padding:3px 10px;"
+                        f"border-radius:6px;color:#fff;"
+                        f"font-size:1.0rem;font-weight:700'>"
+                        f"{_f_cur:g}</code></span>"
                         f"{_perf_chip}"
                         f"{_outcome_chip}"
                         f"<span style='color:#aab;"
-                        f"font-size:0.85rem;margin-left:6px'>"
+                        f"font-size:1.05rem;margin-left:auto'>"
                         f"{_lane_str}</span>"
                         f"</div>"
-                        f"{_plan_row}",
+                        # Plan row (Entry/SL/TP1/TP2/RR)
+                        f"{_plan_row}"
+                        f"</div>",
                         unsafe_allow_html=True)
 
         st.divider()
