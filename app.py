@@ -8412,7 +8412,7 @@ if active_section == "🧪 Paper Trader":
                     _h_side = (_h_s.get("side") or "LONG").upper()
                     _h_score = int(min(99, max(0, _h_combined)))
                     _h_conf = int(_h_s.get("confidence") or 0)
-                    _h_entry = float(
+                    _h_planned_entry = float(
                         _h_s.get("entry_low")
                         or prices.get(_h_sym) or 0)
                     _h_stop = float(_h_s.get("stop") or 0)
@@ -8422,12 +8422,19 @@ if active_section == "🧪 Paper Trader":
                     _h_side_color = ("#2ed47a" if _h_side == "LONG"
                                      else "#ff5c5c")
                     _h_side_emoji = "🟢" if _h_side == "LONG" else "🩸"
+                    # USER FIX (2026-06-05): hero card Entry must show
+                    # the LIVE current price (what actually fills),
+                    # not the planned entry_low. SL/TP percentages must
+                    # also be computed from the LIVE price so the user
+                    # sees the true risk/reward if they open NOW.
+                    # _h_entry now = live current price (the fill price)
+                    _h_cur = prices.get(_h_sym) or _h_planned_entry
+                    _h_entry = _h_cur if _h_cur > 0 else _h_planned_entry
                     # SL / TP percentages — direction-aware so a SHORT
                     # trade shows SL as NEGATIVE (loss) and TP as
                     # POSITIVE (profit), matching how the user reads
-                    # P&L. Previously we showed raw price change so
-                    # SHORT trades had confusing '+3.82%' on the SL
-                    # (which was actually the loss direction).
+                    # P&L. Computed from LIVE entry price so the % is
+                    # what the user will actually experience.
                     if _h_entry > 0:
                         _sign = 1 if _h_side == "LONG" else -1
                         _h_sl_pct = _sign * (_h_stop - _h_entry) / _h_entry * 100
@@ -8438,7 +8445,6 @@ if active_section == "🧪 Paper Trader":
                     # Live R:R from CURRENT price — convincing because
                     # it shows what the user will ACTUALLY get if they
                     # click now, not the plan's idealised R:R.
-                    _h_cur = prices.get(_h_sym) or _h_entry
                     _h_live_rr = 0.0
                     if _h_cur > 0 and _h_stop > 0 and _h_tgt > 0:
                         if _h_side == "LONG":
@@ -8674,7 +8680,10 @@ if active_section == "🧪 Paper Trader":
                         f"<code style='background:rgba(255,255,255,"
                         f"0.10);padding:4px 12px;border-radius:6px;"
                         f"color:#fff;font-size:1.0rem;font-weight:700'>"
-                        f"{_h_entry:g}</code></span>"
+                        f"{_h_entry:g}</code>"
+                        f"<span style='color:#2ed47a;font-size:0.72rem;"
+                        f"margin-left:6px;font-weight:700'>"
+                        f"(live)</span></span>"
                         f"<span style='color:#444'>│</span>"
                         f"<span><b style='color:#ff8585'>Stop</b> "
                         f"<code style='background:rgba(255,92,92,0.15);"
@@ -8870,6 +8879,12 @@ if active_section == "🧪 Paper Trader":
                         _live_rr = _live_reward_pct / _live_risk_pct
                         if _show_tp2:
                             _live_rr_2 = _live_reward_pct_2 / _live_risk_pct
+                # USER FIX (2026-06-05): when price is at entry zone,
+                # show live current price as the entry in the card body
+                # (matches what the trade actually fills at). When
+                # drifted, show both planned zone + current so the user
+                # sees the gap.
+                _at_zone = _live_rr >= 1.3
                 # Entry-zone chip — symmetric signal (user asked for the
                 # red marker back, 2026-05-25 second pass — makes the
                 # state immediately scannable on a card).
@@ -9470,10 +9485,22 @@ if active_section == "🧪 Paper Trader":
                         f"{alive_txt}</span></div>"
                         f"<div style='color:#aab;font-size:0.78rem;"
                         f"margin-top:4px'>"
-                        f"hold: <b>{hold}</b> · now "
-                        f"<b>{fmt_price(_cur)}</b> · entry zone "
-                        f"{fmt_price(s.get('entry_low', 0))} · "
-                        f"stop {fmt_price(_stop)} "
+                        f"hold: <b>{hold}</b> · "
+                        # USER FIX: when at entry zone, show the LIVE
+                        # current price as the entry (that's what
+                        # actually opens). When drifted, show planned
+                        # zone + drift warning so the user knows price
+                        # has moved away from the ideal entry.
+                        + (
+                            f"entry <b>{fmt_price(_cur)}</b> "
+                            f"<span style='color:#2ed47a;font-size:"
+                            f"0.72rem'>(live)</span> · "
+                            if _at_zone else
+                            f"now <b>{fmt_price(_cur)}</b> · "
+                            f"entry zone "
+                            f"{fmt_price(s.get('entry_low', 0))} · "
+                        )
+                        + f"stop {fmt_price(_stop)} "
                         f"<span style='color:#ff5c5c'>"
                         f"(−{_live_risk_pct:.1f}%)</span> · "
                         # PREMIUM cards show TP1 (default exit, green)
@@ -12657,8 +12684,20 @@ plus funding rate every 8 hours on open positions.
                         f"{float(s.get('rr', 0)):.1f}</span></div>"
                         f"<div style='color:#aab;font-size:0.78rem;"
                         f"margin-top:4px'>"
-                        f"now <b>{fmt_price(_cur_lt)}</b> · entry zone "
-                        f"{fmt_price(s.get('entry_low', 0))} · stop "
+                        # USER FIX: at entry zone → show live price as
+                        # the entry (the actual fill price); drifted →
+                        # show both planned zone + current so user
+                        # sees the gap.
+                        + (
+                            f"entry <b>{fmt_price(_cur_lt)}</b> "
+                            f"<span style='color:#2ed47a;font-size:"
+                            f"0.72rem'>(live)</span> · "
+                            if _live_rr_lt >= 1.3 else
+                            f"now <b>{fmt_price(_cur_lt)}</b> · "
+                            f"entry zone "
+                            f"{fmt_price(s.get('entry_low', 0))} · "
+                        )
+                        + f"stop "
                         f"{fmt_price(_stop_lt)} "
                         f"<span style='color:#ff5c5c'>"
                         f"(−{_live_risk_lt:.1f}%)</span> · target "
