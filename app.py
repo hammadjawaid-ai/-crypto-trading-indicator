@@ -8072,6 +8072,10 @@ if active_section == "🧪 Paper Trader":
                 if _pk_combined < 85:
                     continue
                 # Live R:R from current price
+                # Live R:R gate REMOVED per user — let the alert fire
+                # whenever the multi-system criteria are met; the plan's
+                # R:R (now tier-scaled up to 2.5) is the profit ceiling
+                # we care about, not the live execution math.
                 _pk_cur = (prices.get(_pk_sym)
                            or float(_pk_s.get("entry_low") or 0))
                 _pk_stop = float(_pk_s.get("stop") or 0)
@@ -8086,8 +8090,6 @@ if active_section == "🧪 Paper Trader":
                         _rew = (_pk_cur - _pk_tgt) / _pk_cur
                     if _risk > 0:
                         _pk_live_rr = _rew / _risk
-                if _pk_live_rr < 1.5:
-                    continue
                 # Count proven systems agreeing
                 _pk_proven = sum([
                     int(_pk_sym in _convergence_syms),
@@ -8420,11 +8422,19 @@ if active_section == "🧪 Paper Trader":
                     _h_side_color = ("#2ed47a" if _h_side == "LONG"
                                      else "#ff5c5c")
                     _h_side_emoji = "🟢" if _h_side == "LONG" else "🩸"
-                    # SL / TP / R:R percentages
-                    _h_sl_pct = ((_h_stop - _h_entry) / _h_entry * 100
-                                 if _h_entry > 0 else 0)
-                    _h_tp_pct = ((_h_tgt - _h_entry) / _h_entry * 100
-                                 if _h_entry > 0 else 0)
+                    # SL / TP percentages — direction-aware so a SHORT
+                    # trade shows SL as NEGATIVE (loss) and TP as
+                    # POSITIVE (profit), matching how the user reads
+                    # P&L. Previously we showed raw price change so
+                    # SHORT trades had confusing '+3.82%' on the SL
+                    # (which was actually the loss direction).
+                    if _h_entry > 0:
+                        _sign = 1 if _h_side == "LONG" else -1
+                        _h_sl_pct = _sign * (_h_stop - _h_entry) / _h_entry * 100
+                        _h_tp_pct = _sign * (_h_tgt - _h_entry) / _h_entry * 100
+                    else:
+                        _h_sl_pct = 0
+                        _h_tp_pct = 0
                     # Live R:R from CURRENT price — convincing because
                     # it shows what the user will ACTUALLY get if they
                     # click now, not the plan's idealised R:R.
@@ -9019,11 +9029,12 @@ if active_section == "🧪 Paper Trader":
                     int(conf >= 80 and fc_label ==
                         "forecast confirms · aligned 3/3"),
                 ])
-                _an_live_rr_ok = _live_rr >= 1.5
+                # Live R:R 1.5 gate REMOVED per user — would let more
+                # trades fire with the plan's R:R (higher potential
+                # profits) rather than gating by live-execution math.
                 if (combined >= 85
                         and _an_proven_count >= 2
-                        and (_an_elite_score_strong or _an_elite_3lanes)
-                        and _an_live_rr_ok):
+                        and (_an_elite_score_strong or _an_elite_3lanes)):
                     act_now_chip = (
                         f"<span style='background:linear-gradient("
                         f"90deg,#ff3d57,#ff8c00,#ffd700);"
