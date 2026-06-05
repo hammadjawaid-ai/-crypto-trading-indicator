@@ -10178,6 +10178,61 @@ if active_section == "🧪 Paper Trader":
                     key=lambda p: float(p.get("score") or 0),
                     reverse=True)
 
+                # ============================================================
+                # 🎯 STRONGEST browser notifications
+                # ============================================================
+                # User: 'extend browser notifications to STRONGEST tier so I
+                # get pinged for LA-style 3L picks even when working on
+                # something else'.
+                #
+                # Fires for any pick in the STRONGEST section (3+ lanes OR
+                # 2+ lanes with HIGH/MAX tier — the LA/BABY pattern). Uses
+                # a separate localStorage key so it doesn't conflict with
+                # the ACT NOW alert stream.
+                if alerts_on and _u_multi:
+                    _strongest_alerts = []
+                    for _p in _u_multi:
+                        _p_sym = _p.get("symbol")
+                        _p_base = _p.get(
+                            "base", _p_sym.replace("USDT", ""))
+                        _p_side = (_p.get("side") or "").upper()
+                        _p_score = float(_p.get("score") or 0)
+                        _p_tier = _p.get("tier", "STRONG")
+                        _p_lanes = _p.get("active_lanes") or []
+                        _p_n_lanes = len(_p_lanes)
+                        # Also include TOP RISK dist_top picks
+                        _strongest_alerts.append({
+                            "id": (f"strongest:{_p_sym}:"
+                                   f"{_p_side}:{int(_p_score)}"),
+                            "title": (f"🎯 STRONGEST — {_p_base} "
+                                      f"{_p_side}"),
+                            "body": (f"{_p_tier} {int(_p_score)} · "
+                                     f"{_p_n_lanes} lanes · "
+                                     "ELITE board · open from STRONGEST "
+                                     "section"),
+                        })
+                    # Include TOP RISK dist_top picks too — they're
+                    # equally strong SHORT signals
+                    for _p in _u_top_risk:
+                        _p_sym = _p.get("symbol")
+                        _p_base = _p.get(
+                            "base", _p_sym.replace("USDT", ""))
+                        _p_score = float(_p.get("score") or 0)
+                        _p_tier = _p.get("tier", "STRONG")
+                        _strongest_alerts.append({
+                            "id": (f"toprisk:{_p_sym}:"
+                                   f"{int(_p_score)}"),
+                            "title": (f"🚨 TOP RISK — {_p_base} "
+                                      "SHORT"),
+                            "body": (f"{_p_tier} {int(_p_score)} · "
+                                     "distribution top forming · "
+                                     "ELITE board"),
+                        })
+                    if _strongest_alerts:
+                        _inject_browser_alerts(
+                            _strongest_alerts, refresh_secs=0,
+                            key="ti_notified_strongest")
+
                 # Build the rendering iterator with section dividers
                 _u_render_list = []
                 if _u_top_risk:
