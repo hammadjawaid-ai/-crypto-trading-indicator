@@ -8131,16 +8131,50 @@ if active_section == "🧪 Paper Trader":
                 _pk_s["_mtf_against"] = _r["against"]
                 aligned = _r["aligned"]
                 against = _r["against"]
-                # Tiered gate:
-                #   3/3 aligned and 0 against    → always pass
-                #   2/3 aligned and against <=1  → always pass
-                #   1/3 aligned and score >= 85  → pass
-                #   else                          → reject
-                if aligned >= 3:
+
+                # PROVEN-EDGE BYPASS (2026-06-06 v2 — softening)
+                # User: 'soften it but make sure you give signals for
+                # top max strong conviction and convergence as you did
+                # previously for the best trades'.
+                #
+                # These signals have proven statistical edge that the
+                # multi-TF gate shouldn't override:
+                #   - CONVERGENCE meta-filter: backtested +6.8pp edge
+                #   - SURE SHOT meta-filter: strictest multi-confirm
+                #   - MAX tier (combined >= 88): the rare top-conviction
+                #     setups (was already at MAX threshold)
+                #   - 3-or-more proven systems agreeing (strong cross-
+                #     system confirmation alone is enough edge)
+                _ql_proven_count = 0
+                if _pk_sym in _convergence_syms:
+                    _ql_proven_count += 1
+                if _pk_sym in _sure_shot_syms:
+                    _ql_proven_count += 1
+                _ql_elite = _ql_elite_lookup.get(_pk_sym)
+                if (_ql_elite
+                        and (_ql_elite.get("side") or "").upper()
+                            == _pk_side):
+                    _ql_proven_count += 1
+                _proven_edge = (
+                    _pk_sym in _convergence_syms
+                    or _pk_sym in _sure_shot_syms
+                    or _pk_combined >= 88
+                    or _ql_proven_count >= 3
+                )
+
+                # Tiered gate (softened):
+                #   PROVEN-EDGE bypass            → always pass
+                #   3/3 aligned and 0 against     → always pass
+                #   2/3 aligned and against <=1   → always pass
+                #   1/3 aligned and score >= 80   → pass (was 85)
+                #   else                            → reject
+                if _proven_edge:
+                    _mtf_pass = True
+                elif aligned >= 3:
                     _mtf_pass = True
                 elif aligned >= 2 and against <= 1:
                     _mtf_pass = True
-                elif aligned >= 1 and _pk_combined >= 85:
+                elif aligned >= 1 and _pk_combined >= 80:
                     _mtf_pass = True
                 else:
                     _mtf_pass = False
@@ -8461,8 +8495,8 @@ if active_section == "🧪 Paper Trader":
                 f"line-height:1.55'>"
                 f"<b>Hidden:</b> {_mtfb_disp}{_mtfb_more}<br/>"
                 f"<span style='color:#aab;font-size:0.76rem'>"
-                f"Bar: 2+ TFs aligned OR 1 aligned + score ≥85. "
-                f"Single-TF traps filtered."
+                f"Bar: 2+ TFs aligned OR 1+ TF + score ≥80. "
+                f"CONVERGENCE / SURE SHOT / MAX tier bypass this gate."
                 f"</span></div></div>",
                 unsafe_allow_html=True)
 
@@ -10567,16 +10601,20 @@ if active_section == "🧪 Paper Trader":
                     tier = p.get("tier") or ""
                     sc = float(p.get("score") or 0)
                     mtf_n = int(p.get("_mtf_aligned") or 0)
-                    # Multi-TF gate: require 2+ TFs aligned OR very
-                    # high score (>= 90) for STRONGEST status.
-                    if mtf_n < 2 and sc < 90:
-                        return False
-                    # Strongest = 3+ lanes (backtest-validated edge)
-                    # OR HIGH/MAX tier (score >= 85) with at least 2 lanes
+                    # Backtest-validated proven edges ALWAYS land in
+                    # STRONGEST regardless of multi-TF (3+ lanes = real
+                    # confluence edge; MAX tier = highest conviction;
+                    # HIGH+2 lanes was the HOME LONG winner pattern).
                     if n_lanes >= 3:
                         return True
-                    if n_lanes >= 2 and (
-                            tier in ("HIGH", "MAX") or sc >= 85):
+                    if tier == "MAX":
+                        return True
+                    if n_lanes >= 2 and tier == "HIGH":
+                        return True
+                    # For 2-lane setups without HIGH/MAX tier:
+                    # multi-TF gate applies (need at least 1 TF aligned
+                    # OR score >= 85)
+                    if n_lanes >= 2 and (mtf_n >= 1 or sc >= 85):
                         return True
                     return False
                 _u_multi = sorted(
