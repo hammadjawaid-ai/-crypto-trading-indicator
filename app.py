@@ -13740,7 +13740,14 @@ if active_section == "🎯 Sure Shot Trader":
     import sureshot_agents as _ssa
     import experimental_signals as _es_ss
 
-    _SS_PATH = config.SURESHOT_BOT_STATE_PATH
+    # Defensive: read config attrs via getattr with fallbacks so the
+    # section works even if Streamlit Cloud is serving a stale `config`
+    # module (it can reload app.py while caching an older config import).
+    _SS_PATH = getattr(config, "SURESHOT_BOT_STATE_PATH", None)
+    if _SS_PATH is None:
+        _SS_PATH = Path(__file__).with_name(".sureshot_bot.json")
+    _SS_START_BAL = float(
+        getattr(config, "SURESHOT_STARTING_BALANCE", 10000.0))
     _ss_state = paper_bot.load_state(_SS_PATH)
 
     st.subheader("🎯 Sure Shot Trader")
@@ -13788,7 +13795,7 @@ if active_section == "🎯 Sure Shot Trader":
         if st.button("🔄 Reset to $10,000 (keeps history)",
                      key="ss_reset"):
             _ss_state = paper_bot.reset(
-                _SS_PATH, config.SURESHOT_STARTING_BALANCE, _ss_risk)
+                _SS_PATH, _SS_START_BAL, _ss_risk)
             st.success("Sure Shot account reset to $10,000.")
             st.rerun()
 
