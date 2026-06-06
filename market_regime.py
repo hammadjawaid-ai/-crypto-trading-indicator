@@ -438,17 +438,19 @@ def detect_regime(top_symbols: list[str] | None = None,
         long_bias = composite
         short_bias = 100 - composite
 
-    # SHIFT PENALTY — when fast diverges sharply from daily, the regime
-    # is reorganizing. Cut confidence by 30% so the quality gate doesn't
-    # treat this as a high-conviction call. Also force TRANSITION label
-    # so the user sees the market is in flux.
-    if is_shifting:
-        confidence = round(confidence * 0.7, 1)
-        if regime in ("BULL", "BEAR"):
-            # Keep the long_bias/short_bias intact (they reflect the
-            # composite) but mark the regime as TRANSITION so downstream
-            # users see the warning
-            regime = "TRANSITION"
+    # SHIFT INDICATOR — when fast diverges sharply from daily, the
+    # regime is reorganizing. We surface this as a visible warning
+    # (regime label → TRANSITION, ⚠ SHIFTING chip in UI) but DON'T
+    # artificially cut confidence.
+    #
+    # Why no conf cut: the fast component (25% weight) already pulls
+    # the composite — and therefore the confidence — toward the live
+    # tape state. Cutting conf again on top would double-penalize the
+    # same event and weaken regime tilt to the point that strong
+    # directional setups lose their score boost. The composite math
+    # is enough. The chip alerts the user; the math handles itself.
+    if is_shifting and regime in ("BULL", "BEAR"):
+        regime = "TRANSITION"
 
     summary_bits = [
         f"BTC 1h: {fast['label']} ({fast['score']:.0f}, "
