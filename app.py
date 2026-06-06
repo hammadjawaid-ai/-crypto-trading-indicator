@@ -10519,22 +10519,58 @@ if active_section == "🧪 Paper Trader":
                 def _has_dist_top(p):
                     return "dist_top" in (p.get("active_lanes") or [])
 
+                # ============================================================
+                # ENRICH ELITE PICKS WITH MULTI-TF ALIGNMENT (2026-06-06)
+                # The multi-TF gate already runs on TOP CONVICTION board.
+                # Now we apply the same alignment data to ELITE so users
+                # see at a glance which picks have multi-TF backing.
+                # Cached at module level so no extra API calls per render.
+                # ============================================================
+                try:
+                    import multi_tf as _el_mtf
+                except ImportError:
+                    _el_mtf = None
+                if _el_mtf is not None:
+                    for _ep in _u_picks:
+                        _ep_sym = _ep.get("symbol")
+                        _ep_side = (_ep.get("side") or "").upper()
+                        if not _ep_sym:
+                            continue
+                        # Skip if already stashed (e.g. came through
+                        # TOP CONVICTION first)
+                        if _ep.get("_mtf_aligned") is not None:
+                            continue
+                        try:
+                            _ep_r = _el_mtf.get_multi_tf_alignment(
+                                _ep_sym, _ep_side)
+                        except Exception:
+                            _ep_r = {"aligned": 0, "against": 0,
+                                    "summary": ""}
+                        _ep["_mtf_aligned"] = _ep_r.get("aligned", 0)
+                        _ep["_mtf_against"] = _ep_r.get("against", 0)
+                        _ep["_mtf_summary"] = _ep_r.get("summary", "")
+
                 _u_top_risk = sorted(
                     [p for p in _u_picks if _has_dist_top(p)],
                     key=lambda p: float(p.get("score") or 0),
                     reverse=True)
                 _u_top_risk_syms = {p.get("symbol") for p in _u_top_risk}
                 # Remaining picks (excluding TOP RISK) — STRONGEST now
-                # broadened to include HIGH+ tier 2-lane picks per user
-                # (the HOME LONG winning trade was tier=HIGH score=88 with
-                # 2 lanes — Pattern Scout 98 + Early Momentum 90. Should
-                # be featured, not buried in 'lower confidence').
+                # ALSO requires multi-TF alignment (2+ TFs agreeing on
+                # 15m/1h/4h). A pick with 3+ lanes but 0/3 TF alignment
+                # is fighting the tape — drops to LOWER CONFIDENCE so
+                # the user knows to be cautious.
                 _u_other = [p for p in _u_picks
                            if p.get("symbol") not in _u_top_risk_syms]
                 def _is_strongest(p):
                     n_lanes = len(p.get("active_lanes") or [])
                     tier = p.get("tier") or ""
                     sc = float(p.get("score") or 0)
+                    mtf_n = int(p.get("_mtf_aligned") or 0)
+                    # Multi-TF gate: require 2+ TFs aligned OR very
+                    # high score (>= 90) for STRONGEST status.
+                    if mtf_n < 2 and sc < 90:
+                        return False
                     # Strongest = 3+ lanes (backtest-validated edge)
                     # OR HIGH/MAX tier (score >= 85) with at least 2 lanes
                     if n_lanes >= 3:
@@ -10746,6 +10782,44 @@ if active_section == "🧪 Paper Trader":
                             f"{emoji} {label} <b style='opacity:0.85'>"
                             f"{sc:.0f}</b></span>")
 
+                    # 📊 Multi-TF chip — built from the stashed data
+                    # on this pick (set by the ENRICH block above)
+                    _u_mtf_n = int(_u.get("_mtf_aligned") or 0)
+                    _u_mtf_summary = _u.get("_mtf_summary") or ""
+                    _u_mtf_chip = ""
+                    if _u_mtf_n >= 3:
+                        _u_mtf_chip = (
+                            f"<span style='background:#2ed47a33;"
+                            f"color:#2ed47a;padding:3px 10px;"
+                            f"border-radius:6px;font-size:0.72rem;"
+                            f"font-weight:700;border:1px solid "
+                            f"#2ed47a55' title='{_u_mtf_summary}'>"
+                            f"📊 3/3 TFs</span>")
+                    elif _u_mtf_n == 2:
+                        _u_mtf_chip = (
+                            f"<span style='background:#6e8bff33;"
+                            f"color:#6e8bff;padding:3px 10px;"
+                            f"border-radius:6px;font-size:0.72rem;"
+                            f"font-weight:700;border:1px solid "
+                            f"#6e8bff55' title='{_u_mtf_summary}'>"
+                            f"📊 2/3 TFs</span>")
+                    elif _u_mtf_n == 1:
+                        _u_mtf_chip = (
+                            f"<span style='background:#e0a92b33;"
+                            f"color:#e0a92b;padding:3px 10px;"
+                            f"border-radius:6px;font-size:0.72rem;"
+                            f"font-weight:700;border:1px solid "
+                            f"#e0a92b55' title='{_u_mtf_summary}'>"
+                            f"📊 1/3 TF</span>")
+                    else:
+                        _u_mtf_chip = (
+                            f"<span style='background:#ff5c5c22;"
+                            f"color:#ff8585;padding:3px 10px;"
+                            f"border-radius:6px;font-size:0.72rem;"
+                            f"font-weight:700;border:1px solid "
+                            f"#ff5c5c44' title='{_u_mtf_summary}'>"
+                            f"📊 0/3 against tape</span>")
+
                     # Premium card — full-width gradient surface with
                     # tier-coded border and glow. Matches the
                     # SURE SHOT design from BEST TRADES NOW.
@@ -10789,6 +10863,10 @@ if active_section == "🧪 Paper Trader":
                             f"0.72rem;font-weight:700;border:1px "
                             f"solid rgba(255,255,255,0.10)'>"
                             f"🔗 {_u_n_strong_lanes} strong lanes</span>"
+                            # 📊 Multi-TF chip — same as TOP CONVICTION.
+                            # Tells the user at a glance if 15m/1h/4h
+                            # back the pick direction.
+                            f"{_u_mtf_chip}"
                             f"</div>"
                             # Lane chips row — wrapping
                             f"<div style='margin-bottom:10px'>"
