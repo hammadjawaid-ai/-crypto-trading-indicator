@@ -422,18 +422,33 @@ def _lane_dist_top(df: pd.DataFrame,
 # Composite scoring + tier
 # ---------------------------------------------------------------------------
 def _conviction_tier(score: float, n_strong_lanes: int) -> str:
-    """MAX = score >= 90 AND >=3 strong lanes
-       HIGH = score >= 85 AND >=2 strong lanes
-       STRONG = score >= 80
-       STANDARD = score >= 70
-       (below 70 we filter out)"""
-    if score >= 90 and n_strong_lanes >= 3:
+    """Conviction tier — relaxed 2026-06-06 so user sees MAX/HIGH more
+    when the system IS confident. The old "score>=90 AND 3 strong lanes"
+    was almost impossible to hit after the regime tilt subtracted -15,
+    leaving the user staring at STANDARD/STRONG cards even when ELITE
+    was firing 3 lanes.
+
+       MAX = score >= 88 AND >=2 strong lanes  (was 90 + 3 lanes)
+       HIGH = score >= 82 AND >=2 strong lanes  (was 85 + 2 lanes)
+       STRONG = score >= 75 (was 80)
+       STANDARD = score >= 68 (was 70)
+       (below 68 we filter out)
+
+    Why this is safe: the score itself already incorporates
+       (a) lane composite weighting,
+       (b) regime tilt up/down,
+       (c) per-lane firing floor (60).
+    A score of 88 with 2 strong lanes is genuinely the top tier —
+    requiring 3 strong lanes added almost no statistical edge but
+    starved the user of the MAX badge that drives the bigger TP1/TP2.
+    """
+    if score >= 88 and n_strong_lanes >= 2:
         return "MAX"
-    if score >= 85 and n_strong_lanes >= 2:
+    if score >= 82 and n_strong_lanes >= 2:
         return "HIGH"
-    if score >= 80:
+    if score >= 75:
         return "STRONG"
-    if score >= 70:
+    if score >= 68:
         return "STANDARD"
     return "LOW"
 
@@ -530,8 +545,12 @@ def _apply_regime_tilt(score: float, side: str,
             return 0.0, f"REJECTED counter-{tag} ({conf:.0f}%)"
         # Extreme override active — fall through to soft tilt
 
-    # SOFT TILT — magnitude scales with confidence (40→0, 100→15)
-    tilt = (conf - 40) / 60 * 15
+    # SOFT TILT — magnitude scales with confidence (40→0, 100→18)
+    # Bumped from 15 → 18 (2026-06-06) after audit showed counter-regime
+    # LONGs in BEAR were still scoring 80+ and getting opened by user,
+    # then stopping out at -1% each. Sharper penalty makes the BEAR
+    # DEFENSE gate engage more naturally on borderline picks.
+    tilt = (conf - 40) / 60 * 18
     if regime == "BULL":
         if side == "LONG":
             return min(100, score + tilt), f"BULL +{tilt:.0f}"
