@@ -8001,49 +8001,66 @@ if active_section == "🧪 Paper Trader":
         _bot_picks = _bot_picks[:12]   # trim back to 12 display slots
 
         # ================================================================
-        # 🛡️ REGIME DEFENSE GATE (2026-06-06)
-        # User audit of last 20 closed trades:
-        #   LONG win rate: 1/9 = 11% (catastrophic)
-        #   SHORT win rate: 4/7 = 57% (working)
-        #   Net P&L: -$635 on 20 trades
-        # Root cause: alerts engine kept firing LONGs at score 77-89
-        # ("Very Strong" labels) in a BEAR regime, all stopping out.
-        # The regime tilt was applied AT the ELITE composite layer but
-        # NOT at the alerts/TopPicks layer — so LONGs from alerts.py
-        # bypassed regime defenses entirely.
+        # 🎯 QUALITY GATE — DIRECTION-BLIND (2026-06-06 v3)
         #
-        # Fix: in confirmed BEAR (conf >= 65%), the openable board hides
-        # LONGs UNLESS they're extreme conviction (combined >= 92 — i.e.
-        # the kind of bottom-fishing pick that historically beats regime
-        # like AAVE SHORT 73 still won). Mirror in BULL for SHORTs.
-        # Hidden picks are tallied for a defensive warning banner so the
-        # user knows the system is protecting them, not failing.
+        # USER: 'I dont want to see more short picks. I want to pick the
+        # best trades to be doesnt matter its long or short'.
+        #
+        # Pure quality filter — no direction bias, no regime tilt at the
+        # gate level. The regime detector already tilts the SCORE itself
+        # (via _apply_regime_tilt in experimental_signals.py) so aligned
+        # picks score higher naturally. The gate just enforces a minimum
+        # quality bar that works equally for LONG and SHORT.
+        #
+        # RULE: a pick surfaces on the openable TOP CONVICTION board if
+        # ANY of:
+        #   • 2+ independent systems agree (CONVERGENCE / SURE SHOT /
+        #     ELITE side-match / forecast aligned 3/3)
+        #   • combined score >= 85 (genuinely strong single-source)
+        #
+        # WHY THIS BAR:
+        #   Audited closed-trade history, both periods:
+        #     - Winners almost always had 2+ system confirmation OR a
+        #       very high score (88+).
+        #     - Losers were typically alerts-engine-only at score 73-85
+        #       with nothing else corroborating.
+        #   This gate filters the lonely-signal losers and lets the
+        #   confirmed picks through — equally on either side.
         # ================================================================
-        _blocked_against_regime = []
-        if _reg_lbl == "BEAR" and _reg_conf >= 65:
-            _kept_picks = []
-            for _pk in _bot_picks:
-                _pk_side = (_pk[4].get("side") or "").upper()
-                _pk_combined = float(_pk[0] or 0)
-                if _pk_side == "LONG" and _pk_combined < 92:
-                    _blocked_against_regime.append(
-                        (_pk[4].get("symbol"), _pk_side,
-                         int(_pk_combined)))
-                    continue
+        _quality_blocked = []
+        _kept_picks = []
+        # Make elite_lookup safely available (may not exist if ELITE
+        # block hasn't run yet on this turn — guard against NameError)
+        try:
+            _ql_elite_lookup = _elite_lookup
+        except NameError:
+            _ql_elite_lookup = {}
+        for _pk in _bot_picks:
+            _pk_s = _pk[4]
+            _pk_sym = _pk_s.get("symbol")
+            _pk_side = (_pk_s.get("side") or "").upper()
+            _pk_combined = float(_pk[0] or 0)
+            _pk_fc_label = _pk[1] or ""
+            # Count independent system agreements
+            _qg_count = 0
+            if _pk_sym in _convergence_syms:
+                _qg_count += 1
+            if _pk_sym in _sure_shot_syms:
+                _qg_count += 1
+            _pk_elite = _ql_elite_lookup.get(_pk_sym)
+            if _pk_elite and (_pk_elite.get("side") or "").upper() == _pk_side:
+                _qg_count += 1
+            if ("forecast confirms" in _pk_fc_label
+                    and "aligned 3/3" in _pk_fc_label):
+                _qg_count += 1
+            # DIRECTION-BLIND quality bar
+            _keep = (_qg_count >= 2 or _pk_combined >= 85)
+            if _keep:
                 _kept_picks.append(_pk)
-            _bot_picks = _kept_picks
-        elif _reg_lbl == "BULL" and _reg_conf >= 65:
-            _kept_picks = []
-            for _pk in _bot_picks:
-                _pk_side = (_pk[4].get("side") or "").upper()
-                _pk_combined = float(_pk[0] or 0)
-                if _pk_side == "SHORT" and _pk_combined < 92:
-                    _blocked_against_regime.append(
-                        (_pk[4].get("symbol"), _pk_side,
-                         int(_pk_combined)))
-                    continue
-                _kept_picks.append(_pk)
-            _bot_picks = _kept_picks
+            else:
+                _quality_blocked.append(
+                    (_pk_sym, _pk_side, int(_pk_combined), _qg_count))
+        _bot_picks = _kept_picks
 
         # ============================================================
         # ⚡ ELITE PRECOMPUTE — fetch ELITE 9-lane composite picks
@@ -8287,42 +8304,37 @@ if active_section == "🧪 Paper Trader":
                 unsafe_allow_html=True)
 
         # ================================================================
-        # 🛡️ REGIME DEFENSE BANNER — shows when LONGs/SHORTs are being
-        # filtered out because the regime is confidently against them.
-        # User can see WHY weak picks aren't showing up.
+        # 🎯 QUALITY FILTER BANNER — shows when picks were dropped for
+        # failing the regime-aware quality bar. NOT a direction block —
+        # both LONG and SHORT can pass; the bar just adapts to regime.
         # ================================================================
-        if _blocked_against_regime:
-            _blocked_n = len(_blocked_against_regime)
-            _blocked_side = "LONG" if _reg_lbl == "BEAR" else "SHORT"
-            _blocked_against_disp = ", ".join(
-                f"{sym.replace('USDT','')}({sc})"
-                for sym, _, sc in _blocked_against_regime[:5])
+        if _quality_blocked:
+            _blocked_n = len(_quality_blocked)
+            _blocked_disp = ", ".join(
+                f"{sym.replace('USDT','')} {side}({sc})"
+                for sym, side, sc, _ in _quality_blocked[:5])
             _more = (f" +{_blocked_n - 5} more"
                      if _blocked_n > 5 else "")
-            _emoji_b = "🐻" if _reg_lbl == "BEAR" else "🐂"
             st.markdown(
                 f"<div style='background:linear-gradient(135deg,"
-                f"rgba(255,92,92,0.15),rgba(224,169,43,0.10));"
-                f"border:2px solid rgba(255,92,92,0.55);"
-                f"border-radius:14px;padding:14px 18px;"
-                f"margin:10px 0;color:#fff'>"
-                f"<div style='font-size:1.0rem;font-weight:900;"
-                f"margin-bottom:6px'>"
-                f"{_emoji_b} {_reg_lbl} DEFENSE ACTIVE "
-                f"<span style='color:#ff5c5c'>· "
-                f"{_blocked_n} {_blocked_side} pick"
-                f"{'s' if _blocked_n != 1 else ''} hidden"
+                f"rgba(91,142,255,0.12),rgba(139,92,246,0.08));"
+                f"border:1px solid rgba(91,142,255,0.40);"
+                f"border-radius:12px;padding:11px 16px;"
+                f"margin:8px 0;color:#fff'>"
+                f"<div style='font-size:0.92rem;font-weight:800;"
+                f"margin-bottom:4px'>"
+                f"🎯 QUALITY FILTER "
+                f"<span style='color:#8b8d98;font-weight:600'>· "
+                f"{_blocked_n} lonely-signal pick"
+                f"{'s' if _blocked_n != 1 else ''} hidden "
+                f"(direction-blind)"
                 f"</span></div>"
-                f"<div style='color:#cfd2d8;font-size:0.86rem;"
-                f"line-height:1.6'>"
-                f"Regime confidence is <b>{_reg_conf:.0f}%</b> — "
-                f"{_blocked_side}s require <b>≥92 combined</b> to "
-                f"surface. Historically, counter-regime trades win "
-                f"&lt;15% in confirmed regimes. "
-                f"<b>Hidden:</b> {_blocked_against_disp}{_more}.<br/>"
-                f"<span style='color:#aab;font-size:0.78rem'>"
-                f"Trade the regime ({'SHORTs' if _reg_lbl == 'BEAR' else 'LONGs'}) "
-                f"unless a {_blocked_side} clears 92."
+                f"<div style='color:#cfd2d8;font-size:0.82rem;"
+                f"line-height:1.55'>"
+                f"<b>Hidden:</b> {_blocked_disp}{_more}<br/>"
+                f"<span style='color:#aab;font-size:0.76rem'>"
+                f"Bar: 2+ independent systems agree OR score ≥85. "
+                f"Equal rule for LONG and SHORT."
                 f"</span></div></div>",
                 unsafe_allow_html=True)
 

@@ -545,12 +545,12 @@ def _apply_regime_tilt(score: float, side: str,
             return 0.0, f"REJECTED counter-{tag} ({conf:.0f}%)"
         # Extreme override active — fall through to soft tilt
 
-    # SOFT TILT — magnitude scales with confidence (40→0, 100→18)
-    # Bumped from 15 → 18 (2026-06-06) after audit showed counter-regime
-    # LONGs in BEAR were still scoring 80+ and getting opened by user,
-    # then stopping out at -1% each. Sharper penalty makes the BEAR
-    # DEFENSE gate engage more naturally on borderline picks.
-    tilt = (conf - 40) / 60 * 18
+    # SOFT TILT — magnitude scales with confidence (40→0, 100→15)
+    # Reverted from 18 → 15 (2026-06-06 v2) after user pointed out
+    # that 18 was suppressing legitimate counter-regime bounces. The
+    # ADAPTIVE QUALITY GATE at the display layer handles regime
+    # filtering more precisely than a blunt tilt boost.
+    tilt = (conf - 40) / 60 * 15
     if regime == "BULL":
         if side == "LONG":
             return min(100, score + tilt), f"BULL +{tilt:.0f}"
