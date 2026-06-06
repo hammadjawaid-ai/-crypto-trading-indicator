@@ -8092,6 +8092,66 @@ if active_section == "🧪 Paper Trader":
                     (_pk_sym, _pk_side, int(_pk_combined), _qg_count))
         _bot_picks = _kept_picks
 
+        # ================================================================
+        # 🎯 MULTI-TF GATE (Fix #1, 2026-06-06)
+        # User: 'For multi TF... we can keep it separate or go with the
+        # recommended option'. Recommended option: tiered 15m/1h/4h.
+        #
+        # After the quality gate, apply a SECOND filter for multi-TF
+        # alignment. Picks must have at least 2 of 3 timeframes
+        # (15m, 1h, 4h) in their direction, OR 1/3 with score >= 85.
+        # 0/3 picks reject (fighting the tape).
+        #
+        # The alignment count is stashed on each pick as `_mtf_aligned`
+        # so cards can show '3/3 ✓' or '2/3 ⚠' chips.
+        # ================================================================
+        try:
+            import multi_tf as _mtf_mod
+        except ImportError:
+            _mtf_mod = None
+        _mtf_results = {}
+        _mtf_blocked = []
+        if _mtf_mod is not None:
+            _kept_mtf = []
+            for _pk in _bot_picks:
+                _pk_s = _pk[4]
+                _pk_sym = _pk_s.get("symbol")
+                _pk_side = (_pk_s.get("side") or "").upper()
+                _pk_combined = float(_pk[0] or 0)
+                try:
+                    _r = _mtf_mod.get_multi_tf_alignment(
+                        _pk_sym, _pk_side)
+                except Exception:
+                    _r = {"aligned": 0, "against": 0,
+                          "tfs": {}, "summary": ""}
+                _mtf_results[_pk_sym] = _r
+                # Stash on the pick's dict so card render can show chip
+                _pk_s["_mtf_aligned"] = _r["aligned"]
+                _pk_s["_mtf_summary"] = _r["summary"]
+                _pk_s["_mtf_against"] = _r["against"]
+                aligned = _r["aligned"]
+                against = _r["against"]
+                # Tiered gate:
+                #   3/3 aligned and 0 against    → always pass
+                #   2/3 aligned and against <=1  → always pass
+                #   1/3 aligned and score >= 85  → pass
+                #   else                          → reject
+                if aligned >= 3:
+                    _mtf_pass = True
+                elif aligned >= 2 and against <= 1:
+                    _mtf_pass = True
+                elif aligned >= 1 and _pk_combined >= 85:
+                    _mtf_pass = True
+                else:
+                    _mtf_pass = False
+                if _mtf_pass:
+                    _kept_mtf.append(_pk)
+                else:
+                    _mtf_blocked.append(
+                        (_pk_sym, _pk_side,
+                         int(_pk_combined), aligned, against))
+            _bot_picks = _kept_mtf
+
         # ============================================================
         # ⚡ ELITE PRECOMPUTE — fetch ELITE 9-lane composite picks
         # so we can (a) tag matching TOP CONVICTION cards with an
@@ -8372,6 +8432,40 @@ if active_section == "🧪 Paper Trader":
                 f"</span></div></div>",
                 unsafe_allow_html=True)
 
+        # ================================================================
+        # Multi-TF gate banner — shows picks rejected because 15m/1h/4h
+        # disagreed with the pick direction.
+        # ================================================================
+        if _mtf_blocked:
+            _mtfb_n = len(_mtf_blocked)
+            _mtfb_disp = ", ".join(
+                f"{sym.replace('USDT','')} {side} ({al}/3 align, "
+                f"{ag} against)"
+                for sym, side, _sc, al, ag in _mtf_blocked[:4])
+            _mtfb_more = (f" +{_mtfb_n - 4} more"
+                          if _mtfb_n > 4 else "")
+            st.markdown(
+                f"<div style='background:linear-gradient(135deg,"
+                f"rgba(255,140,0,0.12),rgba(224,169,43,0.08));"
+                f"border:1px solid rgba(255,140,0,0.40);"
+                f"border-radius:12px;padding:11px 16px;"
+                f"margin:8px 0;color:#fff'>"
+                f"<div style='font-size:0.92rem;font-weight:800;"
+                f"margin-bottom:4px'>"
+                f"📊 MULTI-TF GATE "
+                f"<span style='color:#8b8d98;font-weight:600'>· "
+                f"{_mtfb_n} pick{'s' if _mtfb_n != 1 else ''} hidden "
+                f"(fighting 15m/1h/4h trend)"
+                f"</span></div>"
+                f"<div style='color:#cfd2d8;font-size:0.82rem;"
+                f"line-height:1.55'>"
+                f"<b>Hidden:</b> {_mtfb_disp}{_mtfb_more}<br/>"
+                f"<span style='color:#aab;font-size:0.76rem'>"
+                f"Bar: 2+ TFs aligned OR 1 aligned + score ≥85. "
+                f"Single-TF traps filtered."
+                f"</span></div></div>",
+                unsafe_allow_html=True)
+
         if not _bot_picks:
             st.warning(
                 "**No qualifying picks right now** — the multi-layer "
@@ -8489,11 +8583,80 @@ if active_section == "🧪 Paper Trader":
                     pk, elite_map, convergence_syms,
                     sure_shot_syms) >= 2
 
+            # ============================================================
+            # 🏆 HERO ULTRA FILTER (Fix #2, 2026-06-06)
+            # User: 'we should be very careful with hero cards or trade
+            # now section because these are the best trades to take bet
+            # on'.
+            #
+            # The ULTRA bar — applied ON TOP of the existing hero
+            # eligibility — requires the absolute strongest setups:
+            #   1. Combined score >= 88 (MAX tier territory)
+            #   2. 3+ independent proven-system confirmations (not 2)
+            #   3. Multi-TF 3/3 aligned on 15m + 1h + 4h
+            #   4. 3m entry signal supports clicking NOW
+            #
+            # If ANY pick meets ULTRA, hero shows only those (the rest
+            # drop out). If NO pick meets ULTRA, fall back to the
+            # current STRONG bar so hero still shows something useful.
+            # ============================================================
+            try:
+                import multi_tf as _hero_mtf
+            except ImportError:
+                _hero_mtf = None
+
+            def _is_hero_ultra(pk, elite_map,
+                              convergence_syms, sure_shot_syms):
+                """The ULTRA bar — absolute best-of-best."""
+                # Bar 1: MAX tier territory
+                if pk[0] < 88:
+                    return False
+                # Bar 2: 3+ proven-system confirmations
+                if _count_strong_confirmations(
+                        pk, elite_map, convergence_syms,
+                        sure_shot_syms) < 3:
+                    return False
+                sym = pk[4].get("symbol")
+                side = (pk[4].get("side") or "").upper()
+                # Bar 3: Multi-TF 3/3 alignment (use the stashed value
+                # from the quality gate to avoid re-fetching; if not
+                # stashed, fetch directly)
+                _ult_mtf = int(pk[4].get("_mtf_aligned") or 0)
+                if _ult_mtf < 1 and _hero_mtf is not None:
+                    try:
+                        _r = _hero_mtf.get_multi_tf_alignment(sym, side)
+                        _ult_mtf = _r.get("aligned", 0)
+                    except Exception:
+                        _ult_mtf = 0
+                if _ult_mtf < 3:
+                    return False
+                # Bar 4: 3m entry signal — check timing live
+                if _hero_mtf is not None:
+                    try:
+                        _3m = _hero_mtf.get_3m_entry_signal(sym, side)
+                        if not _3m.get("supports"):
+                            return False
+                        # Stash on the pick so the hero render can show
+                        # the 3m reason as evidence
+                        pk[4]["_3m_reason"] = _3m.get("reason", "")
+                    except Exception:
+                        return False
+                return True
+
+            _ultra_aligned = [
+                pk for pk in _confirmed_segment
+                if _is_hero_ultra(pk, _elite_lookup,
+                                  _convergence_syms,
+                                  _sure_shot_syms)]
             _strong_aligned = [
                 pk for pk in _confirmed_segment
                 if _is_hero_eligible(pk, _elite_lookup,
                                     _convergence_syms,
                                     _sure_shot_syms)]
+            # If ULTRA picks exist, hero uses ONLY those — the absolute
+            # best-of-best. Otherwise fall back to STRONG bar.
+            if _ultra_aligned:
+                _strong_aligned = _ultra_aligned
             if len(_strong_aligned) >= 3:
                 # Strong activity — show all double-confirmed picks (cap 5)
                 _hero_picks = _strong_aligned[:5]
@@ -8689,6 +8852,27 @@ if active_section == "🧪 Paper Trader":
                         if c in ("#2ed47a", "#ffd700",
                                  "#ff006e", "#00d4ff", "#e0a92b"))
 
+                    # 🏆 ULTRA badge HTML — built outside the f-string to
+                    # avoid escape-quote issues. Renders only when this
+                    # pick is one of the ULTRA-tier hero picks.
+                    _ultra_badge_html = ""
+                    _is_ultra_hero = any(
+                        _hp[4].get("symbol") == _h_sym
+                        for _hp in _ultra_aligned)
+                    if _is_ultra_hero:
+                        _3m_reason = _h_s.get("_3m_reason", "")
+                        _ultra_badge_html = (
+                            f"<span style='background:linear-gradient("
+                            f"90deg,#ffd700,#ff006e,#00d4ff);"
+                            f"color:#fff;padding:5px 14px;"
+                            f"border-radius:8px;font-size:0.82rem;"
+                            f"font-weight:900;letter-spacing:0.04em;"
+                            f"box-shadow:0 0 12px rgba(255,215,0,0.4);"
+                            f"border:1px solid rgba(255,215,0,0.6)' "
+                            f"title='{_3m_reason}'>"
+                            f"🏆 ULTRA</span>"
+                        )
+
                     # Hero rank ribbon — distinct per position so the user
                     # sees ranking at a glance when 3-5 heroes render.
                     # Compute alive-time for the hero card from the
@@ -8781,6 +8965,11 @@ if active_section == "🧪 Paper Trader":
                         f"font-weight:800;border:1px solid "
                         f"rgba(46,212,122,0.35)'>"
                         f"{_h_confirm_count} systems agree</span>"
+                        # 🏆 ULTRA badge — only renders when this hero
+                        # pick passed the ULTRA filter (MAX + 3 systems
+                        # + 3/3 multi-TF + 3m entry signal). The
+                        # absolute best-of-best.
+                        f"{_ultra_badge_html}"
                         # 🕐 ALIVE chip — when did this signal first
                         # appear? Colours: gold (<1min, just appeared),
                         # green (<60min, fresh), blue (1-4h, older),
@@ -9344,6 +9533,37 @@ if active_section == "🧪 Paper Trader":
                 # above (+5 aligned / -8 counter); no visual chip — the
                 # ranking does the work without cluttering the card.
 
+                # 📊 Multi-TF alignment chip — shows 15m/1h/4h agreement
+                # count. Stashed on s by the multi-TF gate. 3/3 = green,
+                # 2/3 = blue, 1/3 = amber.
+                _mtf_chip = ""
+                _mtf_n = int(s.get("_mtf_aligned") or 0)
+                _mtf_summary = s.get("_mtf_summary") or ""
+                if _mtf_n >= 3:
+                    _mtf_chip = (
+                        f"<span style='background:#2ed47a33;"
+                        f"color:#2ed47a;padding:2px 8px;"
+                        f"border-radius:5px;font-size:0.7rem;"
+                        f"font-weight:700;margin-left:4px' "
+                        f"title='{_mtf_summary}'>"
+                        f"📊 3/3 TFs aligned</span>")
+                elif _mtf_n == 2:
+                    _mtf_chip = (
+                        f"<span style='background:#6e8bff33;"
+                        f"color:#6e8bff;padding:2px 8px;"
+                        f"border-radius:5px;font-size:0.7rem;"
+                        f"font-weight:700;margin-left:4px' "
+                        f"title='{_mtf_summary}'>"
+                        f"📊 2/3 TFs aligned</span>")
+                elif _mtf_n == 1:
+                    _mtf_chip = (
+                        f"<span style='background:#e0a92b33;"
+                        f"color:#e0a92b;padding:2px 8px;"
+                        f"border-radius:5px;font-size:0.7rem;"
+                        f"font-weight:700;margin-left:4px' "
+                        f"title='{_mtf_summary}'>"
+                        f"📊 1/3 TFs (single TF)</span>")
+
                 # Re-entry badge — flag setups that re-qualified after a
                 # recent close so the user can take the second leg.
                 reentry_chip = ""
@@ -9610,7 +9830,7 @@ if active_section == "🧪 Paper Trader":
                         f"{setup_forming_chip}{premium_chip}"
                         f"{recovery_chip}{coiled_chip}"
                         f"{early_chip}{long_chip}{rs_chip}{dv_chip}"
-                        f"{fc_chip}{reentry_chip}{_drift_chip}"
+                        f"{_mtf_chip}{fc_chip}{reentry_chip}{_drift_chip}"
                         f"<span style='color:#8b8d98;font-size:0.78rem'>"
                         f"scanner {conf}% · R:R {rr:.1f} · "
                         f"{alive_txt}</span></div>"
