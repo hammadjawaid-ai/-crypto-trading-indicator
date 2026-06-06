@@ -77,6 +77,25 @@ def agent1_gather(scan_picks: list[dict],
         key=lambda c: (c.get("proven_count", 0),
                        float(c.get("score") or 0)),
         reverse=True)
+    # Enrich the top candidates with multi-TF alignment (15m/1h/4h).
+    # Only the top 12 — multi_tf fetches 3 TFs per symbol (cached 3 min),
+    # and only the strongest candidates can realistically become picks.
+    # This makes the multi-TF bonus in the conviction score actually
+    # apply AND populates the 📊 X/3 chip on the cards.
+    if multi_tf is not None:
+        for cand in candidates[:12]:
+            if cand.get("_mtf_aligned") is not None:
+                continue
+            try:
+                r = multi_tf.get_multi_tf_alignment(
+                    cand.get("symbol"), (cand.get("side") or "").upper())
+                cand["_mtf_aligned"] = r.get("aligned", 0)
+                cand["_mtf_against"] = r.get("against", 0)
+                cand["_mtf_summary"] = r.get("summary", "")
+            except Exception:
+                cand["_mtf_aligned"] = 0
+                cand["_mtf_against"] = 0
+                cand["_mtf_summary"] = ""
     return candidates
 
 
@@ -91,7 +110,11 @@ def _deterministic_conviction(cand: dict,
     sym = cand.get("symbol")
     side = (cand.get("side") or "").upper()
     base_score = float(cand.get("score") or 0)
-    conviction = base_score * 0.5   # 0-50 from raw composite
+    conviction = base_score * 0.6   # 0-60 from raw composite
+    # (weight raised 0.5 -> 0.6 so a clean ELITE-confirmed pick can
+    #  reach the 'OK to trade' tier even without CONVERGENCE firing —
+    #  in choppy markets CONVERGENCE rarely fires, which was leaving
+    #  Agent 2 with zero survivors.)
 
     # Proven systems — the biggest lever (these have backtested edge)
     pc = cand.get("proven_count", 0)
@@ -255,7 +278,7 @@ Reply with ONLY a compact JSON object, no prose:
 def agent2_validate(candidates: list[dict],
                    regime_info: dict,
                    news_headlines: list[str],
-                   det_floor: float = 68.0,
+                   det_floor: float = 55.0,
                    llm_top_n: int = 3,
                    use_llm: bool = True) -> list[dict]:
     """Score candidates deterministically, then LLM-validate the top few.
@@ -273,6 +296,15 @@ def agent2_validate(candidates: list[dict],
         c["conviction"] = conv
         c["conviction_reasons"] = reasons
         c["llm"] = None
+        # Quality tier — lets the UI show OK-to-trade picks distinctly
+        # from top sure-shots, so the user can "fire if it's OK" without
+        # us pretending a 58 is the same as an 82.
+        if conv >= 70:
+            c["quality"] = "SURE SHOT"
+        elif conv >= 55:
+            c["quality"] = "OK"
+        else:
+            c["quality"] = "WEAK"
         scored.append(c)
     # Only candidates clearing the deterministic floor proceed
     survivors = [c for c in scored if c["conviction"] >= det_floor]
@@ -331,7 +363,7 @@ def run_pipeline(scan_picks: list[dict],
                 sure_shot_syms: set,
                 elite_lookup: dict,
                 news_headlines: list[str] | None = None,
-                det_floor: float = 68.0,
+                det_floor: float = 55.0,
                 llm_top_n: int = 3,
                 use_llm: bool = True,
                 max_picks: int = 5) -> dict:

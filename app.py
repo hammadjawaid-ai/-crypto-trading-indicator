@@ -13834,8 +13834,8 @@ if active_section == "🎯 Sure Shot Trader":
             _headlines = []
         return _ssa.run_pipeline(
             _scan, _regime, _conv_syms, _sure_syms, _elite,
-            news_headlines=_headlines, det_floor=68.0, llm_top_n=3,
-            use_llm=_use_llm, max_picks=5)
+            news_headlines=_headlines, det_floor=55.0, llm_top_n=3,
+            use_llm=_use_llm, max_picks=6)
 
     # Live-mode controls
     _ss_lc1, _ss_lc2 = st.columns([1, 1])
@@ -13961,14 +13961,14 @@ if active_section == "🎯 Sure Shot Trader":
             pass
 
     # --- Sure-shot cards ------------------------------------------------
-    st.markdown("### 🎯 Sure Shots — open trades only on these")
+    st.markdown("### 🎯 Best trades now — 🎯 SURE SHOT or ✅ OK to trade")
     if not _ss_sure:
         st.info(
-            "**No sure-shots right now.** The pipeline found "
-            f"{_a1} candidates but none cleared the validator. This is "
-            "by design — sure-shots are rare. Click **Run 3-Agent "
-            "Scan** again later, or check the regular Paper Trader for "
-            "lower-bar setups.")
+            "**Nothing tradeable right now.** The pipeline found "
+            f"{_a1} candidates but none cleared the 'OK to trade' bar "
+            "(conviction ≥ 55). This happens in choppy markets where "
+            "no setup has enough multi-system / trend backing. The "
+            "agents keep scanning — a card appears the moment one does.")
     else:
         for _idx, _pk in enumerate(_ss_sure):
             _pk_sym = _pk.get("symbol")
@@ -13976,9 +13976,23 @@ if active_section == "🎯 Sure Shot Trader":
             _pk_side = (_pk.get("side") or "").upper()
             _pk_plan = _pk.get("trade_plan") or {}
             _pk_conv = float(_pk.get("conviction") or 0)
+            _pk_quality = _pk.get("quality", "OK")
             _pk_llm = _pk.get("llm") or {}
             _pk_proven = _pk.get("proven_systems") or []
             _pk_mtf = int(_pk.get("_mtf_aligned") or 0)
+            # Quality badge — distinguishes top sure-shots from OK trades
+            if _pk_quality == "SURE SHOT":
+                _qual_html = (
+                    "<span style='background:linear-gradient(90deg,"
+                    "#ffd700,#ff8c00);color:#1a1a1a;padding:2px 10px;"
+                    "border-radius:6px;font-size:0.72rem;"
+                    "font-weight:900'>🎯 SURE SHOT</span>")
+            else:
+                _qual_html = (
+                    "<span style='background:rgba(46,212,122,0.18);"
+                    "color:#2ed47a;padding:2px 10px;border-radius:6px;"
+                    "font-size:0.72rem;font-weight:800;border:1px solid "
+                    "rgba(46,212,122,0.4)'>✅ OK TRADE</span>")
             _side_col = "#2ed47a" if _pk_side == "LONG" else "#ff5c5c"
             _side_emoji = "🟢" if _pk_side == "LONG" else "🩸"
             _entry = float(_pk_plan.get("entry") or 0)
@@ -14034,6 +14048,7 @@ if active_section == "🎯 Sure Shot Trader":
                     f"padding:2px 12px;border-radius:6px;font-size:"
                     f"0.74rem;font-weight:800'>{_side_emoji} "
                     f"{_pk_side}</span>"
+                    f"{_qual_html}"
                     f"<span style='background:rgba(255,215,0,0.15);"
                     f"color:#ffd700;padding:2px 10px;border-radius:6px;"
                     f"font-size:0.74rem;font-weight:800'>"
