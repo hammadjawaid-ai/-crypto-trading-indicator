@@ -13792,72 +13792,79 @@ if active_section == "🎯 Sure Shot Trader":
             st.success("Sure Shot account reset to $10,000.")
             st.rerun()
 
-    # --- Run the 3-agent pipeline --------------------------------------
-    _ss_run = st.button("🔄 Run 3-Agent Scan", type="primary",
-                        key="ss_scan_btn",
-                        use_container_width=True)
-    _need_scan = _ss_run or ("ss_result" not in st.session_state)
+    # --- LIVE 3-agent pipeline -----------------------------------------
+    # The pipeline runs AUTOMATICALLY on a 3-min cache. The page auto-
+    # refreshes every 90s (live position P&L), but the expensive scan +
+    # LLM verdicts only recompute when the 3-min cache expires — so the
+    # agents stay "live with the market" without burning LLM cost on
+    # every refresh. Force a fresh run anytime with the button.
+    @st.cache_data(ttl=180, show_spinner=False)
+    def _run_sureshot_pipeline(_bust: int, _use_llm: bool) -> dict:
+        """Cached 3-agent run. _bust busts the cache on demand."""
+        _scan = _es_ss.scan_unified(
+            scan_n=40, interval="1h",
+            min_score=70.0, max_picks=20) or []
+        _elite = {p.get("symbol"): p for p in _scan}
+        try:
+            _conv = compute_convergence_picks("1h", scan_n=50) or []
+            _conv_syms = {p.get("symbol") for p in _conv}
+        except Exception:
+            _conv_syms = set()
+        _sure_syms = {
+            p.get("symbol") for p in _scan
+            if float(p.get("score") or 0) >= 88
+            and (p.get("tier") in ("HIGH", "MAX"))}
+        _regime = load_market_regime()
+        _headlines = []
+        try:
+            import news as _news_ss
+            _ndf = _news_ss.fetch_news()
+            if _ndf is not None and not _ndf.empty:
+                _ncol = ("title" if "title" in _ndf.columns
+                         else _ndf.columns[0])
+                _headlines = _ndf[_ncol].head(8).astype(str).tolist()
+        except Exception:
+            _headlines = []
+        return _ssa.run_pipeline(
+            _scan, _regime, _conv_syms, _sure_syms, _elite,
+            news_headlines=_headlines, det_floor=68.0, llm_top_n=3,
+            use_llm=_use_llm, max_picks=5)
 
-    if _need_scan:
-        with st.spinner("🤖 Agent 1 gathering signals → Agent 2 "
-                        "validating → Agent 3 selecting sure-shots…"):
-            try:
-                # Agent-1 inputs: full scan + proven-system sets
-                _ss_scan = _es_ss.scan_unified(
-                    scan_n=40, interval="1h",
-                    min_score=70.0, max_picks=20) or []
-                _ss_elite_lookup = {
-                    p.get("symbol"): p for p in _ss_scan}
-                try:
-                    _ss_conv = compute_convergence_picks(
-                        "1h", scan_n=50) or []
-                    _ss_conv_syms = {p.get("symbol")
-                                     for p in _ss_conv}
-                except Exception:
-                    _ss_conv_syms = set()
-                # Sure-shot proxy: HIGH/MAX tier AND score >= 88
-                _ss_sure_syms = {
-                    p.get("symbol") for p in _ss_scan
-                    if float(p.get("score") or 0) >= 88
-                    and (p.get("tier") in ("HIGH", "MAX"))}
-                # Regime
-                _ss_regime = load_market_regime()
-                # News headlines for Agent 2 context
-                _ss_headlines = []
-                try:
-                    import news as _news_ss
-                    _ndf = _news_ss.fetch_news()
-                    if _ndf is not None and not _ndf.empty:
-                        _ncol = ("title" if "title" in _ndf.columns
-                                 else _ndf.columns[0])
-                        _ss_headlines = (
-                            _ndf[_ncol].head(8).astype(str).tolist())
-                except Exception:
-                    _ss_headlines = []
-                # Run pipeline
-                _ss_pipe = _ssa.run_pipeline(
-                    _ss_scan, _ss_regime,
-                    _ss_conv_syms, _ss_sure_syms, _ss_elite_lookup,
-                    news_headlines=_ss_headlines,
-                    det_floor=68.0, llm_top_n=3,
-                    use_llm=_ss_llm_on, max_picks=5)
-                st.session_state["ss_result"] = _ss_pipe
-                st.session_state["ss_result_ts"] = time.time()
-            except Exception as _ss_exc:
-                st.error(f"Pipeline error: {_ss_exc}")
-                st.session_state["ss_result"] = {
-                    "candidates": [], "validated": [],
-                    "sure_shots": [], "stats": {}}
+    # Live-mode controls
+    _ss_lc1, _ss_lc2 = st.columns([1, 1])
+    _ss_live = _ss_lc1.toggle(
+        "🟢 Live mode (auto-refresh every 90s)", value=True,
+        key="ss_live_mode",
+        help="Agents re-scan the market on a 3-min cache; the page "
+             "refreshes every 90s for live position P&L.")
+    _ss_force = _ss_lc2.button("🔄 Force re-scan now",
+                              key="ss_force_btn",
+                              use_container_width=True)
+    if _ss_force:
+        st.session_state["ss_bust"] = \
+            st.session_state.get("ss_bust", 0) + 1
+        _run_sureshot_pipeline.clear()
 
-    _ss_pipe = st.session_state.get("ss_result") or {
-        "candidates": [], "validated": [], "sure_shots": [],
-        "stats": {}}
+    _ss_bust = st.session_state.get("ss_bust", 0)
+    with st.spinner("🤖 Agent 1 gather → Agent 2 validate → "
+                    "Agent 3 present…"):
+        try:
+            _ss_pipe = _run_sureshot_pipeline(_ss_bust, _ss_llm_on)
+        except Exception as _ss_exc:
+            st.error(f"Pipeline error: {_ss_exc}")
+            _ss_pipe = {"candidates": [], "validated": [],
+                       "sure_shots": [], "stats": {}}
+
     _ss_stats = _ss_pipe.get("stats") or {}
-    _ss_ts = st.session_state.get("ss_result_ts", 0)
-    if _ss_ts:
-        _ss_age = (time.time() - _ss_ts) / 60.0
-        st.caption(f"Last scan: {_ss_age:.0f} min ago · "
-                   f"click button to re-run.")
+
+    # Live auto-refresh — only inject when live mode is on. 90s < 180s
+    # cache so most refreshes hit the warm cache (no re-scan / no LLM).
+    if _ss_live:
+        _inject_autorefresh(90)
+        st.caption("🟢 LIVE — agents re-scan every 3 min, page refreshes "
+                   "every 90s. Toggle off to freeze.")
+    else:
+        st.caption("⏸️ Paused — click Force re-scan to update.")
 
     # --- Agent status strip --------------------------------------------
     _a1 = _ss_stats.get("gathered", 0)
@@ -13895,8 +13902,32 @@ if active_section == "🎯 Sure Shot Trader":
         f"</div>",
         unsafe_allow_html=True)
 
-    # --- Live prices for open + sure-shot symbols ----------------------
+    # --- Desktop notification when sure-shots are live -----------------
+    # Fires a browser notification the moment the agents surface a
+    # sure-shot, so the user gets pinged even while working elsewhere.
+    # Client-side dedup (localStorage) means each pick notifies once.
     _ss_sure = _ss_pipe.get("sure_shots") or []
+    if _ss_sure:
+        _ss_alert_items = []
+        for _p in _ss_sure:
+            _p_base = _p.get("base", _p.get("symbol", "?"))
+            _p_side = (_p.get("side") or "").upper()
+            _p_conv = float(_p.get("conviction") or 0)
+            _p_llm = (_p.get("llm") or {}).get("verdict", "")
+            _ss_alert_items.append({
+                "id": (f"sureshot:{_p.get('symbol')}:{_p_side}:"
+                       f"{int(_p_conv)}"),
+                "title": f"🎯 SURE SHOT — {_p_base} {_p_side}",
+                "body": (f"conviction {_p_conv:.0f}"
+                         + (f" · 🧠 {_p_llm}" if _p_llm else "")
+                         + " · open from Sure Shot Trader"),
+            })
+        if _ss_alert_items:
+            _inject_browser_alerts(
+                _ss_alert_items, refresh_secs=0,
+                key="ti_notified_sureshot")
+
+    # --- Live prices for open + sure-shot symbols ----------------------
     _ss_syms_needed = set()
     for _p in _ss_sure:
         _ss_syms_needed.add(_p.get("symbol"))
