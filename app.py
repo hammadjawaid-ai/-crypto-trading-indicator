@@ -3814,7 +3814,7 @@ SECTIONS = [
     "🔍 Market Scanner", "🔮 Forecast", "🚀 Breakout Radar",
     "🤖 Ask the Oracle", "🪙 Coin Analysis", "📰 News & Sentiment",
     "🧭 Decision Mode", "🧪 Paper Trader", "💸 Live Trading",
-    "💎 Spot Long-Term", "🤖 24/7 Agent",
+    "💎 Spot Long-Term", "🤖 24/7 Agent", "🎯 Sure Shot Trader",
 ]
 _qp_section = _qp.get("section", SECTIONS[0])
 if _qp_section not in SECTIONS:
@@ -13724,3 +13724,377 @@ if active_section == "💎 Spot Long-Term":
         "after doing your own due diligence on tokenomics, project "
         "fundamentals, and current macro regime. Long-term holds need "
         "more than a chart score.")
+
+
+# ===========================================================================
+# Tab 11 — 🎯 Sure Shot Trader  (3-agent pipeline, $10k isolated paper)
+# ===========================================================================
+# A separate $10k paper account driven by a 3-agent pipeline:
+#   Agent 1 GATHER   — collect candidates + tag proven systems
+#   Agent 2 VALIDATE — deterministic conviction score, then an LLM
+#                       TRADE/WATCH/SKIP verdict on the top 2-3 survivors
+#                       (incorporating news + BTC/regime context)
+#   Agent 3 PRESENT  — final ranked sure-shot cards, openable
+# Isolated state in .sureshot_bot.json — never touches .paper_bot.json.
+if active_section == "🎯 Sure Shot Trader":
+    import sureshot_agents as _ssa
+    import experimental_signals as _es_ss
+
+    _SS_PATH = config.SURESHOT_BOT_STATE_PATH
+    _ss_state = paper_bot.load_state(_SS_PATH)
+
+    st.subheader("🎯 Sure Shot Trader")
+    st.markdown(
+        "<div style='background:linear-gradient(135deg,"
+        "rgba(255,215,0,0.10),rgba(0,212,255,0.08));"
+        "border:1px solid rgba(255,215,0,0.35);border-radius:12px;"
+        "padding:12px 16px;margin-bottom:10px;color:#fff'>"
+        "<b>3-agent pipeline · $10,000 paper account.</b> "
+        "Agent 1 gathers the best signals, Agent 2 validates each "
+        "(systems · multi-TF · regime · news), Agent 3 presents only "
+        "the sure-shots. Open trades ONLY on these.</div>",
+        unsafe_allow_html=True)
+
+    # --- LLM status indicator -------------------------------------------
+    _ss_llm_on = bool(getattr(config, "ANTHROPIC_API_KEY", ""))
+    if _ss_llm_on:
+        st.caption("🧠 Agent 2 hybrid mode: deterministic pre-filter + "
+                   "LLM verdict on top 3 survivors (Claude). "
+                   "Set ANTHROPIC_API_KEY to change.")
+    else:
+        st.caption("🧮 Agent 2 deterministic-only (no ANTHROPIC_API_KEY "
+                   "set). Still fully functional — add the key in .env "
+                   "or Streamlit secrets to enable the LLM second "
+                   "opinion on finalists.")
+
+    # --- Settings -------------------------------------------------------
+    with st.expander("⚙️ Settings — balance, risk, leverage, reset"):
+        _ssc1, _ssc2, _ssc3 = st.columns(3)
+        _ss_risk = _ssc1.slider(
+            "Risk per trade %", 0.5, 5.0,
+            float(_ss_state.get("risk_per_trade_pct", 1.0)), 0.5,
+            key="ss_risk")
+        _ss_lev = _ssc2.slider(
+            "Leverage", 1.0, 10.0,
+            float(_ss_state.get("leverage", 3.0)), 1.0, key="ss_lev")
+        _ss_cap = _ssc3.slider(
+            "Max notional / trade $", 500, 5000,
+            int(_ss_state.get("max_notional_per_trade", 3000)), 250,
+            key="ss_cap")
+        _ss_state["risk_per_trade_pct"] = _ss_risk
+        _ss_state["leverage"] = _ss_lev
+        _ss_state["max_notional_per_trade"] = float(_ss_cap)
+        paper_bot.save_state(_SS_PATH, _ss_state)
+        if st.button("🔄 Reset to $10,000 (keeps history)",
+                     key="ss_reset"):
+            _ss_state = paper_bot.reset(
+                _SS_PATH, config.SURESHOT_STARTING_BALANCE, _ss_risk)
+            st.success("Sure Shot account reset to $10,000.")
+            st.rerun()
+
+    # --- Run the 3-agent pipeline --------------------------------------
+    _ss_run = st.button("🔄 Run 3-Agent Scan", type="primary",
+                        key="ss_scan_btn",
+                        use_container_width=True)
+    _need_scan = _ss_run or ("ss_result" not in st.session_state)
+
+    if _need_scan:
+        with st.spinner("🤖 Agent 1 gathering signals → Agent 2 "
+                        "validating → Agent 3 selecting sure-shots…"):
+            try:
+                # Agent-1 inputs: full scan + proven-system sets
+                _ss_scan = _es_ss.scan_unified(
+                    scan_n=40, interval="1h",
+                    min_score=70.0, max_picks=20) or []
+                _ss_elite_lookup = {
+                    p.get("symbol"): p for p in _ss_scan}
+                try:
+                    _ss_conv = compute_convergence_picks(
+                        "1h", scan_n=50) or []
+                    _ss_conv_syms = {p.get("symbol")
+                                     for p in _ss_conv}
+                except Exception:
+                    _ss_conv_syms = set()
+                # Sure-shot proxy: HIGH/MAX tier AND score >= 88
+                _ss_sure_syms = {
+                    p.get("symbol") for p in _ss_scan
+                    if float(p.get("score") or 0) >= 88
+                    and (p.get("tier") in ("HIGH", "MAX"))}
+                # Regime
+                _ss_regime = load_market_regime()
+                # News headlines for Agent 2 context
+                _ss_headlines = []
+                try:
+                    import news as _news_ss
+                    _ndf = _news_ss.fetch_news()
+                    if _ndf is not None and not _ndf.empty:
+                        _ncol = ("title" if "title" in _ndf.columns
+                                 else _ndf.columns[0])
+                        _ss_headlines = (
+                            _ndf[_ncol].head(8).astype(str).tolist())
+                except Exception:
+                    _ss_headlines = []
+                # Run pipeline
+                _ss_pipe = _ssa.run_pipeline(
+                    _ss_scan, _ss_regime,
+                    _ss_conv_syms, _ss_sure_syms, _ss_elite_lookup,
+                    news_headlines=_ss_headlines,
+                    det_floor=68.0, llm_top_n=3,
+                    use_llm=_ss_llm_on, max_picks=5)
+                st.session_state["ss_result"] = _ss_pipe
+                st.session_state["ss_result_ts"] = time.time()
+            except Exception as _ss_exc:
+                st.error(f"Pipeline error: {_ss_exc}")
+                st.session_state["ss_result"] = {
+                    "candidates": [], "validated": [],
+                    "sure_shots": [], "stats": {}}
+
+    _ss_pipe = st.session_state.get("ss_result") or {
+        "candidates": [], "validated": [], "sure_shots": [],
+        "stats": {}}
+    _ss_stats = _ss_pipe.get("stats") or {}
+    _ss_ts = st.session_state.get("ss_result_ts", 0)
+    if _ss_ts:
+        _ss_age = (time.time() - _ss_ts) / 60.0
+        st.caption(f"Last scan: {_ss_age:.0f} min ago · "
+                   f"click button to re-run.")
+
+    # --- Agent status strip --------------------------------------------
+    _a1 = _ss_stats.get("gathered", 0)
+    _a2 = _ss_stats.get("survived", 0)
+    _a3 = _ss_stats.get("sure_shots", 0)
+    _llm_calls = _ss_stats.get("llm_calls", 0)
+    st.markdown(
+        f"<div style='display:flex;gap:8px;flex-wrap:wrap;"
+        f"margin:8px 0'>"
+        f"<div style='flex:1;min-width:140px;background:"
+        f"rgba(91,142,255,0.12);border:1px solid rgba(91,142,255,"
+        f"0.4);border-radius:10px;padding:10px 14px'>"
+        f"<div style='color:#6e8bff;font-weight:800;font-size:"
+        f"0.8rem'>🛰️ AGENT 1 · GATHER</div>"
+        f"<div style='color:#fff;font-size:1.4rem;font-weight:900'>"
+        f"{_a1}</div><div style='color:#aab;font-size:0.72rem'>"
+        f"candidates found</div></div>"
+        f"<div style='flex:1;min-width:140px;background:"
+        f"rgba(224,169,43,0.12);border:1px solid rgba(224,169,43,"
+        f"0.4);border-radius:10px;padding:10px 14px'>"
+        f"<div style='color:#e0a92b;font-weight:800;font-size:"
+        f"0.8rem'>🔬 AGENT 2 · VALIDATE</div>"
+        f"<div style='color:#fff;font-size:1.4rem;font-weight:900'>"
+        f"{_a2}</div><div style='color:#aab;font-size:0.72rem'>"
+        f"passed deterministic floor · {_llm_calls} LLM checks"
+        f"</div></div>"
+        f"<div style='flex:1;min-width:140px;background:"
+        f"rgba(46,212,122,0.12);border:1px solid rgba(46,212,122,"
+        f"0.4);border-radius:10px;padding:10px 14px'>"
+        f"<div style='color:#2ed47a;font-weight:800;font-size:"
+        f"0.8rem'>🎯 AGENT 3 · PRESENT</div>"
+        f"<div style='color:#fff;font-size:1.4rem;font-weight:900'>"
+        f"{_a3}</div><div style='color:#aab;font-size:0.72rem'>"
+        f"sure-shots ready</div></div>"
+        f"</div>",
+        unsafe_allow_html=True)
+
+    # --- Live prices for open + sure-shot symbols ----------------------
+    _ss_sure = _ss_pipe.get("sure_shots") or []
+    _ss_syms_needed = set()
+    for _p in _ss_sure:
+        _ss_syms_needed.add(_p.get("symbol"))
+    for _p in _ss_state.get("open", []):
+        _ss_syms_needed.add(_p.get("symbol"))
+    _ss_prices = {}
+    for _sym in _ss_syms_needed:
+        if not _sym:
+            continue
+        try:
+            _px = binance_client.get_ticker_price(_sym)
+            if _px:
+                _ss_prices[_sym] = float(_px)
+        except Exception:
+            pass
+
+    # Manage open positions against live prices
+    if _ss_state.get("open"):
+        try:
+            _ss_closed_now = paper_bot.evaluate(_ss_state, _ss_prices)
+            if _ss_closed_now:
+                paper_bot.save_state(_SS_PATH, _ss_state)
+        except Exception:
+            pass
+
+    # --- Sure-shot cards ------------------------------------------------
+    st.markdown("### 🎯 Sure Shots — open trades only on these")
+    if not _ss_sure:
+        st.info(
+            "**No sure-shots right now.** The pipeline found "
+            f"{_a1} candidates but none cleared the validator. This is "
+            "by design — sure-shots are rare. Click **Run 3-Agent "
+            "Scan** again later, or check the regular Paper Trader for "
+            "lower-bar setups.")
+    else:
+        for _idx, _pk in enumerate(_ss_sure):
+            _pk_sym = _pk.get("symbol")
+            _pk_base = _pk.get("base", _pk_sym.replace("USDT", ""))
+            _pk_side = (_pk.get("side") or "").upper()
+            _pk_plan = _pk.get("trade_plan") or {}
+            _pk_conv = float(_pk.get("conviction") or 0)
+            _pk_llm = _pk.get("llm") or {}
+            _pk_proven = _pk.get("proven_systems") or []
+            _pk_mtf = int(_pk.get("_mtf_aligned") or 0)
+            _side_col = "#2ed47a" if _pk_side == "LONG" else "#ff5c5c"
+            _side_emoji = "🟢" if _pk_side == "LONG" else "🩸"
+            _entry = float(_pk_plan.get("entry") or 0)
+            _stop = float(_pk_plan.get("stop") or 0)
+            _tp1 = float(_pk_plan.get("tp1") or 0)
+            _rr = float(_pk_plan.get("rr") or 0)
+            _live_px = _ss_prices.get(_pk_sym, _entry)
+            # SL/TP percentages from live price (direction-aware)
+            _sign = 1 if _pk_side == "LONG" else -1
+            _sl_pct = (_sign * (_stop - _live_px) / _live_px * 100
+                       if _live_px else 0)
+            _tp_pct = (_sign * (_tp1 - _live_px) / _live_px * 100
+                       if _live_px else 0)
+            # Proven-system chips
+            _proven_html = ""
+            for _ps in _pk_proven:
+                _proven_html += (
+                    f"<span style='background:linear-gradient(90deg,"
+                    f"#ffd700,#ff006e,#8b5cf6);color:#fff;padding:2px "
+                    f"9px;border-radius:5px;font-size:0.7rem;"
+                    f"font-weight:800;margin-right:4px'>⚡ {_ps}</span>")
+            # LLM verdict chip
+            _llm_html = ""
+            if _pk_llm:
+                _v = _pk_llm.get("verdict", "")
+                _vc = {"TRADE": "#2ed47a", "WATCH": "#e0a92b",
+                       "SKIP": "#ff5c5c", "ERROR": "#8b8d98"}.get(
+                           _v, "#8b8d98")
+                _llm_html = (
+                    f"<span style='background:{_vc}22;color:{_vc};"
+                    f"padding:2px 9px;border-radius:5px;font-size:"
+                    f"0.7rem;font-weight:800;margin-right:4px' "
+                    f"title='{_pk_llm.get('reason','')}'>"
+                    f"🧠 {_v} {_pk_llm.get('confidence',0)}%</span>")
+            _mtf_html = (
+                f"<span style='background:#2ed47a22;color:#2ed47a;"
+                f"padding:2px 9px;border-radius:5px;font-size:0.7rem;"
+                f"font-weight:700;margin-right:4px'>📊 {_pk_mtf}/3 TFs"
+                f"</span>")
+            _rank_emoji = ["🥇", "🥈", "🥉", "④", "⑤"][min(_idx, 4)]
+
+            _cc1, _cc2 = st.columns([5, 1])
+            with _cc1:
+                st.markdown(
+                    f"<div style='background:rgba(255,255,255,0.03);"
+                    f"border:1px solid {_side_col}55;border-radius:"
+                    f"12px;padding:12px 16px;margin-bottom:6px'>"
+                    f"<div style='display:flex;align-items:center;"
+                    f"gap:10px;flex-wrap:wrap;margin-bottom:6px'>"
+                    f"<span style='font-size:1.1rem;font-weight:900'>"
+                    f"{_rank_emoji} {_pk_base}</span>"
+                    f"<span style='background:{_side_col};color:#06121f;"
+                    f"padding:2px 12px;border-radius:6px;font-size:"
+                    f"0.74rem;font-weight:800'>{_side_emoji} "
+                    f"{_pk_side}</span>"
+                    f"<span style='background:rgba(255,215,0,0.15);"
+                    f"color:#ffd700;padding:2px 10px;border-radius:6px;"
+                    f"font-size:0.74rem;font-weight:800'>"
+                    f"conviction {_pk_conv:.0f}</span>"
+                    f"{_proven_html}{_llm_html}{_mtf_html}"
+                    f"</div>"
+                    f"<div style='color:#cfd2d8;font-size:0.82rem;"
+                    f"line-height:1.6'>"
+                    f"entry <b>{_live_px:g}</b> "
+                    f"<span style='color:#2ed47a;font-size:0.7rem'>"
+                    f"(live)</span> · "
+                    f"stop {_stop:g} <span style='color:#ff5c5c'>"
+                    f"({_sl_pct:+.2f}%)</span> · "
+                    f"target {_tp1:g} <span style='color:#2ed47a'>"
+                    f"({_tp_pct:+.2f}%)</span> · "
+                    f"R:R <b>{_rr:.2f}</b></div>"
+                    + (
+                        f"<div style='color:#aab;font-size:0.74rem;"
+                        f"margin-top:4px'>🧠 {_pk_llm.get('reason','')}"
+                        f"</div>" if _pk_llm.get("reason") else ""
+                    )
+                    + "</div>",
+                    unsafe_allow_html=True)
+            with _cc2:
+                _already_open = any(
+                    p["symbol"] == _pk_sym
+                    for p in _ss_state.get("open", []))
+                if _already_open:
+                    st.caption("✓ open")
+                elif st.button("📥 Open", key=f"ss_open_{_pk_sym}",
+                               use_container_width=True):
+                    _ss_alert = {
+                        "symbol": _pk_sym,
+                        "base": _pk_base,
+                        "side": _pk_side,
+                        "stop": _stop,
+                        "target": _tp1,
+                        "target_2": _pk_plan.get("tp2"),
+                        "entry_low": _entry,
+                        "rr": _rr,
+                        "confidence": int(_pk.get("confidence", 0) or 0),
+                        "strength_factor": max(
+                            0.5, min(1.0, _pk_conv / 100.0)),
+                    }
+                    _opened = paper_bot.open_position(
+                        _ss_state, _ss_alert,
+                        _ss_prices.get(_pk_sym))
+                    if _opened:
+                        paper_bot.save_state(_SS_PATH, _ss_state)
+                        st.success(f"Opened {_pk_side} {_pk_base}")
+                        st.rerun()
+                    else:
+                        st.warning("Could not open (already open / "
+                                   "invalid plan).")
+
+    # --- Open positions -------------------------------------------------
+    st.markdown("### 📂 Open positions")
+    _ss_open = _ss_state.get("open", [])
+    if not _ss_open:
+        st.caption("No open sure-shot positions.")
+    else:
+        for _pos in _ss_open:
+            _ps_sym = _pos.get("symbol")
+            _ps_px = _ss_prices.get(_ps_sym, _pos.get("entry"))
+            _ps_side = _pos.get("side")
+            _ps_entry = float(_pos.get("entry") or 0)
+            _ps_sign = 1 if _ps_side == "LONG" else -1
+            _ps_pnl_pct = (_ps_sign * (_ps_px - _ps_entry) / _ps_entry
+                           * 100 if _ps_entry else 0)
+            _ps_col = "#2ed47a" if _ps_pnl_pct >= 0 else "#ff5c5c"
+            _pcol1, _pcol2 = st.columns([5, 1])
+            _pcol1.markdown(
+                f"<div style='background:rgba(255,255,255,0.03);"
+                f"border:1px solid rgba(255,255,255,0.08);"
+                f"border-radius:10px;padding:10px 14px;"
+                f"margin-bottom:4px'>"
+                f"<b>{_pos.get('base')}</b> {_ps_side} · "
+                f"entry {_ps_entry:g} · now {_ps_px:g} · "
+                f"<span style='color:{_ps_col};font-weight:800'>"
+                f"{_ps_pnl_pct:+.2f}%</span></div>",
+                unsafe_allow_html=True)
+            if _pcol2.button("Close", key=f"ss_close_{_ps_sym}",
+                             use_container_width=True):
+                paper_bot.close_position_at(
+                    _ss_state, _ps_sym, _ps_px, "manual")
+                paper_bot.save_state(_SS_PATH, _ss_state)
+                st.rerun()
+
+    # --- Stats ----------------------------------------------------------
+    _ss_stats_d = paper_bot.stats(_ss_state)
+    _sm1, _sm2, _sm3, _sm4 = st.columns(4)
+    _sm1.metric("Balance", f"${_ss_state.get('balance', 0):,.0f}")
+    _sm2.metric("Open", len(_ss_open))
+    _sm3.metric("Closed", len(_ss_state.get("closed", [])))
+    _ss_wr = _ss_stats_d.get("win_rate")
+    _sm4.metric("Win rate",
+                f"{_ss_wr:.0f}%" if _ss_wr is not None else "—")
+
+    st.caption(
+        "Isolated $10k paper account. The 3-agent pipeline runs only "
+        "when you click Run 3-Agent Scan (controls LLM cost). "
+        "Sure-shots are intentionally rare — quality over quantity.")

@@ -190,6 +190,25 @@ FUNDING_COLD = -0.0001    # shorts paying — contrarian bullish lean
 FEAR_GREED_URL = "https://api.alternative.me/fng/?limit=30"
 COINGECKO_GLOBAL_URL = "https://api.coingecko.com/api/v3/global"
 
+# --- Anthropic (Claude) API — Sure Shot Trader Agent 2 validator -----------
+# Used ONLY by the hybrid validator in the 🎯 Sure Shot Trader section.
+# The deterministic pre-filter does the heavy lifting for free; the LLM is
+# called on just the top 2-3 survivors per scan for a final TRADE/SKIP
+# verdict with reasoning (incorporating recent news headlines + BTC
+# context). Cost ~$5-15/month at that volume.
+# Set in .env or Streamlit Cloud secrets:  ANTHROPIC_API_KEY=sk-ant-...
+# Leave empty → the validator runs deterministic-only (still fully
+# functional, just no LLM second opinion).
+ANTHROPIC_API_KEY = _secret("ANTHROPIC_API_KEY")
+# Cheap, fast model for per-pick verdicts. Override in .env if desired.
+ANTHROPIC_MODEL = _secret("ANTHROPIC_MODEL") or "claude-3-5-haiku-latest"
+
+# Sure Shot Trader paper account — SEPARATE $10k state file, isolated from
+# the regular Paper Trader (.paper_bot.json) and Live (.live_bot.json).
+SURESHOT_BOT_STATE_PATH = Path(__file__).with_name(".sureshot_bot.json")
+SURESHOT_STARTING_BALANCE = 10000.0
+
+
 # --- LunarCrush social intelligence (paid API — key set in .env) -----------
 # Aggregates X/Twitter & other social data into Galaxy Score, AltRank and
 # sentiment. Subscribe at lunarcrush.com, then put the key in a .env file.
