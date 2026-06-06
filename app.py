@@ -14119,10 +14119,13 @@ if active_section == "🎯 Sure Shot Trader":
             _ps_pnl_pct = (_ps_sign * (_ps_px - _ps_entry) / _ps_entry
                            * 100 if _ps_entry else 0)
             _ps_col = "#2ed47a" if _ps_pnl_pct >= 0 else "#ff5c5c"
+            _ps_stop = float(_pos.get("stop") or 0)
+            _ps_tgt = float(_pos.get("target") or 0)
+            _ps_tgt2 = float(_pos.get("target_2") or 0)
             _pcol1, _pcol2 = st.columns([5, 1])
             _pcol1.markdown(
                 f"<div style='background:rgba(255,255,255,0.03);"
-                f"border:1px solid rgba(255,255,255,0.08);"
+                f"border:1px solid {_ps_col}44;"
                 f"border-radius:10px;padding:10px 14px;"
                 f"margin-bottom:4px'>"
                 f"<b>{_pos.get('base')}</b> {_ps_side} · "
@@ -14136,6 +14139,41 @@ if active_section == "🎯 Sure Shot Trader":
                     _ss_state, _ps_sym, _ps_px, "manual")
                 paper_bot.save_state(_SS_PATH, _ss_state)
                 st.rerun()
+            # 📈 Position chart — same compact builder as the 24/7
+            # Agent, but on a 1h timeframe (these are intraday trades)
+            # so the entry/SL/TP levels sit against recent price action.
+            try:
+                _ps_chart_df = _agent_load_chart_klines(
+                    _ps_sym, "1h", 168)
+                if _ps_chart_df is not None and len(_ps_chart_df) > 0:
+                    _ps_plan = {
+                        "side": _ps_side,
+                        "entry": _ps_entry,
+                        "stop": _ps_stop,
+                        "tp1": _ps_tgt,
+                        "tp2": _ps_tgt2,
+                    }
+                    _ps_fig = agent_charts.build_compact_chart(
+                        _ps_chart_df, trade_plan=_ps_plan,
+                        sr_zones=None, height=240, max_bars=168)
+                    st.plotly_chart(
+                        _ps_fig, use_container_width=True,
+                        key=f"ss_pos_chart_{_ps_sym}",
+                        config={
+                            "scrollZoom": True,
+                            "displayModeBar": True,
+                            "displaylogo": False,
+                            "modeBarButtonsToRemove": [
+                                "select2d", "lasso2d", "autoScale2d"],
+                        })
+                    st.caption(
+                        f"📈 7-day 1h chart · Entry `{_ps_entry:g}` · "
+                        f"SL `{_ps_stop:g}` · TP1 `{_ps_tgt:g}`"
+                        + (f" · TP2 `{_ps_tgt2:g}`"
+                           if _ps_tgt2 > 0 else "")
+                        + " · drag to pan · scroll to zoom")
+            except Exception as _ps_cexc:
+                st.caption(f"Chart unavailable: {_ps_cexc}")
 
     # --- Stats ----------------------------------------------------------
     _ss_stats_d = paper_bot.stats(_ss_state)
