@@ -14122,16 +14122,33 @@ if active_section == "🎯 Sure Shot Trader":
             _ps_stop = float(_pos.get("stop") or 0)
             _ps_tgt = float(_pos.get("target") or 0)
             _ps_tgt2 = float(_pos.get("target_2") or 0)
+            _ps_qty = float(_pos.get("qty") or 0)
+            _ps_notional = float(_pos.get("notional") or 0)
+            _ps_margin = float(_pos.get("margin") or 0)
+            _ps_lev = float(_pos.get("leverage") or 1)
+            # Unrealized P&L in $ — on the notional position (qty × price
+            # move). This is the actual paper gain/loss if closed now.
+            _ps_pnl_usd = (_ps_sign * (_ps_px - _ps_entry) * _ps_qty
+                           if _ps_entry else 0)
             _pcol1, _pcol2 = st.columns([5, 1])
             _pcol1.markdown(
                 f"<div style='background:rgba(255,255,255,0.03);"
                 f"border:1px solid {_ps_col}44;"
                 f"border-radius:10px;padding:10px 14px;"
                 f"margin-bottom:4px'>"
+                f"<div style='font-size:0.92rem'>"
                 f"<b>{_pos.get('base')}</b> {_ps_side} · "
                 f"entry {_ps_entry:g} · now {_ps_px:g} · "
                 f"<span style='color:{_ps_col};font-weight:800'>"
-                f"{_ps_pnl_pct:+.2f}%</span></div>",
+                f"{_ps_pnl_usd:+,.2f} ({_ps_pnl_pct:+.2f}%)</span>"
+                f"</div>"
+                f"<div style='color:#8b8d98;font-size:0.74rem;"
+                f"margin-top:3px'>"
+                f"notional <b style='color:#c8d2ed'>"
+                f"${_ps_notional:,.0f}</b> · "
+                f"margin ${_ps_margin:,.0f} · {_ps_lev:.0f}× lev · "
+                f"qty {_ps_qty:g} · SL {_ps_stop:g} · TP {_ps_tgt:g}"
+                f"</div></div>",
                 unsafe_allow_html=True)
             if _pcol2.button("Close", key=f"ss_close_{_ps_sym}",
                              use_container_width=True):
@@ -14177,15 +14194,41 @@ if active_section == "🎯 Sure Shot Trader":
 
     # --- Stats ----------------------------------------------------------
     _ss_stats_d = paper_bot.stats(_ss_state)
+    # Unrealized P&L across all open positions (live)
+    try:
+        _ss_unreal = paper_bot.unrealized_pnl(_ss_state, _ss_prices)
+    except Exception:
+        _ss_unreal = 0.0
+    _ss_realized = float(_ss_stats_d.get("total_pnl_usd") or 0.0)
+    _ss_total_pnl = _ss_realized + _ss_unreal
+    _ss_open_notional = sum(
+        float(p.get("notional") or 0) for p in _ss_open)
+
     _sm1, _sm2, _sm3, _sm4 = st.columns(4)
     _sm1.metric("Balance", f"${_ss_state.get('balance', 0):,.0f}")
-    _sm2.metric("Open", len(_ss_open))
-    _sm3.metric("Closed", len(_ss_state.get("closed", [])))
+    _sm2.metric(
+        "Unrealized P&L", f"${_ss_unreal:+,.2f}",
+        help="Live gain/loss on open positions if closed now.")
+    _sm3.metric(
+        "Total P&L", f"${_ss_total_pnl:+,.2f}",
+        delta=f"{_ss_realized:+,.2f} realized",
+        help="Realized (closed trades) + unrealized (open).")
     _ss_wr = _ss_stats_d.get("win_rate")
-    _sm4.metric("Win rate",
-                f"{_ss_wr:.0f}%" if _ss_wr is not None else "—")
+    _sm4.metric(
+        "Win rate",
+        f"{_ss_wr:.0f}%" if _ss_stats_d.get("trades") else "—",
+        help=f"{_ss_stats_d.get('wins', 0)}/"
+             f"{_ss_stats_d.get('trades', 0)} closed trades won.")
+
+    _sm5, _sm6, _sm7, _sm8 = st.columns(4)
+    _sm5.metric("Open positions", len(_ss_open))
+    _sm6.metric("Open notional", f"${_ss_open_notional:,.0f}")
+    _sm7.metric("Closed trades", len(_ss_state.get("closed", [])))
+    _sm8.metric("Start balance",
+                f"${_ss_state.get('starting_balance', 10000):,.0f}")
 
     st.caption(
-        "Isolated $10k paper account. The 3-agent pipeline runs only "
-        "when you click Run 3-Agent Scan (controls LLM cost). "
-        "Sure-shots are intentionally rare — quality over quantity.")
+        "Isolated $10k paper account. Unrealized P&L is live on open "
+        "positions; Total P&L adds realized (closed) trades. The "
+        "3-agent pipeline runs live every 3 min in Live mode — "
+        "sure-shots are intentionally rare (quality over quantity).")
