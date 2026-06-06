@@ -42,6 +42,7 @@ import pandas as pd
 
 import binance_client
 import indicators
+import velocity_burst
 
 # Optional imports — every lane gracefully degrades to 0 if its module
 # can't be reached.
@@ -77,16 +78,20 @@ except Exception: market_regime = None
 # Re-balanced after adding dist_top (10th lane). Weights sum to 1.0 but
 # this isn't strictly required — score normalizes by firing weight.
 _LANE_WEIGHTS = {
-    "vwap_zfade":     0.09,
-    "liq_exhaustion": 0.12,
-    "rebound":        0.12,
-    "breakout_coil":  0.09,
-    "pattern_scout":  0.16,
-    "reversal_app":   0.09,
-    "early_momentum": 0.09,
-    "recovery":       0.07,
-    "deriv_velocity": 0.07,
-    "dist_top":       0.10,   # NEW — top/distribution SHORT detector
+    "vwap_zfade":      0.07,
+    "liq_exhaustion":  0.10,
+    "rebound":         0.10,
+    "breakout_coil":   0.08,
+    "pattern_scout":   0.14,
+    "reversal_app":    0.08,
+    "early_momentum":  0.08,
+    "recovery":        0.06,
+    "deriv_velocity":  0.06,
+    "dist_top":        0.09,   # top/distribution SHORT detector
+    "velocity_burst":  0.14,   # NEW — catches FIRST 1-2 candles of
+                                #   major moves (ASR, PORTAL, FIDA
+                                #   style pumps the system was missing
+                                #   until half the move was done)
 }
 
 
@@ -493,6 +498,11 @@ def score_from_data(symbol: str,
                            else _lane_deriv_velocity(symbol)),
         # dist_top: catches NEAR-style SHORT setups at distribution tops
         "dist_top":       _lane_dist_top(df, df_4h),
+        # velocity_burst: catches FIRST 1-2 candles of major moves
+        # (ASR/PORTAL/FIDA-style pumps + sudden dumps). Fires on a
+        # candle with >=3x avg volume AND >=2.5x ATR range — i.e. the
+        # decisive breakout candle, not the late confirmation.
+        "velocity_burst": velocity_burst.lane_velocity_burst(df),
     }
     return _composite_from_lanes(symbol, df, lanes, pct_24h,
                                 regime_info=regime_info)
@@ -580,7 +590,12 @@ def _composite_from_lanes(symbol: str, df: pd.DataFrame,
     # dist_top uses 50 as its floor (leading distribution signals fire
     # AT the peak before confirming signals arrive — by the time score
     # would clear 60, price has dropped 5-10%). All other lanes use 60.
-    _per_lane_floor = {"dist_top": 50}
+    # Per-lane firing floors. dist_top fires at 50 because it's a
+    # leading peak signal — by the time score clears 60 the peak is
+    # already 5-10% past. velocity_burst fires at 55 because the
+    # freshness decay on second-candle detection drops scores by 15%,
+    # so a real 75 burst on the prior candle scores ~63 here.
+    _per_lane_floor = {"dist_top": 50, "velocity_burst": 55}
     long_lanes: list[tuple[str, float, str]] = []
     short_lanes: list[tuple[str, float, str]] = []
     for name, (sc, side, note) in lanes.items():

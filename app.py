@@ -8111,7 +8111,11 @@ if active_section == "🧪 Paper Trader":
                               or getattr(_elite_mod,
                                          "scan_experimental", None))
 
-        @st.cache_data(ttl=300, show_spinner=False)  # 5 min (was 15)
+        @st.cache_data(ttl=120, show_spinner=False)  # 2 min (was 5)
+        # User: signals were appearing too late on fresh velocity bursts
+        # (ASR/PORTAL/FIDA pump examples). 2-min cache means a burst that
+        # fires at the top of an hour candle gets surfaced within 2 min
+        # instead of waiting up to 5.
         def _load_elite_picks_cached(_v: int = 6):
             if _elite_scan_fn is None:
                 return []
