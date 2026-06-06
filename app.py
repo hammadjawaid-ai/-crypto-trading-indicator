@@ -6264,14 +6264,36 @@ if active_section == "🧪 Paper Trader":
         _weekly_lbl = (_reg_comps.get("weekly") or {}).get("label", "—")
         _breadth_pct = (_reg_comps.get("breadth") or {}).get("pct_above", 50)
         _vol_lbl = (_reg_comps.get("volatility") or {}).get("label", "—")
+        # NEW (2026-06-06): fast 1h BTC component for live tape state
+        _fast_comp = _reg_comps.get("fast") or {}
+        _fast_lbl = _fast_comp.get("label", "—")
+        _fast_score = _fast_comp.get("score", 50)
+        _fast_6h = _fast_comp.get("change_6h_pct", 0.0)
+        _fast_24h = _fast_comp.get("change_24h_pct", 0.0)
+        _reg_shifting = bool(_regime.get("is_shifting"))
 
-        # Compact one-line regime pill (was a huge banner — user wanted
-        # less noise).
+        # Compact one-line regime pill — with FAST 1h chip and SHIFT
+        # indicator so the user sees the live tape state.
+        _shift_chip = (
+            f"<span style='color:#888;font-size:0.78rem'>·</span>"
+            f"<span style='background:#e0a92b33;color:#e0a92b;"
+            f"padding:3px 9px;border-radius:8px;font-size:0.74rem;"
+            f"font-weight:800'>⚠ SHIFTING</span>"
+            if _reg_shifting else ""
+        )
+        # Fast 1h chip — green if bullish, red if bearish, gray if chop
+        if _fast_score >= 65:
+            _fast_color = "#2ed47a"
+        elif _fast_score <= 35:
+            _fast_color = "#ff5c5c"
+        else:
+            _fast_color = "#aab"
         st.markdown(
             f"<div style='display:inline-flex;align-items:center;gap:10px;"
             f"padding:6px 14px;border-radius:20px;"
             f"background:rgba(255,255,255,0.03);"
-            f"border:1px solid {_reg_color}44;margin-bottom:14px'>"
+            f"border:1px solid {_reg_color}44;margin-bottom:14px;"
+            f"flex-wrap:wrap'>"
             f"<span style='color:{_reg_color};font-weight:800;font-size:0.9rem'>"
             f"{_reg_emoji} {_reg_lbl}</span>"
             f"<span style='color:#888;font-size:0.78rem'>·</span>"
@@ -6283,6 +6305,14 @@ if active_section == "🧪 Paper Trader":
             f"<span style='color:#888;font-size:0.78rem'>·</span>"
             f"<span style='color:#aab;font-size:0.78rem'>"
             f"conf {_reg_conf:.0f}%</span>"
+            f"<span style='color:#888;font-size:0.78rem'>·</span>"
+            f"<span style='background:{_fast_color}22;color:{_fast_color};"
+            f"padding:3px 9px;border-radius:8px;font-size:0.74rem;"
+            f"font-weight:800' title='1h BTC fast trend — reacts in hours'>"
+            f"⚡ FAST {_fast_lbl.replace('FAST_','')} "
+            f"<span style='font-weight:600;font-size:0.72rem'>"
+            f"6h {_fast_6h:+.1f}% · 24h {_fast_24h:+.1f}%</span></span>"
+            f"{_shift_chip}"
             f"</div>",
             unsafe_allow_html=True)
 

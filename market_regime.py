@@ -247,17 +247,104 @@ def _volatility_regime(btc_daily: pd.DataFrame) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# FAST regime component (NEW 2026-06-06) — BTC 1h short-term momentum
+# ---------------------------------------------------------------------------
+# Motivation: user observed market shifts in hours but the daily 50/200
+# EMA regime detector lags 1-3 days behind. By the time daily flips to
+# BEAR, we've already lost 24-72h of bad LONGs (and vice versa).
+#
+# This component reads BTC 1h klines and captures:
+#   - 6h price change %  (very recent momentum)
+#   - 24h price change % (last day)
+#   - EMA8 vs EMA21 on 1h (trend state on the fast TF)
+#   - Acceleration (is 6h move faster than 24h pace?)
+#
+# Score 0-100 mirrors the other components — high = bullish fast trend,
+# low = bearish fast trend, 50 = neutral. Gets weighted into the
+# composite at 25% (the new highest weight), pulling forward the
+# composite reaction to recent BTC moves.
+
+def _btc_fast_trend(btc_1h: pd.DataFrame) -> dict:
+    """Score BTC's 1h trend state — the FAST reactive component.
+
+    Reacts to BTC moves within hours instead of days. When BTC dumps
+    5% in 6h, this flips negative immediately while daily/weekly take
+    days to confirm. The composite then picks this up via the 25%
+    weight, shifting the regime call faster.
+    """
+    if len(btc_1h) < 30:
+        return {"score": 50, "label": "INSUFFICIENT_DATA",
+                "change_6h_pct": 0.0, "change_24h_pct": 0.0}
+    close = btc_1h["close"]
+    c = float(close.iloc[-1])
+    c_6 = float(close.iloc[-7]) if len(close) >= 7 else c
+    c_24 = float(close.iloc[-25]) if len(close) >= 25 else c
+    change_6h = (c / c_6 - 1.0) if c_6 > 0 else 0.0
+    change_24h = (c / c_24 - 1.0) if c_24 > 0 else 0.0
+    # 1h EMA8 / EMA21 — fast trend state
+    ema8 = close.ewm(span=8, adjust=False).mean()
+    ema21 = close.ewm(span=21, adjust=False).mean()
+    e8 = float(ema8.iloc[-1])
+    e21 = float(ema21.iloc[-1])
+    cross_up = e8 > e21
+    # EMA8 slope (last 6h)
+    if len(ema8) >= 7 and ema8.iloc[-7] > 0:
+        ema8_slope = (e8 - float(ema8.iloc[-7])) / float(ema8.iloc[-7])
+    else:
+        ema8_slope = 0.0
+    # Acceleration — is 6h move faster than the 24h pace?
+    pace_24h = change_24h / 24.0  # per-hour pace over 24h
+    pace_6h = change_6h / 6.0     # per-hour pace over 6h
+    accelerating = (abs(pace_6h) > abs(pace_24h) * 1.3
+                    and np.sign(pace_6h) == np.sign(pace_24h))
+    # Classify
+    if change_6h > 0.02 and change_24h > 0.03 and cross_up:
+        score = 88 if accelerating else 80
+        label = "FAST_STRONG_BULL"
+    elif change_6h > 0.005 and cross_up:
+        score = 70
+        label = "FAST_BULL"
+    elif change_6h > -0.005 and change_24h > 0:
+        score = 58
+        label = "FAST_NEUTRAL_BULL"
+    elif change_6h < -0.02 and change_24h < -0.03 and not cross_up:
+        score = 12 if accelerating else 20
+        label = "FAST_STRONG_BEAR"
+    elif change_6h < -0.005 and not cross_up:
+        score = 30
+        label = "FAST_BEAR"
+    elif change_6h < 0.005 and change_24h < 0:
+        score = 42
+        label = "FAST_NEUTRAL_BEAR"
+    else:
+        score = 50
+        label = "FAST_CHOP"
+    return {"score": round(float(np.clip(score, 0, 100)), 1),
+            "label": label,
+            "change_6h_pct": round(change_6h * 100, 2),
+            "change_24h_pct": round(change_24h * 100, 2),
+            "ema8_slope_6h_pct": round(ema8_slope * 100, 2),
+            "ema8_above_21": cross_up,
+            "accelerating": accelerating}
+
+
+# ---------------------------------------------------------------------------
 # Composite regime
 # ---------------------------------------------------------------------------
 
-# Weights — sum to 1.0. Daily trend dominates because it's the closest
-# proxy for "is BTC trending now?". Weekly trend gives long-horizon context.
-# Breadth + volatility are confirming layers.
+# Weights — sum to 1.0. FAST (1h BTC) gets the highest single weight at
+# 25% so the composite reacts to recent moves within hours, not days.
+# Daily/weekly still anchor the longer-term call. Breadth + volatility
+# confirm.
+#
+# Old weights (slow): daily 35, weekly 20, breadth 25, vol 20
+# New weights (fast): fast 25, daily 25, weekly 15, breadth 20, vol 15
 _WEIGHTS = {
-    "daily":   0.35,
-    "weekly":  0.20,
-    "breadth": 0.25,
-    "vol":     0.20,
+    "fast":    0.25,
+    "daily":   0.25,
+    "weekly":  0.15,
+    "breadth": 0.20,
+    "vol":     0.15,
 }
 
 
@@ -286,9 +373,12 @@ def detect_regime(top_symbols: list[str] | None = None,
     try:
         btc_daily = binance_client.get_klines("BTCUSDT", "1d", limit=250)
         btc_weekly = binance_client.get_klines("BTCUSDT", "1w", limit=100)
+        # NEW (2026-06-06): 1h klines for fast reactive component
+        btc_1h = binance_client.get_klines("BTCUSDT", "1h", limit=72)
     except Exception as exc:
         return _empty_regime(f"BTC data fetch failed: {exc}")
 
+    fast = _btc_fast_trend(btc_1h)
     daily = _btc_daily_trend(btc_daily)
     weekly = _btc_weekly_trend(btc_weekly)
     vol = _volatility_regime(btc_daily)
@@ -303,13 +393,22 @@ def detect_regime(top_symbols: list[str] | None = None,
     breadth = _market_breadth(top_symbols, force_refresh=force_breadth_refresh)
 
     # Weighted composite — 0 to 100, higher = more bullish regime
+    # FAST (1h BTC) now leads the weights so the composite reacts to
+    # short-term shifts in hours, not days.
     composite = (
-        _WEIGHTS["daily"] * daily["score"]
+        _WEIGHTS["fast"] * fast["score"]
+        + _WEIGHTS["daily"] * daily["score"]
         + _WEIGHTS["weekly"] * weekly["score"]
         + _WEIGHTS["breadth"] * breadth["score"]
         + _WEIGHTS["vol"] * vol["score"]
     )
     composite = float(np.clip(composite, 0, 100))
+
+    # SHIFT DETECTION — when fast diverges sharply from daily, we're
+    # in a regime transition. Lower the confidence so signals don't
+    # overcommit while the market is reorganizing.
+    fast_vs_daily_gap = abs(fast["score"] - daily["score"])
+    is_shifting = fast_vs_daily_gap >= 30
 
     # BTC.D sanity (when supplied) — rising BTC.D in a "BULL" reading
     # should temper the call.
@@ -339,12 +438,31 @@ def detect_regime(top_symbols: list[str] | None = None,
         long_bias = composite
         short_bias = 100 - composite
 
+    # SHIFT PENALTY — when fast diverges sharply from daily, the regime
+    # is reorganizing. Cut confidence by 30% so the quality gate doesn't
+    # treat this as a high-conviction call. Also force TRANSITION label
+    # so the user sees the market is in flux.
+    if is_shifting:
+        confidence = round(confidence * 0.7, 1)
+        if regime in ("BULL", "BEAR"):
+            # Keep the long_bias/short_bias intact (they reflect the
+            # composite) but mark the regime as TRANSITION so downstream
+            # users see the warning
+            regime = "TRANSITION"
+
     summary_bits = [
-        f"BTC daily: {daily['label']} ({daily['score']:.0f})",
+        f"BTC 1h: {fast['label']} ({fast['score']:.0f}, "
+        f"6h {fast['change_6h_pct']:+.1f}% / "
+        f"24h {fast['change_24h_pct']:+.1f}%)",
+        f"daily: {daily['label']} ({daily['score']:.0f})",
         f"weekly: {weekly['label']} ({weekly['score']:.0f})",
         f"breadth: {breadth['pct_above']:.0f}% above 50d ({breadth['score']:.0f})",
         f"vol: {vol['label']} ({vol['score']:.0f})",
     ]
+    if is_shifting:
+        summary_bits.append(
+            f"⚠ SHIFTING (fast {fast['score']:.0f} vs "
+            f"daily {daily['score']:.0f})")
 
     return {
         "regime": regime,
@@ -352,7 +470,9 @@ def detect_regime(top_symbols: list[str] | None = None,
         "composite": round(composite, 1),
         "long_bias": round(long_bias, 1),
         "short_bias": round(short_bias, 1),
+        "is_shifting": is_shifting,
         "components": {
+            "fast": fast,
             "daily": daily,
             "weekly": weekly,
             "breadth": breadth,
