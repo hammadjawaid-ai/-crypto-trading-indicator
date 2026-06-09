@@ -14227,6 +14227,70 @@ if active_section == "🎯 Sure Shot Trader":
     _sm8.metric("Start balance",
                 f"${_ss_state.get('starting_balance', 10000):,.0f}")
 
+    # --- Closed-trades history -----------------------------------------
+    _ss_closed = list(_ss_state.get("closed") or [])
+    st.markdown("### 📜 Closed-trade history")
+    if not _ss_closed:
+        st.caption("No closed sure-shot trades yet.")
+    else:
+        _ss_wins_n = sum(1 for c in _ss_closed
+                         if float(c.get("pnl_usd") or 0) > 0)
+        _ss_loss_n = sum(1 for c in _ss_closed
+                         if float(c.get("pnl_usd") or 0) < 0)
+        _ss_be_n = len(_ss_closed) - _ss_wins_n - _ss_loss_n
+        st.caption(
+            f"{len(_ss_closed)} closed · "
+            f"🟢 {_ss_wins_n} win · 🔴 {_ss_loss_n} loss · "
+            f"⚪ {_ss_be_n} break-even · "
+            f"realized P&L ${_ss_realized:+,.2f}")
+        # Build a clean table, most recent first
+        _hist_rows = []
+        for _c in reversed(_ss_closed):
+            _c_pnl = float(_c.get("pnl_usd") or 0)
+            _c_open_ts = _c.get("opened_at")
+            _c_exit_ts = _c.get("exit_at")
+            try:
+                _c_opened = (datetime.fromtimestamp(
+                    float(_c_open_ts), tz=timezone.utc).strftime(
+                    "%m-%d %H:%M") if _c_open_ts else "—")
+            except Exception:
+                _c_opened = "—"
+            try:
+                _c_closed = (datetime.fromtimestamp(
+                    float(_c_exit_ts), tz=timezone.utc).strftime(
+                    "%m-%d %H:%M") if _c_exit_ts else "—")
+            except Exception:
+                _c_closed = "—"
+            _hist_rows.append({
+                "Coin": _c.get("base") or _c.get("symbol", "?"),
+                "Side": _c.get("side", ""),
+                "Entry": _c.get("entry"),
+                "Exit": _c.get("exit"),
+                "P&L $": round(_c_pnl, 2),
+                "P&L %": round(float(_c.get("pnl_pct") or 0), 2),
+                "Reason": _c.get("exit_reason", ""),
+                "Notional": round(float(_c.get("notional") or 0), 0),
+                "Opened": _c_opened,
+                "Closed": _c_closed,
+            })
+        _hist_df = pd.DataFrame(_hist_rows)
+        st.dataframe(
+            _hist_df, use_container_width=True, hide_index=True,
+            column_config={
+                "P&L $": st.column_config.NumberColumn(
+                    "P&L $", format="$%.2f"),
+                "P&L %": st.column_config.NumberColumn(
+                    "P&L %", format="%.2f%%"),
+                "Notional": st.column_config.NumberColumn(
+                    "Notional", format="$%.0f"),
+            })
+        # CSV download for the record
+        st.download_button(
+            "⬇️ Download closed trades (CSV)",
+            _hist_df.to_csv(index=False).encode("utf-8"),
+            file_name="sureshot_closed_trades.csv",
+            mime="text/csv", key="ss_hist_dl")
+
     st.caption(
         "Isolated $10k paper account. Unrealized P&L is live on open "
         "positions; Total P&L adds realized (closed) trades. The "
