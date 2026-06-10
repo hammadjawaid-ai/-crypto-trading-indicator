@@ -1,31 +1,39 @@
-"""💠 Sure Shot Trader 2 — the deep-analysis desk (9 agents).
+"""💠 Sure Shot Trader 2 — the deep-analysis desk (13 agents).
 
-A bigger, deeper version of the Sure Shot Trader pipeline. Instead of one
-deterministic validator, every candidate is reviewed by SEVEN specialist
-analysts, then a strategist forces cross-analyst consensus, and a risk
-manager applies portfolio-level checks before anything is shown:
+A bigger, deeper version of the Sure Shot Trader pipeline. Every candidate
+is reviewed by ELEVEN specialist analysts, a strategist forces consensus,
+and a risk manager applies portfolio-level checks:
 
-    ANALYSTS (each returns score 0-100 + verdict + reasons)
-      1. 🛰️ Scout       — proven-system stack (CONVERGENCE/SURE SHOT/ELITE)
-      2. 📐 Chartist    — candle-pattern lanes + support/resistance room
-      3. 📊 Quant       — backtested tier priors, lane-count edge, R:R
-      4. 🌍 Macro       — regime fit, BTC fast trend, shift state
-      5. 🕒 Timeframes  — 15m/1h/4h alignment (multi_tf)
-      6. 📰 News        — VADER sentiment on crypto headlines + coin hits
-      7. 💹 Derivatives — funding/OI velocity lane
+    ANALYSTS (each returns score 0-100 + reasons)
+      1.  🛰️ Scout        — proven-system stack (CONVERGENCE/SURE SHOT/ELITE)
+      2.  📐 Chartist     — candle-pattern lanes + support/resistance room
+      3.  📊 Quant        — backtested tier priors, lane-count edge, R:R
+      4.  🌍 Macro        — regime fit, BTC fast trend, shift state
+      5.  🕒 Timeframes   — 15m/1h/4h alignment (multi_tf)
+      6.  📰 News         — VADER sentiment on headlines + coin hits
+      7.  💹 Derivatives  — funding/OI velocity lane
+      8.  🐋 Orderflow    — live aggressive buy/sell flow + book imbalance
+      9.  😨 Fear & Greed — contrarian crowd-sentiment read
+      10. 💪 Rel strength — out/under-performing BTC (leader/laggard)
+      11. 🚀 Explosive    — blowout potential (burst, range/volume surge)
 
-    8. 🧩 Strategist    — weighted consensus; requires 4+ analysts backing
-                          and no hard veto (any analyst <= 20 kills it)
-    9. 🛡️ Risk manager  — dedupes vs open book, caps picks, sizes by
-                          conviction, flags concentration
+    12. 🧩 Strategist    — weighted consensus; requires 4+ of 11 backing
+                           and no hard veto (any analyst <= 15 kills it)
+    13. 🛡️ Risk manager  — dedupes vs open book, caps picks, sizes by
+                           conviction, flags concentration
 
-    Optional deep verdict: the top finalists go to the most capable
+    🚀 MOONSHOT LANE: picks that FAIL consensus but show explosive
+    potential (explosive >= 70, clean chart, R:R ok) surface separately
+    at SMALL size (strength_factor 0.30) — the controlled lottery
+    tickets for moves that blow out before the timeframes align.
+
+    Optional deep verdict: top finalists go to the most capable
     Anthropic model (Fable 5 by default) which reads the FULL analyst
     report and adjudicates TRADE/WATCH/SKIP. Fail-open without a key.
 
 Like sureshot_agents, this module does NOT scan the market itself — app.py
 passes in the unified scan it already computed. Pure logic + small cached
-kline fetches for S/R analysis on the top candidates only.
+fetches (klines, orderflow, fear&greed) on the top candidates only.
 """
 from __future__ import annotations
 
@@ -48,27 +56,58 @@ try:
 except Exception:
     _VADER = None
 
+try:
+    import orderflow as _orderflow_mod
+except Exception:
+    _orderflow_mod = None
+
+try:
+    import sentiment as _sentiment_mod
+except Exception:
+    _sentiment_mod = None
+
+try:
+    import rs_vs_btc as _rs_mod
+except Exception:
+    _rs_mod = None
+
 
 # Analyst weights — sum to 1.0. Scout + Chartist lead (proven systems and
 # price structure are the strongest deterministic evidence we have).
+# Explosive gets a tiny consensus weight on purpose — it powers the
+# MOONSHOT lane, not the quality conviction.
 _ANALYST_WEIGHTS = {
-    "scout":      0.18,
-    "chartist":   0.18,
-    "quant":      0.14,
-    "macro":      0.14,
-    "timeframes": 0.14,
-    "news":       0.12,
-    "derivs":     0.10,
+    "scout":        0.14,
+    "chartist":     0.14,
+    "quant":        0.11,
+    "macro":        0.10,
+    "timeframes":   0.11,
+    "news":         0.08,
+    "derivs":       0.07,
+    "orderflow":    0.10,
+    "fear_greed":   0.05,
+    "rel_strength": 0.08,
+    "explosive":    0.02,
 }
 
-# Consensus requirements (strategist)
-_BACKING_SCORE = 60      # an analyst "backs" the trade at score >= this
-_MIN_BACKING = 4         # need at least 4 of 7 analysts backing
-_VETO_SCORE = 20         # any analyst at/below this hard-kills the pick
+# Consensus requirements (strategist) — SOFTENED 2026-06-11 per user:
+# the original 4-of-7 (57%) + veto<=20 produced zero trades in chop.
+# Now 4-of-11 (36%) + veto<=15: still filters tape-fighters (a pick with
+# nothing backing it can't pass) but lets clean setups trade.
+_BACKING_SCORE = 58      # an analyst "backs" the trade at score >= this
+_MIN_BACKING = 4         # need at least 4 of 11 analysts backing
+_VETO_SCORE = 15         # any analyst at/below this hard-kills the pick
 
-# Quality tiers on final conviction
-_TIER_SURE = 72
-_TIER_OK = 58
+# Quality tiers on final conviction (slightly looser than v1)
+_TIER_SURE = 70
+_TIER_OK = 55
+
+# Moonshot lane — controlled lottery tickets at small size
+_MOONSHOT_EXPLOSIVE_MIN = 70   # explosive analyst must score >= this
+_MOONSHOT_CHART_MIN = 60       # chartist must back the structure
+_MOONSHOT_RR_MIN = 1.4         # plan must still pay
+_MOONSHOT_SIZE = 0.30          # strength_factor — ~1/3 of normal size
+_MOONSHOT_MAX = 2              # at most 2 moonshots shown
 
 
 # ---------------------------------------------------------------------------
@@ -343,7 +382,194 @@ def analyst_derivs(cand: dict) -> dict:
 
 
 # ===========================================================================
-# AGENT 8 — 🧩 Strategist (weighted consensus)
+# ANALYST 8 — 🐋 Orderflow (live tape: aggressive flow + book imbalance)
+# ===========================================================================
+_OF_CACHE: dict = {}
+_OF_TTL = 120
+
+
+def _of_snapshot(symbol: str):
+    now = time.time()
+    hit = _OF_CACHE.get(symbol)
+    if hit and (now - hit["ts"]) < _OF_TTL:
+        return hit["snap"]
+    snap = None
+    if _orderflow_mod is not None:
+        try:
+            snap = _orderflow_mod.snapshot(symbol)
+        except Exception:
+            snap = None
+    _OF_CACHE[symbol] = {"ts": now, "snap": snap}
+    return snap
+
+
+def analyst_orderflow(cand: dict) -> dict:
+    side = (cand.get("side") or "").upper()
+    snap = _of_snapshot(cand.get("symbol"))
+    if not snap or (not snap.get("flow") and not snap.get("book")):
+        return {"name": "orderflow", "score": 50.0,
+                "reasons": ["no live orderflow data"]}
+    score = 50.0
+    reasons = []
+    flow = snap.get("flow") or {}
+    book = snap.get("book") or {}
+    buy_pct = float(flow.get("buy_pct") or 50.0)
+    # Aggressive taker flow — who is hitting the tape right now
+    flow_edge = (buy_pct - 50.0) if side == "LONG" else (50.0 - buy_pct)
+    score += max(-16, min(16, flow_edge * 0.9))
+    if abs(buy_pct - 50) >= 5:
+        reasons.append(
+            f"taker flow {buy_pct:.0f}% buy "
+            f"({flow.get('pressure', '')})")
+    # Order-book imbalance within ±1% of mid
+    imb = float(book.get("imbalance") or 0.0)   # -1..+1
+    book_edge = imb if side == "LONG" else -imb
+    score += max(-14, min(14, book_edge * 45))
+    if abs(imb) >= 0.12:
+        reasons.append(book.get("verdict", ""))
+    if not reasons:
+        reasons.append("flow/book balanced")
+    return {"name": "orderflow", "score": _clip(score),
+            "reasons": reasons}
+
+
+# ===========================================================================
+# ANALYST 9 — 😨 Fear & Greed (contrarian crowd sentiment)
+# ===========================================================================
+_FG_CACHE: dict = {"ts": 0.0, "fg": None}
+_FG_TTL = 600
+
+
+def _fg_value():
+    now = time.time()
+    if _FG_CACHE["fg"] is not None and (now - _FG_CACHE["ts"]) < _FG_TTL:
+        return _FG_CACHE["fg"]
+    fg = None
+    if _sentiment_mod is not None:
+        try:
+            fg = _sentiment_mod.fear_greed()
+        except Exception:
+            fg = None
+    _FG_CACHE.update(ts=now, fg=fg)
+    return fg
+
+
+def analyst_fear_greed(cand: dict) -> dict:
+    side = (cand.get("side") or "").upper()
+    fg = _fg_value()
+    if not fg:
+        return {"name": "fear_greed", "score": 50.0,
+                "reasons": ["no Fear & Greed data"]}
+    v = int(fg.get("value") or 50)
+    label = fg.get("label", "")
+    score = 50.0
+    reasons = [f"Fear & Greed {v} ({label})"]
+    # Contrarian read: extreme fear fuels bounces (back LONGs),
+    # extreme greed marks tops (back SHORTs).
+    if v <= 25:
+        score += 18 if side == "LONG" else -8
+        reasons.append("extreme fear — contrarian bounce fuel"
+                       if side == "LONG" else
+                       "extreme fear — shorting into capitulation risk")
+    elif v <= 40:
+        score += 8 if side == "LONG" else -3
+    elif v >= 75:
+        score += 18 if side == "SHORT" else -8
+        reasons.append("extreme greed — top risk backs SHORT"
+                       if side == "SHORT" else
+                       "extreme greed — chasing euphoria risk")
+    elif v >= 60:
+        score += 8 if side == "SHORT" else -3
+    return {"name": "fear_greed", "score": _clip(score),
+            "reasons": reasons}
+
+
+# ===========================================================================
+# ANALYST 10 — 💪 Relative strength vs BTC (leader/laggard)
+# ===========================================================================
+def analyst_rel_strength(cand: dict, btc_df) -> dict:
+    if _rs_mod is None or btc_df is None:
+        return {"name": "rel_strength", "score": 50.0,
+                "reasons": ["no RS data"]}
+    side = (cand.get("side") or "").upper()
+    alt_df = _sr_klines(cand.get("symbol"))
+    if alt_df is None or len(alt_df) < 60:
+        return {"name": "rel_strength", "score": 50.0,
+                "reasons": ["insufficient klines for RS"]}
+    try:
+        res = _rs_mod.score(alt_df, btc_df)
+        rs = float(res.get("score") or 50)
+    except Exception:
+        return {"name": "rel_strength", "score": 50.0,
+                "reasons": ["RS computation failed"]}
+    # LONG wants a leader (high RS); SHORT wants a laggard (low RS)
+    if side == "LONG":
+        score = 30 + rs * 0.4
+        tag = ("RS LEADER vs BTC" if rs >= 70 else
+               "outperforming BTC" if rs >= 55 else
+               "lagging BTC — weak host for a LONG" if rs <= 40
+               else "in line with BTC")
+    else:
+        score = 30 + (100 - rs) * 0.4
+        tag = ("RS LAGGARD vs BTC — weak coin to short" if rs <= 30 else
+               "underperforming BTC" if rs <= 45 else
+               "RS leader — dangerous to short" if rs >= 70
+               else "in line with BTC")
+    return {"name": "rel_strength", "score": _clip(score),
+            "reasons": [f"RS {rs:.0f} — {tag}"]}
+
+
+# ===========================================================================
+# ANALYST 11 — 🚀 Explosive potential (powers the MOONSHOT lane)
+# ===========================================================================
+def analyst_explosive(cand: dict) -> dict:
+    reasons = []
+    score = 30.0
+    vb = float((cand.get("lanes_fired") or {}).get(
+        "velocity_burst") or 0)
+    if vb >= 90:
+        score += 30
+        reasons.append(f"velocity burst {vb:.0f} — proven 90+ band")
+    elif vb >= 55:
+        score += 15
+        reasons.append(f"velocity burst forming ({vb:.0f})")
+    df = _sr_klines(cand.get("symbol"))
+    if df is not None and len(df) >= 30:
+        try:
+            high = df["high"]
+            low = df["low"]
+            close = df["close"]
+            vol = df["volume"]
+            ranges = (high - low)
+            atr20 = float(ranges.iloc[-23:-3].mean() or 0)
+            recent_range = float(ranges.iloc[-3:].mean() or 0)
+            if atr20 > 0 and recent_range / atr20 >= 2.0:
+                score += 15
+                reasons.append(
+                    f"range expansion {recent_range/atr20:.1f}x ATR")
+            vol20 = float(vol.iloc[-23:-3].mean() or 0)
+            vol_recent = float(vol.iloc[-3:].mean() or 0)
+            if vol20 > 0 and vol_recent / vol20 >= 2.5:
+                score += 15
+                reasons.append(
+                    f"volume surge {vol_recent/vol20:.1f}x average")
+            c_now = float(close.iloc[-1])
+            c_24 = float(close.iloc[-25]) if len(close) >= 25 else c_now
+            if c_24 > 0:
+                chg24 = abs(c_now / c_24 - 1) * 100
+                if chg24 >= 8:
+                    score += 10
+                    reasons.append(f"{chg24:.0f}% move already underway")
+        except Exception:
+            pass
+    if not reasons:
+        reasons.append("no explosive conditions")
+    return {"name": "explosive", "score": _clip(score),
+            "reasons": reasons}
+
+
+# ===========================================================================
+# AGENT 12 — 🧩 Strategist (weighted consensus)
 # ===========================================================================
 def strategist_consensus(reports: dict) -> dict:
     """Blend the 7 analyst scores into one conviction + decide consensus.
@@ -456,7 +682,7 @@ Reply ONLY a compact JSON object:
 
 
 # ===========================================================================
-# AGENT 9 — 🛡️ Risk manager
+# AGENT 13 — 🛡️ Risk manager
 # ===========================================================================
 def risk_manager(finalists: list[dict], open_positions: list[dict],
                 max_picks: int = 6) -> list[dict]:
@@ -536,17 +762,22 @@ def run_pipeline2(scan_picks: list[dict],
                 c["_mtf_aligned"] = 0
                 c["_mtf_against"] = 0
 
-    # ---- Run the 7-analyst desk on the deep pool ----
+    # ---- Run the 11-analyst desk on the deep pool ----
+    btc_df = _sr_klines("BTCUSDT")   # shared by rel_strength analyst
     analyzed = []
     for c in deep_pool:
         reports = {
-            "scout":      analyst_scout(c),
-            "chartist":   analyst_chartist(c),
-            "quant":      analyst_quant(c),
-            "macro":      analyst_macro(c, regime_info),
-            "timeframes": analyst_timeframes(c),
-            "news":       analyst_news(c, news_headlines),
-            "derivs":     analyst_derivs(c),
+            "scout":        analyst_scout(c),
+            "chartist":     analyst_chartist(c),
+            "quant":        analyst_quant(c),
+            "macro":        analyst_macro(c, regime_info),
+            "timeframes":   analyst_timeframes(c),
+            "news":         analyst_news(c, news_headlines),
+            "derivs":       analyst_derivs(c),
+            "orderflow":    analyst_orderflow(c),
+            "fear_greed":   analyst_fear_greed(c),
+            "rel_strength": analyst_rel_strength(c, btc_df),
+            "explosive":    analyst_explosive(c),
         }
         consensus = strategist_consensus(reports)
         c["analyst_reports"] = reports
@@ -560,6 +791,40 @@ def run_pipeline2(scan_picks: list[dict],
 
     survivors = [c for c in analyzed if c["passed"]]
     survivors.sort(key=lambda c: c["conviction"], reverse=True)
+
+    # ---- 🚀 MOONSHOT LANE ----
+    # Picks that FAILED consensus but show explosive potential. These
+    # are the controlled lottery tickets: moves that blow out BEFORE
+    # the timeframes align (where strict consensus structurally can't
+    # fire). Surfaced separately at SMALL size so a blown stop costs
+    # ~1/3 of a normal trade while a real blowout pays multiples.
+    moonshots = []
+    for c in analyzed:
+        if c.get("passed"):
+            continue
+        reps = c.get("analyst_reports") or {}
+        expl = float(reps.get("explosive", {}).get("score") or 0)
+        chart = float(reps.get("chartist", {}).get("score") or 0)
+        plan = c.get("trade_plan") or {}
+        rr = float(plan.get("rr") or c.get("rr") or 0)
+        # Timeframes being against is EXPECTED on a moonshot (early
+        # entry) — but any OTHER analyst vetoing still kills it.
+        other_vetoes = [v for v in (c.get("vetoes") or [])
+                        if v != "timeframes"]
+        if (expl >= _MOONSHOT_EXPLOSIVE_MIN
+                and chart >= _MOONSHOT_CHART_MIN
+                and rr >= _MOONSHOT_RR_MIN
+                and not other_vetoes):
+            m = dict(c)
+            m["quality"] = "MOONSHOT"
+            m["strength_factor"] = _MOONSHOT_SIZE
+            moonshots.append(m)
+    moonshots.sort(
+        key=lambda c: float(
+            (c.get("analyst_reports") or {}).get(
+                "explosive", {}).get("score") or 0),
+        reverse=True)
+    moonshots = moonshots[:_MOONSHOT_MAX]
 
     # ---- Deep LLM verdict (Fable 5) on the top finalists ----
     api_key = getattr(config, "ANTHROPIC_API_KEY", "") or ""
@@ -588,11 +853,13 @@ def run_pipeline2(scan_picks: list[dict],
         "candidates": candidates,
         "analyzed": analyzed,
         "sure_shots": sure_shots,
+        "moonshots": moonshots,
         "stats": {
             "gathered": len(candidates),
             "analyzed": len(analyzed),
             "consensus_passed": len(survivors),
             "sure_shots": len(sure_shots),
+            "moonshots": len(moonshots),
             "llm_active": llm_active,
             "llm_calls": llm_calls,
             "deep_model": getattr(config, "ANTHROPIC_MODEL_DEEP",

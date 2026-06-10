@@ -14325,13 +14325,16 @@ if active_section == "💠 Sure Shot Trader 2":
         "rgba(139,92,246,0.12),rgba(0,212,255,0.08));"
         "border:1px solid rgba(139,92,246,0.40);border-radius:12px;"
         "padding:12px 16px;margin-bottom:10px;color:#fff'>"
-        "<b>9-agent desk · $10,000 paper account.</b> "
-        "Seven specialist analysts (🛰️ signals · 📐 charts · 📊 stats · "
-        "🌍 macro · 🕒 timeframes · 📰 news · 💹 derivatives) review "
-        "every candidate. A strategist requires <b>4-of-7 consensus "
-        "with no veto</b>, a risk manager checks the book, and the top "
-        "finalists are adjudicated by the deepest model (Fable 5). "
-        "Only what survives all nine reaches the cards.</div>",
+        "<b>13-agent desk · $10,000 paper account.</b> "
+        "Eleven specialist analysts (🛰️ signals · 📐 charts · 📊 stats · "
+        "🌍 macro · 🕒 timeframes · 📰 news · 💹 derivatives · "
+        "🐋 orderflow · 😨 fear/greed · 💪 RS-vs-BTC · 🚀 explosive) "
+        "review every candidate. A strategist requires <b>4-of-11 "
+        "consensus with no veto</b>, a risk manager checks the book, "
+        "and the top finalists are adjudicated by the deepest model "
+        "(Fable 5). The 🚀 <b>Moonshot lane</b> separately surfaces "
+        "explosive setups that fail consensus — small size, blowout "
+        "potential.</div>",
         unsafe_allow_html=True)
 
     _ss2_llm_on = bool(getattr(config, "ANTHROPIC_API_KEY", ""))
@@ -14474,12 +14477,23 @@ if active_section == "💠 Sure Shot Trader 2":
         f"{_d4}</div>"
         f"<div style='color:#aab;font-size:0.7rem'>"
         f"{_d_llm} deep verdict{'s' if _d_llm != 1 else ''}</div>"
+        f"</div>"
+        f"<div style='flex:1;min-width:130px;background:"
+        f"rgba(255,140,0,0.12);border:1px solid rgba(255,140,0,0.4);"
+        f"border-radius:10px;padding:10px 14px'>"
+        f"<div style='color:#ff8c00;font-weight:800;font-size:0.78rem'>"
+        f"🚀 MOONSHOTS</div>"
+        f"<div style='color:#fff;font-size:1.35rem;font-weight:900'>"
+        f"{_ss2_stats.get('moonshots', 0)}</div>"
+        f"<div style='color:#aab;font-size:0.7rem'>small-size "
+        f"lottery lane</div>"
         f"</div></div>",
         unsafe_allow_html=True)
 
-    # --- Desktop notifications for new desk picks -----------------------
+    # --- Desktop notifications for new desk picks + moonshots -----------
     _ss2_sure = _ss2_pipe.get("sure_shots") or []
-    if _ss2_sure:
+    _ss2_moon = _ss2_pipe.get("moonshots") or []
+    if _ss2_sure or _ss2_moon:
         _ss2_alerts = []
         for _p in _ss2_sure:
             _p_base = _p.get("base", _p.get("symbol", "?"))
@@ -14491,8 +14505,21 @@ if active_section == "💠 Sure Shot Trader 2":
                        f"{int(_p_conv)}"),
                 "title": f"💠 DESK PICK — {_p_base} {_p_side}",
                 "body": (f"conviction {_p_conv:.0f} · "
-                         f"{_p.get('backing_n', 0)}/7 analysts"
+                         f"{_p.get('backing_n', 0)}/11 analysts"
                          + (f" · 🧠 {_p_llmv}" if _p_llmv else "")),
+            })
+        for _p in _ss2_moon:
+            _p_base = _p.get("base", _p.get("symbol", "?"))
+            _p_side = (_p.get("side") or "").upper()
+            _p_expl = float(
+                (_p.get("analyst_reports") or {}).get(
+                    "explosive", {}).get("score") or 0)
+            _ss2_alerts.append({
+                "id": (f"moonshot2:{_p.get('symbol')}:{_p_side}:"
+                       f"{int(_p_expl)}"),
+                "title": f"🚀 MOONSHOT — {_p_base} {_p_side}",
+                "body": (f"explosive {_p_expl:.0f} · SMALL SIZE "
+                         "lottery lane · Sure Shot Trader 2"),
             })
         _inject_browser_alerts(_ss2_alerts, refresh_secs=0,
                               key="ti_notified_sureshot2")
@@ -14500,6 +14527,8 @@ if active_section == "💠 Sure Shot Trader 2":
     # --- Live prices ------------------------------------------------------
     _ss2_syms_needed = set()
     for _p in _ss2_sure:
+        _ss2_syms_needed.add(_p.get("symbol"))
+    for _p in _ss2_moon:
         _ss2_syms_needed.add(_p.get("symbol"))
     for _p in _ss2_state.get("open", []):
         _ss2_syms_needed.add(_p.get("symbol"))
@@ -14524,20 +14553,24 @@ if active_section == "💠 Sure Shot Trader 2":
 
     # --- Desk pick cards --------------------------------------------------
     _ANALYST_META = {
-        "scout":      ("🛰️", "Scout — proven systems"),
-        "chartist":   ("📐", "Chartist — patterns + S/R"),
-        "quant":      ("📊", "Quant — backtested stats"),
-        "macro":      ("🌍", "Macro — regime + BTC"),
-        "timeframes": ("🕒", "Timeframes — 15m/1h/4h"),
-        "news":       ("📰", "News — sentiment"),
-        "derivs":     ("💹", "Derivatives — funding/OI"),
+        "scout":        ("🛰️", "Scout — proven systems"),
+        "chartist":     ("📐", "Chartist — patterns + S/R"),
+        "quant":        ("📊", "Quant — backtested stats"),
+        "macro":        ("🌍", "Macro — regime + BTC"),
+        "timeframes":   ("🕒", "Timeframes — 15m/1h/4h"),
+        "news":         ("📰", "News — sentiment"),
+        "derivs":       ("💹", "Derivatives — funding/OI"),
+        "orderflow":    ("🐋", "Orderflow — live tape + book"),
+        "fear_greed":   ("😨", "Fear & Greed — contrarian"),
+        "rel_strength": ("💪", "Rel strength — vs BTC"),
+        "explosive":    ("🚀", "Explosive — blowout potential"),
     }
     st.markdown("### 💠 Desk picks — full 9-agent approval")
     if not _ss2_sure:
         st.info(
             f"**No desk picks right now.** {_d1} gathered, {_d2} "
             f"deep-reviewed, {_d3} passed consensus — none survived "
-            "all nine agents. The desk demands 4-of-7 analyst backing "
+            "all thirteen agents. The desk demands 4-of-11 analyst backing "
             "with zero vetoes, so empty is a verdict, not a failure. "
             "It re-scans every 3 minutes.")
     else:
@@ -14612,7 +14645,7 @@ if active_section == "💠 Sure Shot Trader 2":
                     f"<span style='background:rgba(255,255,255,0.06);"
                     f"color:#c8d2ed;padding:2px 10px;border-radius:6px;"
                     f"font-size:0.72rem;font-weight:700'>"
-                    f"🧩 {_pk.get('backing_n', 0)}/7 analysts back</span>"
+                    f"🧩 {_pk.get('backing_n', 0)}/11 analysts back</span>"
                     f"{_llm_html}"
                     f"</div>"
                     f"<div style='color:#cfd2d8;font-size:0.82rem;"
@@ -14635,7 +14668,7 @@ if active_section == "💠 Sure Shot Trader 2":
                 # 🔬 Full analyst breakdown — the deep-analysis receipt
                 with st.expander(
                         f"🔬 Analyst breakdown — {_pk_base} "
-                        f"({_pk.get('backing_n', 0)}/7 backing)"):
+                        f"({_pk.get('backing_n', 0)}/11 backing)"):
                     for _an, (_an_emoji, _an_label) in \
                             _ANALYST_META.items():
                         _rep = _pk_reports.get(_an) or {}
@@ -14694,6 +14727,121 @@ if active_section == "💠 Sure Shot Trader 2":
                     else:
                         st.warning("Could not open (already open / "
                                    "invalid plan).")
+
+    # --- 🚀 Moonshot lane ---------------------------------------------------
+    # Explosive setups that FAILED consensus (usually because the
+    # timeframes haven't flipped yet — early entries by nature).
+    # Surfaced at SMALL size: a blown stop costs ~1/3 of a normal
+    # trade, a real blowout pays multiples.
+    if _ss2_moon:
+        st.markdown("### 🚀 Moonshot lane — small size, blowout "
+                    "potential")
+        st.markdown(
+            "<div style='background:rgba(255,140,0,0.10);"
+            "border:1px solid rgba(255,140,0,0.40);border-radius:10px;"
+            "padding:8px 14px;margin-bottom:8px;color:#ffba6b;"
+            "font-size:0.8rem'>⚠ These did <b>NOT</b> pass the "
+            "11-analyst consensus — they show explosive conditions "
+            "(volume/range surge, velocity burst) before the "
+            "timeframes align. Opened at <b>~1/3 normal size</b> "
+            "automatically. Expect more losers; the winners are the "
+            "ASR/PORTAL-style movers.</div>",
+            unsafe_allow_html=True)
+        for _mk in _ss2_moon:
+            _mk_sym = _mk.get("symbol")
+            _mk_base = _mk.get("base", _mk_sym.replace("USDT", ""))
+            _mk_side = (_mk.get("side") or "").upper()
+            _mk_plan = _mk.get("trade_plan") or {}
+            _mk_reps = _mk.get("analyst_reports") or {}
+            _mk_expl = float(_mk_reps.get("explosive", {}).get(
+                "score") or 0)
+            _mk_chart = float(_mk_reps.get("chartist", {}).get(
+                "score") or 0)
+            _mk_entry = float(_mk_plan.get("entry") or 0)
+            _mk_stop = float(_mk_plan.get("stop") or 0)
+            _mk_tp1 = float(_mk_plan.get("tp1") or 0)
+            _mk_rr = float(_mk_plan.get("rr") or 0)
+            _mk_px = _ss2_prices.get(_mk_sym, _mk_entry)
+            _mk_sign = 1 if _mk_side == "LONG" else -1
+            _mk_sl_pct = (_mk_sign * (_mk_stop - _mk_px) / _mk_px * 100
+                          if _mk_px else 0)
+            _mk_tp_pct = (_mk_sign * (_mk_tp1 - _mk_px) / _mk_px * 100
+                          if _mk_px else 0)
+            _mk_expl_reasons = " · ".join(
+                _mk_reps.get("explosive", {}).get("reasons", [])[:3])
+            _m2c1, _m2c2 = st.columns([5, 1])
+            with _m2c1:
+                st.markdown(
+                    f"<div style='background:rgba(255,140,0,0.06);"
+                    f"border:1px solid rgba(255,140,0,0.45);"
+                    f"border-radius:12px;padding:12px 16px;"
+                    f"margin-bottom:6px'>"
+                    f"<div style='display:flex;align-items:center;"
+                    f"gap:10px;flex-wrap:wrap;margin-bottom:6px'>"
+                    f"<span style='font-size:1.05rem;font-weight:900'>"
+                    f"🚀 {_mk_base}</span>"
+                    f"<span style='background:"
+                    f"{'#2ed47a' if _mk_side == 'LONG' else '#ff5c5c'};"
+                    f"color:#06121f;padding:2px 12px;border-radius:6px;"
+                    f"font-size:0.74rem;font-weight:800'>{_mk_side}"
+                    f"</span>"
+                    f"<span style='background:linear-gradient(90deg,"
+                    f"#ff8c00,#ff006e);color:#fff;padding:2px 10px;"
+                    f"border-radius:6px;font-size:0.72rem;"
+                    f"font-weight:900'>🚀 MOONSHOT · SMALL SIZE</span>"
+                    f"<span style='background:rgba(255,140,0,0.15);"
+                    f"color:#ff8c00;padding:2px 10px;border-radius:6px;"
+                    f"font-size:0.72rem;font-weight:800'>"
+                    f"explosive {_mk_expl:.0f} · chart {_mk_chart:.0f}"
+                    f"</span></div>"
+                    f"<div style='color:#cfd2d8;font-size:0.82rem;"
+                    f"line-height:1.6'>"
+                    f"entry <b>{_mk_px:g}</b> "
+                    f"<span style='color:#2ed47a;font-size:0.7rem'>"
+                    f"(live)</span> · "
+                    f"stop {_mk_stop:g} <span style='color:#ff5c5c'>"
+                    f"({_mk_sl_pct:+.2f}%)</span> · "
+                    f"target {_mk_tp1:g} <span style='color:#2ed47a'>"
+                    f"({_mk_tp_pct:+.2f}%)</span> · "
+                    f"R:R <b>{_mk_rr:.2f}</b></div>"
+                    f"<div style='color:#ffba6b;font-size:0.74rem;"
+                    f"margin-top:4px'>🚀 {_mk_expl_reasons}</div>"
+                    f"</div>",
+                    unsafe_allow_html=True)
+            with _m2c2:
+                _mk_open_already = any(
+                    p["symbol"] == _mk_sym
+                    for p in _ss2_state.get("open", []))
+                if _mk_open_already:
+                    st.caption("✓ open")
+                elif st.button("🚀 Open small",
+                               key=f"ss2_moon_{_mk_sym}",
+                               use_container_width=True):
+                    _mk_alert = {
+                        "symbol": _mk_sym,
+                        "base": _mk_base,
+                        "side": _mk_side,
+                        "stop": _mk_stop,
+                        "target": _mk_tp1,
+                        "target_2": _mk_plan.get("tp2"),
+                        "entry_low": _mk_entry,
+                        "rr": _mk_rr,
+                        "confidence": int(
+                            _mk.get("confidence", 0) or 0),
+                        # SMALL SIZE — risk manager set 0.30
+                        "strength_factor": float(
+                            _mk.get("strength_factor") or 0.30),
+                    }
+                    _mopened = paper_bot.open_position(
+                        _ss2_state, _mk_alert,
+                        _ss2_prices.get(_mk_sym))
+                    if _mopened:
+                        paper_bot.save_state(_SS2_PATH, _ss2_state)
+                        st.success(
+                            f"Opened SMALL {_mk_side} {_mk_base}")
+                        st.rerun()
+                    else:
+                        st.warning("Could not open.")
 
     # --- Open positions ---------------------------------------------------
     st.markdown("### 📂 Open positions")
@@ -14870,6 +15018,6 @@ if active_section == "💠 Sure Shot Trader 2":
     st.caption(
         "Isolated $10k paper account — separate from Sure Shot Trader 1. "
         "Every pick survived the full 9-agent desk: 7 specialist "
-        "analysts, 4-of-7 consensus with zero vetoes, risk-manager "
+        "analysts, 4-of-11 consensus with zero vetoes, risk-manager "
         "checks, and (when the key is set) a Fable 5 deep verdict on "
         "the finalists. Empty is a verdict, not a failure.")
