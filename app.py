@@ -3815,6 +3815,7 @@ SECTIONS = [
     "🤖 Ask the Oracle", "🪙 Coin Analysis", "📰 News & Sentiment",
     "🧭 Decision Mode", "🧪 Paper Trader", "💸 Live Trading",
     "💎 Spot Long-Term", "🤖 24/7 Agent", "🎯 Sure Shot Trader",
+    "💠 Sure Shot Trader 2",
 ]
 _qp_section = _qp.get("section", SECTIONS[0])
 if _qp_section not in SECTIONS:
@@ -14296,3 +14297,579 @@ if active_section == "🎯 Sure Shot Trader":
         "positions; Total P&L adds realized (closed) trades. The "
         "3-agent pipeline runs live every 3 min in Live mode — "
         "sure-shots are intentionally rare (quality over quantity).")
+
+
+# ===========================================================================
+# Tab 12 — 💠 Sure Shot Trader 2  (9-agent deep-analysis desk, $10k paper)
+# ===========================================================================
+# The advanced sibling of Sure Shot Trader. Every candidate is reviewed by
+# SEVEN specialist analysts (scout, chartist, quant, macro, timeframes,
+# news, derivatives), a strategist forces cross-analyst consensus (4+ of 7
+# backing, no veto), a risk manager applies portfolio checks, and the top
+# finalists get a deep LLM verdict from the most capable model (Fable 5).
+# Isolated state in .sureshot2_bot.json.
+if active_section == "💠 Sure Shot Trader 2":
+    import sureshot2_agents as _ssa2
+    import experimental_signals as _es_ss2
+
+    _SS2_PATH = getattr(config, "SURESHOT2_BOT_STATE_PATH", None)
+    if _SS2_PATH is None:
+        _SS2_PATH = Path(__file__).with_name(".sureshot2_bot.json")
+    _SS2_START_BAL = float(
+        getattr(config, "SURESHOT2_STARTING_BALANCE", 10000.0))
+    _ss2_state = paper_bot.load_state(_SS2_PATH)
+
+    st.subheader("💠 Sure Shot Trader 2 — Deep Analysis Desk")
+    st.markdown(
+        "<div style='background:linear-gradient(135deg,"
+        "rgba(139,92,246,0.12),rgba(0,212,255,0.08));"
+        "border:1px solid rgba(139,92,246,0.40);border-radius:12px;"
+        "padding:12px 16px;margin-bottom:10px;color:#fff'>"
+        "<b>9-agent desk · $10,000 paper account.</b> "
+        "Seven specialist analysts (🛰️ signals · 📐 charts · 📊 stats · "
+        "🌍 macro · 🕒 timeframes · 📰 news · 💹 derivatives) review "
+        "every candidate. A strategist requires <b>4-of-7 consensus "
+        "with no veto</b>, a risk manager checks the book, and the top "
+        "finalists are adjudicated by the deepest model (Fable 5). "
+        "Only what survives all nine reaches the cards.</div>",
+        unsafe_allow_html=True)
+
+    _ss2_llm_on = bool(getattr(config, "ANTHROPIC_API_KEY", ""))
+    _ss2_deep_model = getattr(config, "ANTHROPIC_MODEL_DEEP",
+                              "claude-fable-5")
+    if _ss2_llm_on:
+        st.caption(f"🧠 Deep verdicts active: {_ss2_deep_model} reads "
+                   "the full 7-analyst report on the top 3 finalists.")
+    else:
+        st.caption("🧮 Deterministic-only (no ANTHROPIC_API_KEY). The "
+                   "7-analyst desk + consensus still run fully — add "
+                   "the key to enable Fable 5 deep verdicts on "
+                   "finalists.")
+
+    # --- Settings -------------------------------------------------------
+    with st.expander("⚙️ Settings — balance, risk, leverage, reset"):
+        _s2c1, _s2c2, _s2c3 = st.columns(3)
+        _ss2_risk = _s2c1.slider(
+            "Risk per trade %", 0.5, 5.0,
+            float(_ss2_state.get("risk_per_trade_pct", 1.0)), 0.5,
+            key="ss2_risk")
+        _ss2_lev = _s2c2.slider(
+            "Leverage", 1.0, 10.0,
+            float(_ss2_state.get("leverage", 3.0)), 1.0, key="ss2_lev")
+        _ss2_cap = _s2c3.slider(
+            "Max notional / trade $", 500, 5000,
+            int(_ss2_state.get("max_notional_per_trade", 3000)), 250,
+            key="ss2_cap")
+        _ss2_state["risk_per_trade_pct"] = _ss2_risk
+        _ss2_state["leverage"] = _ss2_lev
+        _ss2_state["max_notional_per_trade"] = float(_ss2_cap)
+        paper_bot.save_state(_SS2_PATH, _ss2_state)
+        if st.button("🔄 Reset to $10,000 (keeps history)",
+                     key="ss2_reset"):
+            _ss2_state = paper_bot.reset(
+                _SS2_PATH, _SS2_START_BAL, _ss2_risk)
+            st.success("Sure Shot 2 account reset to $10,000.")
+            st.rerun()
+
+    # --- LIVE 9-agent pipeline ------------------------------------------
+    @st.cache_data(ttl=180, show_spinner=False)
+    def _run_sureshot2_pipeline(_bust: int, _use_llm: bool) -> dict:
+        _scan = _es_ss2.scan_unified(
+            scan_n=40, interval="1h",
+            min_score=70.0, max_picks=20) or []
+        _elite = {p.get("symbol"): p for p in _scan}
+        try:
+            _conv = compute_convergence_picks("1h", scan_n=50) or []
+            _conv_syms = {p.get("symbol") for p in _conv}
+        except Exception:
+            _conv_syms = set()
+        _sure_syms = {
+            p.get("symbol") for p in _scan
+            if float(p.get("score") or 0) >= 88
+            and (p.get("tier") in ("HIGH", "MAX"))}
+        _regime = load_market_regime()
+        _headlines = []
+        try:
+            import news as _news_ss2
+            _ndf = _news_ss2.fetch_news()
+            if _ndf is not None and not _ndf.empty:
+                _ncol = ("title" if "title" in _ndf.columns
+                         else _ndf.columns[0])
+                _headlines = _ndf[_ncol].head(30).astype(str).tolist()
+        except Exception:
+            _headlines = []
+        _open_now = paper_bot.load_state(_SS2_PATH).get("open", [])
+        return _ssa2.run_pipeline2(
+            _scan, _regime, _conv_syms, _sure_syms, _elite,
+            news_headlines=_headlines, open_positions=_open_now,
+            llm_top_n=3, use_llm=_use_llm, max_picks=6)
+
+    _s2lc1, _s2lc2 = st.columns([1, 1])
+    _ss2_live = _s2lc1.toggle(
+        "🟢 Live mode (auto-refresh every 90s)", value=True,
+        key="ss2_live_mode",
+        help="The 9-agent desk re-scans on a 3-min cache; the page "
+             "refreshes every 90s for live position P&L.")
+    _ss2_force = _s2lc2.button("🔄 Force re-scan now",
+                              key="ss2_force_btn",
+                              use_container_width=True)
+    if _ss2_force:
+        st.session_state["ss2_bust"] = \
+            st.session_state.get("ss2_bust", 0) + 1
+        _run_sureshot2_pipeline.clear()
+
+    _ss2_bust = st.session_state.get("ss2_bust", 0)
+    with st.spinner("💠 7 analysts reviewing → strategist consensus → "
+                    "risk manager → deep verdict…"):
+        try:
+            _ss2_pipe = _run_sureshot2_pipeline(_ss2_bust, _ss2_llm_on)
+        except Exception as _ss2_exc:
+            st.error(f"Desk error: {_ss2_exc}")
+            _ss2_pipe = {"candidates": [], "analyzed": [],
+                        "sure_shots": [], "stats": {}}
+
+    _ss2_stats = _ss2_pipe.get("stats") or {}
+    if _ss2_live:
+        _inject_autorefresh(90)
+        st.caption("🟢 LIVE — desk re-scans every 3 min, page refreshes "
+                   "every 90s. Toggle off to freeze.")
+    else:
+        st.caption("⏸️ Paused — click Force re-scan to update.")
+
+    # --- Desk status strip ----------------------------------------------
+    _d1 = _ss2_stats.get("gathered", 0)
+    _d2 = _ss2_stats.get("analyzed", 0)
+    _d3 = _ss2_stats.get("consensus_passed", 0)
+    _d4 = _ss2_stats.get("sure_shots", 0)
+    _d_llm = _ss2_stats.get("llm_calls", 0)
+    st.markdown(
+        f"<div style='display:flex;gap:8px;flex-wrap:wrap;margin:8px 0'>"
+        f"<div style='flex:1;min-width:130px;background:"
+        f"rgba(91,142,255,0.12);border:1px solid rgba(91,142,255,0.4);"
+        f"border-radius:10px;padding:10px 14px'>"
+        f"<div style='color:#6e8bff;font-weight:800;font-size:0.78rem'>"
+        f"🛰️ GATHERED</div>"
+        f"<div style='color:#fff;font-size:1.35rem;font-weight:900'>"
+        f"{_d1}</div></div>"
+        f"<div style='flex:1;min-width:130px;background:"
+        f"rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.4);"
+        f"border-radius:10px;padding:10px 14px'>"
+        f"<div style='color:#a78bfa;font-weight:800;font-size:0.78rem'>"
+        f"🔬 7-ANALYST REVIEW</div>"
+        f"<div style='color:#fff;font-size:1.35rem;font-weight:900'>"
+        f"{_d2}</div></div>"
+        f"<div style='flex:1;min-width:130px;background:"
+        f"rgba(224,169,43,0.12);border:1px solid rgba(224,169,43,0.4);"
+        f"border-radius:10px;padding:10px 14px'>"
+        f"<div style='color:#e0a92b;font-weight:800;font-size:0.78rem'>"
+        f"🧩 CONSENSUS 4/7+</div>"
+        f"<div style='color:#fff;font-size:1.35rem;font-weight:900'>"
+        f"{_d3}</div></div>"
+        f"<div style='flex:1;min-width:130px;background:"
+        f"rgba(46,212,122,0.12);border:1px solid rgba(46,212,122,0.4);"
+        f"border-radius:10px;padding:10px 14px'>"
+        f"<div style='color:#2ed47a;font-weight:800;font-size:0.78rem'>"
+        f"🛡️ FINAL PICKS</div>"
+        f"<div style='color:#fff;font-size:1.35rem;font-weight:900'>"
+        f"{_d4}</div>"
+        f"<div style='color:#aab;font-size:0.7rem'>"
+        f"{_d_llm} deep verdict{'s' if _d_llm != 1 else ''}</div>"
+        f"</div></div>",
+        unsafe_allow_html=True)
+
+    # --- Desktop notifications for new desk picks -----------------------
+    _ss2_sure = _ss2_pipe.get("sure_shots") or []
+    if _ss2_sure:
+        _ss2_alerts = []
+        for _p in _ss2_sure:
+            _p_base = _p.get("base", _p.get("symbol", "?"))
+            _p_side = (_p.get("side") or "").upper()
+            _p_conv = float(_p.get("conviction") or 0)
+            _p_llmv = (_p.get("llm") or {}).get("verdict", "")
+            _ss2_alerts.append({
+                "id": (f"sureshot2:{_p.get('symbol')}:{_p_side}:"
+                       f"{int(_p_conv)}"),
+                "title": f"💠 DESK PICK — {_p_base} {_p_side}",
+                "body": (f"conviction {_p_conv:.0f} · "
+                         f"{_p.get('backing_n', 0)}/7 analysts"
+                         + (f" · 🧠 {_p_llmv}" if _p_llmv else "")),
+            })
+        _inject_browser_alerts(_ss2_alerts, refresh_secs=0,
+                              key="ti_notified_sureshot2")
+
+    # --- Live prices ------------------------------------------------------
+    _ss2_syms_needed = set()
+    for _p in _ss2_sure:
+        _ss2_syms_needed.add(_p.get("symbol"))
+    for _p in _ss2_state.get("open", []):
+        _ss2_syms_needed.add(_p.get("symbol"))
+    _ss2_prices = {}
+    for _sym in _ss2_syms_needed:
+        if not _sym:
+            continue
+        try:
+            _px = binance_client.get_ticker_price(_sym)
+            if _px:
+                _ss2_prices[_sym] = float(_px)
+        except Exception:
+            pass
+
+    if _ss2_state.get("open"):
+        try:
+            _ss2_closed_now = paper_bot.evaluate(_ss2_state, _ss2_prices)
+            if _ss2_closed_now:
+                paper_bot.save_state(_SS2_PATH, _ss2_state)
+        except Exception:
+            pass
+
+    # --- Desk pick cards --------------------------------------------------
+    _ANALYST_META = {
+        "scout":      ("🛰️", "Scout — proven systems"),
+        "chartist":   ("📐", "Chartist — patterns + S/R"),
+        "quant":      ("📊", "Quant — backtested stats"),
+        "macro":      ("🌍", "Macro — regime + BTC"),
+        "timeframes": ("🕒", "Timeframes — 15m/1h/4h"),
+        "news":       ("📰", "News — sentiment"),
+        "derivs":     ("💹", "Derivatives — funding/OI"),
+    }
+    st.markdown("### 💠 Desk picks — full 9-agent approval")
+    if not _ss2_sure:
+        st.info(
+            f"**No desk picks right now.** {_d1} gathered, {_d2} "
+            f"deep-reviewed, {_d3} passed consensus — none survived "
+            "all nine agents. The desk demands 4-of-7 analyst backing "
+            "with zero vetoes, so empty is a verdict, not a failure. "
+            "It re-scans every 3 minutes.")
+    else:
+        for _idx, _pk in enumerate(_ss2_sure):
+            _pk_sym = _pk.get("symbol")
+            _pk_base = _pk.get("base", _pk_sym.replace("USDT", ""))
+            _pk_side = (_pk.get("side") or "").upper()
+            _pk_plan = _pk.get("trade_plan") or {}
+            _pk_conv = float(_pk.get("conviction") or 0)
+            _pk_quality = _pk.get("quality", "OK")
+            _pk_llm = _pk.get("llm") or {}
+            _pk_backing = _pk.get("backing") or []
+            _pk_reports = _pk.get("analyst_reports") or {}
+            _side_col = "#2ed47a" if _pk_side == "LONG" else "#ff5c5c"
+            _side_emoji = "🟢" if _pk_side == "LONG" else "🩸"
+            _entry = float(_pk_plan.get("entry") or 0)
+            _stop = float(_pk_plan.get("stop") or 0)
+            _tp1 = float(_pk_plan.get("tp1") or 0)
+            _rr = float(_pk_plan.get("rr") or 0)
+            _live_px = _ss2_prices.get(_pk_sym, _entry)
+            _sign = 1 if _pk_side == "LONG" else -1
+            _sl_pct = (_sign * (_stop - _live_px) / _live_px * 100
+                       if _live_px else 0)
+            _tp_pct = (_sign * (_tp1 - _live_px) / _live_px * 100
+                       if _live_px else 0)
+            if _pk_quality == "SURE SHOT":
+                _qual_html = (
+                    "<span style='background:linear-gradient(90deg,"
+                    "#a78bfa,#00d4ff);color:#06121f;padding:2px 10px;"
+                    "border-radius:6px;font-size:0.72rem;"
+                    "font-weight:900'>💠 DESK SURE SHOT</span>")
+            else:
+                _qual_html = (
+                    "<span style='background:rgba(46,212,122,0.18);"
+                    "color:#2ed47a;padding:2px 10px;border-radius:6px;"
+                    "font-size:0.72rem;font-weight:800;border:1px solid "
+                    "rgba(46,212,122,0.4)'>✅ OK TRADE</span>")
+            _llm_html = ""
+            if _pk_llm:
+                _v = _pk_llm.get("verdict", "")
+                _vc = {"TRADE": "#2ed47a", "WATCH": "#e0a92b",
+                       "SKIP": "#ff5c5c", "ERROR": "#8b8d98"}.get(
+                           _v, "#8b8d98")
+                _llm_html = (
+                    f"<span style='background:{_vc}22;color:{_vc};"
+                    f"padding:2px 9px;border-radius:5px;font-size:"
+                    f"0.7rem;font-weight:800;margin-right:4px' "
+                    f"title='{_pk_llm.get('reason','')}'>"
+                    f"🧠 Fable {_v} {_pk_llm.get('confidence',0)}%"
+                    f"</span>")
+            _rank_emoji = ["🥇", "🥈", "🥉", "④", "⑤", "⑥"][min(_idx, 5)]
+
+            _c2c1, _c2c2 = st.columns([5, 1])
+            with _c2c1:
+                st.markdown(
+                    f"<div style='background:rgba(255,255,255,0.03);"
+                    f"border:1px solid {_side_col}55;border-radius:"
+                    f"12px;padding:12px 16px;margin-bottom:4px'>"
+                    f"<div style='display:flex;align-items:center;"
+                    f"gap:10px;flex-wrap:wrap;margin-bottom:6px'>"
+                    f"<span style='font-size:1.1rem;font-weight:900'>"
+                    f"{_rank_emoji} {_pk_base}</span>"
+                    f"<span style='background:{_side_col};color:#06121f;"
+                    f"padding:2px 12px;border-radius:6px;font-size:"
+                    f"0.74rem;font-weight:800'>{_side_emoji} "
+                    f"{_pk_side}</span>"
+                    f"{_qual_html}"
+                    f"<span style='background:rgba(167,139,250,0.15);"
+                    f"color:#a78bfa;padding:2px 10px;border-radius:6px;"
+                    f"font-size:0.74rem;font-weight:800'>"
+                    f"conviction {_pk_conv:.0f}</span>"
+                    f"<span style='background:rgba(255,255,255,0.06);"
+                    f"color:#c8d2ed;padding:2px 10px;border-radius:6px;"
+                    f"font-size:0.72rem;font-weight:700'>"
+                    f"🧩 {_pk.get('backing_n', 0)}/7 analysts back</span>"
+                    f"{_llm_html}"
+                    f"</div>"
+                    f"<div style='color:#cfd2d8;font-size:0.82rem;"
+                    f"line-height:1.6'>"
+                    f"entry <b>{_live_px:g}</b> "
+                    f"<span style='color:#2ed47a;font-size:0.7rem'>"
+                    f"(live)</span> · "
+                    f"stop {_stop:g} <span style='color:#ff5c5c'>"
+                    f"({_sl_pct:+.2f}%)</span> · "
+                    f"target {_tp1:g} <span style='color:#2ed47a'>"
+                    f"({_tp_pct:+.2f}%)</span> · "
+                    f"R:R <b>{_rr:.2f}</b></div>"
+                    + (
+                        f"<div style='color:#aab;font-size:0.74rem;"
+                        f"margin-top:4px'>🧠 {_pk_llm.get('reason','')}"
+                        f"</div>" if _pk_llm.get("reason") else ""
+                    )
+                    + "</div>",
+                    unsafe_allow_html=True)
+                # 🔬 Full analyst breakdown — the deep-analysis receipt
+                with st.expander(
+                        f"🔬 Analyst breakdown — {_pk_base} "
+                        f"({_pk.get('backing_n', 0)}/7 backing)"):
+                    for _an, (_an_emoji, _an_label) in \
+                            _ANALYST_META.items():
+                        _rep = _pk_reports.get(_an) or {}
+                        _an_score = float(_rep.get("score") or 0)
+                        if _an_score >= 60:
+                            _an_col = "#2ed47a"
+                        elif _an_score >= 45:
+                            _an_col = "#e0a92b"
+                        else:
+                            _an_col = "#ff5c5c"
+                        _an_reasons = " · ".join(
+                            _rep.get("reasons", [])[:3]) or "—"
+                        st.markdown(
+                            f"<div style='display:flex;gap:10px;"
+                            f"align-items:baseline;padding:3px 0;"
+                            f"border-bottom:1px solid "
+                            f"rgba(255,255,255,0.05)'>"
+                            f"<span style='min-width:200px;color:#c8d2ed;"
+                            f"font-size:0.8rem;font-weight:700'>"
+                            f"{_an_emoji} {_an_label}</span>"
+                            f"<span style='color:{_an_col};font-weight:"
+                            f"900;min-width:36px'>{_an_score:.0f}</span>"
+                            f"<span style='color:#8b8d98;font-size:"
+                            f"0.74rem'>{_an_reasons}</span></div>",
+                            unsafe_allow_html=True)
+                    for _rn in (_pk.get("risk_notes") or []):
+                        st.markdown(
+                            f"<div style='color:#e0a92b;font-size:"
+                            f"0.76rem;margin-top:4px'>🛡️ {_rn}</div>",
+                            unsafe_allow_html=True)
+            with _c2c2:
+                if _pk.get("already_open"):
+                    st.caption("✓ open")
+                elif st.button("📥 Open", key=f"ss2_open_{_pk_sym}",
+                               use_container_width=True):
+                    _ss2_alert = {
+                        "symbol": _pk_sym,
+                        "base": _pk_base,
+                        "side": _pk_side,
+                        "stop": _stop,
+                        "target": _tp1,
+                        "target_2": _pk_plan.get("tp2"),
+                        "entry_low": _entry,
+                        "rr": _rr,
+                        "confidence": int(_pk.get("confidence", 0) or 0),
+                        "strength_factor": float(
+                            _pk.get("strength_factor") or 0.7),
+                    }
+                    _opened = paper_bot.open_position(
+                        _ss2_state, _ss2_alert,
+                        _ss2_prices.get(_pk_sym))
+                    if _opened:
+                        paper_bot.save_state(_SS2_PATH, _ss2_state)
+                        st.success(f"Opened {_pk_side} {_pk_base}")
+                        st.rerun()
+                    else:
+                        st.warning("Could not open (already open / "
+                                   "invalid plan).")
+
+    # --- Open positions ---------------------------------------------------
+    st.markdown("### 📂 Open positions")
+    _ss2_open = _ss2_state.get("open", [])
+    if not _ss2_open:
+        st.caption("No open desk positions.")
+    else:
+        for _pos in _ss2_open:
+            _ps_sym = _pos.get("symbol")
+            _ps_px = _ss2_prices.get(_ps_sym, _pos.get("entry"))
+            _ps_side = _pos.get("side")
+            _ps_entry = float(_pos.get("entry") or 0)
+            _ps_sign = 1 if _ps_side == "LONG" else -1
+            _ps_pnl_pct = (_ps_sign * (_ps_px - _ps_entry) / _ps_entry
+                           * 100 if _ps_entry else 0)
+            _ps_col = "#2ed47a" if _ps_pnl_pct >= 0 else "#ff5c5c"
+            _ps_stop = float(_pos.get("stop") or 0)
+            _ps_tgt = float(_pos.get("target") or 0)
+            _ps_tgt2 = float(_pos.get("target_2") or 0)
+            _ps_qty = float(_pos.get("qty") or 0)
+            _ps_notional = float(_pos.get("notional") or 0)
+            _ps_margin = float(_pos.get("margin") or 0)
+            _ps_lev = float(_pos.get("leverage") or 1)
+            _ps_pnl_usd = (_ps_sign * (_ps_px - _ps_entry) * _ps_qty
+                           if _ps_entry else 0)
+            _p2c1, _p2c2 = st.columns([5, 1])
+            _p2c1.markdown(
+                f"<div style='background:rgba(255,255,255,0.03);"
+                f"border:1px solid {_ps_col}44;"
+                f"border-radius:10px;padding:10px 14px;"
+                f"margin-bottom:4px'>"
+                f"<div style='font-size:0.92rem'>"
+                f"<b>{_pos.get('base')}</b> {_ps_side} · "
+                f"entry {_ps_entry:g} · now {_ps_px:g} · "
+                f"<span style='color:{_ps_col};font-weight:800'>"
+                f"{_ps_pnl_usd:+,.2f} ({_ps_pnl_pct:+.2f}%)</span>"
+                f"</div>"
+                f"<div style='color:#8b8d98;font-size:0.74rem;"
+                f"margin-top:3px'>"
+                f"notional <b style='color:#c8d2ed'>"
+                f"${_ps_notional:,.0f}</b> · "
+                f"margin ${_ps_margin:,.0f} · {_ps_lev:.0f}× lev · "
+                f"qty {_ps_qty:g} · SL {_ps_stop:g} · TP {_ps_tgt:g}"
+                f"</div></div>",
+                unsafe_allow_html=True)
+            if _p2c2.button("Close", key=f"ss2_close_{_ps_sym}",
+                            use_container_width=True):
+                paper_bot.close_position_at(
+                    _ss2_state, _ps_sym, _ps_px, "manual")
+                paper_bot.save_state(_SS2_PATH, _ss2_state)
+                st.rerun()
+            try:
+                _ps_chart_df = _agent_load_chart_klines(
+                    _ps_sym, "1h", 168)
+                if _ps_chart_df is not None and len(_ps_chart_df) > 0:
+                    _ps_plan = {
+                        "side": _ps_side,
+                        "entry": _ps_entry,
+                        "stop": _ps_stop,
+                        "tp1": _ps_tgt,
+                        "tp2": _ps_tgt2,
+                    }
+                    _ps_fig = agent_charts.build_compact_chart(
+                        _ps_chart_df, trade_plan=_ps_plan,
+                        sr_zones=None, height=240, max_bars=168)
+                    st.plotly_chart(
+                        _ps_fig, use_container_width=True,
+                        key=f"ss2_pos_chart_{_ps_sym}",
+                        config={
+                            "scrollZoom": True,
+                            "displayModeBar": True,
+                            "displaylogo": False,
+                            "modeBarButtonsToRemove": [
+                                "select2d", "lasso2d", "autoScale2d"],
+                        })
+                    st.caption(
+                        f"📈 7-day 1h chart · Entry `{_ps_entry:g}` · "
+                        f"SL `{_ps_stop:g}` · TP1 `{_ps_tgt:g}`"
+                        + (f" · TP2 `{_ps_tgt2:g}`"
+                           if _ps_tgt2 > 0 else "")
+                        + " · drag to pan · scroll to zoom")
+            except Exception as _ps2_cexc:
+                st.caption(f"Chart unavailable: {_ps2_cexc}")
+
+    # --- Stats ------------------------------------------------------------
+    _ss2_stats_d = paper_bot.stats(_ss2_state)
+    try:
+        _ss2_unreal = paper_bot.unrealized_pnl(_ss2_state, _ss2_prices)
+    except Exception:
+        _ss2_unreal = 0.0
+    _ss2_realized = float(_ss2_stats_d.get("total_pnl_usd") or 0.0)
+    _ss2_total_pnl = _ss2_realized + _ss2_unreal
+    _ss2_open_notional = sum(
+        float(p.get("notional") or 0) for p in _ss2_open)
+
+    _t1, _t2, _t3, _t4 = st.columns(4)
+    _t1.metric("Balance", f"${_ss2_state.get('balance', 0):,.0f}")
+    _t2.metric("Unrealized P&L", f"${_ss2_unreal:+,.2f}",
+               help="Live gain/loss on open positions if closed now.")
+    _t3.metric("Total P&L", f"${_ss2_total_pnl:+,.2f}",
+               delta=f"{_ss2_realized:+,.2f} realized",
+               help="Realized (closed trades) + unrealized (open).")
+    _ss2_wr = _ss2_stats_d.get("win_rate")
+    _t4.metric("Win rate",
+               f"{_ss2_wr:.0f}%" if _ss2_stats_d.get("trades") else "—",
+               help=f"{_ss2_stats_d.get('wins', 0)}/"
+                    f"{_ss2_stats_d.get('trades', 0)} closed won.")
+    _t5, _t6, _t7, _t8 = st.columns(4)
+    _t5.metric("Open positions", len(_ss2_open))
+    _t6.metric("Open notional", f"${_ss2_open_notional:,.0f}")
+    _t7.metric("Closed trades", len(_ss2_state.get("closed", [])))
+    _t8.metric("Start balance",
+               f"${_ss2_state.get('starting_balance', 10000):,.0f}")
+
+    # --- Closed-trades history --------------------------------------------
+    _ss2_closed = list(_ss2_state.get("closed") or [])
+    st.markdown("### 📜 Closed-trade history")
+    if not _ss2_closed:
+        st.caption("No closed desk trades yet.")
+    else:
+        _w_n = sum(1 for c in _ss2_closed
+                   if float(c.get("pnl_usd") or 0) > 0)
+        _l_n = sum(1 for c in _ss2_closed
+                   if float(c.get("pnl_usd") or 0) < 0)
+        _b_n = len(_ss2_closed) - _w_n - _l_n
+        st.caption(
+            f"{len(_ss2_closed)} closed · 🟢 {_w_n} win · "
+            f"🔴 {_l_n} loss · ⚪ {_b_n} break-even · "
+            f"realized P&L ${_ss2_realized:+,.2f}")
+        _h2_rows = []
+        for _c in reversed(_ss2_closed):
+            _c_pnl = float(_c.get("pnl_usd") or 0)
+            try:
+                _c_opened = datetime.fromtimestamp(
+                    float(_c.get("opened_at")), tz=timezone.utc
+                ).strftime("%m-%d %H:%M") if _c.get("opened_at") else "—"
+            except Exception:
+                _c_opened = "—"
+            try:
+                _c_closedt = datetime.fromtimestamp(
+                    float(_c.get("exit_at")), tz=timezone.utc
+                ).strftime("%m-%d %H:%M") if _c.get("exit_at") else "—"
+            except Exception:
+                _c_closedt = "—"
+            _h2_rows.append({
+                "Coin": _c.get("base") or _c.get("symbol", "?"),
+                "Side": _c.get("side", ""),
+                "Entry": _c.get("entry"),
+                "Exit": _c.get("exit"),
+                "P&L $": round(_c_pnl, 2),
+                "P&L %": round(float(_c.get("pnl_pct") or 0), 2),
+                "Reason": _c.get("exit_reason", ""),
+                "Notional": round(float(_c.get("notional") or 0), 0),
+                "Opened": _c_opened,
+                "Closed": _c_closedt,
+            })
+        _h2_df = pd.DataFrame(_h2_rows)
+        st.dataframe(
+            _h2_df, use_container_width=True, hide_index=True,
+            column_config={
+                "P&L $": st.column_config.NumberColumn(
+                    "P&L $", format="$%.2f"),
+                "P&L %": st.column_config.NumberColumn(
+                    "P&L %", format="%.2f%%"),
+                "Notional": st.column_config.NumberColumn(
+                    "Notional", format="$%.0f"),
+            })
+        st.download_button(
+            "⬇️ Download closed trades (CSV)",
+            _h2_df.to_csv(index=False).encode("utf-8"),
+            file_name="sureshot2_closed_trades.csv",
+            mime="text/csv", key="ss2_hist_dl")
+
+    st.caption(
+        "Isolated $10k paper account — separate from Sure Shot Trader 1. "
+        "Every pick survived the full 9-agent desk: 7 specialist "
+        "analysts, 4-of-7 consensus with zero vetoes, risk-manager "
+        "checks, and (when the key is set) a Fable 5 deep verdict on "
+        "the finalists. Empty is a verdict, not a failure.")

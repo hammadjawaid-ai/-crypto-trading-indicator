@@ -208,6 +208,16 @@ ANTHROPIC_MODEL = _secret("ANTHROPIC_MODEL") or "claude-3-5-haiku-latest"
 SURESHOT_BOT_STATE_PATH = Path(__file__).with_name(".sureshot_bot.json")
 SURESHOT_STARTING_BALANCE = 10000.0
 
+# --- Sure Shot Trader 2 — deep-analysis desk (9 agents) --------------------
+# Isolated from SST1's account. The deep LLM verdict on finalists uses the
+# most capable model (Fable 5) instead of the cheap haiku tier — it reads
+# the full 7-analyst report per finalist and adjudicates. Called on at most
+# 3 finalists per 3-min scan window, so cost stays modest despite the
+# bigger model. Override the model in .env if desired.
+SURESHOT2_BOT_STATE_PATH = Path(__file__).with_name(".sureshot2_bot.json")
+SURESHOT2_STARTING_BALANCE = 10000.0
+ANTHROPIC_MODEL_DEEP = _secret("ANTHROPIC_MODEL_DEEP") or "claude-fable-5"
+
 
 # --- LunarCrush social intelligence (paid API — key set in .env) -----------
 # Aggregates X/Twitter & other social data into Galaxy Score, AltRank and
