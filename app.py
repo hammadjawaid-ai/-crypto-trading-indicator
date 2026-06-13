@@ -15310,6 +15310,111 @@ if active_section == "🔮 Predictor":
         st.info(f"No forecast available for {_pred_target} "
                 "(insufficient data).")
 
+    # --- 🏆 Best setups right now (auto-scanned) -----------------------
+    st.markdown("### 🏆 Best setups right now")
+    st.caption("Auto-scans the top coins, builds a forecast setup for "
+               "each, and ranks the highest-conviction aligned ones. "
+               "Cached 3 min · forecast-derived, not backtested picks.")
+
+    @st.cache_data(ttl=180, show_spinner=False)
+    def _cached_best_setups(_bust: int) -> list:
+        try:
+            top = binance_client.get_top_symbols(30)
+            syms = top["symbol"].tolist()[:24]
+        except Exception:
+            return []
+        out = []
+        for s in syms:
+            try:
+                _df1h = binance_client.get_klines(s, "1h", limit=200)
+                p = _pred_mod.predict(s, klines_by_tf={"1h": _df1h})
+                setup = _pred_mod.build_setup(p, _df1h)
+            except Exception:
+                continue
+            if not setup:
+                continue
+            # Quality gate: tradeable R:R + decent confidence.
+            if setup["rr"] < 1.4 or setup["conf"] < 60:
+                continue
+            # Rank score — confidence + alignment bonus + R:R nudge
+            rank = (setup["conf"]
+                    + (12 if setup["aligned"] else 0)
+                    + min(8, setup["rr"] * 2))
+            out.append({
+                "symbol": s, "base": s.replace("USDT", ""),
+                "pred": p, "setup": setup, "rank": rank})
+        out.sort(key=lambda x: x["rank"], reverse=True)
+        return out[:6]
+
+    if st.button("🔄 Scan best setups", key="pred_best_btn",
+                 type="primary"):
+        st.session_state["pred_best_bust"] = int(time.time())
+    _best_bust = st.session_state.get("pred_best_bust", 0)
+    if not _best_bust:
+        # Auto-run once on first visit so the board isn't empty.
+        _best_bust = int(time.time() // 180)
+    with st.spinner("Scanning top coins for the best setups…"):
+        try:
+            _best = _cached_best_setups(_best_bust)
+        except Exception:
+            _best = []
+    if not _best:
+        st.info("No high-conviction setups right now — the forecasts "
+                "are mostly mixed or low-confidence. The honest move "
+                "is to wait. Re-scan in a few minutes.")
+    else:
+        for _bi, _b in enumerate(_best):
+            _bp = _b["pred"]
+            _bs = _b["setup"]
+            _bb = _b["base"]
+            _bside = _bs["side"]
+            _bcol = "#2ed47a" if _bside == "LONG" else "#ff5c5c"
+            _bem = "🟢" if _bside == "LONG" else "🩸"
+            _be = _bs["entry"]
+            _bsl = _bs["stop"]
+            _btp1 = _bs["tp1"]
+            _btp2 = _bs["tp2"]
+            _bsign = 1 if _bside == "LONG" else -1
+            _bsl_pct = _bsign * (_bsl - _be) / _be * 100
+            _btp_pct = _bsign * (_btp1 - _be) / _be * 100
+            _btp2_pct = _bsign * (_btp2 - _be) / _be * 100
+            _brank = ["🥇", "🥈", "🥉", "④", "⑤", "⑥"][min(_bi, 5)]
+            _balign = ("✅ aligned" if _bs["aligned"]
+                       else "⚠ leaning")
+            st.markdown(
+                f"<div style='background:rgba(255,255,255,0.03);"
+                f"border:1px solid {_bcol}55;border-radius:12px;"
+                f"padding:12px 16px;margin-bottom:6px'>"
+                f"<div style='display:flex;align-items:center;gap:10px;"
+                f"flex-wrap:wrap;margin-bottom:6px'>"
+                f"<span style='font-size:1.1rem;font-weight:900'>"
+                f"{_brank} {_bb}</span>"
+                f"<span style='background:{_bcol};color:#06121f;"
+                f"padding:2px 12px;border-radius:6px;font-size:0.74rem;"
+                f"font-weight:800'>{_bem} {_bside}</span>"
+                f"<span style='background:rgba(91,142,255,0.15);"
+                f"color:#6e8bff;padding:2px 10px;border-radius:6px;"
+                f"font-size:0.74rem;font-weight:700'>"
+                f"conf {_bs['conf']}%</span>"
+                f"<span style='color:#aab;font-size:0.74rem'>"
+                f"{_balign} · R:R {_bs['rr']:.2f}</span></div>"
+                f"<div style='color:#9aa7c7;font-size:0.74rem;"
+                f"margin-bottom:6px'>🔮 {_bp.get('summary', '')}</div>"
+                f"<div style='color:#cfd2d8;font-size:0.82rem'>"
+                f"entry <b>{_be:g}</b> · "
+                f"stop {_bsl:g} <span style='color:#ff5c5c'>"
+                f"({_bsl_pct:+.2f}%)</span> · "
+                f"TP1 {_btp1:g} <span style='color:#2ed47a'>"
+                f"({_btp_pct:+.2f}%)</span> · "
+                f"TP2 {_btp2:g} <span style='color:#e0a92b'>"
+                f"({_btp2_pct:+.2f}%)</span></div>"
+                f"</div>",
+                unsafe_allow_html=True)
+        st.caption("⚠ Forecast-derived setups — directional-lean ideas "
+                   "sized by ATR, not backtested multi-system picks. "
+                   "Paper-trade the ones you like via 🎯 Sure Shot "
+                   "Trader.")
+
     # --- Top-movers market lean ----------------------------------------
     st.markdown("### 🔥 Top movers — whole-market lean")
     st.caption("Four-horizon outlook across the top coins by volume. "
