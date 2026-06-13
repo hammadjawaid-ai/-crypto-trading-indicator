@@ -3815,7 +3815,7 @@ SECTIONS = [
     "🤖 Ask the Oracle", "🪙 Coin Analysis", "📰 News & Sentiment",
     "🧭 Decision Mode", "🧪 Paper Trader", "💸 Live Trading",
     "💎 Spot Long-Term", "🤖 24/7 Agent", "🎯 Sure Shot Trader",
-    "💠 Sure Shot Trader 2",
+    "💠 Sure Shot Trader 2", "🔮 Predictor",
 ]
 _qp_section = _qp.get("section", SECTIONS[0])
 if _qp_section not in SECTIONS:
@@ -15097,3 +15097,195 @@ if active_section == "💠 Sure Shot Trader 2":
         "analysts, 4-of-11 consensus with zero vetoes, risk-manager "
         "checks, and (when the key is set) a Fable 5 deep verdict on "
         "the finalists. Empty is a verdict, not a failure.")
+
+
+# ===========================================================================
+# Tab 13 — 🔮 Predictor  (standalone 15m/1h/4h/1d forecast for any coin)
+# ===========================================================================
+# Forecast any coin on demand + a top-movers market-lean table. Uses the
+# predict_next engine. HONEST: a probabilistic DIRECTION + expected ATR
+# range per horizon, NOT an exact-price oracle.
+if active_section == "🔮 Predictor":
+    import predict_next as _pred_mod
+
+    st.subheader("🔮 Predictor — 15m / 1h / 4h / 1d outlook")
+    st.markdown(
+        "<div style='background:linear-gradient(135deg,"
+        "rgba(91,142,255,0.10),rgba(167,139,250,0.08));"
+        "border:1px solid rgba(91,142,255,0.35);border-radius:12px;"
+        "padding:12px 16px;margin-bottom:10px;color:#fff'>"
+        "Pick any coin for a four-horizon outlook, or scan the top "
+        "movers for the whole-market lean. Each read blends EMA stack, "
+        "RSI, MACD and HH/LL structure on that timeframe's own candles."
+        "<br><span style='color:#9aa7c7;font-size:0.8rem'>⚠ Honest "
+        "scope: this is a probabilistic <b>direction + expected "
+        "range</b>, not an exact-price guarantee. Treat the arrows "
+        "and confidence as the signal; the projected price is a rough "
+        "envelope.</span></div>",
+        unsafe_allow_html=True)
+
+    # --- Coin selector --------------------------------------------------
+    try:
+        _pred_top = binance_client.get_top_symbols(80)
+        _pred_universe = _pred_top["symbol"].tolist()[:80]
+    except Exception:
+        _pred_universe = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT",
+                          "XRPUSDT", "DOGEUSDT"]
+    _pc1, _pc2 = st.columns([2, 1])
+    _pred_default = (_pred_universe.index("BTCUSDT")
+                     if "BTCUSDT" in _pred_universe else 0)
+    _pred_sym = _pc1.selectbox(
+        "Coin", _pred_universe, index=_pred_default,
+        key="pred_coin",
+        help="Top 80 by 24h volume. Type to search.")
+    _pred_typed = _pc2.text_input(
+        "…or type a symbol", value="", key="pred_typed",
+        placeholder="e.g. TAOUSDT").strip().upper()
+    _pred_target = _pred_typed or _pred_sym
+    if _pred_target and not _pred_target.endswith("USDT"):
+        _pred_target = _pred_target + "USDT"
+
+    @st.cache_data(ttl=120, show_spinner=False)
+    def _cached_predict(symbol: str, _bust: int) -> dict:
+        return _pred_mod.predict(symbol)
+
+    _pred_bust = int(time.time() // 120)   # natural 2-min cache key
+    with st.spinner(f"Forecasting {_pred_target}…"):
+        try:
+            _pred = _cached_predict(_pred_target, _pred_bust)
+        except Exception as _pexc:
+            st.error(f"Forecast failed: {_pexc}")
+            _pred = None
+
+    if _pred and _pred.get("horizons"):
+        _ow = _pred.get("outlook", "")
+        _ow_col = ("#2ed47a" if "ull" in _ow else
+                   "#ff5c5c" if "ear" in _ow else "#e0a92b")
+        st.markdown(
+            f"<div style='background:{_ow_col}18;border:1px solid "
+            f"{_ow_col}55;border-radius:12px;padding:14px 18px;"
+            f"margin:6px 0 12px'>"
+            f"<span style='font-size:1.3rem;font-weight:900;color:#fff'>"
+            f"{_pred_target.replace('USDT','')}</span>"
+            f"<span style='color:{_ow_col};font-weight:800;"
+            f"font-size:1.05rem;margin-left:12px'>{_ow}</span>"
+            f"<span style='color:#aab;margin-left:12px'>"
+            f"· avg confidence {_pred.get('confidence', 0)}%</span>"
+            f"</div>",
+            unsafe_allow_html=True)
+
+        # Four horizon cards
+        _pred_cols = st.columns(4)
+        _arrow = {"Bullish": "▲", "Bearish": "▼", "Neutral": "▬"}
+        for _i, (_tf, _h) in enumerate(_pred["horizons"].items()):
+            _d = _h["direction"]
+            _dc = ("#2ed47a" if _d == "Bullish" else
+                   "#ff5c5c" if _d == "Bearish" else "#8b8d98")
+            _drv = "<br>".join(f"• {x}" for x in _h.get("drivers", []))
+            with _pred_cols[_i]:
+                st.markdown(
+                    f"<div style='background:rgba(255,255,255,0.03);"
+                    f"border:1px solid {_dc}55;border-radius:10px;"
+                    f"padding:12px;min-height:200px'>"
+                    f"<div style='color:#aab;font-size:0.78rem;"
+                    f"font-weight:700'>{_tf.upper()}</div>"
+                    f"<div style='color:{_dc};font-size:1.25rem;"
+                    f"font-weight:900;margin:2px 0'>"
+                    f"{_arrow.get(_d, '▬')} {_d}</div>"
+                    f"<div style='color:#fff;font-size:0.82rem'>"
+                    f"conf <b>{_h['confidence']}%</b></div>"
+                    f"<div style='color:#cfd2d8;font-size:0.82rem'>"
+                    f"exp move <b style='color:{_dc}'>"
+                    f"{_h['move_pct']:+.2f}%</b></div>"
+                    f"<div style='color:#8b8d98;font-size:0.76rem;"
+                    f"margin-bottom:6px'>~{_h['projected']:g}</div>"
+                    f"<div style='color:#9aa7c7;font-size:0.72rem;"
+                    f"line-height:1.5'>{_drv}</div>"
+                    f"</div>",
+                    unsafe_allow_html=True)
+
+        # Chart for context
+        try:
+            _pred_df = _agent_load_chart_klines(_pred_target, "1h", 168)
+            if _pred_df is not None and len(_pred_df) > 0:
+                _pred_fig = agent_charts.build_compact_chart(
+                    _pred_df, trade_plan=None, sr_zones=None,
+                    height=260, max_bars=168)
+                st.plotly_chart(
+                    _pred_fig, use_container_width=True,
+                    key=f"pred_chart_{_pred_target}",
+                    config={"scrollZoom": True, "displayModeBar": True,
+                            "displaylogo": False,
+                            "modeBarButtonsToRemove": [
+                                "select2d", "lasso2d", "autoScale2d"]})
+                st.caption("📈 7-day 1h chart for context · "
+                           "drag to pan · scroll to zoom")
+        except Exception:
+            pass
+    else:
+        st.info(f"No forecast available for {_pred_target} "
+                "(insufficient data).")
+
+    # --- Top-movers market lean ----------------------------------------
+    st.markdown("### 🔥 Top movers — whole-market lean")
+    st.caption("Four-horizon outlook across the top coins by volume. "
+               "Cached 3 min.")
+
+    @st.cache_data(ttl=180, show_spinner=False)
+    def _cached_movers_forecast(_bust: int) -> list:
+        try:
+            top = binance_client.get_top_symbols(20)
+            syms = top["symbol"].tolist()[:16]
+        except Exception:
+            return []
+        rows = []
+        for s in syms:
+            try:
+                p = _pred_mod.predict(s)
+            except Exception:
+                continue
+            h = p.get("horizons", {})
+            if not h:
+                continue
+            rows.append({
+                "Coin": s.replace("USDT", ""),
+                "Outlook": p.get("outlook", ""),
+                "15m": h.get("15m", {}).get("direction", "—"),
+                "1h": h.get("1h", {}).get("direction", "—"),
+                "4h": h.get("4h", {}).get("direction", "—"),
+                "1d": h.get("1d", {}).get("direction", "—"),
+                "Conf": p.get("confidence", 0),
+            })
+        return rows
+
+    if st.button("🔄 Scan top movers", key="pred_movers_btn"):
+        st.session_state["pred_movers_bust"] = int(time.time())
+    _mv_bust = st.session_state.get("pred_movers_bust", 0)
+    if _mv_bust:
+        with st.spinner("Forecasting top movers…"):
+            _mv_rows = _cached_movers_forecast(_mv_bust)
+        if _mv_rows:
+            _arrow2 = {"Bullish": "▲ Bull", "Bearish": "▼ Bear",
+                       "Neutral": "▬ Flat"}
+            for _r in _mv_rows:
+                for _k in ("15m", "1h", "4h", "1d"):
+                    _r[_k] = _arrow2.get(_r[_k], _r[_k])
+            _mv_df = pd.DataFrame(_mv_rows)
+            st.dataframe(
+                _mv_df, use_container_width=True, hide_index=True,
+                column_config={
+                    "Conf": st.column_config.NumberColumn(
+                        "Conf", format="%d%%"),
+                })
+        else:
+            st.caption("Could not load movers forecast.")
+    else:
+        st.caption("Click **Scan top movers** to forecast the top "
+                   "16 coins across all four horizons.")
+
+    st.caption(
+        "🔮 Forecasts are probabilistic directional leans with an "
+        "expected ATR-based move per horizon — built from EMA stack, "
+        "RSI, MACD and price structure. Not financial advice, not an "
+        "exact-price guarantee. Use them to frame bias, not as "
+        "standalone trade triggers.")
