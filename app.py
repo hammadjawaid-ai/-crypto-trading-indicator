@@ -14067,7 +14067,7 @@ if active_section == "🎯 Sure Shot Trader":
             if _pk_pred.get("summary"):
                 _pred_html = (
                     f"<div style='color:#9aa7c7;font-size:0.74rem;"
-                    f"margin-top:4px'>🔮 next 1h/4h/1d: "
+                    f"margin-top:4px'>🔮 next 15m/1h/4h/1d: "
                     f"<b>{_pk_pred['summary']}</b></div>")
 
             _cc1, _cc2 = st.columns([5, 1])
@@ -14695,7 +14695,7 @@ if active_section == "💠 Sure Shot Trader 2":
             if _pk_pred.get("summary"):
                 _pred_html = (
                     f"<div style='color:#9aa7c7;font-size:0.74rem;"
-                    f"margin-top:4px'>🔮 next 1h/4h/1d: "
+                    f"margin-top:4px'>🔮 next 15m/1h/4h/1d: "
                     f"<b>{_pk_pred['summary']}</b></div>")
 
             _c2c1, _c2c2 = st.columns([5, 1])

@@ -24,7 +24,8 @@ import pandas as pd
 
 import binance_client
 
-_HORIZONS = (("1h", "1h", 200), ("4h", "4h", 200), ("1d", "1d", 200))
+_HORIZONS = (("15m", "15m", 200), ("1h", "1h", 200),
+             ("4h", "4h", 200), ("1d", "1d", 200))
 
 
 def _ema(s: pd.Series, n: int) -> pd.Series:
