@@ -15222,6 +15222,90 @@ if active_section == "🔮 Predictor":
                            "drag to pan · scroll to zoom")
         except Exception:
             pass
+
+        # --- 📋 Forecast-derived trade setup ---------------------------
+        st.markdown("#### 📋 Trade setup from this forecast")
+        _setup = None
+        try:
+            _setup_df = _agent_load_chart_klines(_pred_target, "1h", 120)
+            _setup = _pred_mod.build_setup(_pred, _setup_df)
+        except Exception:
+            _setup = None
+        if _setup is None:
+            st.info(
+                "No clean setup — the forecast is **Mixed/Neutral**, "
+                "so there's no clear directional edge to trade. The "
+                "honest move is to wait for a one-sided lean.")
+        else:
+            _su_side = _setup["side"]
+            _su_col = "#2ed47a" if _su_side == "LONG" else "#ff5c5c"
+            _su_emoji = "🟢" if _su_side == "LONG" else "🩸"
+            _su_e = _setup["entry"]
+            _su_sl = _setup["stop"]
+            _su_tp1 = _setup["tp1"]
+            _su_tp2 = _setup["tp2"]
+            _su_sign = 1 if _su_side == "LONG" else -1
+            _su_sl_pct = _su_sign * (_su_sl - _su_e) / _su_e * 100
+            _su_tp_pct = _su_sign * (_su_tp1 - _su_e) / _su_e * 100
+            _su_tp2_pct = _su_sign * (_su_tp2 - _su_e) / _su_e * 100
+            _su_align = ("✅ aligned all horizons"
+                         if _setup["aligned"] else "⚠ leaning, not "
+                         "fully aligned")
+            st.markdown(
+                f"<div style='background:rgba(255,255,255,0.03);"
+                f"border:1px solid {_su_col}55;border-radius:12px;"
+                f"padding:14px 18px'>"
+                f"<div style='display:flex;align-items:center;gap:10px;"
+                f"flex-wrap:wrap;margin-bottom:8px'>"
+                f"<span style='font-size:1.15rem;font-weight:900'>"
+                f"{_pred_target.replace('USDT','')}</span>"
+                f"<span style='background:{_su_col};color:#06121f;"
+                f"padding:3px 14px;border-radius:6px;font-size:0.8rem;"
+                f"font-weight:800'>{_su_emoji} {_su_side}</span>"
+                f"<span style='background:rgba(91,142,255,0.15);"
+                f"color:#6e8bff;padding:3px 12px;border-radius:6px;"
+                f"font-size:0.78rem;font-weight:700'>"
+                f"forecast conf {_setup['conf']}%</span>"
+                f"<span style='color:#aab;font-size:0.78rem'>"
+                f"{_su_align}</span></div>"
+                f"<div style='background:rgba(0,0,0,0.25);padding:10px "
+                f"14px;border-radius:8px;font-size:0.9rem;color:#fff;"
+                f"line-height:1.9'>"
+                f"<b>Entry</b> <code style='background:rgba(255,255,"
+                f"255,0.08);padding:2px 8px;border-radius:4px'>"
+                f"{_su_e:g}</code> "
+                f"<span style='color:#666'>·</span> "
+                f"<b style='color:#ff8585'>Stop</b> "
+                f"<code style='background:rgba(255,92,92,0.12);"
+                f"padding:2px 8px;border-radius:4px;color:#ff8585'>"
+                f"{_su_sl:g}</code> "
+                f"<span style='color:#ff5c5c'>({_su_sl_pct:+.2f}%)"
+                f"</span> "
+                f"<span style='color:#666'>·</span> "
+                f"<b style='color:#2ed47a'>TP1</b> "
+                f"<code style='background:rgba(46,212,122,0.12);"
+                f"padding:2px 8px;border-radius:4px;color:#2ed47a'>"
+                f"{_su_tp1:g}</code> "
+                f"<span style='color:#2ed47a'>({_su_tp_pct:+.2f}%)"
+                f"</span> "
+                f"<span style='color:#666'>·</span> "
+                f"<b style='color:#e0a92b'>TP2</b> "
+                f"<code style='background:rgba(224,169,43,0.12);"
+                f"padding:2px 8px;border-radius:4px;color:#e0a92b'>"
+                f"{_su_tp2:g}</code> "
+                f"<span style='color:#e0a92b'>({_su_tp2_pct:+.2f}%)"
+                f"</span> "
+                f"<span style='color:#666'>·</span> "
+                f"<b>R:R</b> {_setup['rr']:.2f}</div>"
+                f"<div style='color:#9aa7c7;font-size:0.76rem;"
+                f"margin-top:8px'>⚠ Forecast-derived setup (entry at "
+                f"market, stop/target sized by 1.2/2.0/3.0× ATR). This "
+                f"is a directional-lean idea, <b>not</b> a backtested "
+                f"multi-system pick — for validated edges use 🎯 Sure "
+                f"Shot Trader. Open it there if you want to paper-trade "
+                f"it.</div>"
+                f"</div>",
+                unsafe_allow_html=True)
     else:
         st.info(f"No forecast available for {_pred_target} "
                 "(insufficient data).")

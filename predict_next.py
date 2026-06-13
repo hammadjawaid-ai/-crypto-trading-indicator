@@ -143,6 +143,62 @@ def _word(score: float) -> str:
     return "Neutral"
 
 
+def build_setup(pred: dict, df_1h: pd.DataFrame,
+                stop_atr: float = 1.2, tp1_atr: float = 2.0,
+                tp2_atr: float = 3.0) -> dict | None:
+    """Turn a forecast into a concrete trade setup.
+
+    HONEST: this is a FORECAST-DERIVED setup — entry at current price,
+    stop/target sized by ATR, side from the directional lean. It is NOT
+    a backtested multi-system edge pick (those live in Sure Shot
+    Trader). Returns None when the forecast has no clear lean (Mixed/
+    Neutral) — no setup is the right answer there.
+    """
+    outlook = (pred or {}).get("outlook", "")
+    if "ull" in outlook:
+        side = "LONG"
+    elif "ear" in outlook:
+        side = "SHORT"
+    else:
+        return None
+    if df_1h is None or len(df_1h) < 20:
+        return None
+    close = df_1h["close"]
+    entry = float(close.iloc[-1])
+    high, low = df_1h["high"], df_1h["low"]
+    pc = close.shift(1)
+    tr = pd.concat([high - low, (high - pc).abs(),
+                    (low - pc).abs()], axis=1).max(axis=1)
+    atr = float(tr.rolling(14).mean().iloc[-1] or 0)
+    if entry <= 0 or atr <= 0:
+        return None
+    if side == "LONG":
+        stop = entry - stop_atr * atr
+        tp1 = entry + tp1_atr * atr
+        tp2 = entry + tp2_atr * atr
+    else:
+        stop = entry + stop_atr * atr
+        tp1 = entry - tp1_atr * atr
+        tp2 = entry - tp2_atr * atr
+    risk = abs(entry - stop)
+    rr = abs(tp1 - entry) / risk if risk > 0 else 0.0
+    # Confidence on the trading horizons (1h/4h) drives setup conviction
+    h = pred.get("horizons", {})
+    trade_conf = round((h.get("1h", {}).get("confidence", 0)
+                        + h.get("4h", {}).get("confidence", 0)) / 2)
+    return {
+        "side": side,
+        "entry": entry,
+        "stop": float(stop),
+        "tp1": float(tp1),
+        "tp2": float(tp2),
+        "rr": round(rr, 2),
+        "atr_pct": round(atr / entry * 100, 2),
+        "conf": trade_conf,
+        "aligned": bool(pred.get("aligned")),
+    }
+
+
 def predict(symbol: str,
             klines_by_tf: dict | None = None) -> dict:
     """Forecast 1h / 4h / 1d for one symbol.
