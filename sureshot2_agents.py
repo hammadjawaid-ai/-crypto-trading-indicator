@@ -845,20 +845,42 @@ def run_pipeline2(scan_picks: list[dict],
                 c["passed"] = False
     final_pool = [c for c in survivors if c.get("passed")]
 
+    # ---- BEST-AVAILABLE FALLBACK ----
+    # User: "it should at least show me the trades that have highest
+    # conviction and trading patterns to take a bet." When nothing
+    # clears full consensus, surface the top-3 by conviction anyway —
+    # clearly tagged below_consensus so the card warns it's a
+    # speculative read, not a desk-approved sure-shot.
+    fallback = []
+    if not final_pool:
+        ranked = sorted(analyzed, key=lambda c: c["conviction"],
+                        reverse=True)
+        for c in ranked[:3]:
+            if c.get("conviction", 0) < 45:
+                continue   # genuinely nothing worth showing
+            c = dict(c)
+            c["below_consensus"] = True
+            c["quality"] = "WATCH"
+            c["passed"] = False
+            fallback.append(c)
+
     # ---- Risk manager ----
     sure_shots = risk_manager(final_pool, open_positions or [],
                              max_picks=max_picks)
+    fallback = risk_manager(fallback, open_positions or [], max_picks=3)
 
     return {
         "candidates": candidates,
         "analyzed": analyzed,
         "sure_shots": sure_shots,
+        "fallback": fallback,
         "moonshots": moonshots,
         "stats": {
             "gathered": len(candidates),
             "analyzed": len(analyzed),
             "consensus_passed": len(survivors),
             "sure_shots": len(sure_shots),
+            "fallback": len(fallback),
             "moonshots": len(moonshots),
             "llm_active": llm_active,
             "llm_calls": llm_calls,

@@ -394,6 +394,24 @@ def run_pipeline(scan_picks: list[dict],
     # Agent 3
     sure_shots = agent3_present(validated, max_picks=max_picks)
 
+    # BEST-AVAILABLE FALLBACK — when nothing clears the floor, surface
+    # the top candidates by deterministic conviction anyway so the
+    # board is never empty. Clearly tagged below_consensus.
+    fallback = []
+    if not sure_shots:
+        scored = []
+        for cand in candidates:
+            conv, reasons = _deterministic_conviction(cand, regime_info)
+            c = dict(cand)
+            c["conviction"] = conv
+            c["conviction_reasons"] = reasons
+            c["llm"] = None
+            c["below_consensus"] = True
+            c["quality"] = "WATCH"
+            scored.append(c)
+        scored.sort(key=lambda c: c["conviction"], reverse=True)
+        fallback = [c for c in scored if c["conviction"] >= 45][:3]
+
     api_key = getattr(config, "ANTHROPIC_API_KEY", "") or ""
     llm_active = use_llm and bool(api_key)
     llm_calls = sum(1 for c in validated if c.get("llm") is not None)
@@ -402,10 +420,12 @@ def run_pipeline(scan_picks: list[dict],
         "candidates": candidates,
         "validated": validated,
         "sure_shots": sure_shots,
+        "fallback": fallback,
         "stats": {
             "gathered": len(candidates),
             "survived": len(validated),
             "sure_shots": len(sure_shots),
+            "fallback": len(fallback),
             "llm_active": llm_active,
             "llm_calls": llm_calls,
         },

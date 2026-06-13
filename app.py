@@ -13833,10 +13833,23 @@ if active_section == "🎯 Sure Shot Trader":
                 _headlines = _ndf[_ncol].head(8).astype(str).tolist()
         except Exception:
             _headlines = []
-        return _ssa.run_pipeline(
+        _res = _ssa.run_pipeline(
             _scan, _regime, _conv_syms, _sure_syms, _elite,
             news_headlines=_headlines, det_floor=55.0, llm_top_n=3,
             use_llm=_use_llm, max_picks=6)
+        # Enrich the shown picks with 1h/4h/1d prediction (cached in
+        # this 3-min window). Only the picks the user will see.
+        try:
+            import predict_next as _pn
+            for _grp in ("sure_shots", "fallback"):
+                for _p in (_res.get(_grp) or []):
+                    try:
+                        _p["_prediction"] = _pn.predict(_p.get("symbol"))
+                    except Exception:
+                        _p["_prediction"] = None
+        except Exception:
+            pass
+        return _res
 
     # Live-mode controls
     _ss_lc1, _ss_lc2 = st.columns([1, 1])
@@ -13936,7 +13949,8 @@ if active_section == "🎯 Sure Shot Trader":
                 key="ti_notified_sureshot")
 
     # --- Live prices for open + sure-shot symbols ----------------------
-    _ss_syms_needed = set()
+    _ss_syms_needed = {p.get("symbol")
+                       for p in (_ss_pipe.get("fallback") or [])}
     for _p in _ss_sure:
         _ss_syms_needed.add(_p.get("symbol"))
     for _p in _ss_state.get("open", []):
@@ -13963,15 +13977,21 @@ if active_section == "🎯 Sure Shot Trader":
 
     # --- Sure-shot cards ------------------------------------------------
     st.markdown("### 🎯 Best trades now — 🎯 SURE SHOT or ✅ OK to trade")
-    if not _ss_sure:
+    _ss_fallback = _ss_pipe.get("fallback") or []
+    _ss_render = _ss_sure if _ss_sure else _ss_fallback
+    if not _ss_sure and _ss_fallback:
+        st.warning(
+            f"**No setup cleared the bar** (conviction ≥ 55) — showing "
+            "the top candidates anyway so you have something to "
+            "evaluate. These are **below the sure-shot bar** — "
+            "speculative, suggest smaller size.")
+    elif not _ss_render:
         st.info(
-            "**Nothing tradeable right now.** The pipeline found "
-            f"{_a1} candidates but none cleared the 'OK to trade' bar "
-            "(conviction ≥ 55). This happens in choppy markets where "
-            "no setup has enough multi-system / trend backing. The "
-            "agents keep scanning — a card appears the moment one does.")
-    else:
-        for _idx, _pk in enumerate(_ss_sure):
+            f"**Nothing tradeable right now.** {_a1} candidates, but "
+            "even the best scored below 45 conviction. Truly flat "
+            "tape — the agents keep scanning every 2-3 min.")
+    if _ss_render:
+        for _idx, _pk in enumerate(_ss_render):
             _pk_sym = _pk.get("symbol")
             _pk_base = _pk.get("base", _pk_sym.replace("USDT", ""))
             _pk_side = (_pk.get("side") or "").upper()
@@ -13982,7 +14002,14 @@ if active_section == "🎯 Sure Shot Trader":
             _pk_proven = _pk.get("proven_systems") or []
             _pk_mtf = int(_pk.get("_mtf_aligned") or 0)
             # Quality badge — distinguishes top sure-shots from OK trades
-            if _pk_quality == "SURE SHOT":
+            if _pk.get("below_consensus"):
+                _qual_html = (
+                    "<span style='background:rgba(224,169,43,0.18);"
+                    "color:#e0a92b;padding:2px 10px;border-radius:6px;"
+                    "font-size:0.72rem;font-weight:800;border:1px solid "
+                    "rgba(224,169,43,0.45)'>⚠ BELOW BAR · SPECULATIVE"
+                    "</span>")
+            elif _pk_quality == "SURE SHOT":
                 _qual_html = (
                     "<span style='background:linear-gradient(90deg,"
                     "#ffd700,#ff8c00);color:#1a1a1a;padding:2px 10px;"
@@ -14034,6 +14061,14 @@ if active_section == "🎯 Sure Shot Trader":
                 f"font-weight:700;margin-right:4px'>📊 {_pk_mtf}/3 TFs"
                 f"</span>")
             _rank_emoji = ["🥇", "🥈", "🥉", "④", "⑤"][min(_idx, 4)]
+            # 🔮 1h/4h/1d prediction line (honest directional lean)
+            _pk_pred = _pk.get("_prediction") or {}
+            _pred_html = ""
+            if _pk_pred.get("summary"):
+                _pred_html = (
+                    f"<div style='color:#9aa7c7;font-size:0.74rem;"
+                    f"margin-top:4px'>🔮 next 1h/4h/1d: "
+                    f"<b>{_pk_pred['summary']}</b></div>")
 
             _cc1, _cc2 = st.columns([5, 1])
             with _cc1:
@@ -14066,6 +14101,7 @@ if active_section == "🎯 Sure Shot Trader":
                     f"target {_tp1:g} <span style='color:#2ed47a'>"
                     f"({_tp_pct:+.2f}%)</span> · "
                     f"R:R <b>{_rr:.2f}</b></div>"
+                    f"{_pred_html}"
                     + (
                         f"<div style='color:#aab;font-size:0.74rem;"
                         f"margin-top:4px'>🧠 {_pk_llm.get('reason','')}"
@@ -14402,10 +14438,23 @@ if active_section == "💠 Sure Shot Trader 2":
         except Exception:
             _headlines = []
         _open_now = paper_bot.load_state(_SS2_PATH).get("open", [])
-        return _ssa2.run_pipeline2(
+        _res = _ssa2.run_pipeline2(
             _scan, _regime, _conv_syms, _sure_syms, _elite,
             news_headlines=_headlines, open_positions=_open_now,
             llm_top_n=3, use_llm=_use_llm, max_picks=6)
+        # Enrich shown picks with 1h/4h/1d prediction (cached window)
+        try:
+            import predict_next as _pn2
+            for _grp in ("sure_shots", "fallback", "moonshots"):
+                for _p in (_res.get(_grp) or []):
+                    try:
+                        _p["_prediction"] = _pn2.predict(
+                            _p.get("symbol"))
+                    except Exception:
+                        _p["_prediction"] = None
+        except Exception:
+            pass
+        return _res
 
     _s2lc1, _s2lc2 = st.columns([1, 1])
     _ss2_live = _s2lc1.toggle(
@@ -14493,6 +14542,8 @@ if active_section == "💠 Sure Shot Trader 2":
     # --- Desktop notifications for new desk picks + moonshots -----------
     _ss2_sure = _ss2_pipe.get("sure_shots") or []
     _ss2_moon = _ss2_pipe.get("moonshots") or []
+    _ss2_fb_syms = [p.get("symbol")
+                    for p in (_ss2_pipe.get("fallback") or [])]
     if _ss2_sure or _ss2_moon:
         _ss2_alerts = []
         for _p in _ss2_sure:
@@ -14525,7 +14576,7 @@ if active_section == "💠 Sure Shot Trader 2":
                               key="ti_notified_sureshot2")
 
     # --- Live prices ------------------------------------------------------
-    _ss2_syms_needed = set()
+    _ss2_syms_needed = set(_ss2_fb_syms)
     for _p in _ss2_sure:
         _ss2_syms_needed.add(_p.get("symbol"))
     for _p in _ss2_moon:
@@ -14565,16 +14616,25 @@ if active_section == "💠 Sure Shot Trader 2":
         "rel_strength": ("💪", "Rel strength — vs BTC"),
         "explosive":    ("🚀", "Explosive — blowout potential"),
     }
-    st.markdown("### 💠 Desk picks — full 9-agent approval")
-    if not _ss2_sure:
+    st.markdown("### 💠 Desk picks — full 13-agent approval")
+    _ss2_fallback = _ss2_pipe.get("fallback") or []
+    # Decide what to render: consensus picks if any, else the
+    # best-available fallback (clearly labelled below-consensus).
+    _ss2_render = _ss2_sure if _ss2_sure else _ss2_fallback
+    if not _ss2_sure and _ss2_fallback:
+        st.warning(
+            f"**No pick cleared full consensus** ({_d3}/{_d2} passed) — "
+            "showing the top candidates by conviction anyway so you "
+            "have something to evaluate. These are **below the desk "
+            "bar** — speculative reads, smaller size suggested.")
+    elif not _ss2_render:
         st.info(
-            f"**No desk picks right now.** {_d1} gathered, {_d2} "
-            f"deep-reviewed, {_d3} passed consensus — none survived "
-            "all thirteen agents. The desk demands 4-of-11 analyst backing "
-            "with zero vetoes, so empty is a verdict, not a failure. "
-            "It re-scans every 3 minutes.")
-    else:
-        for _idx, _pk in enumerate(_ss2_sure):
+            f"**Nothing tradeable right now.** {_d1} gathered, {_d2} "
+            "deep-reviewed — even the best candidate scored below 45 "
+            "conviction. Truly flat tape; the desk re-scans every "
+            "3 minutes.")
+    if _ss2_render:
+        for _idx, _pk in enumerate(_ss2_render):
             _pk_sym = _pk.get("symbol")
             _pk_base = _pk.get("base", _pk_sym.replace("USDT", ""))
             _pk_side = (_pk.get("side") or "").upper()
@@ -14596,7 +14656,14 @@ if active_section == "💠 Sure Shot Trader 2":
                        if _live_px else 0)
             _tp_pct = (_sign * (_tp1 - _live_px) / _live_px * 100
                        if _live_px else 0)
-            if _pk_quality == "SURE SHOT":
+            if _pk.get("below_consensus"):
+                _qual_html = (
+                    "<span style='background:rgba(224,169,43,0.18);"
+                    "color:#e0a92b;padding:2px 10px;border-radius:6px;"
+                    "font-size:0.72rem;font-weight:800;border:1px solid "
+                    "rgba(224,169,43,0.45)'>⚠ BELOW CONSENSUS · "
+                    "SPECULATIVE</span>")
+            elif _pk_quality == "SURE SHOT":
                 _qual_html = (
                     "<span style='background:linear-gradient(90deg,"
                     "#a78bfa,#00d4ff);color:#06121f;padding:2px 10px;"
@@ -14622,6 +14689,14 @@ if active_section == "💠 Sure Shot Trader 2":
                     f"🧠 Fable {_v} {_pk_llm.get('confidence',0)}%"
                     f"</span>")
             _rank_emoji = ["🥇", "🥈", "🥉", "④", "⑤", "⑥"][min(_idx, 5)]
+            # 🔮 1h/4h/1d prediction line (honest directional lean)
+            _pk_pred = _pk.get("_prediction") or {}
+            _pred_html = ""
+            if _pk_pred.get("summary"):
+                _pred_html = (
+                    f"<div style='color:#9aa7c7;font-size:0.74rem;"
+                    f"margin-top:4px'>🔮 next 1h/4h/1d: "
+                    f"<b>{_pk_pred['summary']}</b></div>")
 
             _c2c1, _c2c2 = st.columns([5, 1])
             with _c2c1:
@@ -14658,6 +14733,7 @@ if active_section == "💠 Sure Shot Trader 2":
                     f"target {_tp1:g} <span style='color:#2ed47a'>"
                     f"({_tp_pct:+.2f}%)</span> · "
                     f"R:R <b>{_rr:.2f}</b></div>"
+                    f"{_pred_html}"
                     + (
                         f"<div style='color:#aab;font-size:0.74rem;"
                         f"margin-top:4px'>🧠 {_pk_llm.get('reason','')}"

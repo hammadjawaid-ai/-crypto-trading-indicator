@@ -43,6 +43,7 @@ import pandas as pd
 import binance_client
 import indicators
 import velocity_burst
+import early_trend
 
 # Optional imports — every lane gracefully degrades to 0 if its module
 # can't be reached.
@@ -78,20 +79,23 @@ except Exception: market_regime = None
 # Re-balanced after adding dist_top (10th lane). Weights sum to 1.0 but
 # this isn't strictly required — score normalizes by firing weight.
 _LANE_WEIGHTS = {
-    "vwap_zfade":      0.07,
-    "liq_exhaustion":  0.10,
-    "rebound":         0.10,
-    "breakout_coil":   0.08,
-    "pattern_scout":   0.14,
-    "reversal_app":    0.08,
-    "early_momentum":  0.08,
+    "vwap_zfade":      0.06,
+    "liq_exhaustion":  0.09,
+    "rebound":         0.09,
+    "breakout_coil":   0.07,
+    "pattern_scout":   0.13,
+    "reversal_app":    0.07,
+    "early_momentum":  0.07,
     "recovery":        0.06,
-    "deriv_velocity":  0.06,
-    "dist_top":        0.09,   # top/distribution SHORT detector
-    "velocity_burst":  0.14,   # NEW — catches FIRST 1-2 candles of
-                                #   major moves (ASR, PORTAL, FIDA
-                                #   style pumps the system was missing
-                                #   until half the move was done)
+    "deriv_velocity":  0.05,
+    "dist_top":        0.08,   # top/distribution SHORT detector
+    "velocity_burst":  0.13,   # FIRST 1-2 candles of major moves
+                                #   (ASR/PORTAL/FIDA-style pumps)
+    "early_trend":     0.10,   # NEW — aggressive early-trend emergence
+                                #   (EMA reclaim + RSI cross + MACD flip
+                                #   + volume pickup). Catches TAO-style
+                                #   moves AS THEY START, before the
+                                #   confirmed lanes see them.
 }
 
 
@@ -503,6 +507,10 @@ def score_from_data(symbol: str,
         # candle with >=3x avg volume AND >=2.5x ATR range — i.e. the
         # decisive breakout candle, not the late confirmation.
         "velocity_burst": velocity_burst.lane_velocity_burst(df),
+        # early_trend: aggressive early-trend emergence — catches the
+        # turn (EMA reclaim + RSI cross + MACD flip + volume) before
+        # the confirmed lanes. Earlier entry, lower confirmation.
+        "early_trend":    early_trend.lane_early_trend(df),
     }
     return _composite_from_lanes(symbol, df, lanes, pct_24h,
                                 regime_info=regime_info)
@@ -602,7 +610,8 @@ def _composite_from_lanes(symbol: str, df: pd.DataFrame,
     #     Setting floor at 90 isolates the proven-edge bursts only.
     #     These are the most extreme breakout candles — news/event
     #     driven moves where continuation is highly likely.
-    _per_lane_floor = {"dist_top": 50, "velocity_burst": 90}
+    _per_lane_floor = {"dist_top": 50, "velocity_burst": 90,
+                       "early_trend": 50}
     long_lanes: list[tuple[str, float, str]] = []
     short_lanes: list[tuple[str, float, str]] = []
     for name, (sc, side, note) in lanes.items():
