@@ -601,16 +601,18 @@ def _composite_from_lanes(symbol: str, df: pd.DataFrame,
     # Per-lane firing floors.
     #   dist_top: 50 (leading peak signal — by the time score clears 60
     #     the peak is already 5-10% past)
-    #   velocity_burst: 90 (data-driven from walk-forward backtest on
-    #     30 coins × 90 days × 1h bars). Backtest found:
-    #         60-69: 37.7% wr   (breakeven, small sample)
-    #         70-79: 30.9% wr   (LOSING, -0.172R)
-    #         80-89: 30.9% wr   (LOSING, -0.172R)
-    #         90-100: 42.4% wr  (WINNING, +0.127R) ← proven edge zone
-    #     Setting floor at 90 isolates the proven-edge bursts only.
-    #     These are the most extreme breakout candles — news/event
-    #     driven moves where continuation is highly likely.
-    _per_lane_floor = {"dist_top": 50, "velocity_burst": 90,
+    #   velocity_burst: 78 (lowered from 90, 2026-06-11, user request
+    #     to catch bursts EARLIER). Backtest on 30 coins × 90d × 1h:
+    #         70-79 / 80-89: ~31% wr  (LOSING standalone, -0.172R)
+    #         90-100:        42.4% wr (WINNING standalone, +0.127R)
+    #     The losing standalone band is now allowed to COUNT as a lane
+    #     so it can contribute to confluence — but it can never surface
+    #     a pick alone: the Paper Trader quality gate (2+ systems OR
+    #     score>=85) + multi-TF gate, and Sure Shot's agent consensus,
+    #     all sit DOWNSTREAM. So an early burst only shows when the rest
+    #     of the desk confirms it. 90+ remains the standalone-proven
+    #     band (surfaced via the 🚀 chip / explosive analyst).
+    _per_lane_floor = {"dist_top": 50, "velocity_burst": 78,
                        "early_trend": 50}
     long_lanes: list[tuple[str, float, str]] = []
     short_lanes: list[tuple[str, float, str]] = []

@@ -47,13 +47,18 @@ EDGES = [
     {
         "name": "Velocity burst",
         "win_rate": "42% (90+ band)",
-        "expectancy": "+0.127R (90+) · -0.172R (70-89)",
+        "expectancy": "+0.127R (90+) · -0.172R (78-89)",
         "sample": "n=740 (30 coins x 90d, 1h)",
-        "best": "Only the 90+ score band: extreme volume+range "
-                "breakout candles (news/event driven). That's why the "
-                "lane floor is set to 90.",
-        "breaks": "The 70-89 band loses money (-0.172R) — moderate "
-                  "bursts are noise. Filtered out by the 90 floor.",
+        "best": "90+ band = standalone edge (extreme volume+range "
+                "breakout). The earlier 78-89 band is now allowed in "
+                "as a CONFLUENCE contributor only — it surfaces a "
+                "trade ONLY when the quality gate / multi-TF gate / "
+                "Sure Shot consensus also confirm. Catches the move "
+                "~1 candle sooner without trading the losing band "
+                "alone.",
+        "breaks": "78-89 burst with nothing else confirming — loses "
+                  "standalone (-0.172R), so the downstream gates hold "
+                  "it back unless 2+ systems agree.",
     },
     {
         "name": "dist_top (distribution-top SHORT)",

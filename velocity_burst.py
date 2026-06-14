@@ -155,7 +155,15 @@ def _score_burst(burst: pd.Series,
 def lane_velocity_burst(df: pd.DataFrame) -> tuple[float, str, str]:
     """ELITE-composite-compatible entrypoint.
 
-    Tuned conservatively for the 1h timeframe — 3x vol + 2.5x ATR over
-    the last 20 candles is genuinely rare and decisive. If markets are
-    quieter, lower these thresholds in score_from_data."""
-    return detect_burst(df, vol_mult=3.0, range_mult=2.5, lookback=20)
+    EARLIER DETECTION (2026-06-11, user request): thresholds lowered
+    from 3.0x vol / 2.5x ATR to 2.5x vol / 2.0x ATR so a building burst
+    registers ~1 candle sooner. This makes the SCORE rise earlier in a
+    move. The proven-edge protection still holds because:
+      - score 90+ is the standalone-proven band (+0.127R)
+      - score 78-89 (the new earlier band) counts as a CONFLUENCE
+        contributor only — the per-lane floor in _composite_from_lanes
+        is 78, and the Paper Trader quality gate (2+ systems OR
+        score>=85) + multi-TF gate, and Sure Shot's agent consensus,
+        ensure an early burst NEVER surfaces alone. It only shows when
+        the rest of the desk confirms it — exactly the user's ask."""
+    return detect_burst(df, vol_mult=2.5, range_mult=2.0, lookback=20)
