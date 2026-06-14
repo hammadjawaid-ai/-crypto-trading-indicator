@@ -3599,6 +3599,45 @@ def _relative_time(dt) -> str:
     return f"{int(secs // 86400)}d ago"
 
 
+def _render_proven_edge(key: str) -> None:
+    """Render the 📊 Proven-edge reference panel (the real walk-forward
+    stats we measured). Informational — helps the user size with
+    justified confidence. Collapsed by default so it never clutters."""
+    try:
+        import proven_edge as _pe
+    except Exception:
+        return
+    with st.expander("📊 Proven edge — what's actually backtested "
+                     "(tap to see the real numbers)"):
+        st.caption(
+            "These are THIS system's own walk-forward results — the "
+            "evidence behind each signal. Use them to size with "
+            "confidence, not as new signals.")
+        for _e in _pe.EDGES:
+            st.markdown(
+                f"<div style='background:rgba(255,255,255,0.03);"
+                f"border:1px solid rgba(255,255,255,0.08);"
+                f"border-radius:10px;padding:10px 14px;"
+                f"margin-bottom:6px'>"
+                f"<div style='font-weight:800;color:#fff;"
+                f"font-size:0.9rem'>{_e['name']}</div>"
+                f"<div style='color:#cfd2d8;font-size:0.8rem;"
+                f"margin:3px 0'>"
+                f"<span style='color:#2ed47a;font-weight:700'>"
+                f"win {_e['win_rate']}</span> · "
+                f"<span style='color:#6e8bff;font-weight:700'>"
+                f"exp {_e['expectancy']}</span> · "
+                f"<span style='color:#8b8d98'>{_e['sample']}</span>"
+                f"</div>"
+                f"<div style='color:#9aa7c7;font-size:0.76rem;"
+                f"line-height:1.5'>"
+                f"✅ <b>Best:</b> {_e['best']}<br>"
+                f"⚠ <b>Breaks:</b> {_e['breaks']}</div>"
+                f"</div>",
+                unsafe_allow_html=True)
+        st.caption(f"⚠ {_pe.DISCLAIMER}")
+
+
 def _inject_autorefresh(seconds: int) -> None:
     """Reload the whole app after `seconds` — used for the live forecast."""
     components.html(
@@ -6316,6 +6355,8 @@ if active_section == "🧪 Paper Trader":
             f"{_shift_chip}"
             f"</div>",
             unsafe_allow_html=True)
+
+        _render_proven_edge("pt")
 
         # ====================================================================
         # 🏆 BEST TRADES NOW — Unified ranked picks (S/A/B/C tiers)
@@ -13800,6 +13841,8 @@ if active_section == "🎯 Sure Shot Trader":
             st.success("Sure Shot account reset to $10,000.")
             st.rerun()
 
+    _render_proven_edge("ss1")
+
     # --- LIVE 3-agent pipeline -----------------------------------------
     # The pipeline runs AUTOMATICALLY on a 3-min cache. The page auto-
     # refreshes every 90s (live position P&L), but the expensive scan +
@@ -14409,6 +14452,8 @@ if active_section == "💠 Sure Shot Trader 2":
                 _SS2_PATH, _SS2_START_BAL, _ss2_risk)
             st.success("Sure Shot 2 account reset to $10,000.")
             st.rerun()
+
+    _render_proven_edge("ss2")
 
     # --- LIVE 9-agent pipeline ------------------------------------------
     @st.cache_data(ttl=180, show_spinner=False)
@@ -15123,6 +15168,8 @@ if active_section == "🔮 Predictor":
         "and confidence as the signal; the projected price is a rough "
         "envelope.</span></div>",
         unsafe_allow_html=True)
+
+    _render_proven_edge("pred")
 
     # --- Coin selector --------------------------------------------------
     try:
