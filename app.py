@@ -8013,6 +8013,100 @@ if active_section == "🧪 Paper Trader":
                            for _, _, _, _, s, _ in _sure_shots}
 
         # ============================================================
+        # ⚡ ELITE PRECOMPUTE + PROMOTION (relocated 2026-06-11)
+        # ============================================================
+        # Moved here (was AFTER the quality gate) for two reasons:
+        #   1. FIX: the quality gate references _elite_lookup to count
+        #      ELITE as a confirming system — but it was built 170
+        #      lines LATER, so that check was dead (always empty).
+        #      Now it's built first, so ELITE confirmation actually
+        #      counts toward the 2-system bar.
+        #   2. PROMOTE: strong standalone ELITE picks (3+ lanes OR
+        #      MAX/HIGH tier) that aren't already in the candidate pool
+        #      get INJECTED here, so they flow through the SAME quality
+        #      gate + multi-TF gate + hero logic — "analyze with the
+        #      systems and move to TOP CONVICTION if eligible".
+        try:
+            import importlib as _il_elite
+            import experimental_signals as _elite_mod
+            _il_elite.reload(_elite_mod)
+        except Exception:
+            _elite_mod = None
+        _elite_scan_fn = (
+            (getattr(_elite_mod, "scan_unified", None)
+             or getattr(_elite_mod, "scan_experimental", None))
+            if _elite_mod is not None else None)
+
+        @st.cache_data(ttl=120, show_spinner=False)
+        def _load_elite_picks_cached(_v: int = 7):
+            if _elite_scan_fn is None:
+                return []
+            try:
+                return _elite_scan_fn(scan_n=150, interval="1h",
+                                      min_score=70.0, max_picks=40)
+            except Exception:
+                return []
+
+        try:
+            _elite_picks_all = _load_elite_picks_cached()
+        except Exception:
+            _elite_picks_all = []
+        _elite_lookup = {
+            p.get("symbol"): p
+            for p in (_elite_picks_all or [])
+            if float(p.get("score") or 0) >= 80}
+
+        # PROMOTE strong standalone ELITE picks into the candidate pool.
+        # Only the genuinely strong ones (3+ lanes OR MAX/HIGH tier) —
+        # these are the backtested-edge setups. They still must clear
+        # the quality + multi-TF gates below to actually surface, and
+        # hero ULTRA to reach the top — so "if eligible" is enforced.
+        _bp_syms = {t[4].get("symbol") for t in _bot_picks}
+        _promoted_elite_syms = set()
+        for _ep in (_elite_picks_all or []):
+            _ep_sym = _ep.get("symbol")
+            if not _ep_sym or _ep_sym in _bp_syms:
+                continue
+            _ep_lanes = _ep.get("active_lanes") or []
+            _ep_tier = _ep.get("tier", "")
+            _ep_score = float(_ep.get("score") or 0)
+            _strong = (len(_ep_lanes) >= 3
+                       or _ep_tier in ("MAX", "HIGH"))
+            if not (_strong and _ep_score >= 80):
+                continue
+            _ep_plan = _ep.get("trade_plan") or {}
+            _ep_entry = float(_ep_plan.get("entry") or 0)
+            _ep_stop = float(_ep_plan.get("stop") or 0)
+            _ep_tp1 = float(_ep_plan.get("tp1") or 0)
+            if _ep_entry <= 0 or _ep_stop <= 0 or _ep_tp1 <= 0:
+                continue
+            _ep_setup = {
+                "symbol": _ep_sym,
+                "base": _ep.get("base", _ep_sym.replace("USDT", "")),
+                "side": (_ep.get("side") or "").upper(),
+                "entry_low": _ep_entry,
+                "stop": _ep_stop,
+                "target": _ep_tp1,
+                "target_2": float(_ep_plan.get("tp2") or 0),
+                "rr": float(_ep_plan.get("rr") or 0),
+                "confidence": int(_ep.get("confidence")
+                                  or min(99, _ep_score)),
+                "tier": _ep_tier,
+                "active_lanes": _ep_lanes,
+                "lanes_fired": _ep.get("lanes_fired") or {},
+                "strength_factor": max(
+                    0.5, min(1.0, (_ep_score - 70) / 25.0 + 0.5)),
+                "label": f"{(_ep.get('side') or '').upper()} "
+                         f"(ELITE {_ep_tier} · {len(_ep_lanes)} lanes)",
+                "_from_elite": True,
+            }
+            _bot_picks.append(
+                (_ep_score, "forecast neutral", "flat", "neutral",
+                 _ep_setup))
+            _bp_syms.add(_ep_sym)
+            _promoted_elite_syms.add(_ep_sym)
+
+        # ============================================================
         # PRIORITY RE-SORT — surface SURE SHOT + HIGH/MAX + FRESH first
         # ============================================================
         # User: "high and max conviction and also sure shot bets should
@@ -8228,53 +8322,10 @@ if active_section == "🧪 Paper Trader":
                          int(_pk_combined), aligned, against))
             _bot_picks = _kept_mtf
 
-        # ============================================================
-        # ⚡ ELITE PRECOMPUTE — fetch ELITE 9-lane composite picks
-        # so we can (a) tag matching TOP CONVICTION cards with an
-        # ⚡ ELITE chip showing 9-lane confirmation, and (b) the
-        # ELITE block below uses the SAME cached data (no double scan).
-        # Cache TTL dropped to 5 min — user wanted fresher signals.
-        # ============================================================
-        try:
-            import importlib
-            import experimental_signals as _elite_mod
-            importlib.reload(_elite_mod)
-        except Exception:
-            _elite_mod = None
-        _elite_scan_fn = None
-        if _elite_mod is not None:
-            _elite_scan_fn = (getattr(_elite_mod, "scan_unified", None)
-                              or getattr(_elite_mod,
-                                         "scan_experimental", None))
-
-        @st.cache_data(ttl=120, show_spinner=False)  # 2 min (was 5)
-        # User: signals were appearing too late on fresh velocity bursts
-        # (ASR/PORTAL/FIDA pump examples). 2-min cache means a burst that
-        # fires at the top of an hour candle gets surfaced within 2 min
-        # instead of waiting up to 5.
-        def _load_elite_picks_cached(_v: int = 6):
-            if _elite_scan_fn is None:
-                return []
-            try:
-                # Expanded scan: top 150 coins (was 100), 40 max picks
-                # (was 20). User wanted more visibility — covers
-                # basically every actively-traded USDT perp.
-                return _elite_scan_fn(
-                    scan_n=150, interval="1h",
-                    min_score=70.0, max_picks=40)
-            except Exception:
-                return []
-
-        try:
-            _elite_picks_all = _load_elite_picks_cached()
-        except Exception:
-            _elite_picks_all = []
-        # Lookup: symbol -> ELITE pick (filtered to STRONG+ score >= 80)
-        _elite_lookup = {
-            p.get("symbol"): p
-            for p in (_elite_picks_all or [])
-            if float(p.get("score") or 0) >= 80
-        }
+        # ⚡ ELITE precompute + promotion now runs EARLIER (before the
+        # priority sort + quality gate) so _elite_lookup feeds the gate
+        # and strong ELITE picks are promoted into the candidate pool.
+        # _elite_lookup / _elite_picks_all are already defined above.
 
         # ============================================================
         # 🚨 BEST-OF-BEST BROWSER NOTIFICATIONS
