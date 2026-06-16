@@ -13976,7 +13976,7 @@ if active_section == "🎯 Sure Shot Trader":
     # LLM verdicts only recompute when the 3-min cache expires — so the
     # agents stay "live with the market" without burning LLM cost on
     # every refresh. Force a fresh run anytime with the button.
-    @st.cache_data(ttl=180, show_spinner=False)
+    @st.cache_data(ttl=120, show_spinner=False)
     def _run_sureshot_pipeline(_bust: int, _use_llm: bool) -> dict:
         """Cached 3-agent run. _bust busts the cache on demand."""
         _scan = _es_ss.scan_unified(
@@ -14048,12 +14048,14 @@ if active_section == "🎯 Sure Shot Trader":
 
     _ss_stats = _ss_pipe.get("stats") or {}
 
-    # Live auto-refresh — only inject when live mode is on. 90s < 180s
-    # cache so most refreshes hit the warm cache (no re-scan / no LLM).
+    # Live auto-refresh — only inject when live mode is on. 60s < 120s
+    # cache so the page refreshes for fresh position P&L on every tick,
+    # and the agents re-scan every 2 min (cache TTL).
     if _ss_live:
-        _inject_autorefresh(90)
-        st.caption("🟢 LIVE — agents re-scan every 3 min, page refreshes "
-                   "every 90s. Toggle off to freeze.")
+        _inject_autorefresh(60)
+        st.caption("🟢 LIVE — agents re-scan every 2 min · page + "
+                   "position P&L refresh every 60s. Toggle off to "
+                   "freeze.")
     else:
         st.caption("⏸️ Paused — click Force re-scan to update.")
 
@@ -14583,7 +14585,7 @@ if active_section == "💠 Sure Shot Trader 2":
     _render_proven_edge("ss2")
 
     # --- LIVE 9-agent pipeline ------------------------------------------
-    @st.cache_data(ttl=180, show_spinner=False)
+    @st.cache_data(ttl=120, show_spinner=False)
     def _run_sureshot2_pipeline(_bust: int, _use_llm: bool) -> dict:
         _scan = _es_ss2.scan_unified(
             scan_n=40, interval="1h",
@@ -14654,9 +14656,10 @@ if active_section == "💠 Sure Shot Trader 2":
 
     _ss2_stats = _ss2_pipe.get("stats") or {}
     if _ss2_live:
-        _inject_autorefresh(90)
-        st.caption("🟢 LIVE — desk re-scans every 3 min, page refreshes "
-                   "every 90s. Toggle off to freeze.")
+        _inject_autorefresh(60)
+        st.caption("🟢 LIVE — 13-agent desk re-scans every 2 min · "
+                   "page + position P&L refresh every 60s. Toggle off "
+                   "to freeze.")
     else:
         st.caption("⏸️ Paused — click Force re-scan to update.")
 
