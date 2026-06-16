@@ -10659,13 +10659,58 @@ if active_section == "🧪 Paper Trader":
                     if n_lanes >= 2 and (mtf_n >= 1 or sc >= 85):
                         return True
                     return False
+                # SORT: tier-first (MAX > HIGH > STRONG > STANDARD),
+                # then lane count, then score — so the highest-
+                # conviction picks are pinned at the top of STRONGEST.
+                _u_tier_rank = {"MAX": 4, "HIGH": 3, "STRONG": 2,
+                                "STANDARD": 1}
                 _u_multi = sorted(
                     [p for p in _u_other if _is_strongest(p)],
                     key=lambda p: (
+                        _u_tier_rank.get(p.get("tier"), 0),
                         len(p.get("active_lanes") or []),
                         float(p.get("score") or 0)),
                     reverse=True)
                 _u_strongest_syms = {p.get("symbol") for p in _u_multi}
+
+                # ============================================================
+                # ENRICH: backtest win-estimate + early-catch flag per pick.
+                # Win-estimate ties the pick's lane composition to the REAL
+                # proven_edge numbers so the user sees the historical odds.
+                # Early-catch flag highlights velocity_burst / early_trend /
+                # early_momentum firing — the "catch it early" lanes.
+                # ============================================================
+                _early_lanes = {"velocity_burst", "early_trend",
+                                "early_momentum"}
+                for _ep in _u_multi:
+                    _ep_lanes = _ep.get("active_lanes") or []
+                    _ep_n = len(_ep_lanes)
+                    _ep_tier = _ep.get("tier", "STRONG")
+                    _ep_lf = _ep.get("lanes_fired") or {}
+                    _ep_vb = float(_ep_lf.get("velocity_burst") or 0)
+                    # Win estimate from proven_edge backtest bands
+                    if _ep_n >= 4:
+                        _ep_win = "~66% (4+ lanes)"
+                        _ep_win_col = "#2ed47a"
+                    elif _ep_n >= 3:
+                        _ep_win = "~53-66% (3 lanes)"
+                        _ep_win_col = "#2ed47a"
+                    elif _ep_tier == "MAX":
+                        _ep_win = "MAX tier · R:R 2.50"
+                        _ep_win_col = "#ffd700"
+                    elif _ep_tier == "HIGH":
+                        _ep_win = "HIGH tier · R:R 2.08"
+                        _ep_win_col = "#a78bfa"
+                    else:
+                        _ep_win = "2-lane · confirm w/ TFs"
+                        _ep_win_col = "#8b8d98"
+                    _ep["_win_est"] = _ep_win
+                    _ep["_win_col"] = _ep_win_col
+                    # Early-catch flag + which early lanes fired
+                    _ep_early = [ln for ln in _ep_lanes
+                                 if ln in _early_lanes]
+                    _ep["_early_lanes"] = _ep_early
+                    _ep["_vb_proven"] = _ep_vb >= 90
                 _u_single = sorted(
                     [p for p in _u_other
                      if p.get("symbol") not in _u_strongest_syms],
@@ -10900,6 +10945,33 @@ if active_section == "🧪 Paper Trader":
                             f"#ff5c5c44' title='{_u_mtf_summary}'>"
                             f"📊 0/3 against tape</span>")
 
+                    # 📈 Backtest win-estimate chip (from proven_edge)
+                    _u_win_est = _u.get("_win_est", "")
+                    _u_win_c = _u.get("_win_col", "#8b8d98")
+                    _u_win_chip = (
+                        f"<span style='background:{_u_win_c}22;"
+                        f"color:{_u_win_c};padding:3px 10px;"
+                        f"border-radius:6px;font-size:0.72rem;"
+                        f"font-weight:700;border:1px solid {_u_win_c}55'"
+                        f" title='Backtested edge band for this setup "
+                        f"composition'>📈 {_u_win_est}</span>"
+                        if _u_win_est else "")
+                    # ⚡ Early-catch chip — velocity_burst / early_trend /
+                    # early_momentum firing (the catch-it-early lanes)
+                    _u_early = _u.get("_early_lanes") or []
+                    _u_early_chip = ""
+                    if _u_early:
+                        _u_vb_tag = (" · 🚀 burst 90+"
+                                     if _u.get("_vb_proven") else "")
+                        _u_early_chip = (
+                            f"<span style='background:linear-gradient("
+                            f"90deg,#ff8c00,#ffd700);color:#1a1a1a;"
+                            f"padding:3px 10px;border-radius:6px;"
+                            f"font-size:0.72rem;font-weight:800' "
+                            f"title='Early-momentum lanes firing: "
+                            f"{', '.join(_u_early)}'>"
+                            f"⚡ EARLY{_u_vb_tag}</span>")
+
                     # Premium card — full-width gradient surface with
                     # tier-coded border and glow. Matches the
                     # SURE SHOT design from BEST TRADES NOW.
@@ -10947,6 +11019,10 @@ if active_section == "🧪 Paper Trader":
                             # Tells the user at a glance if 15m/1h/4h
                             # back the pick direction.
                             f"{_u_mtf_chip}"
+                            # 📈 Backtest win-estimate chip
+                            f"{_u_win_chip}"
+                            # ⚡ Early-catch chip (velocity/early lanes)
+                            f"{_u_early_chip}"
                             f"</div>"
                             # Lane chips row — wrapping
                             f"<div style='margin-bottom:10px'>"
