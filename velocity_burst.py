@@ -189,6 +189,25 @@ def scan_15m_early(symbols: list[str],
         # Move over the last 4 fifteen-min candles ≈ the forming 1h bar
         c_4 = float(close.iloc[-5]) if len(close) >= 5 else c_now
         move_1h = (c_now / c_4 - 1.0) * 100 if c_4 > 0 else 0.0
+        # Backtest-validated trade plan: SL 1.2 ATR, TP 4.5 ATR (let it
+        # run — the 30-day walk-forward showed +0.18R on very-early +
+        # 1h-aligned at TP 4.5-5.0, vs ~breakeven at TP 2.0). ~21% win,
+        # big R. ATR from the 15m series.
+        _h, _l, _pc = df15["high"], df15["low"], close.shift(1)
+        _tr = pd.concat([_h - _l, (_h - _pc).abs(),
+                         (_l - _pc).abs()], axis=1).max(axis=1)
+        _atr15 = float(_tr.rolling(20).mean().iloc[-1] or 0)
+        if _atr15 > 0:
+            if side == "LONG":
+                plan_stop = c_now - 1.2 * _atr15
+                plan_tp = c_now + 4.5 * _atr15
+            else:
+                plan_stop = c_now + 1.2 * _atr15
+                plan_tp = c_now - 4.5 * _atr15
+            plan_rr = 4.5 / 1.2
+        else:
+            plan_stop = plan_tp = 0.0
+            plan_rr = 0.0
         # How early are we? (directional magnitude already travelled)
         _mag = abs(move_1h)
         if _mag < 4:
@@ -219,6 +238,9 @@ def scan_15m_early(symbols: list[str],
                            or (side == "SHORT" and trend_1h == "BEAR"))
         except Exception:
             pass
+        # VALIDATED-EDGE flag: very-early AND 1h-aligned = the +0.18R
+        # slice from the walk-forward. This is the only slice to act on.
+        validated = (freshness == "very early" and aligned)
         out.append({
             "symbol": sym,
             "base": sym.replace("USDT", ""),
@@ -229,12 +251,18 @@ def scan_15m_early(symbols: list[str],
             "freshness": freshness,
             "trend_1h": trend_1h,
             "aligned_1h": aligned,
+            "validated": validated,
+            "plan_entry": round(c_now, 8),
+            "plan_stop": round(plan_stop, 8),
+            "plan_tp": round(plan_tp, 8),
+            "plan_rr": round(plan_rr, 2),
             "price": c_now,
         })
-    # Rank: aligned-with-1h first, then freshness (earlier better),
-    # then score.
+    # Rank: VALIDATED slice first (very-early + aligned = +0.18R), then
+    # aligned, then freshness, then score.
     _fresh_rank = {"very early": 2, "early": 1, "extended": 0}
-    out.sort(key=lambda x: (1 if x["aligned_1h"] else 0,
+    out.sort(key=lambda x: (1 if x["validated"] else 0,
+                            1 if x["aligned_1h"] else 0,
                             _fresh_rank.get(x["freshness"], 0),
                             x["score"]),
              reverse=True)

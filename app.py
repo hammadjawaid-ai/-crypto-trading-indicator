@@ -6413,6 +6413,36 @@ if active_section == "🧪 Paper Trader":
                                       "(counter)")
                     _eb_align_col = ("#2ed47a" if _eb["aligned_1h"]
                                      else "#e0a92b")
+                    # ✅ VALIDATED badge — the very-early + 1h-aligned
+                    # slice that backtested +0.18R at TP 4.5 ATR.
+                    _eb_val_badge = (
+                        "<span style='background:linear-gradient(90deg,"
+                        "#2ed47a,#00d4ff);color:#06121f;padding:1px 9px;"
+                        "border-radius:5px;font-size:0.7rem;"
+                        "font-weight:900'>✅ VALIDATED +0.18R</span> "
+                        if _eb.get("validated") else "")
+                    # Validated trade plan (SL 1.2 / TP 4.5 ATR)
+                    _eb_plan_html = ""
+                    if _eb.get("plan_rr"):
+                        _eb_e = _eb["plan_entry"]
+                        _eb_s = _eb["plan_stop"]
+                        _eb_tp = _eb["plan_tp"]
+                        _eb_sgn = 1 if _eb["side"] == "LONG" else -1
+                        _eb_slp = (_eb_sgn * (_eb_s - _eb_e) / _eb_e * 100
+                                   if _eb_e else 0)
+                        _eb_tpp = (_eb_sgn * (_eb_tp - _eb_e) / _eb_e * 100
+                                   if _eb_e else 0)
+                        _eb_plan_html = (
+                            f"<div style='color:#cfd2d8;font-size:"
+                            f"0.74rem;margin-top:3px'>"
+                            f"entry {_eb_e:g} · stop {_eb_s:g} "
+                            f"<span style='color:#ff5c5c'>"
+                            f"({_eb_slp:+.1f}%)</span> · "
+                            f"target {_eb_tp:g} <span style='color:"
+                            f"#2ed47a'>({_eb_tpp:+.1f}%)</span> · "
+                            f"R:R {_eb['plan_rr']:.1f} "
+                            f"<span style='color:#8b8d98'>(let it run "
+                            f"— ~21% win, big R)</span></div>")
                     st.markdown(
                         f"<div style='background:rgba(255,255,255,"
                         f"0.03);border:1px solid {_eb_fc}55;"
@@ -6424,6 +6454,7 @@ if active_section == "🧪 Paper Trader":
                         f"color:#06121f;padding:1px 9px;border-radius:"
                         f"5px;font-size:0.7rem;font-weight:800'>"
                         f"{_eb['side']}</span> "
+                        f"{_eb_val_badge}"
                         f"<span style='background:{_eb_fc}22;"
                         f"color:{_eb_fc};padding:1px 9px;border-radius:"
                         f"5px;font-size:0.7rem;font-weight:800'>"
@@ -6435,13 +6466,16 @@ if active_section == "🧪 Paper Trader":
                         f"font-weight:700'>{_eb_align}</span>"
                         f"<div style='color:#9aa7c7;font-size:0.74rem;"
                         f"margin-top:3px'>🚀 {_eb['note']}</div>"
+                        f"{_eb_plan_html}"
                         f"</div>",
                         unsafe_allow_html=True)
                 st.caption(
-                    "🟢 very early = move <4% in (best entry) · "
-                    "🟡 early = 4-8% · 🔴 extended = >8% (you're "
-                    "chasing, like ID at +10%). Take the 🟢 ones with "
-                    "1h aligned.")
+                    "✅ VALIDATED = very-early + 1h-aligned — the only "
+                    "slice the 30-day walk-forward showed +EV (+0.18R "
+                    "at TP 4.5 ATR, ~21% win, big R). 🟢 very early "
+                    "(<4% in) · 🟡 early (4-8%) · 🔴 extended (>8%, "
+                    "chasing). Act on ✅ VALIDATED only; let winners "
+                    "run; expect frequent small losses.")
 
         # ====================================================================
         # 🏆 BEST TRADES NOW — Unified ranked picks (S/A/B/C tiers)
