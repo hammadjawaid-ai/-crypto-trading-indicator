@@ -72,47 +72,69 @@ for idx, sym in enumerate(syms):
         px = c_now; e80 = float(ema80.iloc[t]); e200 = float(ema200.iloc[t])
         trend = "BULL" if px>e80>e200 else "BEAR" if px<e80<e200 else "MIXED"
         aligned = (side=="LONG" and trend=="BULL") or (side=="SHORT" and trend=="BEAR")
-        # forward MFE before stop
+        # SCALE-OUT simulation: half off at TP1 (+1.0 ATR), then move
+        # stop to breakeven and let the runner go to TP2 (+2.5 ATR).
+        # R unit = 1.2-ATR initial risk. Half-position each leg:
+        #   full stop before TP1        -> -1.0R
+        #   TP1 hit, runner stops at BE -> +0.417R (kept the partial)
+        #   TP1 hit, runner hits TP2    -> +1.458R
         entry = c_now
-        stop = entry - SL_MULT*a if side=="LONG" else entry + SL_MULT*a
-        mfe = 0.0; stopped = False
+        stop = entry - SL_MULT*a if side == "LONG" else entry + SL_MULT*a
+        tp1 = entry + 1.0*a if side == "LONG" else entry - 1.0*a
+        tp2 = entry + 2.5*a if side == "LONG" else entry - 2.5*a
+        PART = 0.5*(1.0/SL_MULT)      # +0.417R booked at TP1 (half)
+        RUN = 0.5*(2.5/SL_MULT)       # +1.042R if runner hits TP2
+        phase = "pre"; tp1_hit = False; res = None
         for fb in range(1, FORWARD+1):
-            fh=float(high.iloc[t+fb]); fl=float(low.iloc[t+fb])
-            if side=="LONG":
-                mfe=max(mfe,(fh-entry)/a)
-                if fl<=stop: stopped=True; break
-            else:
-                mfe=max(mfe,(entry-fl)/a)
-                if fh>=stop: stopped=True; break
-        sigs.append((side, fresh, aligned, mfe, stopped))
+            fh = float(high.iloc[t+fb]); fl = float(low.iloc[t+fb])
+            if phase == "pre":
+                hit_stop = (fl <= stop) if side == "LONG" else (fh >= stop)
+                hit_tp1 = (fh >= tp1) if side == "LONG" else (fl <= tp1)
+                if hit_stop:            # pessimistic: stop first
+                    res = -1.0; break
+                if hit_tp1:
+                    tp1_hit = True; phase = "runner"
+                    hit_tp2 = (fh >= tp2) if side == "LONG" else (fl <= tp2)
+                    if hit_tp2:
+                        res = PART + RUN; break
+            else:  # runner, stop at breakeven
+                hit_be = (fl <= entry) if side == "LONG" else (fh >= entry)
+                hit_tp2 = (fh >= tp2) if side == "LONG" else (fl <= tp2)
+                if hit_be:
+                    res = PART; break
+                if hit_tp2:
+                    res = PART + RUN; break
+        if res is None:
+            res = PART if tp1_hit else 0.0
+        sigs.append((side, fresh, aligned, res, tp1_hit))
     print(f"  [{idx+1}/{N_COINS}] {sym:12} cum {len(sigs)} "
           f"({time.time()-t0:.0f}s)")
 
-def exp_at(rows, tp):
-    rw = tp/SL_MULT; w=l=0
-    for *_, mf, st in rows:
-        if mf>=tp: w+=1
-        elif st: l+=1
-    n=len(rows)
-    return (w/n*100 if n else 0), ((w*rw - l)/n if n else 0)
+# rows: (side, fresh, aligned, res_R, tp1_hit)
+def scaleout(rows):
+    if not rows:
+        return 0, 0.0, 0.0
+    n = len(rows)
+    green = sum(1 for r in rows if r[4]) / n * 100      # booked partial
+    exp = sum(r[3] for r in rows) / n
+    full_win = sum(1 for r in rows if r[3] > 0.5) / n * 100  # runner ran
+    return green, exp, full_win
 
-_TPS = (1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0)
 def report(label, rows):
     if not rows:
         print(f"\n{label}: (none)"); return
+    g, e, fw = scaleout(rows)
     print(f"\n{label} (n={len(rows)}):")
-    best = max(exp_at(rows, x)[1] for x in _TPS)
-    for tp in _TPS:
-        wr, e = exp_at(rows, tp)
-        tag = "  <== best exp" if e == best else ""
-        if 60 <= wr <= 72:
-            tag += "  *** 60-70% win zone"
-        print(f"   TP {tp:.2f}  win {wr:5.1f}%  exp {e:+.3f}R{tag}")
+    print(f"   GREEN rate (booked +1ATR partial): {g:5.1f}%")
+    print(f"   runner-to-TP2 rate:               {fw:5.1f}%")
+    print(f"   expectancy:                        {e:+.3f}R")
 
 print("\n" + "="*64)
-print(f"15m GRIND — {len(sigs)} signals, {N_COINS} coins, ~30d, SL {SL_MULT}")
+print(f"15m GRIND SCALE-OUT — {len(sigs)} sigs, {N_COINS} coins, ~30d")
+print("  half off +1.0ATR -> stop to breakeven -> runner +2.5ATR")
 print("="*64)
 report("OVERALL", sigs)
-report("very-early + 1h-aligned", [r for r in sigs if r[1]=="very early" and r[2]])
+report("very-early + 1h-aligned (THE BOARD)",
+       [r for r in sigs if r[1]=="very early" and r[2]])
 report("aligned (any freshness)", [r for r in sigs if r[2]])
 print(f"\nDone in {time.time()-t0:.0f}s.")

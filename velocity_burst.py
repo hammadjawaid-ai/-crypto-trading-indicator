@@ -248,7 +248,12 @@ def scan_15m_early(symbols: list[str],
         #          TP 2.5 (+0.26R, 40% win); 60% win is reachable at
         #          TP 1.0 (+0.10R). 1.5 ATR is the balance — decent
         #          win rate AND healthy expectancy.
+        # GRIND uses SCALE-OUT (backtested ~60% green, +0.116R, n=654):
+        #   TP1 = +1.5 ATR (book half) · TP2 = +2.5 ATR (runner) ·
+        #   stop moves to breakeven after TP1. BURST keeps single
+        #   let-it-run target (4.5 ATR).
         _tp_mult = 1.5 if pattern == "grind" else 4.5
+        _tp2_mult = 2.5 if pattern == "grind" else 0.0
         _h, _l, _pc = df15["high"], df15["low"], close.shift(1)
         _tr = pd.concat([_h - _l, (_h - _pc).abs(),
                          (_l - _pc).abs()], axis=1).max(axis=1)
@@ -257,12 +262,16 @@ def scan_15m_early(symbols: list[str],
             if side == "LONG":
                 plan_stop = c_now - 1.2 * _atr15
                 plan_tp = c_now + _tp_mult * _atr15
+                plan_tp2 = (c_now + _tp2_mult * _atr15
+                            if _tp2_mult else 0.0)
             else:
                 plan_stop = c_now + 1.2 * _atr15
                 plan_tp = c_now - _tp_mult * _atr15
+                plan_tp2 = (c_now - _tp2_mult * _atr15
+                            if _tp2_mult else 0.0)
             plan_rr = _tp_mult / 1.2
         else:
-            plan_stop = plan_tp = 0.0
+            plan_stop = plan_tp = plan_tp2 = 0.0
             plan_rr = 0.0
         # How early are we? (directional magnitude already travelled)
         _mag = abs(move_1h)
@@ -313,6 +322,7 @@ def scan_15m_early(symbols: list[str],
             "plan_entry": round(c_now, 8),
             "plan_stop": round(plan_stop, 8),
             "plan_tp": round(plan_tp, 8),
+            "plan_tp2": round(plan_tp2, 8),
             "plan_rr": round(plan_rr, 2),
             "price": c_now,
         })

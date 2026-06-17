@@ -6552,7 +6552,7 @@ if active_section == "🧪 Paper Trader":
                     f"<span style='background:linear-gradient(90deg,"
                     f"#2ed47a,#00d4ff);color:#06121f;padding:2px 10px;"
                     f"border-radius:6px;font-size:0.72rem;"
-                    f"font-weight:900'>✅ VALIDATED ~52% win</span>"
+                    f"font-weight:900'>✅ SCALE-OUT ~60% green</span>"
                     f"<span style='background:rgba(46,212,122,0.15);"
                     f"color:#2ed47a;padding:2px 10px;border-radius:6px;"
                     f"font-size:0.72rem;font-weight:700'>1h "
@@ -6562,9 +6562,16 @@ if active_section == "🧪 Paper Trader":
                     f"<div style='color:#cfd2d8;font-size:0.84rem'>"
                     f"entry <b>{_g_e:g}</b> · stop {_g_s:g} "
                     f"<span style='color:#ff5c5c'>({_g_slp:+.1f}%)"
-                    f"</span> · target {_g_tp:g} <span style='color:"
-                    f"#2ed47a'>({_g_tpp:+.1f}%)</span> · R:R "
-                    f"{_g.get('plan_rr', 0):.2f}</div></div>",
+                    f"</span> · TP1 {_g_tp:g} <span style='color:"
+                    f"#2ed47a'>({_g_tpp:+.1f}%)</span>"
+                    + (f" · TP2 {_g.get('plan_tp2'):g} "
+                       f"<span style='color:#e0a92b'>(runner)</span>"
+                       if _g.get('plan_tp2') else "")
+                    + f"</div>"
+                    f"<div style='color:#8b8d98;font-size:0.72rem;"
+                    f"margin-top:3px'>📐 Scale-out: book half at TP1, "
+                    f"stop to breakeven, runner to TP2 (~60% green, "
+                    f"+0.12R backtested)</div></div>",
                     unsafe_allow_html=True)
                 _g_open_already = any(
                     p["symbol"] == _g["symbol"]
@@ -6577,6 +6584,12 @@ if active_section == "🧪 Paper Trader":
                         "symbol": _g["symbol"], "base": _g["base"],
                         "side": _g["side"], "stop": _g_s,
                         "target": _g_tp, "entry_low": _g_e,
+                        # SCALE-OUT: TP1 = target (book partial + move
+                        # to breakeven), TP2 = runner. paper_bot's
+                        # break-even + partial + chase-TP2 logic manages
+                        # it — the backtested ~60%-green model.
+                        "target_2": _g.get("plan_tp2") or 0,
+                        "chase_tp2_eligible": bool(_g.get("plan_tp2")),
                         "rr": _g.get("plan_rr", 0),
                         "confidence": int(_g.get("score", 0)),
                         "strength_factor": 0.7,
