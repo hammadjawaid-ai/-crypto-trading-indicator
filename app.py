@@ -6391,11 +6391,13 @@ if active_section == "🧪 Paper Trader":
                 f"(catch ~30-45 min earlier)",
                 expanded=bool(_eb_hits)):
             st.caption(
-                "Scans the 15m clock so a building burst shows BEFORE "
-                "the 1h candle closes. ⚠ Noisier than the 1h lane and "
-                "not yet backtested on 15m — a heads-up watchlist, not "
-                "an auto-buy. Best when 'very early' AND 1h trend "
-                "agrees. Trade smaller.")
+                "Scans the 15m clock so a move shows BEFORE the 1h "
+                "candle closes. Catches two patterns: 🔥 BURST "
+                "(explosive candle) and 📈 GRIND (steady staircase, "
+                "e.g. a coin ticking +4% over 2h on many small green "
+                "candles). ⚠ Noisier than the 1h lane; BURST is "
+                "backtested (✅ VALIDATED slice), GRIND is not yet. A "
+                "heads-up watchlist, not an auto-buy. Trade smaller.")
             if not _eb_hits:
                 st.caption("No 15m bursts building right now — calm "
                            "tape. The radar refreshes every 60s.")
@@ -6443,6 +6445,21 @@ if active_section == "🧪 Paper Trader":
                             f"R:R {_eb['plan_rr']:.1f} "
                             f"<span style='color:#8b8d98'>(let it run "
                             f"— ~21% win, big R)</span></div>")
+                    # Pattern chip — 🔥 BURST (explosive candle) vs
+                    # 📈 GRIND (steady staircase, e.g. XPL).
+                    _eb_pat = _eb.get("pattern", "burst")
+                    if _eb_pat == "grind":
+                        _eb_pat_chip = (
+                            "<span style='background:#6e8bff22;"
+                            "color:#6e8bff;padding:1px 9px;"
+                            "border-radius:5px;font-size:0.7rem;"
+                            "font-weight:800'>📈 GRIND</span> ")
+                    else:
+                        _eb_pat_chip = (
+                            "<span style='background:#ff8c0022;"
+                            "color:#ff8c00;padding:1px 9px;"
+                            "border-radius:5px;font-size:0.7rem;"
+                            "font-weight:800'>🔥 BURST</span> ")
                     st.markdown(
                         f"<div style='background:rgba(255,255,255,"
                         f"0.03);border:1px solid {_eb_fc}55;"
@@ -6454,6 +6471,7 @@ if active_section == "🧪 Paper Trader":
                         f"color:#06121f;padding:1px 9px;border-radius:"
                         f"5px;font-size:0.7rem;font-weight:800'>"
                         f"{_eb['side']}</span> "
+                        f"{_eb_pat_chip}"
                         f"{_eb_val_badge}"
                         f"<span style='background:{_eb_fc}22;"
                         f"color:{_eb_fc};padding:1px 9px;border-radius:"

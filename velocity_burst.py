@@ -152,6 +152,51 @@ def _score_burst(burst: pd.Series,
 
 
 # Convenience entrypoint for the ELITE composite to call directly
+def detect_grind(df: pd.DataFrame) -> tuple[float, str, str]:
+    """Detect a STEADY GRIND — a sustained staircase move that the
+    single-candle burst detector misses (e.g. XPL: +4.65% over 2h via
+    many small green candles, no explosive candle).
+
+    LONG when, over the last 8 fifteen-min candles (~2h):
+      - net move >= +2.5%
+      - >= 5 of 8 candles closed green
+      - price above the 15m EMA20 (uptrend intact)
+      - EMA20 rising
+    SHORT is the mirror. Returns (score, side, note).
+    """
+    if df is None or len(df) < 30:
+        return 0.0, "NEUTRAL", ""
+    close = df["close"]
+    n = 8
+    if len(close) < n + 1:
+        return 0.0, "NEUTRAL", ""
+    c_now = float(close.iloc[-1])
+    c_n = float(close.iloc[-(n + 1)])
+    if c_n <= 0:
+        return 0.0, "NEUTRAL", ""
+    net = (c_now / c_n - 1.0) * 100
+    greens = sum(1 for i in range(-n, 0)
+                 if float(close.iloc[i]) > float(close.iloc[i - 1]))
+    reds = n - greens
+    ema20 = close.ewm(span=20, adjust=False).mean()
+    e20 = float(ema20.iloc[-1])
+    e20_prev = float(ema20.iloc[-5]) if len(ema20) >= 5 else e20
+
+    # LONG grind
+    if (net >= 2.5 and greens >= 5 and c_now > e20 and e20 > e20_prev):
+        score = min(95, 60 + net * 2 + (greens - 5) * 3)
+        return (round(score, 1), "LONG",
+                f"grind +{net:.1f}% over 2h · {greens}/8 green · "
+                f"above EMA20")
+    # SHORT grind
+    if (net <= -2.5 and reds >= 5 and c_now < e20 and e20 < e20_prev):
+        score = min(95, 60 + abs(net) * 2 + (reds - 5) * 3)
+        return (round(score, 1), "SHORT",
+                f"grind {net:.1f}% over 2h · {reds}/8 red · "
+                f"below EMA20")
+    return 0.0, "NEUTRAL", ""
+
+
 def scan_15m_early(symbols: list[str],
                   max_results: int = 12) -> list[dict]:
     """🔥 Early Burst Radar — detect bursts BUILDING on the 15m clock.
@@ -179,11 +224,17 @@ def scan_15m_early(symbols: list[str],
             continue
         score, side, note = detect_burst(
             df15, vol_mult=2.5, range_mult=2.0, lookback=20)
-        # 65 floor (not 90) — this is a clearly-labelled EARLY heads-up
-        # radar, not the proven standalone lane. The 1h-trend check +
-        # 'how early' meter below are the real gatekeepers here.
+        pattern = "burst"
+        # If no explosive burst, check for a STEADY GRIND (XPL-style
+        # staircase) — catches sustained moves the burst detector
+        # misses. Grind is NOT yet backtested (burst is), so it's
+        # tagged distinctly and never gets the VALIDATED badge.
         if score < 65 or side not in ("LONG", "SHORT"):
-            continue
+            gscore, gside, gnote = detect_grind(df15)
+            if gscore >= 65 and gside in ("LONG", "SHORT"):
+                score, side, note, pattern = gscore, gside, gnote, "grind"
+            else:
+                continue
         close = df15["close"]
         c_now = float(close.iloc[-1])
         # Move over the last 4 fifteen-min candles ≈ the forming 1h bar
@@ -238,14 +289,17 @@ def scan_15m_early(symbols: list[str],
                            or (side == "SHORT" and trend_1h == "BEAR"))
         except Exception:
             pass
-        # VALIDATED-EDGE flag: very-early AND 1h-aligned = the +0.18R
-        # slice from the walk-forward. This is the only slice to act on.
-        validated = (freshness == "very early" and aligned)
+        # VALIDATED-EDGE flag: BURST + very-early + 1h-aligned = the
+        # +0.18R slice from the walk-forward. Grind is not backtested,
+        # so it never gets the validated badge.
+        validated = (pattern == "burst"
+                     and freshness == "very early" and aligned)
         out.append({
             "symbol": sym,
             "base": sym.replace("USDT", ""),
             "side": side,
             "score": score,
+            "pattern": pattern,
             "note": note,
             "move_1h_pct": round(move_1h, 2),
             "freshness": freshness,
