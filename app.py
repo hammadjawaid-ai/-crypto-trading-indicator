@@ -6359,6 +6359,91 @@ if active_section == "🧪 Paper Trader":
         _render_proven_edge("pt")
 
         # ====================================================================
+        # 🔥 EARLY BURST RADAR (15m) — catch fast movers EARLIER
+        # ====================================================================
+        # User: 'we caught ID at +10% — catch the burst a little earlier
+        # so we can ride along'. The 1h burst lane fires only after the
+        # 1h candle closes (structurally late on big moves). This radar
+        # scans the 15m clock — the same burst pattern shows ~30-45 min
+        # sooner. HONEST: 15m is noisier and NOT backtested on 15m, so
+        # it's a heads-up watchlist with a 'how early' meter + 1h-trend
+        # check, NOT an auto-buy. Confirm direction, trade smaller.
+        try:
+            import velocity_burst as _vb_radar
+
+            @st.cache_data(ttl=60, show_spinner=False)
+            def _scan_early_bursts(_bust: int):
+                try:
+                    _tops = binance_client.get_top_symbols(40)
+                    _syms = _tops["symbol"].tolist()[:35]
+                except Exception:
+                    return []
+                return _vb_radar.scan_15m_early(_syms, max_results=10)
+
+            _eb_hits = _scan_early_bursts(int(time.time() // 60))
+        except Exception:
+            _eb_hits = []
+
+        with st.expander(
+                f"🔥 Early Burst Radar (15m) — "
+                f"{len(_eb_hits)} fast mover"
+                f"{'s' if len(_eb_hits) != 1 else ''} building "
+                f"(catch ~30-45 min earlier)",
+                expanded=bool(_eb_hits)):
+            st.caption(
+                "Scans the 15m clock so a building burst shows BEFORE "
+                "the 1h candle closes. ⚠ Noisier than the 1h lane and "
+                "not yet backtested on 15m — a heads-up watchlist, not "
+                "an auto-buy. Best when 'very early' AND 1h trend "
+                "agrees. Trade smaller.")
+            if not _eb_hits:
+                st.caption("No 15m bursts building right now — calm "
+                           "tape. The radar refreshes every 60s.")
+            else:
+                _fresh_col = {"very early": "#2ed47a",
+                              "early": "#e0a92b",
+                              "extended": "#ff5c5c"}
+                for _eb in _eb_hits:
+                    _eb_side_col = ("#2ed47a" if _eb["side"] == "LONG"
+                                    else "#ff5c5c")
+                    _eb_fc = _fresh_col.get(_eb["freshness"], "#8b8d98")
+                    _eb_align = ("✅ 1h " + _eb["trend_1h"]
+                                 if _eb["aligned_1h"]
+                                 else f"⚠ 1h {_eb['trend_1h']} "
+                                      "(counter)")
+                    _eb_align_col = ("#2ed47a" if _eb["aligned_1h"]
+                                     else "#e0a92b")
+                    st.markdown(
+                        f"<div style='background:rgba(255,255,255,"
+                        f"0.03);border:1px solid {_eb_fc}55;"
+                        f"border-radius:10px;padding:9px 14px;"
+                        f"margin-bottom:5px'>"
+                        f"<span style='font-weight:900;font-size:"
+                        f"0.95rem'>{_eb['base']}</span> "
+                        f"<span style='background:{_eb_side_col};"
+                        f"color:#06121f;padding:1px 9px;border-radius:"
+                        f"5px;font-size:0.7rem;font-weight:800'>"
+                        f"{_eb['side']}</span> "
+                        f"<span style='background:{_eb_fc}22;"
+                        f"color:{_eb_fc};padding:1px 9px;border-radius:"
+                        f"5px;font-size:0.7rem;font-weight:800'>"
+                        f"🔥 {_eb['freshness'].upper()} "
+                        f"({_eb['move_1h_pct']:+.1f}% so far)</span> "
+                        f"<span style='background:{_eb_align_col}22;"
+                        f"color:{_eb_align_col};padding:1px 9px;"
+                        f"border-radius:5px;font-size:0.7rem;"
+                        f"font-weight:700'>{_eb_align}</span>"
+                        f"<div style='color:#9aa7c7;font-size:0.74rem;"
+                        f"margin-top:3px'>🚀 {_eb['note']}</div>"
+                        f"</div>",
+                        unsafe_allow_html=True)
+                st.caption(
+                    "🟢 very early = move <4% in (best entry) · "
+                    "🟡 early = 4-8% · 🔴 extended = >8% (you're "
+                    "chasing, like ID at +10%). Take the 🟢 ones with "
+                    "1h aligned.")
+
+        # ====================================================================
         # 🏆 BEST TRADES NOW — Unified ranked picks (S/A/B/C tiers)
         # ====================================================================
         # Per user request: consolidate ALL discovery sections into ONE

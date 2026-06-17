@@ -152,6 +152,95 @@ def _score_burst(burst: pd.Series,
 
 
 # Convenience entrypoint for the ELITE composite to call directly
+def scan_15m_early(symbols: list[str],
+                  max_results: int = 12) -> list[dict]:
+    """🔥 Early Burst Radar — detect bursts BUILDING on the 15m clock.
+
+    A big 1h burst is made of 15m candles that were each surging. By
+    scanning 15m we catch the SAME move ~30-45 min before the 1h candle
+    closes — earlier entry, same proven pattern, faster timeframe.
+
+    HONEST: 15m is noisier than 1h (more false starts), and this is NOT
+    yet walk-forward backtested on 15m. It surfaces candidates with a
+    'how early' meter + the 1h-trend check so the user can confirm
+    before acting. Trade these smaller.
+
+    Returns dicts sorted by score:
+      {symbol, base, side, score, note, move_1h_pct, freshness,
+       trend_1h, aligned_1h, price}
+    where freshness ∈ {'very early','early','extended'} based on how
+    much of the move has already happened.
+    """
+    out = []
+    for sym in symbols:
+        try:
+            df15 = binance_client.get_klines(sym, "15m", limit=60)
+        except Exception:
+            continue
+        score, side, note = detect_burst(
+            df15, vol_mult=2.5, range_mult=2.0, lookback=20)
+        # 65 floor (not 90) — this is a clearly-labelled EARLY heads-up
+        # radar, not the proven standalone lane. The 1h-trend check +
+        # 'how early' meter below are the real gatekeepers here.
+        if score < 65 or side not in ("LONG", "SHORT"):
+            continue
+        close = df15["close"]
+        c_now = float(close.iloc[-1])
+        # Move over the last 4 fifteen-min candles ≈ the forming 1h bar
+        c_4 = float(close.iloc[-5]) if len(close) >= 5 else c_now
+        move_1h = (c_now / c_4 - 1.0) * 100 if c_4 > 0 else 0.0
+        # How early are we? (directional magnitude already travelled)
+        _mag = abs(move_1h)
+        if _mag < 4:
+            freshness = "very early"
+        elif _mag < 8:
+            freshness = "early"
+        else:
+            freshness = "extended"   # like catching ID at +10%
+        # 1h trend check — does the bigger clock agree?
+        trend_1h = "?"
+        aligned = False
+        try:
+            df1h = binance_client.get_klines(sym, "1h", limit=60)
+            if df1h is not None and len(df1h) >= 50:
+                c1 = df1h["close"]
+                ema20 = c1.ewm(span=20, adjust=False).mean()
+                ema50 = c1.ewm(span=50, adjust=False).mean()
+                px = float(c1.iloc[-1])
+                e20 = float(ema20.iloc[-1])
+                e50 = float(ema50.iloc[-1])
+                if px > e20 > e50:
+                    trend_1h = "BULL"
+                elif px < e20 < e50:
+                    trend_1h = "BEAR"
+                else:
+                    trend_1h = "MIXED"
+                aligned = ((side == "LONG" and trend_1h == "BULL")
+                           or (side == "SHORT" and trend_1h == "BEAR"))
+        except Exception:
+            pass
+        out.append({
+            "symbol": sym,
+            "base": sym.replace("USDT", ""),
+            "side": side,
+            "score": score,
+            "note": note,
+            "move_1h_pct": round(move_1h, 2),
+            "freshness": freshness,
+            "trend_1h": trend_1h,
+            "aligned_1h": aligned,
+            "price": c_now,
+        })
+    # Rank: aligned-with-1h first, then freshness (earlier better),
+    # then score.
+    _fresh_rank = {"very early": 2, "early": 1, "extended": 0}
+    out.sort(key=lambda x: (1 if x["aligned_1h"] else 0,
+                            _fresh_rank.get(x["freshness"], 0),
+                            x["score"]),
+             reverse=True)
+    return out[:max_results]
+
+
 def lane_velocity_burst(df: pd.DataFrame) -> tuple[float, str, str]:
     """ELITE-composite-compatible entrypoint.
 
