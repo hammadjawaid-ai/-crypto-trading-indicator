@@ -6374,13 +6374,14 @@ if active_section == "🧪 Paper Trader":
             @st.cache_data(ttl=60, show_spinner=False)
             def _scan_early_bursts(_bust: int):
                 try:
-                    _tops = binance_client.get_top_symbols(60)
-                    _syms = _tops["symbol"].tolist()[:55]
+                    _tops = binance_client.get_top_symbols(110)
+                    _syms = _tops["symbol"].tolist()[:100]
                 except Exception:
                     return []
-                # Wider universe (55) + more results so EVERY firing
-                # mover surfaces, not just a handful.
-                return _vb_radar.scan_15m_early(_syms, max_results=24)
+                # Wide universe (top 100) — a pumping coin like SYN was
+                # rank #57 by volume, OUTSIDE the old top-55 scan, so it
+                # never even got looked at. Top 100 covers the movers.
+                return _vb_radar.scan_15m_early(_syms, max_results=30)
 
             _eb_hits = _scan_early_bursts(int(time.time() // 60))
         except Exception:

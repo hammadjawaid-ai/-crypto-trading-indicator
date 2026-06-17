@@ -29,6 +29,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+import binance_client
+
 
 def _atr(df: pd.DataFrame, n: int = 14) -> float:
     """Compute ATR over the last n candles (excluding the current burst
@@ -167,53 +169,92 @@ def _rsi_last(close: pd.Series, n: int = 14) -> float:
 
 
 def detect_grind(df: pd.DataFrame) -> tuple[float, str, str]:
-    """Detect a STRENGTH grind — a sustained directional run.
+    """Detect a STRENGTH run by CANDLE CLOSING STRENGTH.
 
-    Redefined 2026-06-12 (user): looser candle window + momentum
-    STRENGTH, not a rigid 8-candle staircase. Over the last 7 fifteen-
-    min candles a coin qualifies LONG when:
-      - >= 4 of 7 candles closed green (4-7 directional)
-      - net move >= +1.5%
-      - price above the 15m EMA20
-    SHORT is the mirror. The returned score is a STRENGTH read
-    (0-100) from directional-candle count + net move + RSI, so the
-    board can rank by how strongly a coin is firing. 1h confirmation
-    is layered on in scan_15m_early.
+    Redefined 2026-06-12 (user): "15m-30m, 3-7 candles one direction
+    (1-3 can be red), look at the STRENGTH of the candles — how
+    strongly they close — even with some red, vice versa for shorts."
+
+    Over the last 7 candles:
+      - directional candles = body candles closing the pick's way
+        (close>open for LONG). Need >= 3 of 7 (3-7, reds tolerated).
+      - CLOSE STRENGTH = where each directional candle closed in its
+        range: (close-low)/(high-low) for LONG (1.0 = closed at the
+        high = strong). This is the heart of it — strong closes, not
+        just green count.
+      - net move >= +1.0%, price > 15m EMA20.
+      - counter (red) candles only hurt if they have BIG bodies
+        (a strong red breaks the run; a shallow doji pullback is fine).
+    Score 0-100 weights close-strength heavily. SHORT mirrors.
     """
     if df is None or len(df) < 30:
         return 0.0, "NEUTRAL", ""
-    close = df["close"]
-    w = _GRIND_WIN
-    if len(close) < w + 1:
+    w = 7
+    o = df["open"].astype(float).to_numpy()
+    h = df["high"].astype(float).to_numpy()
+    l = df["low"].astype(float).to_numpy()
+    c = df["close"].astype(float).to_numpy()
+    if len(c) < w + 1:
         return 0.0, "NEUTRAL", ""
-    c_now = float(close.iloc[-1])
-    c_w = float(close.iloc[-(w + 1)])
+    c_now = c[-1]
+    c_w = c[-(w + 1)]
     if c_w <= 0:
         return 0.0, "NEUTRAL", ""
     net = (c_now / c_w - 1.0) * 100
-    greens = sum(1 for i in range(-w, 0)
-                 if float(close.iloc[i]) > float(close.iloc[i - 1]))
-    reds = w - greens
-    e20 = float(close.ewm(span=20, adjust=False).mean().iloc[-1])
-    rsi = _rsi_last(close)
+    e20 = float(df["close"].ewm(span=20, adjust=False).mean().iloc[-1])
+    rng = np.maximum(h - l, 1e-12)
 
-    def _strength(dir_count, net_abs, rsi_edge):
-        # 0-100: base 45, + directional candles, + net move, + RSI push
-        return min(98.0, 45 + (dir_count - _GRIND_MIN_DIR) * 6
-                   + min(20, net_abs * 4) + min(12, rsi_edge * 0.4))
+    def _run(direction):
+        """direction 'L' or 'S' — return (dir_count, close_strength,
+        counter_body, strong_dir_bonus) over the last w candles."""
+        idx = range(-w, 0)
+        dir_cnt = 0
+        close_strs = []
+        counter_bodies = []
+        for i in idx:
+            body = abs(c[i] - o[i]) / rng[i]
+            if direction == "L":
+                is_dir = c[i] > o[i]
+                close_pos = (c[i] - l[i]) / rng[i]   # 1=closed at high
+            else:
+                is_dir = c[i] < o[i]
+                close_pos = (h[i] - c[i]) / rng[i]   # 1=closed at low
+            if is_dir:
+                dir_cnt += 1
+                close_strs.append(close_pos * (0.4 + 0.6 * body))
+            else:
+                counter_bodies.append(body)
+        close_strength = (sum(close_strs) / len(close_strs)
+                          if close_strs else 0.0)
+        counter_body = (sum(counter_bodies) / len(counter_bodies)
+                        if counter_bodies else 0.0)
+        return dir_cnt, close_strength, counter_body
 
-    if (greens >= _GRIND_MIN_DIR and net >= _GRIND_MIN_NET
-            and c_now > e20):
-        sc = _strength(greens, abs(net), max(0, rsi - 50))
+    def _score(dir_cnt, close_strength, counter_body, net_abs):
+        # base 35; close-strength is the dominant term (up to +35);
+        # +candle count, +net move; - strong counter candles.
+        return float(np.clip(
+            35
+            + close_strength * 35
+            + (dir_cnt - 3) * 4
+            + min(15, net_abs * 2.5)
+            - counter_body * 18,
+            0, 100))
+
+    # LONG
+    dl, csl, cbl = _run("L")
+    if dl >= 3 and net >= 1.0 and c_now > e20:
+        sc = _score(dl, csl, cbl, abs(net))
         return (round(sc, 1), "LONG",
-                f"grind +{net:.1f}% · {greens}/{w} green 15m · "
-                f"RSI {rsi:.0f} · >EMA20")
-    if (reds >= _GRIND_MIN_DIR and net <= -_GRIND_MIN_NET
-            and c_now < e20):
-        sc = _strength(reds, abs(net), max(0, 50 - rsi))
+                f"grind +{net:.1f}% · {dl}/{w} green · close-strength "
+                f"{csl:.0%} · >EMA20")
+    # SHORT
+    ds, css, cbs = _run("S")
+    if ds >= 3 and net <= -1.0 and c_now < e20:
+        sc = _score(ds, css, cbs, abs(net))
         return (round(sc, 1), "SHORT",
-                f"grind {net:.1f}% · {reds}/{w} red 15m · "
-                f"RSI {rsi:.0f} · <EMA20")
+                f"grind {net:.1f}% · {ds}/{w} red · close-strength "
+                f"{css:.0%} · <EMA20")
     return 0.0, "NEUTRAL", ""
 
 
@@ -236,11 +277,17 @@ def scan_15m_early(symbols: list[str],
     where freshness ∈ {'very early','early','extended'} based on how
     much of the move has already happened.
     """
+    # TF stack (user 2026-06-12): 15m primary + 30m confirm. 5m was
+    # too fast — a coin like SYN (+65% on 1h) had already REVERSED on
+    # 5m (-6.6% last 40min) so 5m fired nothing, while 15m showed the
+    # real +24.7% run. 15m catches the move without whipsawing out.
     out = []
     for sym in symbols:
         try:
             df15 = binance_client.get_klines(sym, "15m", limit=60)
         except Exception:
+            continue
+        if df15 is None or len(df15) < 30:
             continue
         score, side, note = detect_burst(
             df15, vol_mult=2.5, range_mult=2.0, lookback=20)
@@ -251,7 +298,12 @@ def scan_15m_early(symbols: list[str],
         # tagged distinctly and never gets the VALIDATED badge.
         if score < 65 or side not in ("LONG", "SHORT"):
             gscore, gside, gnote = detect_grind(df15)
-            if gscore >= 65 and gside in ("LONG", "SHORT"):
+            # Floor 50 (was 65): detect_grind's strength score starts
+            # at 45, so a typical grind lands 50-64. The old 65 floor
+            # silently dropped almost every grind (incl. SYN). 50 lets
+            # firing coins show; the strict-validated flag still gates
+            # the proven slice.
+            if gscore >= 50 and gside in ("LONG", "SHORT"):
                 score, side, note, pattern = gscore, gside, gnote, "grind"
             else:
                 continue
@@ -301,14 +353,15 @@ def scan_15m_early(symbols: list[str],
             freshness = "early"
         else:
             freshness = "extended"   # like catching ID at +10%
-        # 1h confirmation — EMA trend AND candle direction (4 of last
-        # 6 1h candles same way), so "15m AND 1h, 4-7 candles one
-        # direction" per the user's spec.
+        # 30m confirmation — EMA trend AND candle direction (4 of last
+        # 6 30m candles same way), so "5m to 30m, 4-7 candles one
+        # direction" per the user's spec. (field kept as trend_1h /
+        # aligned_1h for UI compatibility — it now reflects 30m.)
         trend_1h = "?"
         aligned = False
         h1_candles_dir = 0
         try:
-            df1h = binance_client.get_klines(sym, "1h", limit=60)
+            df1h = binance_client.get_klines(sym, "30m", limit=60)
             if df1h is not None and len(df1h) >= 50:
                 c1 = df1h["close"]
                 ema20 = c1.ewm(span=20, adjust=False).mean()
