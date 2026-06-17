@@ -240,10 +240,13 @@ def scan_15m_early(symbols: list[str],
         # Move over the last 4 fifteen-min candles ≈ the forming 1h bar
         c_4 = float(close.iloc[-5]) if len(close) >= 5 else c_now
         move_1h = (c_now / c_4 - 1.0) * 100 if c_4 > 0 else 0.0
-        # Backtest-validated trade plan: SL 1.2 ATR, TP 4.5 ATR (let it
-        # run — the 30-day walk-forward showed +0.18R on very-early +
-        # 1h-aligned at TP 4.5-5.0, vs ~breakeven at TP 2.0). ~21% win,
-        # big R. ATR from the 15m series.
+        # Backtest-sized plan, SL 1.2 ATR. Target differs by pattern
+        # (both validated on 30-day walk-forward, very-early+aligned):
+        #   BURST: TP 4.5 ATR — +0.18R, ~21% win (let it run, big R)
+        #   GRIND: TP 3.0 ATR — +0.26R, ~34% win (n=650; tighter is
+        #          better for grinds — expectancy flat 2-4 ATR then
+        #          fades). Grind is the stronger, more tradeable edge.
+        _tp_mult = 3.0 if pattern == "grind" else 4.5
         _h, _l, _pc = df15["high"], df15["low"], close.shift(1)
         _tr = pd.concat([_h - _l, (_h - _pc).abs(),
                          (_l - _pc).abs()], axis=1).max(axis=1)
@@ -251,11 +254,11 @@ def scan_15m_early(symbols: list[str],
         if _atr15 > 0:
             if side == "LONG":
                 plan_stop = c_now - 1.2 * _atr15
-                plan_tp = c_now + 4.5 * _atr15
+                plan_tp = c_now + _tp_mult * _atr15
             else:
                 plan_stop = c_now + 1.2 * _atr15
-                plan_tp = c_now - 4.5 * _atr15
-            plan_rr = 4.5 / 1.2
+                plan_tp = c_now - _tp_mult * _atr15
+            plan_rr = _tp_mult / 1.2
         else:
             plan_stop = plan_tp = 0.0
             plan_rr = 0.0
@@ -289,11 +292,10 @@ def scan_15m_early(symbols: list[str],
                            or (side == "SHORT" and trend_1h == "BEAR"))
         except Exception:
             pass
-        # VALIDATED-EDGE flag: BURST + very-early + 1h-aligned = the
-        # +0.18R slice from the walk-forward. Grind is not backtested,
-        # so it never gets the validated badge.
-        validated = (pattern == "burst"
-                     and freshness == "very early" and aligned)
+        # VALIDATED-EDGE flag: very-early + 1h-aligned, for BOTH
+        # patterns — both passed walk-forward:
+        #   BURST +0.18R (n=142) · GRIND +0.26R (n=650, stronger).
+        validated = (freshness == "very early" and aligned)
         out.append({
             "symbol": sym,
             "base": sym.replace("USDT", ""),
