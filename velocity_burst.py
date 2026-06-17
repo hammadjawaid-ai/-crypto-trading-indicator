@@ -312,18 +312,20 @@ def scan_15m_early(symbols: list[str],
         # Move over the last 4 fifteen-min candles ≈ the forming 1h bar
         c_4 = float(close.iloc[-5]) if len(close) >= 5 else c_now
         move_1h = (c_now / c_4 - 1.0) * 100 if c_4 > 0 else 0.0
-        # Backtest-sized plan, SL 1.2 ATR. Target by pattern (both
-        # validated on the 30-day walk-forward, very-early + aligned):
-        #   BURST: TP 4.5 ATR — +0.18R, ~21% win (let it run, big R)
-        #   GRIND: TP 1.5 ATR — HIGH-WIN-RATE tuning per user goal:
-        #          ~52% win, +0.18R (n=653). The +EV sweet spot is
-        #          TP 2.5 (+0.26R, 40% win); 60% win is reachable at
-        #          TP 1.0 (+0.10R). 1.5 ATR is the balance — decent
-        #          win rate AND healthy expectancy.
-        # GRIND uses SCALE-OUT (backtested ~60% green, +0.116R, n=654):
-        #   TP1 = +1.5 ATR (book half) · TP2 = +2.5 ATR (runner) ·
-        #   stop moves to breakeven after TP1. BURST keeps single
-        #   let-it-run target (4.5 ATR).
+        # Plan: SL 1.2 ATR. HONEST re-backtest (2026-06-12, 25 coins
+        # ~30d 15m, this EXACT scale-out plan, no lookahead):
+        #   BURST: TP 4.5 ATR — let-it-run, big-R lottery (low win rate).
+        #   GRIND scale-out (TP1 +1.5 ATR book half -> stop to BE ->
+        #     runner TP2 +2.5 ATR):
+        #       LOOSE (score>=50, what surfaces): 46% green, +0.033R
+        #         — essentially BREAK-EVEN after fees. No real edge.
+        #       VALIDATED slice (strict-run net>=2.5%/8 + >=5 dir +
+        #         very-early + 30m-aligned): 48% green, +0.090R, n=791
+        #         — a REAL but THIN edge. This is the only slice worth
+        #         trading; everything else is visibility only.
+        #   IMPORTANT: the close-strength SCORE is anti-predictive at
+        #   the top (80+ bucket = -0.100R). It ranks display order only;
+        #   a higher grind score does NOT mean a better trade.
         _tp_mult = 1.5 if pattern == "grind" else 4.5
         _tp2_mult = 2.5 if pattern == "grind" else 0.0
         _h, _l, _pc = df15["high"], df15["low"], close.shift(1)
@@ -391,13 +393,15 @@ def scan_15m_early(symbols: list[str],
                 aligned = trend_ok and h1_candles_dir >= 4
         except Exception:
             pass
-        # VALIDATED flag — honest, backtest-driven:
-        #   The LOOSE 4/7 grind fires a lot but has NO reliable edge
-        #   (re-backtest: +0.027R, non-monotonic in strength). Only
-        #   the STRICT slice carries the proven +0.116R: a firm run
-        #   (net >= 2.5% over ~8 candles, >=5 directional) + very-early
-        #   + 1h-confirmed. So loose grinds SHOW (📈 firing, visibility)
-        #   but only the strict slice is ✅ VALIDATED.
+        # VALIDATED flag — honest, backtest-driven (re-measured
+        # 2026-06-12 with THIS exact scale-out plan):
+        #   The LOOSE grind (score>=50) fires a lot but has NO reliable
+        #   edge: +0.033R, ~46% green — break-even after fees. Only the
+        #   STRICT slice carries a real edge (+0.090R, 48% green,
+        #   n=791): a firm run (net >= 2.5% over ~8 candles, >=5
+        #   directional) + very-early + 30m-confirmed. So loose grinds
+        #   SHOW (📈 firing, visibility) but only the strict slice is
+        #   ✅ VALIDATED — and even that is a THIN edge, trade small.
         #   BURST -> keeps its backtested gate: very-early + aligned.
         if pattern == "grind":
             try:
@@ -438,7 +442,8 @@ def scan_15m_early(symbols: list[str],
             "plan_rr": round(plan_rr, 2),
             "price": c_now,
         })
-    # Rank: VALIDATED slice first (very-early + aligned = +0.18R), then
+    # Rank: VALIDATED slice first (strict-run + very-early + aligned =
+    # +0.090R, the only measured edge), then
     # aligned, then freshness, then score.
     _fresh_rank = {"very early": 2, "early": 1, "extended": 0}
     out.sort(key=lambda x: (1 if x["validated"] else 0,
