@@ -50,28 +50,45 @@ for idx, sym in enumerate(syms):
         a = float(atr.iloc[t] or 0)
         if a <= 0:
             continue
-        c_now = float(close.iloc[t]); c_8 = float(close.iloc[t-8])
-        if c_8 <= 0:
+        # NEW grind def (matches velocity_burst.detect_grind):
+        # 7-candle 15m window, >=4 directional, net >= 1.5%, > EMA20.
+        c_now = float(close.iloc[t]); c_w = float(close.iloc[t-7])
+        if c_w <= 0:
             continue
-        net = (c_now / c_8 - 1) * 100
-        greens = int(green.iloc[t-7:t+1].sum())
-        e20 = float(ema20.iloc[t]); e20p = float(ema20.iloc[t-4])
-        # LONG grind
-        if net >= NET_MIN and greens >= GREEN_MIN and c_now > e20 and e20 > e20p:
-            side = "LONG"
-        elif net <= -NET_MIN and (8-greens) >= GREEN_MIN and c_now < e20 and e20 < e20p:
-            side = "SHORT"
+        net = (c_now / c_w - 1) * 100
+        greens = int(green.iloc[t-6:t+1].sum())   # last 7 candles
+        reds = 7 - greens
+        e20 = float(ema20.iloc[t])
+        if net >= 1.5 and greens >= 4 and c_now > e20:
+            side = "LONG"; dir_count = greens
+        elif net <= -1.5 and reds >= 4 and c_now < e20:
+            side = "SHORT"; dir_count = reds
         else:
             continue
-        # freshness from last-4-bar move (the radar's meter)
-        c4 = float(close.iloc[t-4])
-        mv = (c_now/c4-1)*100 if c4 > 0 else 0
-        mag = abs(mv)
-        fresh = "very early" if mag < 4 else "early" if mag < 8 else "extended"
-        # 1h trend proxy
-        px = c_now; e80 = float(ema80.iloc[t]); e200 = float(ema200.iloc[t])
-        trend = "BULL" if px>e80>e200 else "BEAR" if px<e80<e200 else "MIXED"
-        aligned = (side=="LONG" and trend=="BULL") or (side=="SHORT" and trend=="BEAR")
+        # strength score (matches detect_grind._strength)
+        _up = close.diff().clip(lower=0).rolling(14).mean()
+        _dn = (-close.diff().clip(upper=0)).rolling(14).mean().replace(0, np.nan)
+        rsi = float((100 - 100/(1 + _up/_dn)).iloc[t] or 50)
+        rsi_edge = max(0, rsi-50) if side == "LONG" else max(0, 50-rsi)
+        strength = min(98.0, 45 + (dir_count-4)*6
+                       + min(20, abs(net)*4) + min(12, rsi_edge*0.4))
+        # 1h-equiv candle direction (every-4th 15m close, last 6) + trend
+        h1_dir = 0
+        for k in range(1, 7):
+            a_i, b_i = t-4*(k-1), t-4*k
+            if b_i < 0:
+                break
+            up = float(close.iloc[a_i]) > float(close.iloc[b_i])
+            if (side == "LONG" and up) or (side == "SHORT" and not up):
+                h1_dir += 1
+        e80 = float(ema80.iloc[t])
+        trend_ok = ((side == "LONG" and c_now > e80)
+                    or (side == "SHORT" and c_now < e80))
+        aligned = trend_ok and h1_dir >= 4
+        validated_new = (strength >= 70 and aligned)
+        fresh = "validated" if validated_new else "firing"
+        # stash strength + aligned for bucket analysis
+        _str_bucket = strength
         # SCALE-OUT simulation: half off at TP1 (+1.0 ATR), then move
         # stop to breakeven and let the runner go to TP2 (+2.5 ATR).
         # R unit = 1.2-ATR initial risk. Half-position each leg:
@@ -106,7 +123,7 @@ for idx, sym in enumerate(syms):
                     res = PART + RUN; break
         if res is None:
             res = PART if tp1_hit else 0.0
-        sigs.append((side, fresh, aligned, res, tp1_hit))
+        sigs.append((side, fresh, aligned, res, tp1_hit, _str_bucket))
     print(f"  [{idx+1}/{N_COINS}] {sym:12} cum {len(sigs)} "
           f"({time.time()-t0:.0f}s)")
 
@@ -130,11 +147,17 @@ def report(label, rows):
     print(f"   expectancy:                        {e:+.3f}R")
 
 print("\n" + "="*64)
-print(f"15m GRIND SCALE-OUT — {len(sigs)} sigs, {N_COINS} coins, ~30d")
+print(f"15m GRIND (NEW DEF) SCALE-OUT — {len(sigs)} sigs, "
+      f"{N_COINS} coins, ~30d")
+print("  4/7 15m candles + net>=1.5% + >EMA20; 1h: 4/6 candles + trend")
 print("  half off +1.0ATR -> stop to breakeven -> runner +2.5ATR")
 print("="*64)
-report("OVERALL", sigs)
-report("very-early + 1h-aligned (THE BOARD)",
-       [r for r in sigs if r[1]=="very early" and r[2]])
-report("aligned (any freshness)", [r for r in sigs if r[2]])
+report("ALL fired (any strength/1h)", sigs)
+print("\n--- 1h-CONFIRMED, by strength bucket ---")
+_al = [r for r in sigs if r[2]]   # 1h-aligned only
+report("  strength 70-79 + 1h", [r for r in _al if 70 <= r[5] < 80])
+report("  strength 80-89 + 1h", [r for r in _al if 80 <= r[5] < 90])
+report("  strength 90+   + 1h", [r for r in _al if r[5] >= 90])
+report("  strength 80+   + 1h (candidate board)",
+       [r for r in _al if r[5] >= 80])
 print(f"\nDone in {time.time()-t0:.0f}s.")

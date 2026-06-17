@@ -152,48 +152,68 @@ def _score_burst(burst: pd.Series,
 
 
 # Convenience entrypoint for the ELITE composite to call directly
-def detect_grind(df: pd.DataFrame) -> tuple[float, str, str]:
-    """Detect a STEADY GRIND — a sustained staircase move that the
-    single-candle burst detector misses (e.g. XPL: +4.65% over 2h via
-    many small green candles, no explosive candle).
+_GRIND_WIN = 7        # candle window (4-7 directional candles qualify)
+_GRIND_MIN_DIR = 4    # need >= this many candles in one direction
+_GRIND_MIN_NET = 1.5  # min % move over the window
 
-    LONG when, over the last 8 fifteen-min candles (~2h):
-      - net move >= +2.5%
-      - >= 5 of 8 candles closed green
-      - price above the 15m EMA20 (uptrend intact)
-      - EMA20 rising
-    SHORT is the mirror. Returns (score, side, note).
+
+def _rsi_last(close: pd.Series, n: int = 14) -> float:
+    d = close.diff()
+    up = d.clip(lower=0).rolling(n).mean()
+    dn = (-d.clip(upper=0)).rolling(n).mean()
+    rs = up / dn.replace(0, np.nan)
+    v = (100 - 100 / (1 + rs)).iloc[-1]
+    return float(v) if pd.notna(v) else 50.0
+
+
+def detect_grind(df: pd.DataFrame) -> tuple[float, str, str]:
+    """Detect a STRENGTH grind — a sustained directional run.
+
+    Redefined 2026-06-12 (user): looser candle window + momentum
+    STRENGTH, not a rigid 8-candle staircase. Over the last 7 fifteen-
+    min candles a coin qualifies LONG when:
+      - >= 4 of 7 candles closed green (4-7 directional)
+      - net move >= +1.5%
+      - price above the 15m EMA20
+    SHORT is the mirror. The returned score is a STRENGTH read
+    (0-100) from directional-candle count + net move + RSI, so the
+    board can rank by how strongly a coin is firing. 1h confirmation
+    is layered on in scan_15m_early.
     """
     if df is None or len(df) < 30:
         return 0.0, "NEUTRAL", ""
     close = df["close"]
-    n = 8
-    if len(close) < n + 1:
+    w = _GRIND_WIN
+    if len(close) < w + 1:
         return 0.0, "NEUTRAL", ""
     c_now = float(close.iloc[-1])
-    c_n = float(close.iloc[-(n + 1)])
-    if c_n <= 0:
+    c_w = float(close.iloc[-(w + 1)])
+    if c_w <= 0:
         return 0.0, "NEUTRAL", ""
-    net = (c_now / c_n - 1.0) * 100
-    greens = sum(1 for i in range(-n, 0)
+    net = (c_now / c_w - 1.0) * 100
+    greens = sum(1 for i in range(-w, 0)
                  if float(close.iloc[i]) > float(close.iloc[i - 1]))
-    reds = n - greens
-    ema20 = close.ewm(span=20, adjust=False).mean()
-    e20 = float(ema20.iloc[-1])
-    e20_prev = float(ema20.iloc[-5]) if len(ema20) >= 5 else e20
+    reds = w - greens
+    e20 = float(close.ewm(span=20, adjust=False).mean().iloc[-1])
+    rsi = _rsi_last(close)
 
-    # LONG grind
-    if (net >= 2.5 and greens >= 5 and c_now > e20 and e20 > e20_prev):
-        score = min(95, 60 + net * 2 + (greens - 5) * 3)
-        return (round(score, 1), "LONG",
-                f"grind +{net:.1f}% over 2h · {greens}/8 green · "
-                f"above EMA20")
-    # SHORT grind
-    if (net <= -2.5 and reds >= 5 and c_now < e20 and e20 < e20_prev):
-        score = min(95, 60 + abs(net) * 2 + (reds - 5) * 3)
-        return (round(score, 1), "SHORT",
-                f"grind {net:.1f}% over 2h · {reds}/8 red · "
-                f"below EMA20")
+    def _strength(dir_count, net_abs, rsi_edge):
+        # 0-100: base 45, + directional candles, + net move, + RSI push
+        return min(98.0, 45 + (dir_count - _GRIND_MIN_DIR) * 6
+                   + min(20, net_abs * 4) + min(12, rsi_edge * 0.4))
+
+    if (greens >= _GRIND_MIN_DIR and net >= _GRIND_MIN_NET
+            and c_now > e20):
+        sc = _strength(greens, abs(net), max(0, rsi - 50))
+        return (round(sc, 1), "LONG",
+                f"grind +{net:.1f}% · {greens}/{w} green 15m · "
+                f"RSI {rsi:.0f} · >EMA20")
+    if (reds >= _GRIND_MIN_DIR and net <= -_GRIND_MIN_NET
+            and c_now < e20):
+        sc = _strength(reds, abs(net), max(0, 50 - rsi))
+        return (round(sc, 1), "SHORT",
+                f"grind {net:.1f}% · {reds}/{w} red 15m · "
+                f"RSI {rsi:.0f} · <EMA20")
     return 0.0, "NEUTRAL", ""
 
 
@@ -281,9 +301,12 @@ def scan_15m_early(symbols: list[str],
             freshness = "early"
         else:
             freshness = "extended"   # like catching ID at +10%
-        # 1h trend check — does the bigger clock agree?
+        # 1h confirmation — EMA trend AND candle direction (4 of last
+        # 6 1h candles same way), so "15m AND 1h, 4-7 candles one
+        # direction" per the user's spec.
         trend_1h = "?"
         aligned = False
+        h1_candles_dir = 0
         try:
             df1h = binance_client.get_klines(sym, "1h", limit=60)
             if df1h is not None and len(df1h) >= 50:
@@ -299,14 +322,50 @@ def scan_15m_early(symbols: list[str],
                     trend_1h = "BEAR"
                 else:
                     trend_1h = "MIXED"
-                aligned = ((side == "LONG" and trend_1h == "BULL")
-                           or (side == "SHORT" and trend_1h == "BEAR"))
+                # 1h candle direction over last 6
+                if side == "LONG":
+                    h1_candles_dir = sum(
+                        1 for i in range(-6, 0)
+                        if float(c1.iloc[i]) > float(c1.iloc[i - 1]))
+                else:
+                    h1_candles_dir = sum(
+                        1 for i in range(-6, 0)
+                        if float(c1.iloc[i]) < float(c1.iloc[i - 1]))
+                trend_ok = ((side == "LONG" and trend_1h != "BEAR")
+                            or (side == "SHORT" and trend_1h != "BULL"))
+                # 1h confirms when EMA trend isn't against AND >=4/6
+                # 1h candles run the pick's way.
+                aligned = trend_ok and h1_candles_dir >= 4
         except Exception:
             pass
-        # VALIDATED-EDGE flag: very-early + 1h-aligned, for BOTH
-        # patterns — both passed walk-forward:
-        #   BURST +0.18R (n=142) · GRIND +0.26R (n=650, stronger).
-        validated = (freshness == "very early" and aligned)
+        # VALIDATED flag — honest, backtest-driven:
+        #   The LOOSE 4/7 grind fires a lot but has NO reliable edge
+        #   (re-backtest: +0.027R, non-monotonic in strength). Only
+        #   the STRICT slice carries the proven +0.116R: a firm run
+        #   (net >= 2.5% over ~8 candles, >=5 directional) + very-early
+        #   + 1h-confirmed. So loose grinds SHOW (📈 firing, visibility)
+        #   but only the strict slice is ✅ VALIDATED.
+        #   BURST -> keeps its backtested gate: very-early + aligned.
+        if pattern == "grind":
+            try:
+                _c8 = float(close.iloc[-9]) if len(close) >= 9 else c_now
+                _net8 = (c_now / _c8 - 1.0) * 100 if _c8 > 0 else 0.0
+                if side == "LONG":
+                    _dir8 = sum(1 for i in range(-8, 0)
+                                if float(close.iloc[i])
+                                > float(close.iloc[i - 1]))
+                    _strict_run = _net8 >= 2.5 and _dir8 >= 5
+                else:
+                    _dir8 = sum(1 for i in range(-8, 0)
+                                if float(close.iloc[i])
+                                < float(close.iloc[i - 1]))
+                    _strict_run = _net8 <= -2.5 and _dir8 >= 5
+            except Exception:
+                _strict_run = False
+            validated = (_strict_run
+                         and freshness == "very early" and aligned)
+        else:
+            validated = (freshness == "very early" and aligned)
         out.append({
             "symbol": sym,
             "base": sym.replace("USDT", ""),
