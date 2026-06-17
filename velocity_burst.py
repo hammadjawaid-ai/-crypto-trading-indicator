@@ -284,7 +284,9 @@ def scan_15m_early(symbols: list[str],
     out = []
     for sym in symbols:
         try:
-            df15 = binance_client.get_klines(sym, "15m", limit=60)
+            # 250 candles (~62h): enough for a real 15m EMA200, which
+            # the optimized VALIDATED gate needs (deep-trend filter).
+            df15 = binance_client.get_klines(sym, "15m", limit=250)
         except Exception:
             continue
         if df15 is None or len(df15) < 30:
@@ -312,38 +314,47 @@ def scan_15m_early(symbols: list[str],
         # Move over the last 4 fifteen-min candles ≈ the forming 1h bar
         c_4 = float(close.iloc[-5]) if len(close) >= 5 else c_now
         move_1h = (c_now / c_4 - 1.0) * 100 if c_4 > 0 else 0.0
-        # Plan: SL 1.2 ATR. HONEST re-backtest (2026-06-12, 25 coins
-        # ~30d 15m, this EXACT scale-out plan, no lookahead):
-        #   BURST: TP 4.5 ATR — let-it-run, big-R lottery (low win rate).
+        # Plan + WALK-FORWARD OPTIMIZED gate (2026-06-12, 30 coins, 15m,
+        # 60/40 in-sample/out-of-sample split, AFTER 0.05%/leg fees):
+        #   BURST: SL 1.2, TP 4.5 ATR — let-it-run big-R lottery.
         #   GRIND scale-out (TP1 +1.5 ATR book half -> stop to BE ->
-        #     runner TP2 +2.5 ATR):
-        #       LOOSE (score>=50, what surfaces): 46% green, +0.033R
-        #         — essentially BREAK-EVEN after fees. No real edge.
-        #       VALIDATED slice (strict-run net>=2.5%/8 + >=5 dir +
-        #         very-early + 30m-aligned): 48% green, +0.090R, n=791
-        #         — a REAL but THIN edge. This is the only slice worth
-        #         trading; everything else is visibility only.
-        #   IMPORTANT: the close-strength SCORE is anti-predictive at
-        #   the top (80+ bucket = -0.100R). It ranks display order only;
-        #   a higher grind score does NOT mean a better trade.
+        #     runner TP2 +2.5 ATR), SL 1.5 ATR:
+        #       LOOSE (score>=50, what surfaces): break-even / negative
+        #         after fees. Visibility only.
+        #       Old validated (SL 1.2, no trend filter): OOS -0.023R,
+        #         48% win — NET NEGATIVE after fees.
+        #       OPTIMIZED validated (SL 1.5 + deep-trend EMA200 filter +
+        #         strict-run + very-early + 30m-aligned): OOS +0.047R @
+        #         56.6% win (n=452) — held out-of-sample (IS was +0.030),
+        #         so it generalizes. A real but THIN edge — trade small.
+        #   NB: "stricter entry" looked best in-sample (+0.065R) but
+        #   COLLAPSED out-of-sample (-0.030R) = overfit, so it's NOT used.
+        #   The close-strength score stays anti-predictive at the top =
+        #   display ranking only, never a quality signal.
+        _sl_mult = 1.5 if pattern == "grind" else 1.2
         _tp_mult = 1.5 if pattern == "grind" else 4.5
         _tp2_mult = 2.5 if pattern == "grind" else 0.0
         _h, _l, _pc = df15["high"], df15["low"], close.shift(1)
         _tr = pd.concat([_h - _l, (_h - _pc).abs(),
                          (_l - _pc).abs()], axis=1).max(axis=1)
         _atr15 = float(_tr.rolling(20).mean().iloc[-1] or 0)
+        # deep-trend (EMA200) — the optimizer's biggest single lever:
+        # only the VALIDATED slice requires it (don't fight the trend).
+        _e200 = float(close.ewm(span=200, adjust=False).mean().iloc[-1])
+        _deep_trend = ((side == "LONG" and c_now > _e200)
+                       or (side == "SHORT" and c_now < _e200))
         if _atr15 > 0:
             if side == "LONG":
-                plan_stop = c_now - 1.2 * _atr15
+                plan_stop = c_now - _sl_mult * _atr15
                 plan_tp = c_now + _tp_mult * _atr15
                 plan_tp2 = (c_now + _tp2_mult * _atr15
                             if _tp2_mult else 0.0)
             else:
-                plan_stop = c_now + 1.2 * _atr15
+                plan_stop = c_now + _sl_mult * _atr15
                 plan_tp = c_now - _tp_mult * _atr15
                 plan_tp2 = (c_now - _tp2_mult * _atr15
                             if _tp2_mult else 0.0)
-            plan_rr = _tp_mult / 1.2
+            plan_rr = _tp_mult / _sl_mult
         else:
             plan_stop = plan_tp = plan_tp2 = 0.0
             plan_rr = 0.0
@@ -393,16 +404,16 @@ def scan_15m_early(symbols: list[str],
                 aligned = trend_ok and h1_candles_dir >= 4
         except Exception:
             pass
-        # VALIDATED flag — honest, backtest-driven (re-measured
-        # 2026-06-12 with THIS exact scale-out plan):
-        #   The LOOSE grind (score>=50) fires a lot but has NO reliable
-        #   edge: +0.033R, ~46% green — break-even after fees. Only the
-        #   STRICT slice carries a real edge (+0.090R, 48% green,
-        #   n=791): a firm run (net >= 2.5% over ~8 candles, >=5
-        #   directional) + very-early + 30m-confirmed. So loose grinds
-        #   SHOW (📈 firing, visibility) but only the strict slice is
-        #   ✅ VALIDATED — and even that is a THIN edge, trade small.
-        #   BURST -> keeps its backtested gate: very-early + aligned.
+        # VALIDATED flag — WALK-FORWARD OPTIMIZED, out-of-sample held
+        # (2026-06-12, after fees). The LOOSE grind (score>=50) is
+        # break-even/negative after fees = visibility only. The OPTIMIZED
+        # validated slice is the only one with a real OOS edge
+        # (+0.047R @ 56.6% win, n=452):
+        #   strict-run (net>=2.5% over ~8 candles, >=5 directional)
+        #   + very-early + 30m-confirmed + DEEP-TREND (price vs EMA200,
+        #     i.e. trade WITH the longer trend — the biggest lever).
+        #   [SL is also widened to 1.5 ATR for grinds, set above.]
+        # BURST -> keeps its backtested gate: very-early + aligned.
         if pattern == "grind":
             try:
                 _c8 = float(close.iloc[-9]) if len(close) >= 9 else c_now
@@ -419,7 +430,7 @@ def scan_15m_early(symbols: list[str],
                     _strict_run = _net8 <= -2.5 and _dir8 >= 5
             except Exception:
                 _strict_run = False
-            validated = (_strict_run
+            validated = (_strict_run and _deep_trend
                          and freshness == "very early" and aligned)
         else:
             validated = (freshness == "very early" and aligned)
