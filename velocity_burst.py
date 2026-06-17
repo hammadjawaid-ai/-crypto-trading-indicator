@@ -240,13 +240,15 @@ def scan_15m_early(symbols: list[str],
         # Move over the last 4 fifteen-min candles ≈ the forming 1h bar
         c_4 = float(close.iloc[-5]) if len(close) >= 5 else c_now
         move_1h = (c_now / c_4 - 1.0) * 100 if c_4 > 0 else 0.0
-        # Backtest-sized plan, SL 1.2 ATR. Target differs by pattern
-        # (both validated on 30-day walk-forward, very-early+aligned):
+        # Backtest-sized plan, SL 1.2 ATR. Target by pattern (both
+        # validated on the 30-day walk-forward, very-early + aligned):
         #   BURST: TP 4.5 ATR — +0.18R, ~21% win (let it run, big R)
-        #   GRIND: TP 3.0 ATR — +0.26R, ~34% win (n=650; tighter is
-        #          better for grinds — expectancy flat 2-4 ATR then
-        #          fades). Grind is the stronger, more tradeable edge.
-        _tp_mult = 3.0 if pattern == "grind" else 4.5
+        #   GRIND: TP 1.5 ATR — HIGH-WIN-RATE tuning per user goal:
+        #          ~52% win, +0.18R (n=653). The +EV sweet spot is
+        #          TP 2.5 (+0.26R, 40% win); 60% win is reachable at
+        #          TP 1.0 (+0.10R). 1.5 ATR is the balance — decent
+        #          win rate AND healthy expectancy.
+        _tp_mult = 1.5 if pattern == "grind" else 4.5
         _h, _l, _pc = df15["high"], df15["low"], close.shift(1)
         _tr = pd.concat([_h - _l, (_h - _pc).abs(),
                          (_l - _pc).abs()], axis=1).max(axis=1)

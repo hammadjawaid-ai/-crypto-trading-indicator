@@ -96,15 +96,18 @@ def exp_at(rows, tp):
     n=len(rows)
     return (w/n*100 if n else 0), ((w*rw - l)/n if n else 0)
 
+_TPS = (1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0)
 def report(label, rows):
     if not rows:
         print(f"\n{label}: (none)"); return
     print(f"\n{label} (n={len(rows)}):")
-    best = max(exp_at(rows,x)[1] for x in (2,3,4,5,6))
-    for tp in (2.0,3.0,4.0,5.0,6.0):
-        wr,e = exp_at(rows,tp)
-        print(f"   TP {tp:.1f}  win {wr:5.1f}%  exp {e:+.3f}R"
-              + ("  <== best" if e==best else ""))
+    best = max(exp_at(rows, x)[1] for x in _TPS)
+    for tp in _TPS:
+        wr, e = exp_at(rows, tp)
+        tag = "  <== best exp" if e == best else ""
+        if 60 <= wr <= 72:
+            tag += "  *** 60-70% win zone"
+        print(f"   TP {tp:.2f}  win {wr:5.1f}%  exp {e:+.3f}R{tag}")
 
 print("\n" + "="*64)
 print(f"15m GRIND — {len(sigs)} signals, {N_COINS} coins, ~30d, SL {SL_MULT}")

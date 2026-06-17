@@ -6496,6 +6496,108 @@ if active_section == "🧪 Paper Trader":
                     "run; expect frequent small losses.")
 
         # ====================================================================
+        # 📈 GRIND TRADES — dedicated board (high win-rate, validated)
+        # ====================================================================
+        # User: make grind its own part of Paper Trader like ELITE /
+        # TRADE THIS NOW. Shows VALIDATED grind setups (very-early +
+        # 1h-aligned) as openable cards, tuned to the high-win-rate
+        # target (TP 1.5 ATR ~52% backtested win, +0.18R, n=653).
+        _grinds = [h for h in _eb_hits
+                   if h.get("pattern") == "grind"
+                   and h.get("validated")]
+        st.markdown(
+            "<div style='display:flex;align-items:center;gap:12px;"
+            "margin-top:24px;margin-bottom:6px'>"
+            "<span style='font-size:1.35rem;font-weight:900;"
+            "background:linear-gradient(135deg,#6e8bff,#00d4ff);"
+            "-webkit-background-clip:text;-webkit-text-fill-color:"
+            "transparent;background-clip:text'>📈 GRIND TRADES</span>"
+            "<span style='color:#aab;font-size:0.82rem'>"
+            "validated staircase momentum · ~52% backtested win "
+            "(+0.18R, n=653) · the XPL pattern</span></div>",
+            unsafe_allow_html=True)
+        if not _grinds:
+            st.caption(
+                "No validated grind right now. A grind qualifies when "
+                "a coin is ticking up/down steadily (5+/8 candles), "
+                "very-early (<4% in this hour), AND the 1h trend "
+                "agrees. The board fills the moment one does — it "
+                "refreshes every 60s.")
+        else:
+            for _gi, _g in enumerate(_grinds):
+                _g_side_col = ("#2ed47a" if _g["side"] == "LONG"
+                               else "#ff5c5c")
+                _g_em = "🟢" if _g["side"] == "LONG" else "🩸"
+                _g_e = _g.get("plan_entry", _g["price"])
+                _g_s = _g.get("plan_stop", 0)
+                _g_tp = _g.get("plan_tp", 0)
+                _g_sgn = 1 if _g["side"] == "LONG" else -1
+                _g_slp = (_g_sgn * (_g_s - _g_e) / _g_e * 100
+                          if _g_e else 0)
+                _g_tpp = (_g_sgn * (_g_tp - _g_e) / _g_e * 100
+                          if _g_e else 0)
+                _gc1, _gc2 = st.columns([5, 1])
+                _gc1.markdown(
+                    f"<div style='background:rgba(110,139,255,0.05);"
+                    f"border:1px solid {_g_side_col}55;border-radius:"
+                    f"12px;padding:12px 16px;margin-bottom:6px'>"
+                    f"<div style='display:flex;align-items:center;"
+                    f"gap:10px;flex-wrap:wrap;margin-bottom:5px'>"
+                    f"<span style='font-size:1.05rem;font-weight:900'>"
+                    f"📈 {_g['base']}</span>"
+                    f"<span style='background:{_g_side_col};"
+                    f"color:#06121f;padding:2px 12px;border-radius:6px;"
+                    f"font-size:0.74rem;font-weight:800'>{_g_em} "
+                    f"{_g['side']}</span>"
+                    f"<span style='background:linear-gradient(90deg,"
+                    f"#2ed47a,#00d4ff);color:#06121f;padding:2px 10px;"
+                    f"border-radius:6px;font-size:0.72rem;"
+                    f"font-weight:900'>✅ VALIDATED ~52% win</span>"
+                    f"<span style='background:rgba(46,212,122,0.15);"
+                    f"color:#2ed47a;padding:2px 10px;border-radius:6px;"
+                    f"font-size:0.72rem;font-weight:700'>1h "
+                    f"{_g['trend_1h']} aligned</span></div>"
+                    f"<div style='color:#9aa7c7;font-size:0.76rem;"
+                    f"margin-bottom:5px'>🚀 {_g['note']}</div>"
+                    f"<div style='color:#cfd2d8;font-size:0.84rem'>"
+                    f"entry <b>{_g_e:g}</b> · stop {_g_s:g} "
+                    f"<span style='color:#ff5c5c'>({_g_slp:+.1f}%)"
+                    f"</span> · target {_g_tp:g} <span style='color:"
+                    f"#2ed47a'>({_g_tpp:+.1f}%)</span> · R:R "
+                    f"{_g.get('plan_rr', 0):.2f}</div></div>",
+                    unsafe_allow_html=True)
+                _g_open_already = any(
+                    p["symbol"] == _g["symbol"]
+                    for p in pb_state.get("open", []))
+                if _g_open_already:
+                    _gc2.caption("✓ open")
+                elif _gc2.button("📥 Open", key=f"grind_{_g['symbol']}",
+                                 use_container_width=True):
+                    _g_alert = {
+                        "symbol": _g["symbol"], "base": _g["base"],
+                        "side": _g["side"], "stop": _g_s,
+                        "target": _g_tp, "entry_low": _g_e,
+                        "rr": _g.get("plan_rr", 0),
+                        "confidence": int(_g.get("score", 0)),
+                        "strength_factor": 0.7,
+                    }
+                    _g_opened = paper_bot.open_position(
+                        pb_state, _g_alert, prices.get(_g["symbol"]))
+                    if _g_opened:
+                        paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                        st.success(f"Opened {_g['side']} {_g['base']}")
+                        st.rerun()
+                    else:
+                        st.warning("Could not open (already open / "
+                                   "invalid plan).")
+            st.caption(
+                "⚠ Grind = steady staircase momentum. Tuned for win "
+                "rate (TP 1.5 ATR ≈ 52% backtested). For more $/trade "
+                "let it run further; for ~60% win take profit tighter. "
+                "Still real money risk — size 1-2%, recent 30-day "
+                "backtest, no fees modeled.")
+
+        # ====================================================================
         # 🏆 BEST TRADES NOW — Unified ranked picks (S/A/B/C tiers)
         # ====================================================================
         # Per user request: consolidate ALL discovery sections into ONE
