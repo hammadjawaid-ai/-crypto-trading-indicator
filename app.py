@@ -6374,11 +6374,13 @@ if active_section == "🧪 Paper Trader":
             @st.cache_data(ttl=60, show_spinner=False)
             def _scan_early_bursts(_bust: int):
                 try:
-                    _tops = binance_client.get_top_symbols(40)
-                    _syms = _tops["symbol"].tolist()[:35]
+                    _tops = binance_client.get_top_symbols(60)
+                    _syms = _tops["symbol"].tolist()[:55]
                 except Exception:
                     return []
-                return _vb_radar.scan_15m_early(_syms, max_results=10)
+                # Wider universe (55) + more results so EVERY firing
+                # mover surfaces, not just a handful.
+                return _vb_radar.scan_15m_early(_syms, max_results=24)
 
             _eb_hits = _scan_early_bursts(int(time.time() // 60))
         except Exception:
@@ -6502,9 +6504,17 @@ if active_section == "🧪 Paper Trader":
         # TRADE THIS NOW. Shows VALIDATED grind setups (very-early +
         # 1h-aligned) as openable cards, tuned to the high-win-rate
         # target (TP 1.5 ATR ~52% backtested win, +0.18R, n=653).
-        _grinds = [h for h in _eb_hits
-                   if h.get("pattern") == "grind"
-                   and h.get("validated")]
+        # EVERY firing grind — not just the validated slice. Tiered:
+        # ✅ VALIDATED (very-early + 1h-aligned, proven +EV) ranked
+        # first, then 📈 FIRING (strong momentum but outside the proven
+        # slice). User: "should be for every coin that is firing high,
+        # not the XPL pattern only."
+        _grinds = sorted(
+            [h for h in _eb_hits if h.get("pattern") == "grind"],
+            key=lambda h: (1 if h.get("validated") else 0,
+                           h.get("score", 0)),
+            reverse=True)
+        _n_val = sum(1 for h in _grinds if h.get("validated"))
         st.markdown(
             "<div style='display:flex;align-items:center;gap:12px;"
             "margin-top:24px;margin-bottom:6px'>"
@@ -6513,16 +6523,17 @@ if active_section == "🧪 Paper Trader":
             "-webkit-background-clip:text;-webkit-text-fill-color:"
             "transparent;background-clip:text'>📈 GRIND TRADES</span>"
             "<span style='color:#aab;font-size:0.82rem'>"
-            "validated staircase momentum · ~52% backtested win "
-            "(+0.18R, n=653) · the XPL pattern</span></div>",
+            "every coin building strong steady momentum · "
+            f"{len(_grinds)} firing ({_n_val} ✅ validated) · "
+            "scale-out, ~52% backtested win on the validated slice"
+            "</span></div>",
             unsafe_allow_html=True)
         if not _grinds:
             st.caption(
-                "No validated grind right now. A grind qualifies when "
-                "a coin is ticking up/down steadily (5+/8 candles), "
-                "very-early (<4% in this hour), AND the 1h trend "
-                "agrees. The board fills the moment one does — it "
-                "refreshes every 60s.")
+                "No coin is firing a grind right now (needs a steady "
+                "≥2.5% / 2h move, 5+/8 candles one direction, above "
+                "EMA20). Scans the top 55 movers, refreshes every 60s "
+                "— a card appears the moment one fires.")
         else:
             for _gi, _g in enumerate(_grinds):
                 _g_side_col = ("#2ed47a" if _g["side"] == "LONG"
@@ -6536,10 +6547,32 @@ if active_section == "🧪 Paper Trader":
                           if _g_e else 0)
                 _g_tpp = (_g_sgn * (_g_tp - _g_e) / _g_e * 100
                           if _g_e else 0)
+                # Tier badge: ✅ VALIDATED (proven +EV) vs 📈 FIRING
+                # (momentum, outside the proven slice — confirm yourself)
+                _g_val = _g.get("validated")
+                if _g_val:
+                    _g_badge = (
+                        "<span style='background:linear-gradient(90deg,"
+                        "#2ed47a,#00d4ff);color:#06121f;padding:2px "
+                        "10px;border-radius:6px;font-size:0.72rem;"
+                        "font-weight:900'>✅ VALIDATED · scale-out</span>")
+                else:
+                    _g_badge = (
+                        "<span style='background:rgba(224,169,43,0.18);"
+                        "color:#e0a92b;padding:2px 10px;border-radius:"
+                        "6px;font-size:0.72rem;font-weight:800;border:"
+                        "1px solid rgba(224,169,43,0.4)'>📈 FIRING · "
+                        "not proven slice</span>")
+                _g_al_txt = (f"1h {_g['trend_1h']} aligned"
+                             if _g.get("aligned_1h")
+                             else f"⚠ 1h {_g['trend_1h']} (not aligned)")
+                _g_al_col = ("#2ed47a" if _g.get("aligned_1h")
+                             else "#e0a92b")
+                _g_border = _g_side_col if _g_val else "#e0a92b"
                 _gc1, _gc2 = st.columns([5, 1])
                 _gc1.markdown(
                     f"<div style='background:rgba(110,139,255,0.05);"
-                    f"border:1px solid {_g_side_col}55;border-radius:"
+                    f"border:1px solid {_g_border}66;border-radius:"
                     f"12px;padding:12px 16px;margin-bottom:6px'>"
                     f"<div style='display:flex;align-items:center;"
                     f"gap:10px;flex-wrap:wrap;margin-bottom:5px'>"
@@ -6549,14 +6582,13 @@ if active_section == "🧪 Paper Trader":
                     f"color:#06121f;padding:2px 12px;border-radius:6px;"
                     f"font-size:0.74rem;font-weight:800'>{_g_em} "
                     f"{_g['side']}</span>"
-                    f"<span style='background:linear-gradient(90deg,"
-                    f"#2ed47a,#00d4ff);color:#06121f;padding:2px 10px;"
-                    f"border-radius:6px;font-size:0.72rem;"
-                    f"font-weight:900'>✅ SCALE-OUT ~60% green</span>"
-                    f"<span style='background:rgba(46,212,122,0.15);"
-                    f"color:#2ed47a;padding:2px 10px;border-radius:6px;"
-                    f"font-size:0.72rem;font-weight:700'>1h "
-                    f"{_g['trend_1h']} aligned</span></div>"
+                    f"{_g_badge}"
+                    f"<span style='background:{_g_al_col}22;"
+                    f"color:{_g_al_col};padding:2px 10px;border-radius:"
+                    f"6px;font-size:0.72rem;font-weight:700'>"
+                    f"{_g_al_txt}</span>"
+                    f"<span style='color:#8b8d98;font-size:0.7rem'>"
+                    f"{_g['freshness']}</span></div>"
                     f"<div style='color:#9aa7c7;font-size:0.76rem;"
                     f"margin-bottom:5px'>🚀 {_g['note']}</div>"
                     f"<div style='color:#cfd2d8;font-size:0.84rem'>"
