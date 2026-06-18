@@ -226,6 +226,16 @@ Setup edge (build_setup, scale-out, AFTER fees):
 
 - **Convergence-qualified picks did WORSE than baseline pattern_scout.**
   The meta-filter selects worse trades, not better. **Does NOT validate.**
+- **Salvage attempt (v2, 2026-06-18):** tried rebuilding convergence on
+  the PROVEN ingredients (deep-trend EMA200 + multi-TF + score≥80),
+  60/40 IS/OOS, after fees. Every gate was a MIRAGE — great in-sample,
+  collapsed out-of-sample:
+  · baseline: IS −0.170R / OOS −0.137R
+  · +deep: IS +0.163R / OOS −0.184R
+  · +deep+mtf+score80: **IS +0.367R @ 64.7% win / OOS −0.246R @ 35%**
+  Classic overfitting — the base signal is negative and NO filter
+  rescues it OOS. **Convergence/pattern_scout is not salvageable as a
+  tradeable edge.** Demote it; rely on SST1 conv≥70 for "best trades."
 
 ### Pattern-Scout tiers (S/A/B/C) — 10 coins, AFTER 0.18% costs
 | Tier | Net win @24h | Net avg @24h |
