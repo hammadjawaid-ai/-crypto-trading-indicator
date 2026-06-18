@@ -11462,6 +11462,9 @@ if active_section == "🧪 Paper Trader":
         # shows a STRONG+ signal that fired in the last 12h, framed as a
         # hypothetical trade: entry price, current price, % since fire,
         # whether TP1/SL was touched. Acts as accountability + audit.
+        # HIDDEN per user 2026-06-18 — flip this to True to bring the
+        # RECENT TRADES section back on the Paper Trader page.
+        _SHOW_RECENT_TRADES = False
         try:
             _all_fires_now = signal_fires.load_fires(SIGNAL_FIRES_FILE)
             _rf_recent = signal_fires.recent_fires(
@@ -11492,7 +11495,7 @@ if active_section == "🧪 Paper Trader":
                 len(f.get("active_lanes") or []),
                 float(f.get("score") or 0)),
             reverse=True)
-        if _rf_recent:
+        if _rf_recent and _SHOW_RECENT_TRADES:
             # Premium header
             _rf_winning = sum(1 for f in _rf_recent if f.get("winning"))
             _rf_losing = sum(1 for f in _rf_recent
