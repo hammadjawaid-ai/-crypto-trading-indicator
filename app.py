@@ -8492,10 +8492,20 @@ if active_section == "🧪 Paper Trader":
             _pk_side = (_pk_s.get("side") or "").upper()
             _pk_combined = float(_pk[0] or 0)
             _pk_fc_label = _pk[1] or ""
-            # Count independent system agreements
+            # Count independent system agreements — VALIDATED weighting
+            # (2026-06-18 backtests). Only counters with MEASURED edge get
+            # a quality vote:
+            #   • forecast-aligned 3/3  → +0.142R (proven, the user's edge)
+            #   • ELITE side-match      → thin positive
+            #   • SURE SHOT meta        → composite of mostly-proven chips
+            # CONVERGENCE is NOT counted — it backtested NEGATIVE (worse
+            # than baseline, collapsed out-of-sample). It still shows as a
+            # ⚡ context chip, but it can no longer certify a pick onto the
+            # openable board. Net effect: every surfaced pick now carries a
+            # proven corroboration; forecast-aligned hero picks are
+            # unaffected, convergence-only picks drop out. Reversible —
+            # re-add the _convergence_syms line to restore old behavior.
             _qg_count = 0
-            if _pk_sym in _convergence_syms:
-                _qg_count += 1
             if _pk_sym in _sure_shot_syms:
                 _qg_count += 1
             _pk_elite = _ql_elite_lookup.get(_pk_sym)
