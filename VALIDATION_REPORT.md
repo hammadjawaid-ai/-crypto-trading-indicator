@@ -270,8 +270,14 @@ Setup edge (build_setup, scale-out, AFTER fees):
 aligned)** — NOT in raw tier labels or single meta-filters. High win rate
 + profit only coexist in the top-conviction slice of each engine.
 
-**Corrections still open to wire:**
-- Velocity burst floor → 90 (high impact).
-- Predictor setups → gate on `aligned=True`.
-- Convergence → demote (it's not an edge).
-- (SST1 conv≥70 gate: DONE.)
+**Corrections — status:**
+- ✅ SST1 conv≥70 gate (openable only) — DONE.
+- ✅ TOP CONVICTION: Convergence dropped as a quality vote — DONE.
+- ✅ Predictor best-setups board gated on `aligned=True` (+0.142R vs
+  −0.109R) — DONE.
+- ✅ Velocity burst: kept "proven" at 90 (the only defensible band) +
+  added a separate "⚡ EARLY (85+, unconfirmed)" flag — DONE.
+  · Tried lowering proven floor to 85 (user ask): the 85-89 band is
+    NOT validatable — swings −0.48R to +0.50R between IS/OOS on tiny
+    samples (lane fires too rarely). So 85-89 shows as EARLY, never
+    PROVEN. Only 90+ holds an edge.

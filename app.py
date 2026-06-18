@@ -11057,6 +11057,13 @@ if active_section == "🧪 Paper Trader":
                                  if ln in _early_lanes]
                     _ep["_early_lanes"] = _ep_early
                     _ep["_vb_proven"] = _ep_vb >= 90
+                    # 85-89 = EARLY (unconfirmed): catches the burst ~one
+                    # step sooner for awareness, but it is NOT backtest-
+                    # proven — the 85-89 band is noise/negative OOS (swings
+                    # -0.48R to +0.50R on tiny samples), only 90+ holds a
+                    # defensible edge (+0.164R). So 85-89 shows as "early",
+                    # never as the proven 90+ tag.
+                    _ep["_vb_early"] = (85 <= _ep_vb < 90)
                 _u_single = sorted(
                     [p for p in _u_other
                      if p.get("symbol") not in _u_strongest_syms],
@@ -11307,8 +11314,12 @@ if active_section == "🧪 Paper Trader":
                     _u_early = _u.get("_early_lanes") or []
                     _u_early_chip = ""
                     if _u_early:
-                        _u_vb_tag = (" · 🚀 burst 90+"
-                                     if _u.get("_vb_proven") else "")
+                        if _u.get("_vb_proven"):
+                            _u_vb_tag = " · 🚀 burst 90+ (proven)"
+                        elif _u.get("_vb_early"):
+                            _u_vb_tag = " · ⚡ burst 85+ (early)"
+                        else:
+                            _u_vb_tag = ""
                         _u_early_chip = (
                             f"<span style='background:linear-gradient("
                             f"90deg,#ff8c00,#ffd700);color:#1a1a1a;"
@@ -15826,7 +15837,13 @@ if active_section == "🔮 Predictor":
                 continue
             if not setup:
                 continue
-            # Quality gate: tradeable R:R + decent confidence.
+            # Quality gate. VALIDATED 2026-06-18 (predictor backtest, after
+            # fees): ALIGNED setups (all horizons agree) = +0.142R; NOT
+            # aligned = -0.109R (loses). So the best-setups board surfaces
+            # ONLY the proven aligned slice. Leaning/mixed setups stay off
+            # it (still visible via single-coin lookup, marked "⚠ leaning").
+            if not setup.get("aligned"):
+                continue
             if setup["rr"] < 1.4 or setup["conf"] < 60:
                 continue
             # Rank score — confidence + alignment bonus + R:R nudge
