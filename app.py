@@ -14288,9 +14288,14 @@ if active_section == "🎯 Sure Shot Trader":
     @st.cache_data(ttl=120, show_spinner=False)
     def _run_sureshot_pipeline(_bust: int, _use_llm: bool) -> dict:
         """Cached 3-agent run. _bust busts the cache on demand."""
+        # Wider candidate pool so SST1 can surface MORE conv>=70 picks
+        # when the market genuinely aligns (user: don't limit the count).
+        # min_score=70 is the ELITE candidate floor, NOT the openable gate
+        # (that stays conv>=70 on the conviction composite) — so the
+        # backtested 72%-win quality is preserved; we only stop truncating.
         _scan = _es_ss.scan_unified(
-            scan_n=40, interval="1h",
-            min_score=70.0, max_picks=20) or []
+            scan_n=60, interval="1h",
+            min_score=70.0, max_picks=40) or []
         _elite = {p.get("symbol"): p for p in _scan}
         try:
             _conv = compute_convergence_picks("1h", scan_n=50) or []
@@ -14312,10 +14317,15 @@ if active_section == "🎯 Sure Shot Trader":
                 _headlines = _ndf[_ncol].head(8).astype(str).tolist()
         except Exception:
             _headlines = []
+        # max_picks=24 (was 6): never truncate genuine conv>=70 picks —
+        # show every one the market produces. det_floor=55 and the conv>=70
+        # openable gate are UNCHANGED, so quality / win rate cannot drop;
+        # this only removes the count cap. conv>=70 fires rarely, so in
+        # practice this shows all of them without flooding the board.
         _res = _ssa.run_pipeline(
             _scan, _regime, _conv_syms, _sure_syms, _elite,
             news_headlines=_headlines, det_floor=55.0, llm_top_n=3,
-            use_llm=_use_llm, max_picks=6)
+            use_llm=_use_llm, max_picks=24)
         # Enrich the shown picks with 1h/4h/1d prediction (cached in
         # this 3-min window). Only the picks the user will see.
         try:
