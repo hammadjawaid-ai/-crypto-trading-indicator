@@ -34,13 +34,13 @@ import binance_client
 import experimental_signals as es
 import indicators
 
-N_COINS = 15
+N_COINS = 6                # foreground-safe (~7min); bg runs get reaped
 WARMUP = 220
 LOOKFWD = 24
-SAMPLE_EVERY = 8           # every 8h (speed)
+SAMPLE_EVERY = 10
 ELITE_FLOOR = 70.0
 SST1_FLOOR = 55.0
-KLINE_1H = 1000            # ~42 days
+KLINE_1H = 900             # ~37 days
 
 def _ema(s, n): return s.ewm(span=n, adjust=False).mean()
 
