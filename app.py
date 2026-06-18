@@ -14391,9 +14391,11 @@ if active_section == "🎯 Sure Shot Trader":
     if _ss_sure:
         _ss_alert_items = []
         for _p in _ss_sure:
+            _p_conv = float(_p.get("conviction") or 0)
+            if _p_conv < 70:
+                continue  # only the proven conv>=70 tier pings
             _p_base = _p.get("base", _p.get("symbol", "?"))
             _p_side = (_p.get("side") or "").upper()
-            _p_conv = float(_p.get("conviction") or 0)
             _p_llm = (_p.get("llm") or {}).get("verdict", "")
             _ss_alert_items.append({
                 "id": (f"sureshot:{_p.get('symbol')}:{_p_side}:"
@@ -14436,7 +14438,11 @@ if active_section == "🎯 Sure Shot Trader":
             pass
 
     # --- Sure-shot cards ------------------------------------------------
-    st.markdown("### 🎯 Best trades now — 🎯 SURE SHOT or ✅ OK to trade")
+    st.markdown("### 🎯 Best trades now — only 🎯 SURE SHOT (conv ≥ 70) is openable")
+    st.caption(
+        "Backtested 20 coins / 674 picks: **conv ≥ 70 = 72% win, +1.15R** "
+        "(proven edge). The OK tier (55-69) loses (−0.04R) so it's shown "
+        "**👁 watch-only** — visible for awareness, not openable.")
     _ss_fallback = _ss_pipe.get("fallback") or []
     _ss_render = _ss_sure if _ss_sure else _ss_fallback
     if not _ss_sure and _ss_fallback:
@@ -14477,10 +14483,10 @@ if active_section == "🎯 Sure Shot Trader":
                     "font-weight:900'>🎯 SURE SHOT</span>")
             else:
                 _qual_html = (
-                    "<span style='background:rgba(46,212,122,0.18);"
-                    "color:#2ed47a;padding:2px 10px;border-radius:6px;"
+                    "<span style='background:rgba(139,141,152,0.18);"
+                    "color:#aab;padding:2px 10px;border-radius:6px;"
                     "font-size:0.72rem;font-weight:800;border:1px solid "
-                    "rgba(46,212,122,0.4)'>✅ OK TRADE</span>")
+                    "rgba(139,141,152,0.4)'>👁 OK · WATCH ONLY</span>")
             _side_col = "#2ed47a" if _pk_side == "LONG" else "#ff5c5c"
             _side_emoji = "🟢" if _pk_side == "LONG" else "🩸"
             _entry = float(_pk_plan.get("entry") or 0)
@@ -14573,8 +14579,20 @@ if active_section == "🎯 Sure Shot Trader":
                 _already_open = any(
                     p["symbol"] == _pk_sym
                     for p in _ss_state.get("open", []))
+                # PROVEN GATE: only conv>=70 (SURE SHOT) is openable.
+                # 20-coin walk-forward (674 picks): conv>=70 = 72% win,
+                # +1.15R; the OK tier (55-69) LOSES (-0.04R). So OK +
+                # below-bar picks are watch-only — visible, not tradeable.
+                _pk_tradeable = (_pk_quality == "SURE SHOT"
+                                 and not _pk.get("below_consensus"))
                 if _already_open:
                     st.caption("✓ open")
+                elif not _pk_tradeable:
+                    st.caption("👁 watch")
+                    st.markdown(
+                        "<div style='font-size:0.62rem;color:#8b8d98;"
+                        "line-height:1.2'>below conv 70<br>(unproven "
+                        "tier)</div>", unsafe_allow_html=True)
                 elif st.button("📥 Open", key=f"ss_open_{_pk_sym}",
                                use_container_width=True):
                     _ss_alert = {
