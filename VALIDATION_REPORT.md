@@ -135,21 +135,37 @@ numbers are appended below as they finish.**
 > a reduced-but-honest scope. Samples are smaller than the overnight
 > plan intended but the signal is clear.
 
-### SST1 (3-agent pipeline) — 6 coins, ~37d, 103 picks
+### SST1 (3-agent pipeline) — ✅ COMPLETE: 20 coins, ~46d, 674 picks
 Conservative reconstruction (no CONVERGENCE/SURE/regime bonuses, 2-TF
-proxy — so the live pipeline could score a bit higher):
+proxy — so the LIVE pipeline's conv≥70 tier is likely at least this
+good). Run in checkpointed chunks (resumable; survives laptop-close).
 
-| Tier | Win rate | R:R | Expectancy |
+| Tier | Win rate | R:R | Expectancy | Sample |
+|---|---|---|---|---|
+| **SURE SHOT (conv≥70)** | **72.4%** | 1.97 | **+1.152R** | 39 (29 resolved) |
+| ALL gated (conv≥55) | 36.4% | 1.83 | +0.031R | 674 (486 res) |
+| OK (conv 55-69) | 34.1% | 1.82 | −0.037R | 635 (457 res) |
+
+- **conv≥70 SURE SHOT is a REAL, strong edge: ~72% win, +1.15R.** Held
+  across the whole sample (50→57→71→75→72% as coins were added).
+- **The OK tier (55-69) loses** — it's the noise dragging ALL-gated to
+  break-even.
+- **Correction (high value): SST1 surfaces conv≥70 ONLY as tradeable;**
+  OK tier → watch-only. Turns SST1 from break-even into a 72%-win edge.
+- Caveat: 29 resolved = moderate sample (encouraging, keep watching
+  live). conv≥70 fires selectively (~39 in 46d / 20 coins, <1/day).
+
+### Grind candle-window sweep (user q: 5 or 6 candles vs 7?)
+After-fee, +trend gate, scale-out. **Answer: no — 7 is best, fewer hurts.**
+
+| TF | 5 candles | 6 candles | 7 candles |
 |---|---|---|---|
-| ALL gated (conv≥55) | 34.2% | 1.82 | **−0.036R** |
-| **SURE SHOT (conv≥70)** | 50.0% | 2.00 | **+0.499R** (n=5 ⚠️) |
-| OK (conv 55-69) | 33.3% | 1.81 | −0.064R |
+| 5m | −0.217R | −0.201R | −0.204R (fee drag — all lose) |
+| 15m | −0.113R | −0.120R | **−0.084R** (best of the three) |
 
-- **The bulk tier (OK, 55-69) loses** — 33% win ≈ random baseline.
-- Only **conv≥70 SURE SHOT** shows edge (+0.499R) but fired just 5× in
-  37d — too few to trust; treat as promising, not proven.
-- **Correction:** SST1 should only surface **conv≥70** as tradeable; the
-  OK tier is watch-only. Get a bigger conv≥70 sample before trusting it.
+- Shorter window catches earlier but adds noise → worse expectancy.
+- (All negative here = loose gate; the live grind is +0.078R only via
+  the strict validation gate, not the candle count.) **Keep 7 candles.**
 
 ### 5m GRIND (user's earlier-entry idea) — 25 coins, ~14d, AFTER fees
 Tested to spec: 7 candles, ≥5 directional, 1-2 opposites tolerated &

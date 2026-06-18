@@ -34,13 +34,20 @@ import binance_client
 import experimental_signals as es
 import indicators
 
-N_COINS = 6                # foreground-safe (~7min); bg runs get reaped
-WARMUP = 220
+N_COINS = 20               # thorough; checkpoints per coin so a closed
+WARMUP = 220               # laptop / interruption never loses progress
 LOOKFWD = 24
-SAMPLE_EVERY = 10
+SAMPLE_EVERY = 6           # dense sample for accurate win rate
 ELITE_FLOOR = 70.0
 SST1_FLOOR = 55.0
-KLINE_1H = 900             # ~37 days
+KLINE_1H = 1100            # ~46 days
+ROWS_FILE = ".sst1_rows.jsonl"      # durable per-pick log (resume)
+PROGRESS_FILE = ".sst1_progress.txt"  # human-readable running stats
+# Process at most this many NEW coins per invocation so each run finishes
+# inside one foreground response (~9 min) — immune to laptop-close. Re-run
+# to resume the next chunk; checkpoints make it lossless. Override via env.
+import os as _os_env
+MAX_NEW_PER_RUN = int(_os_env.environ.get("SST1_MAX_NEW", "3"))
 
 def _ema(s, n): return s.ewm(span=n, adjust=False).mean()
 
@@ -79,12 +86,66 @@ def sst1_conviction(score, tier, n_lanes, rr, aligned2, against2):
         conv -= 6
     return max(0.0, min(100.0, conv))
 
+import json, os
+
+def _load_checkpoint():
+    """Resume: read prior rows + which coins already finished."""
+    rows, done = [], set()
+    if not os.path.exists(ROWS_FILE):
+        return rows, done
+    try:
+        with open(ROWS_FILE, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                obj = json.loads(line)
+                if "done_coin" in obj:
+                    done.add(obj["done_coin"])
+                else:
+                    rows.append((obj["q"], obj["conv"], obj["out"], obj["rr"]))
+    except Exception:
+        pass
+    return rows, done
+
+def _append_rows(sym, new_rows):
+    """Durably append a coin's picks + a done-marker (crash-safe)."""
+    with open(ROWS_FILE, "a", encoding="utf-8") as f:
+        for (q, conv, out, rr) in new_rows:
+            f.write(json.dumps({"q": q, "conv": round(conv, 1),
+                                "out": out, "rr": round(rr, 3),
+                                "sym": sym}) + "\n")
+        f.write(json.dumps({"done_coin": sym}) + "\n")
+        f.flush()
+
+def stats(rs):
+    resolved = [r for r in rs if r[2] in ("WIN", "LOSS")]
+    w = sum(1 for r in resolved if r[2] == "WIN")
+    n = len(resolved)
+    wr = w/n*100 if n else 0
+    avg_rr = np.mean([r[3] for r in resolved]) if resolved else 0
+    exp = (w*avg_rr - (n-w)) / n if n else 0
+    return len(rs), n, wr, exp, avg_rr
+
 print(f"Fetching top {N_COINS}…")
 syms = binance_client.get_top_symbols(N_COINS)["symbol"].tolist()[:N_COINS]
 
-rows = []
+rows, _done = _load_checkpoint()
+if _done:
+    print(f"RESUME: {len(_done)} coins already done, {len(rows)} picks "
+          f"loaded. Skipping: {', '.join(sorted(_done))}")
 t0 = time.time()
+_new_this_run = 0
 for i, sym in enumerate(syms):
+    if sym in _done:
+        print(f"  [{i+1}/{N_COINS}] {sym:12} (cached)")
+        continue
+    if _new_this_run >= MAX_NEW_PER_RUN:
+        print(f"\n[CHUNK LIMIT] {MAX_NEW_PER_RUN} new coins done this run. "
+              f"Re-run to resume the next chunk (checkpointed).")
+        break
+    _new_this_run += 1
+    _coin_rows = []
     try:
         df1 = binance_client.get_klines(sym, "1h", limit=KLINE_1H)
         df4 = binance_client.get_klines(sym, "4h", limit=400)
@@ -153,22 +214,27 @@ for i, sym in enumerate(syms):
             out = "AMBIG"
         else:
             out = "TIMEOUT"
-        rows.append((quality, conv, out, rr))
+        _coin_rows.append((quality, conv, out, rr))
+    # CHECKPOINT: durably persist this coin before moving on, so a closed
+    # laptop / interruption never loses it and a re-run resumes here.
+    rows.extend(_coin_rows)
+    _append_rows(sym, _coin_rows)
+    _tot, _n, _wr, _exp, _arr = stats(rows)
+    try:
+        with open(PROGRESS_FILE, "w", encoding="utf-8") as pf:
+            pf.write(f"SST1 running — {i+1}/{N_COINS} coins, "
+                     f"{len(rows)} picks ({_n} resolved)\n"
+                     f"win {_wr:.1f}%  R:R {_arr:.2f}  exp {_exp:+.3f}R\n")
+    except Exception:
+        pass
     print(f"  [{i+1}/{N_COINS}] {sym:12} cum {len(rows)} "
-          f"({time.time()-t0:.0f}s)")
+          f"(win {_wr:.1f}% exp {_exp:+.3f}R, {time.time()-t0:.0f}s)")
 
-def stats(rs):
-    resolved = [r for r in rs if r[2] in ("WIN", "LOSS")]
-    w = sum(1 for r in resolved if r[2] == "WIN")
-    n = len(resolved)
-    wr = w/n*100 if n else 0
-    # expectancy: win pays avg rr, loss -1
-    avg_rr = np.mean([r[3] for r in resolved]) if resolved else 0
-    exp = (w*avg_rr - (n-w)) / n if n else 0
-    return len(rs), n, wr, exp, avg_rr
-
+_coins_done = len(_done) + _new_this_run
 print("\n" + "="*64)
-print(f"SST1 UNIT BACKTEST — {len(rows)} picks, {N_COINS} coins, ~60d 1h")
+_tag = "COMPLETE" if _coins_done >= N_COINS else f"PARTIAL ({_coins_done}/{N_COINS} coins)"
+print(f"SST1 UNIT BACKTEST [{_tag}] — {len(rows)} picks, "
+      f"{_coins_done} coins, ~46d 1h")
 print("  (conservative: no CONV/SURE/regime bonuses, 2-TF proxy)")
 print("="*64)
 for label, sub in (("ALL gated (conv>=55)", rows),
