@@ -41,8 +41,8 @@ This is why "win rate" alone is misleading — context matters.
 | smc_sweep (long) | 7% | −1.34% | n=129 | ❌ Broken |
 | vwap_reclaim / reclaim / engulfing | 17-25% | negative | mixed | ❌ Negative |
 
-**⏳ Running now:** SST1 · Convergence · Predictor · ELITE-by-tier ·
-Pattern Scout tiers (S/A/B/C) with costs.
+**✅ ALL 13 SYSTEMS VALIDATED** — see the consolidated verdict at the
+bottom of this report for the full ranking + corrections.
 
 ---
 
@@ -187,5 +187,81 @@ penalized by their close strength, scale-out exit.
   that filtering would lift it is disproven. Could be shown as a
   visibility-only "⚡ early" marker, clearly labeled NOT tradeable.
 
-_still pending: convergence, predictor, elite_by_tier, tiers_with_costs
-(running in foreground next)._
+### ELITE composite by tier — 15 coins, 725 fires (% ret @24h, gross)
+| Tier | Win | Avg ret | n |
+|---|---|---|---|
+| MAX | 66.7% | −7.27% | 3 (noise) |
+| HIGH | 41.4% | −0.43% | 29 |
+| STRONG | 47.8% | +0.57% | 508 |
+| STANDARD | 54.6% | +0.77% | 185 |
+| Overall | 49.4% | +0.55% (~+0.37% net) | 725 |
+
+- **Raw ELITE tier label is NOT monotonic** — STANDARD wins more than
+  STRONG/HIGH; MAX/HIGH samples tiny/negative. Lane-stacking didn't help
+  (4+ lanes −3.45%, n=13).
+- **Takeaway:** SST1's 72% edge comes from the *conviction composite*
+  (score + multi-TF align + R:R), NOT the raw tier. "MAX conviction" as a
+  label alone is not a reliable edge.
+
+### Predictor (predict_next) — 20 coins
+Directional accuracy (next bar; 50% = coin flip):
+**15m 58.2% ✅ · 1h 48.6% ❌ · 4h 53.0% · 1d 52.3%**
+
+Setup edge (build_setup, scale-out, AFTER fees):
+| Slice | Booked | Expectancy |
+|---|---|---|
+| ALL setups | 41.8% | +0.009R |
+| **ALIGNED (all horizons agree)** | 46.1% | **+0.142R** ✅ |
+| NOT aligned | 38.0% | −0.109R ❌ |
+
+- Individual direction calls mostly coin-flip (only 15m has real info),
+  **but the setup is a real edge when all horizons align (+0.142R).**
+- **Correction:** surface Predictor setups only when `aligned=True`.
+
+### CONVERGENCE — 10 coins (% ret, baseline vs converged)
+| Slice | Win | Avg ret |
+|---|---|---|
+| LONG All (baseline) | 45-48% | up to +0.34% |
+| LONG CONVERGENCE-qualified | 39.8-42% | **−0.4 to −0.55%** ❌ |
+
+- **Convergence-qualified picks did WORSE than baseline pattern_scout.**
+  The meta-filter selects worse trades, not better. **Does NOT validate.**
+
+### Pattern-Scout tiers (S/A/B/C) — 10 coins, AFTER 0.18% costs
+| Tier | Net win @24h | Net avg @24h |
+|---|---|---|
+| S — Convergence | 40.7% | −0.44% ❌ |
+| A — Pattern Scout STRONG | 41.8% | +0.78% (best, thin) |
+| C — Pattern Scout WATCH | 44.8% | +0.01% (break-even) |
+| B — Setups Forming | n=2 | noise |
+
+- A/STRONG marginally positive at 24-48h; S/Convergence negative (again);
+  C/WATCH break-even. None is a strong edge.
+
+---
+
+## ✅ COMPLETE — consolidated verdict (all 13 systems)
+
+**Edges worth trading (ranked):**
+1. **SST1 conv≥70** — 72% win, +1.15R. The standout. ✅ wired (openable only).
+2. **Predictor ALIGNED setups** — +0.142R after fees.
+3. **Velocity burst @ score ≥90** — +0.164R.
+4. **Higher-low-structure longs** — 58.8% win, +0.38%/12h (n=850).
+5. **Grind strict+very-early+aligned+EMA200** — +0.047R after fees. ✅ wired.
+
+**Do NOT trade (confirmed noise/negative):**
+- CONVERGENCE meta-filter (worse than baseline)
+- SST1 OK tier (55-69) · velocity burst <90 · 5m grind · grind score 80+
+- recovery patterns · reclaim/engulfing/smc_sweep/vwap_reclaim
+- raw ELITE tier labels as a standalone signal (not monotonic)
+
+**The through-line:** edge concentrates in **conviction *composites*
+(SST1 conv≥70) and multi-horizon/timeframe *agreement* (Predictor
+aligned)** — NOT in raw tier labels or single meta-filters. High win rate
++ profit only coexist in the top-conviction slice of each engine.
+
+**Corrections still open to wire:**
+- Velocity burst floor → 90 (high impact).
+- Predictor setups → gate on `aligned=True`.
+- Convergence → demote (it's not an edge).
+- (SST1 conv≥70 gate: DONE.)

@@ -168,9 +168,11 @@ def _classify_tier(ps_result: dict, ra_warned: bool, regime_score: float,
 
 
 def main():
-    print("Loading top 20 universe...")
+    import os as _os
+    _NC = int(_os.environ.get("BT_COINS", "10"))  # foreground-sized
+    print(f"Loading top {_NC} universe...")
     try:
-        top_df = binance_client.get_top_symbols(20)
+        top_df = binance_client.get_top_symbols(_NC)
         symbols = top_df["symbol"].tolist()
     except Exception as exc:
         print(f"Failed: {exc}")
@@ -185,7 +187,7 @@ def main():
     btc_4h = binance_client.get_klines("BTCUSDT", "4h", limit=400)
     btc_4h = indicators.enrich(btc_4h)
 
-    SAMPLE_EVERY = 4
+    SAMPLE_EVERY = 6    # foreground-sized
     WARMUP = 200
     HORIZONS = (12, 24, 48)
 
