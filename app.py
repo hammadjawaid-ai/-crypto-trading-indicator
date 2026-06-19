@@ -11479,20 +11479,16 @@ if active_section == "🧪 Paper Trader":
         # ====================================================================
         # ⏳ ACTIVE ELITE SETUPS (armed) — NEW, fully separate from ELITE
         # ====================================================================
-        # User idea 2026-06-18: strong ELITE (MAX/HIGH/STRONG) setups often
-        # don't trigger immediately — they can take 24-48h. This board keeps
-        # such a setup visible WHILE IT'S STILL ALIVE (its plan hasn't hit
-        # the stop or the target yet) so you can take it when it finally
-        # triggers, and DROPS the dead/resolved ones. It reads ONLY the
-        # fires log — it changes NOTHING on the ELITE board above.
-        # HONEST LABEL: the delayed-trigger edge is RARE (~6% of strong
-        # fires stay alive past 24h) and WEAK. Validated on 40 coins /
-        # 864 fires: the alive@24h bucket wins ~45% (n=53) — NOT the 72%
-        # the first n=11 read suggested (small-sample noise that reverted
-        # as data grew: 72->67->53->49->45). At the wide tier-scaled
-        # target the R can still make ~45% roughly break-even, and it
-        # does beat the immediate bucket (32%), but it's no high-win edge.
-        # So this stays WATCH / EXPERIMENTAL — size small.
+        # User ask 2026-06-18: ELITE's MAX & HIGH conviction picks are the
+        # best to trade; keep them visible WHILE STILL ALIVE (plan hasn't
+        # hit stop or target) for as long as it takes — "no matter the
+        # time" — so they can be taken whenever they trigger. DROPS the
+        # dead/resolved ones. Reads ONLY the fires log — changes NOTHING on
+        # the ELITE board above.
+        # HONEST NOTE: backtested forward win at the wide tier target is
+        # ~33-45% (no high-win edge; the early 72% was an 8/11 fluke). It's
+        # useful for not losing track of a strong setup, but the proven
+        # 72% lives in SST1 conv>=70, not here. Take these small.
         _AE_SHOW = True   # flip False to hide this section
         if _AE_SHOW:
             try:
@@ -11501,10 +11497,11 @@ if active_section == "🧪 Paper Trader":
                 _ae_prices = {}
             try:
                 _ae_fires = signal_fires.load_fires(SIGNAL_FIRES_FILE)
-                # 96h (4 days): keep a still-alive setup until it triggers
-                # — strong setups can take 1-2 days, occasionally longer.
+                # No practical time limit (7d): a MAX/HIGH setup shows for
+                # as long as it stays ALIVE, no matter how long — per user
+                # "forget the time, show it while it's still active."
                 _ae_recent = signal_fires.recent_fires(
-                    _ae_fires, hours=96.0)
+                    _ae_fires, hours=168.0)
                 signal_fires.enrich_perf(_ae_recent, _ae_prices)
             except Exception:
                 _ae_recent = []
@@ -11512,8 +11509,9 @@ if active_section == "🧪 Paper Trader":
             for _aef in _ae_recent:
                 _ae_tier = (_aef.get("tier") or "").upper()
                 _ae_sc = float(_aef.get("score") or 0)
-                # strong ELITE only
-                if _ae_tier not in ("MAX", "HIGH", "STRONG") or _ae_sc < 80:
+                # MAX & HIGH conviction only — the best ELITE tiers (per
+                # user: "max and high are the best ones to trade").
+                if _ae_tier not in ("MAX", "HIGH"):
                     continue
                 # ALIVE = plan not yet resolved (neither TP1 nor SL touched)
                 if _aef.get("tp1_hit") or _aef.get("sl_hit"):
@@ -11536,17 +11534,16 @@ if active_section == "🧪 Paper Trader":
                 "<span style='font-size:1.3rem;font-weight:900;"
                 "background:linear-gradient(135deg,#a78bfa,#00d4ff);"
                 "-webkit-background-clip:text;-webkit-text-fill-color:"
-                "transparent;background-clip:text'>⏳ ACTIVE ELITE SETUPS "
-                "— armed &amp; still alive</span></div>",
+                "transparent;background-clip:text'>⏳ ACTIVE MAX/HIGH "
+                "SETUPS — still alive, take anytime</span></div>",
                 unsafe_allow_html=True)
             st.caption(
-                "Strong ELITE setups (MAX/HIGH/STRONG, score≥80) that "
-                "fired in the last **4 days** and are **still alive** "
-                "(plan hasn't hit stop or target). They often trigger "
-                "24-48h late, sometimes longer. ⚠ **Watch / experimental** "
-                "— validated on 864 fires: these win only **~45%** "
-                "(n=53); the early 72% was small-sample noise. Size "
-                "small. Separate from ELITE CONVICTION above.")
+                "**MAX & HIGH conviction** ELITE setups that are **still "
+                "alive** (plan hasn't hit stop or target). They stay here "
+                "**no matter how long** — until they trigger or "
+                "invalidate — so you can take them whenever they fire. "
+                "Take small (forward-prove before scaling). Separate "
+                "from ELITE CONVICTION above, which is unchanged.")
             if not _ae_alive:
                 st.caption("· No armed ELITE setups alive right now — "
                            "they trigger or expire fast. Check back as "
