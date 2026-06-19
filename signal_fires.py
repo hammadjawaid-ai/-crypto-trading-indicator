@@ -26,8 +26,11 @@ import os
 import time
 from pathlib import Path
 
-# How long to keep a fire entry in the log before pruning
-_MAX_AGE_HOURS = 48
+# How long to keep a fire entry in the log before pruning. 96h (4 days)
+# so the ACTIVE ELITE SETUPS board can keep a still-alive setup visible
+# until it triggers — strong setups can take 1-2 days (backtest saw some
+# resolve out to ~96h). Was 48h, which dropped the late triggers early.
+_MAX_AGE_HOURS = 96
 
 # Dedupe window — don't re-log the same symbol+side if it fired within
 # this many seconds (prevents spamming the log when the same coin keeps

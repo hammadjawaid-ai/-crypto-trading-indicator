@@ -11496,13 +11496,14 @@ if active_section == "🧪 Paper Trader":
                 _ae_prices = {}
             try:
                 _ae_fires = signal_fires.load_fires(SIGNAL_FIRES_FILE)
+                # 96h (4 days): keep a still-alive setup until it triggers
+                # — strong setups can take 1-2 days, occasionally longer.
                 _ae_recent = signal_fires.recent_fires(
-                    _ae_fires, hours=72.0)
+                    _ae_fires, hours=96.0)
                 signal_fires.enrich_perf(_ae_recent, _ae_prices)
             except Exception:
                 _ae_recent = []
-            _ae_seen = set()
-            _ae_alive = []
+            _ae_by_key = {}
             for _aef in _ae_recent:
                 _ae_tier = (_aef.get("tier") or "").upper()
                 _ae_sc = float(_aef.get("score") or 0)
@@ -11514,10 +11515,11 @@ if active_section == "🧪 Paper Trader":
                     continue
                 _ae_k = (_aef.get("symbol"),
                          (_aef.get("side") or "").upper())
-                if _ae_k in _ae_seen:
-                    continue
-                _ae_seen.add(_ae_k)
-                _ae_alive.append(_aef)
+                # recent_fires is newest-first, so overwriting keeps the
+                # OLDEST entry per key -> "armed Xh ago" = true armed-since
+                # (a long-alive setup re-logs every ~4h; show its origin).
+                _ae_by_key[_ae_k] = _aef
+            _ae_alive = list(_ae_by_key.values())
             _ae_trank = {"MAX": 3, "HIGH": 2, "STRONG": 1}
             _ae_alive.sort(
                 key=lambda f: (_ae_trank.get((f.get("tier") or "").upper(), 0),
@@ -11534,9 +11536,10 @@ if active_section == "🧪 Paper Trader":
                 unsafe_allow_html=True)
             st.caption(
                 "Strong ELITE setups (MAX/HIGH/STRONG, score≥80) that "
-                "fired in the last 72h and are **still alive** (plan "
-                "hasn't hit stop or target). They often trigger 24-48h "
-                "late. ⚠ **Watch / experimental** — the delayed-trigger "
+                "fired in the last **4 days** and are **still alive** "
+                "(plan hasn't hit stop or target). They often trigger "
+                "24-48h late, sometimes longer. ⚠ **Watch / experimental** "
+                "— the delayed-trigger "
                 "edge is rare (~7%) and unproven (backtest n=11). Size "
                 "small. Separate from ELITE CONVICTION above.")
             if not _ae_alive:
