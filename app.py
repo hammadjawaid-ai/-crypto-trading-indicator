@@ -11477,6 +11477,139 @@ if active_section == "🧪 Paper Trader":
                                 st.error(f"Open failed: {exc}")
 
         # ====================================================================
+        # ⏳ ACTIVE ELITE SETUPS (armed) — NEW, fully separate from ELITE
+        # ====================================================================
+        # User idea 2026-06-18: strong ELITE (MAX/HIGH/STRONG) setups often
+        # don't trigger immediately — they can take 24-48h. This board keeps
+        # such a setup visible WHILE IT'S STILL ALIVE (its plan hasn't hit
+        # the stop or the target yet) so you can take it when it finally
+        # triggers, and DROPS the dead/resolved ones. It reads ONLY the
+        # fires log — it changes NOTHING on the ELITE board above.
+        # HONEST LABEL: the delayed-trigger edge is RARE (~7% of strong
+        # fires stay alive past 24h) and UNVALIDATED (backtest n=11 -> 72.7%
+        # win, far too small to trust). So this is WATCH / EXPERIMENTAL.
+        _AE_SHOW = True   # flip False to hide this section
+        if _AE_SHOW:
+            try:
+                _ae_prices = prices or {}
+            except NameError:
+                _ae_prices = {}
+            try:
+                _ae_fires = signal_fires.load_fires(SIGNAL_FIRES_FILE)
+                _ae_recent = signal_fires.recent_fires(
+                    _ae_fires, hours=72.0)
+                signal_fires.enrich_perf(_ae_recent, _ae_prices)
+            except Exception:
+                _ae_recent = []
+            _ae_seen = set()
+            _ae_alive = []
+            for _aef in _ae_recent:
+                _ae_tier = (_aef.get("tier") or "").upper()
+                _ae_sc = float(_aef.get("score") or 0)
+                # strong ELITE only
+                if _ae_tier not in ("MAX", "HIGH", "STRONG") or _ae_sc < 80:
+                    continue
+                # ALIVE = plan not yet resolved (neither TP1 nor SL touched)
+                if _aef.get("tp1_hit") or _aef.get("sl_hit"):
+                    continue
+                _ae_k = (_aef.get("symbol"),
+                         (_aef.get("side") or "").upper())
+                if _ae_k in _ae_seen:
+                    continue
+                _ae_seen.add(_ae_k)
+                _ae_alive.append(_aef)
+            _ae_trank = {"MAX": 3, "HIGH": 2, "STRONG": 1}
+            _ae_alive.sort(
+                key=lambda f: (_ae_trank.get((f.get("tier") or "").upper(), 0),
+                               float(f.get("score") or 0)),
+                reverse=True)
+            st.markdown(
+                "<div style='display:flex;align-items:center;gap:12px;"
+                "margin-top:26px;margin-bottom:2px'>"
+                "<span style='font-size:1.3rem;font-weight:900;"
+                "background:linear-gradient(135deg,#a78bfa,#00d4ff);"
+                "-webkit-background-clip:text;-webkit-text-fill-color:"
+                "transparent;background-clip:text'>⏳ ACTIVE ELITE SETUPS "
+                "— armed &amp; still alive</span></div>",
+                unsafe_allow_html=True)
+            st.caption(
+                "Strong ELITE setups (MAX/HIGH/STRONG, score≥80) that "
+                "fired in the last 72h and are **still alive** (plan "
+                "hasn't hit stop or target). They often trigger 24-48h "
+                "late. ⚠ **Watch / experimental** — the delayed-trigger "
+                "edge is rare (~7%) and unproven (backtest n=11). Size "
+                "small. Separate from ELITE CONVICTION above.")
+            if not _ae_alive:
+                st.caption("· No armed ELITE setups alive right now — "
+                           "they trigger or expire fast. Check back as "
+                           "the market moves.")
+            for _aef in _ae_alive[:12]:
+                _ae_sym = _aef.get("symbol")
+                _ae_base = _aef.get("base") or (_ae_sym or "").replace(
+                    "USDT", "")
+                _ae_side = (_aef.get("side") or "").upper()
+                _ae_tier = (_aef.get("tier") or "").upper()
+                _ae_sc = float(_aef.get("score") or 0)
+                _ae_entry = float(_aef.get("entry") or 0)
+                _ae_stop = float(_aef.get("stop") or 0)
+                _ae_tp1 = float(_aef.get("tp1") or 0)
+                _ae_tp2 = float(_aef.get("tp2") or 0)
+                _ae_cur = float(_ae_prices.get(_ae_sym) or _ae_entry)
+                _ae_age_h = max(
+                    0.0, (time.time() - float(_aef.get("fired_at") or 0))
+                    / 3600.0)
+                _ae_pct = _aef.get("pct_since_fire")
+                _ae_col = "#2ed47a" if _ae_side == "LONG" else "#ff5c5c"
+                _ae_em = "🟢" if _ae_side == "LONG" else "🩸"
+                _ae_pct_str = (f"{_ae_pct:+.2f}% since fire"
+                               if _ae_pct is not None else "")
+                _ae_c1, _ae_c2 = st.columns([5, 1])
+                _ae_c1.markdown(
+                    f"<div style='background:rgba(167,139,250,0.06);"
+                    f"border:1px solid {_ae_col}44;border-radius:11px;"
+                    f"padding:10px 14px;margin-bottom:5px'>"
+                    f"<div style='font-size:0.95rem;font-weight:800'>"
+                    f"{_ae_em} <b>{_ae_base}</b> {_ae_side} "
+                    f"<span style='color:#a78bfa;font-size:0.78rem'>"
+                    f"· {_ae_tier} {_ae_sc:.0f}</span> "
+                    f"<span style='color:#e0a92b;font-size:0.74rem'>"
+                    f"· ⏳ armed {_ae_age_h:.0f}h ago · still alive</span>"
+                    f"</div>"
+                    f"<div style='color:#9aa7c7;font-size:0.78rem;"
+                    f"margin-top:3px'>entry {_ae_entry:g} · now "
+                    f"{_ae_cur:g} · SL {_ae_stop:g} · TP1 {_ae_tp1:g}"
+                    f"{(' · TP2 ' + format(_ae_tp2, 'g')) if _ae_tp2 else ''}"
+                    f" · {_ae_pct_str}</div></div>",
+                    unsafe_allow_html=True)
+                if any(p.get("symbol") == _ae_sym
+                       for p in (pb_state.get("open") or [])):
+                    _ae_c2.caption("✓ open")
+                elif _ae_c2.button("📥 Open", key=f"ae_open_{_ae_sym}",
+                                   use_container_width=True):
+                    try:
+                        _ae_alert = {
+                            "symbol": _ae_sym, "base": _ae_base,
+                            "side": _ae_side, "entry_low": _ae_cur,
+                            "stop": _ae_stop, "target": _ae_tp1,
+                            "target_2": _ae_tp2 or None,
+                            "confidence": int(_ae_sc),
+                            "strength_factor": 0.6,  # watch/experimental
+                            "_unified_source": "active_elite_armed",
+                        }
+                        _ae_pos = paper_bot.open_position(
+                            pb_state, _ae_alert, _ae_cur)
+                        paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                        if _ae_pos:
+                            st.success(f"Opened {_ae_side} {_ae_base} "
+                                       f"(armed setup)")
+                            st.rerun()
+                        else:
+                            st.warning("Not opened — Paper Trader "
+                                       "rejected.")
+                    except Exception as exc:
+                        st.error(f"Open failed: {exc}")
+
+        # ====================================================================
         # 📊 RECENT TRADES (last 12h) — what if you'd opened these?
         # ====================================================================
         # Per user: positioned right below ELITE CONVICTION. Each card
