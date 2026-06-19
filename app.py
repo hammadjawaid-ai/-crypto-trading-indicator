@@ -11485,9 +11485,14 @@ if active_section == "🧪 Paper Trader":
         # the stop or the target yet) so you can take it when it finally
         # triggers, and DROPS the dead/resolved ones. It reads ONLY the
         # fires log — it changes NOTHING on the ELITE board above.
-        # HONEST LABEL: the delayed-trigger edge is RARE (~7% of strong
-        # fires stay alive past 24h) and UNVALIDATED (backtest n=11 -> 72.7%
-        # win, far too small to trust). So this is WATCH / EXPERIMENTAL.
+        # HONEST LABEL: the delayed-trigger edge is RARE (~6% of strong
+        # fires stay alive past 24h) and WEAK. Validated on 40 coins /
+        # 864 fires: the alive@24h bucket wins ~45% (n=53) — NOT the 72%
+        # the first n=11 read suggested (small-sample noise that reverted
+        # as data grew: 72->67->53->49->45). At the wide tier-scaled
+        # target the R can still make ~45% roughly break-even, and it
+        # does beat the immediate bucket (32%), but it's no high-win edge.
+        # So this stays WATCH / EXPERIMENTAL — size small.
         _AE_SHOW = True   # flip False to hide this section
         if _AE_SHOW:
             try:
@@ -11539,8 +11544,8 @@ if active_section == "🧪 Paper Trader":
                 "fired in the last **4 days** and are **still alive** "
                 "(plan hasn't hit stop or target). They often trigger "
                 "24-48h late, sometimes longer. ⚠ **Watch / experimental** "
-                "— the delayed-trigger "
-                "edge is rare (~7%) and unproven (backtest n=11). Size "
+                "— validated on 864 fires: these win only **~45%** "
+                "(n=53); the early 72% was small-sample noise. Size "
                 "small. Separate from ELITE CONVICTION above.")
             if not _ae_alive:
                 st.caption("· No armed ELITE setups alive right now — "

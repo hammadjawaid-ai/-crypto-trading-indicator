@@ -15,6 +15,19 @@ section (crypto perps ≈ 0.18% round-trip: taker ×2 + slippage).
 
 ---
 
+## Delayed-trigger / Active ELITE Setups (validated 40 coins, 864 fires)
+
+Tests the "setup stays alive past 24h then triggers" idea behind the
+ACTIVE ELITE SETUPS board:
+- IMMEDIATE (resolves ≤24h): **31.8% win** (n=809, 94% of fires) at the
+  wide tier-scaled target.
+- **DELAYED (alive@24h → resolves 24-96h): 45.3% win (n=53, ~6%).**
+- The early small-sample read (n=11 → 72.7%) **reverted to ~45% as the
+  sample grew** (72→67→53→49→45) — classic small-sample noise.
+- Verdict: real behavior, ~6% of fires; ~45% win is roughly break-even
+  at the high R:R and beats the immediate bucket (32%), but it's **no
+  high-win edge.** Board kept as **watch/experimental, size small.**
+
 ## ⚠️ Read this first — the baseline
 
 On the top liquid coins over this window, a **random long held 12h wins
