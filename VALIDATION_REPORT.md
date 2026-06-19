@@ -28,6 +28,21 @@ ACTIVE ELITE SETUPS board:
   at the high R:R and beats the immediate bucket (32%), but it's **no
   high-win edge.** Board kept as **watch/experimental, size small.**
 
+## Signal-persistence test (does "still firing 24-48h" win more?)
+
+Tested whether STRONG/MAX ELITE setups that KEEP firing over time win
+more (the user's refined "stays alive and still firing" idea):
+- just fired (0h): 33.3% (n=207) · firing 4-20h: 37.5% (n=96)
+- **firing 24-44h: n=0 · firing 48h+: n=0**
+- **Finding: strong ELITE signals do NOT keep firing 24-48h — they fade
+  after a few hours.** "Still firing 24h+" essentially never happens;
+  what looks alive across a day is the price lingering, not the signal
+  re-firing. Persistence gives no real lift (37.5% vs 33%), nowhere
+  near 72%. The 72% was an 8/11 small-sample fluke.
+- 72% win rate only exists at a TIGHT target (≈0 after fees) or in
+  **SST1 conv≥70** (real, validated). ELITE's wide target wins ~33-45%
+  by nature (each win pays ~2x). Don't conflate the two.
+
 ## ⚠️ Read this first — the baseline
 
 On the top liquid coins over this window, a **random long held 12h wins
