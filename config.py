@@ -75,9 +75,12 @@ LIVE_BOT_STATE_PATH = Path(__file__).with_name(".live_bot.json")
 # Safety guardrails — every value enforced in live_broker.preflight()
 # / auto_trade_gate() before any real order is placed.
 LIVE_DEFAULTS = {
-    "leverage_cap":      20,    # user-settable hard ceiling on leverage
-    "daily_loss_pct":    10,    # halts auto-trade if equity drops X% in 24h
-    "notional_cap_pct":  30,    # max % of balance deployable on one trade
+    "leverage_cap":      5,     # SAFE LAUNCH default (was 20). Fresh real
+                                # account: cap at 5x until proven live, then
+                                # raise via the Settings slider. Protects
+                                # against liquidation on a losing streak.
+    "daily_loss_pct":    8,     # halts auto-trade if equity drops X% in 24h
+    "notional_cap_pct":  20,    # max % of balance on one trade (was 30)
     "max_concurrent":    3,     # max simultaneously open positions
     "slippage_tol_pct":  0.5,   # reject fills more than X% off expected
     "confirm_first_n":   10,    # first N live trades require manual confirm

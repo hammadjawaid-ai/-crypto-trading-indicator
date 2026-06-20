@@ -13486,6 +13486,148 @@ plus funding rate every 8 hours on open positions.
                             st.rerun()
 
     with lt_right:
+        # ===================================================================
+        # 🎯 SST1 SURE SHOTS (conv>=70) — PRIMARY live signal (proven 72%)
+        # ===================================================================
+        # Per user: SST1 is the top edge. Surface its conv>=70 tier as the
+        # headline live board, opened through the SAME safety rails
+        # (preflight caps, conviction-scaled leverage, Preview->Confirm).
+        st.markdown("### 🎯 SST1 Sure Shots (conv ≥ 70) — primary edge")
+        st.caption(
+            "The backtested 72%-win tier — your best signal. Leverage "
+            "scales with conviction (capped by your settings); every open "
+            "is Preview→Confirm. Fires selectively (often <1/day).")
+        try:
+            import sureshot_agents as _ssa_lt
+            import experimental_signals as _es_lt
+
+            @st.cache_data(ttl=180, show_spinner=False)
+            def _sst1_live_picks(_bust):
+                _scan = _es_lt.scan_unified(
+                    scan_n=60, interval="1h", min_score=70.0,
+                    max_picks=40) or []
+                _elite = {p.get("symbol"): p for p in _scan}
+                try:
+                    _cv = compute_convergence_picks("1h", scan_n=50) or []
+                    _cvs = {p.get("symbol") for p in _cv}
+                except Exception:
+                    _cvs = set()
+                _srs = {p.get("symbol") for p in _scan
+                        if float(p.get("score") or 0) >= 88
+                        and p.get("tier") in ("HIGH", "MAX")}
+                _rg = load_market_regime()
+                try:
+                    _r = _ssa_lt.run_pipeline(
+                        _scan, _rg, _cvs, _srs, _elite,
+                        news_headlines=[], det_floor=55.0, llm_top_n=0,
+                        use_llm=False, max_picks=24)
+                except Exception:
+                    _r = {"sure_shots": []}
+                return [p for p in (_r.get("sure_shots") or [])
+                        if float(p.get("conviction") or 0) >= 70]
+
+            _sst1_lt = _sst1_live_picks(int(time.time() // 180))
+        except Exception as _exc:
+            _sst1_lt = []
+            st.caption(f"· SST1 unavailable right now: {_exc}")
+
+        _open_syms_sst1 = {p["symbol"] for p in lb_state.get("open", [])}
+        _sst1_lt = [p for p in _sst1_lt
+                    if p.get("symbol") not in _open_syms_sst1]
+        if not _sst1_lt:
+            st.info("No SST1 conv≥70 sure-shots right now — the proven "
+                    "tier is selective (fires <1/day). Check back, or use "
+                    "the manual form / picks below.")
+        else:
+            for _sp in _sst1_lt[:6]:
+                _sp_sym = _sp.get("symbol")
+                _sp_base = (_sp.get("base")
+                            or (_sp_sym or "").replace("USDT", ""))
+                _sp_side = (_sp.get("side") or "").upper()
+                _sp_conv = float(_sp.get("conviction") or 0)
+                _sp_plan = _sp.get("trade_plan") or {}
+                _sp_entry = float(_sp_plan.get("entry") or 0)
+                _sp_stop = float(_sp_plan.get("stop") or 0)
+                _sp_tp1 = float(_sp_plan.get("tp1") or 0)
+                _sp_tp2 = float(_sp_plan.get("tp2") or 0)
+                _sp_lp = live_price(_sp_sym)
+                _sp_live = float(_sp_lp) if _sp_lp else _sp_entry
+                _sp_aligned = int(_sp.get("_mtf_aligned") or 0) >= 2
+                _sp_alert = {
+                    "symbol": _sp_sym, "base": _sp_base, "side": _sp_side,
+                    "stop": _sp_stop, "target": _sp_tp1,
+                    "target_2": _sp_tp2 or None, "entry_low": _sp_live,
+                    "confidence": int(_sp_conv),
+                    "forecast_aligned": _sp_aligned,
+                    "forecast_disagrees": False,
+                    "premium_tradeable": True,
+                    "_source": "SST1_conv70",
+                }
+                _ok, _why, _pv = lb.preflight(lb_state, _sp_alert, _sp_live)
+                _scol = "#2ed47a" if _sp_side == "LONG" else "#ff5c5c"
+                _sc1, _sc2 = st.columns([3, 1])
+                _sc1.markdown(
+                    f"<div style='background:rgba(167,139,250,0.07);"
+                    f"border:1px solid {_scol}55;border-radius:11px;"
+                    f"padding:10px 14px;margin-bottom:5px'>"
+                    f"<div style='font-size:1rem;font-weight:800'>"
+                    f"<b>{_sp_base}</b> "
+                    f"<span style='color:{_scol}'>{_sp_side}</span> "
+                    f"<span style='color:#a78bfa;font-size:0.78rem'>"
+                    f"· conv {_sp_conv:.0f}</span></div>"
+                    f"<div style='color:#9aa7c7;font-size:0.78rem;"
+                    f"margin-top:3px'>entry {fmt_price(_sp_live)} · SL "
+                    f"{fmt_price(_sp_stop)} · TP {fmt_price(_sp_tp1)}"
+                    + (f" · ~{_pv.get('leverage')}× · margin "
+                       f"${_pv.get('margin', 0):,.2f}" if _ok else "")
+                    + "</div></div>",
+                    unsafe_allow_html=True)
+                _arm_k = f"sst1lt_arm_{_sp_sym}"
+                if not _ok:
+                    _sc2.caption(f"⚠ {_why}")
+                elif not st.session_state.get(_arm_k):
+                    if _sc2.button("📥 Open", key=f"sst1lt_open_{_sp_sym}",
+                                   use_container_width=True):
+                        st.session_state[_arm_k] = True
+                        st.rerun()
+                else:
+                    st.markdown(
+                        f"<div style='background:#11141c;border:1px solid "
+                        f"#a78bfa;border-radius:8px;padding:8px 12px;"
+                        f"margin-bottom:6px;font-size:0.82rem'>"
+                        f"Confirm <b>{_sp_side} {_sp_base}</b>: "
+                        f"{_pv['qty']:g} @ {fmt_price(_sp_live)} · "
+                        f"{_pv['leverage']}× · margin ${_pv['margin']:,.2f} "
+                        f"· notional ${_pv['notional']:,.2f} · fee est "
+                        f"${_pv.get('est_fee_round_trip', 0):.2f}</div>",
+                        unsafe_allow_html=True)
+                    _cf1, _cf2 = st.columns(2)
+                    if _cf1.button("✅ CONFIRM", type="primary",
+                                   key=f"sst1lt_conf_{_sp_sym}",
+                                   use_container_width=True):
+                        try:
+                            _op = lb.open_position(lb_state, _sp_alert,
+                                                   _sp_live)
+                            lb.save_state(config.LIVE_BOT_STATE_PATH,
+                                          lb_state)
+                            st.session_state[_arm_k] = False
+                            if _op:
+                                st.toast(f"📥 Opened {_sp_side} {_sp_base} "
+                                         f"({_op.get('leverage')}×)",
+                                         icon="💸")
+                                st.rerun()
+                        except lb.ConfigError as _exc:
+                            st.error(str(_exc))
+                            st.session_state[_arm_k] = False
+                        except Exception as _exc:
+                            st.error(f"Order failed: {_exc}")
+                            st.session_state[_arm_k] = False
+                    if _cf2.button("Cancel", key=f"sst1lt_cxl_{_sp_sym}",
+                                   use_container_width=True):
+                        st.session_state[_arm_k] = False
+                        st.rerun()
+        st.divider()
+
         st.markdown("### 🤖 Bot's top picks (live-eligible)")
         st.caption(
             "Same signals as the Paper Trader, filtered to only the "
