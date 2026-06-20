@@ -14068,6 +14068,53 @@ plus funding rate every 8 hours on open positions.
                 except Exception as _exc:
                     st.error(f"Auto-fire failed on {s['symbol']}: {_exc}")
 
+            # SST1 conv>=70 AUTO-FIRE — the PRIMARY proven edge (72%).
+            # Same gates (auto_trade_gate: confirm-first-N, daily-loss,
+            # auto_threshold>=85, max-concurrent). Hands-off, so sized
+            # CONSERVATIVELY (premium_tradeable=False -> 1.0x base risk,
+            # not the 1.5x manual multiplier).
+            for _sp in (_sst1_lt or []):
+                _sp_sym = _sp.get("symbol")
+                if (_sp_sym in _auto_fired_this_run
+                        or any(p.get("symbol") == _sp_sym
+                               for p in lb_state.get("open", []))):
+                    continue
+                _sp_plan = _sp.get("trade_plan") or {}
+                _sp_lp = prices.get(_sp_sym) or live_price(_sp_sym)
+                _sp_px = (float(_sp_lp) if _sp_lp
+                          else float(_sp_plan.get("entry") or 0))
+                _sp_alert_auto = {
+                    "symbol": _sp_sym,
+                    "base": (_sp.get("base")
+                             or (_sp_sym or "").replace("USDT", "")),
+                    "side": (_sp.get("side") or "").upper(),
+                    "stop": float(_sp_plan.get("stop") or 0),
+                    "target": float(_sp_plan.get("tp1") or 0),
+                    "target_2": float(_sp_plan.get("tp2") or 0) or None,
+                    "entry_low": _sp_px,
+                    "confidence": int(float(_sp.get("conviction") or 0)),
+                    "forecast_aligned": int(_sp.get("_mtf_aligned") or 0) >= 2,
+                    "forecast_disagrees": False,
+                    "premium_tradeable": False,   # conservative for auto
+                    "_source": "SST1_conv70_auto",
+                }
+                _ok_g, _ = lb.auto_trade_gate(
+                    lb_state, _sp_alert_auto, _settings)
+                if not _ok_g:
+                    continue
+                try:
+                    _op = lb.open_position(
+                        lb_state, _sp_alert_auto, _sp_px, confirmed=True)
+                    if _op:
+                        lb.save_state(config.LIVE_BOT_STATE_PATH, lb_state)
+                        st.toast(
+                            f"🎯 AUTO-FIRED SST1 {_sp_alert_auto['side']} "
+                            f"{_op['base']} @ {fmt_price(_op['entry'])}",
+                            icon="🎯")
+                        _auto_fired_this_run.append(_sp_sym)
+                except Exception as _exc:
+                    st.error(f"SST1 auto-fire failed on {_sp_sym}: {_exc}")
+
         st.divider()
         _live_live_positions()
 
