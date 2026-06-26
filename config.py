@@ -82,6 +82,12 @@ LIVE_BOT_STATE_PATH = Path(__file__).with_name(".live_bot.json")
 SUPABASE_URL = _secret("SUPABASE_URL")
 SUPABASE_KEY = _secret("SUPABASE_KEY")
 
+# --- Google Sheets export (optional) ---------------------------------------
+# One-click export of closed trades to a Google Sheet via an Apps Script
+# webhook (see README_GSHEET.md). Just one URL, no key file. If unset, the
+# CSV download is the fallback.
+GSHEET_WEBHOOK_URL = _secret("GSHEET_WEBHOOK_URL")
+
 # Safety guardrails — every value enforced in live_broker.preflight()
 # / auto_trade_gate() before any real order is placed.
 LIVE_DEFAULTS = {

@@ -887,6 +887,69 @@ def _entry_timing_cached(symbol, side, entry, _bust):
     except Exception:
         return {"status": "UNKNOWN", "reason": "", "px": 0.0}
 
+
+# --- Always-visible closed-trades history (never hidden) -------------------
+import gsheet_export
+
+
+def _render_closed_history(state, bot, label, key):
+    """Always-visible closed-trades table + stats + CSV / Google Sheets
+    export. Never hidden — shows a friendly empty state when there are none."""
+    closed = list(state.get("closed") or [])
+    st.markdown(f"#### 📋 {label} — Closed Trades ({len(closed)})")
+    if not closed:
+        st.caption("No closed trades yet — they appear here the moment a "
+                   "trade closes, and stay visible.")
+        return
+
+    def _pnl_of(t):
+        v = t.get("pnl_usd")
+        return float((v if v is not None else t.get("pnl")) or 0)
+
+    rows = []
+    for t in closed:
+        rows.append({
+            "symbol": t.get("base") or t.get("symbol"),
+            "side": t.get("side"),
+            "entry": t.get("entry"),
+            "exit": (t.get("exit") if t.get("exit") is not None
+                     else t.get("exit_price")),
+            "P&L $": round(_pnl_of(t), 2),
+            "P&L %": round(float(t.get("pnl_pct") or 0), 2),
+            "reason": t.get("reason"),
+            "closed": (datetime.fromtimestamp(
+                float(t.get("exit_at") or 0), tz=timezone.utc).strftime(
+                "%Y-%m-%d %H:%M") if t.get("exit_at") else ""),
+        })
+    df = pd.DataFrame(rows[::-1])   # newest first
+    n = len(closed)
+    wins = sum(1 for t in closed if _pnl_of(t) > 0)
+    total = sum(_pnl_of(t) for t in closed)
+    _wr = wins / n * 100 if n else 0
+    _pcol = "#2ed47a" if total >= 0 else "#ff5c5c"
+    st.markdown(
+        f"<div style='font-size:0.86rem;color:#aab;margin-bottom:4px'>"
+        f"<b>{n}</b> closed · <b>{wins}</b> wins "
+        f"(<b>{_wr:.0f}%</b>) · total P&amp;L "
+        f"<b style='color:{_pcol}'>${total:+,.2f}</b></div>",
+        unsafe_allow_html=True)
+    st.dataframe(df, use_container_width=True,
+                 height=min(420, 60 + 34 * min(len(df), 10)))
+    _hc1, _hc2 = st.columns(2)
+    _hc1.download_button(
+        "⬇ Download CSV", df.to_csv(index=False),
+        file_name=f"{bot}_closed_trades.csv", mime="text/csv",
+        key=f"{key}_csv_dl", use_container_width=True)
+    if gsheet_export.enabled():
+        if _hc2.button("📊 Export to Google Sheets",
+                       key=f"{key}_gs_exp", use_container_width=True):
+            _ok, _msg = gsheet_export.export_closed(bot, closed)
+            (st.success if _ok else st.warning)(_msg)
+    else:
+        _hc2.caption("📊 To Google Sheets: download the CSV → in Sheets, "
+                     "File → Import → Upload. (One-click export setup: "
+                     "see README_GSHEET.md.)")
+
 # --- 🔥 Persistent signal fire log (every STRONG+ pick gets logged with
 # timestamp + entry price so the 🔥 RECENT FIRES section can surface
 # fires that happened while the user was away).
@@ -11666,6 +11729,10 @@ if active_section == "🧪 Paper Trader":
                         st.error(f"Open failed: {_exc}")
         st.divider()
 
+        # 📋 Closed-trade history — ALWAYS visible, never hidden (user).
+        _render_closed_history(pb_state, "paper", "Paper Trader", "pt")
+        st.divider()
+
         # ====================================================================
         # ⏳ ACTIVE ELITE SETUPS (armed) — NEW, fully separate from ELITE
         # ====================================================================
@@ -15193,6 +15260,10 @@ if active_section == "🎯 Sure Shot Trader":
                                    "invalid plan).")
 
     # --- Open positions -------------------------------------------------
+    # 📋 Closed-trade history — ALWAYS visible, never hidden (user).
+    _render_closed_history(_ss_state, "sureshot", "SST1 Sure Shot", "ss")
+    st.divider()
+
     st.markdown("### 📂 Open positions")
     _ss_open = _ss_state.get("open", [])
     if not _ss_open:
