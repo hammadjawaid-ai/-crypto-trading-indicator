@@ -11729,10 +11729,6 @@ if active_section == "🧪 Paper Trader":
                         st.error(f"Open failed: {_exc}")
         st.divider()
 
-        # 📋 Closed-trade history — ALWAYS visible, never hidden (user).
-        _render_closed_history(pb_state, "paper", "Paper Trader", "pt")
-        st.divider()
-
         # ====================================================================
         # ⏳ ACTIVE ELITE SETUPS (armed) — NEW, fully separate from ELITE
         # ====================================================================
@@ -12330,6 +12326,14 @@ if active_section == "🧪 Paper Trader":
             use_container_width=True,
             help="Download every closed trade with all fields for "
                  "deeper analysis (win-rate per tier, R metrics, etc.)")
+        if gsheet_export.enabled():
+            if _ct_dl.button("📊 Sheets", key="pt_gs_exp",
+                             use_container_width=True,
+                             help="One-click export of the full closed-"
+                                  "trade history to your Google Sheet."):
+                _gs_ok, _gs_msg = gsheet_export.export_closed(
+                    "paper", pb_state["closed"])
+                (st.success if _gs_ok else st.warning)(_gs_msg)
         st.dataframe(_ct_df, use_container_width=True, hide_index=True)
     else:
         st.caption("No closed trades yet — they appear here once a position "
@@ -15261,10 +15265,6 @@ if active_section == "🎯 Sure Shot Trader":
                                    "invalid plan).")
 
     # --- Open positions -------------------------------------------------
-    # 📋 Closed-trade history — ALWAYS visible, never hidden (user).
-    _render_closed_history(_ss_state, "sureshot", "SST1 Sure Shot", "ss")
-    st.divider()
-
     st.markdown("### 📂 Open positions")
     _ss_open = _ss_state.get("open", [])
     if not _ss_open:
@@ -15444,12 +15444,26 @@ if active_section == "🎯 Sure Shot Trader":
                 "Notional": st.column_config.NumberColumn(
                     "Notional", format="$%.0f"),
             })
-        # CSV download for the record
-        st.download_button(
-            "⬇️ Download closed trades (CSV)",
-            _hist_df.to_csv(index=False).encode("utf-8"),
-            file_name="sureshot_closed_trades.csv",
-            mime="text/csv", key="ss_hist_dl")
+        # CSV download for the record (+ optional one-click Sheets export)
+        if gsheet_export.enabled():
+            _ss_dlc1, _ss_dlc2 = st.columns([1, 1])
+            _ss_dlc1.download_button(
+                "⬇️ Download closed trades (CSV)",
+                _hist_df.to_csv(index=False).encode("utf-8"),
+                file_name="sureshot_closed_trades.csv",
+                mime="text/csv", key="ss_hist_dl",
+                use_container_width=True)
+            if _ss_dlc2.button("📊 Export to Google Sheets",
+                               key="ss_gs_exp", use_container_width=True):
+                _gs_ok, _gs_msg = gsheet_export.export_closed(
+                    "sureshot", _ss_closed)
+                (st.success if _gs_ok else st.warning)(_gs_msg)
+        else:
+            st.download_button(
+                "⬇️ Download closed trades (CSV)",
+                _hist_df.to_csv(index=False).encode("utf-8"),
+                file_name="sureshot_closed_trades.csv",
+                mime="text/csv", key="ss_hist_dl")
 
     st.caption(
         "Isolated $10k paper account. Unrealized P&L is live on open "
