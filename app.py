@@ -828,6 +828,65 @@ st.markdown(
 # --- Paper trading bot state file (lives next to app.py, gitignored) ------
 PAPER_BOT_FILE = Path(__file__).resolve().parent / ".paper_bot.json"
 
+# --- DURABLE closed-trade recovery (Supabase) -----------------------------
+# Streamlit Cloud wipes local .json bot state on every redeploy. This merges
+# the permanent Supabase history back into the bot's state on load (and
+# pushes any local-only closed trades up). INERT until SUPABASE_URL/KEY are
+# set in secrets — trade_store.enabled() is False -> pure no-op.
+import trade_store
+
+
+@st.cache_data(ttl=20, show_spinner=False)
+def _durable_closed_cached(bot, _bust):
+    return trade_store.load_closed(bot)
+
+
+def _attach_durable_closed(bot, state):
+    """Merge durably-stored closed trades into state['closed'] (dedup by
+    symbol+exit_at) and push local-only ones up. Recovers full history after
+    a container wipe. No-op when Supabase isn't configured."""
+    if not state or not trade_store.enabled():
+        return state
+    try:
+        remote = _durable_closed_cached(bot, int(time.time() // 20)) or []
+        local = list(state.get("closed") or [])
+
+        def _k(t):
+            return (t.get("symbol"), int(float(t.get("exit_at") or 0)))
+
+        seen, merged = set(), []
+        for t in remote + local:        # remote first; local wins on dup
+            k = _k(t)
+            if k in seen:
+                continue
+            seen.add(k)
+            merged.append(t)
+        merged.sort(key=lambda t: float(t.get("exit_at") or 0))
+        state["closed"] = merged
+        _rk = {_k(t) for t in remote}
+        _local_only = [t for t in local if _k(t) not in _rk]
+        if _local_only:
+            trade_store.save_closed(bot, _local_only)
+    except Exception:
+        pass
+    return state
+
+
+# --- Entry-timing detector (pullback + confirmation) ----------------------
+# Backtested 2026-06-18: entering an ALIVE MAX/HIGH setup on a pullback +
+# confirmation candle won ~58% vs ~26% entering at the fire (and the edge
+# STRENGTHENED as the sample grew — a real edge). Surfaced as
+# ✅ TAKE NOW / ⏳ WAIT per card so you only take the confirmed ones.
+import entry_timing
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def _entry_timing_cached(symbol, side, entry, _bust):
+    try:
+        return entry_timing.entry_signal(symbol, side, entry)
+    except Exception:
+        return {"status": "UNKNOWN", "reason": "", "px": 0.0}
+
 # --- 🔥 Persistent signal fire log (every STRONG+ pick gets logged with
 # timestamp + entry price so the 🔥 RECENT FIRES section can surface
 # fires that happened while the user was away).
@@ -4992,6 +5051,7 @@ if active_section == "🧪 Paper Trader":
     #   4. After every render we update the session cache from
     #      the (now possibly-modified) pb_state at line 5543
     pb_state = paper_bot.load_state(PAPER_BOT_FILE)
+    pb_state = _attach_durable_closed("paper", pb_state)
 
     # ============================================================
     # 💾 BROWSER localStorage QUERY-PARAM RESTORE
@@ -11477,6 +11537,136 @@ if active_section == "🧪 Paper Trader":
                                 st.error(f"Open failed: {exc}")
 
         # ====================================================================
+        # 🏆 BEST TRADES NOW — SST1 conv>=70 (proven 72%) + entry timing
+        # ====================================================================
+        # One consolidated view of the single best edge: the proven SST1
+        # conv>=70 tier (72% backtested), ranked by LIVE entry timing.
+        # ✅ TAKE NOW = pulled back + confirmation candle (~58% entry);
+        # ⏳ WAIT = hold for the confirmation. Reuses the SST1 pipeline +
+        # entry_timing — no new unproven signals.
+        st.markdown("### 🏆 BEST TRADES NOW")
+        st.caption(
+            "Your best edge in one place — SST1 **conv ≥ 70** (72% "
+            "backtested), ranked by live entry timing. **✅ TAKE NOW** = "
+            "pulled back + confirmation candle; **⏳ WAIT** = hold for "
+            "confirmation. Selective by design (often <1/day).")
+        try:
+            import sureshot_agents as _ssa_bt
+            import experimental_signals as _es_bt
+
+            @st.cache_data(ttl=180, show_spinner=False)
+            def _best_trades_now(_bust):
+                _scan = _es_bt.scan_unified(
+                    scan_n=60, interval="1h", min_score=70.0,
+                    max_picks=40) or []
+                _elite = {p.get("symbol"): p for p in _scan}
+                try:
+                    _cv = compute_convergence_picks("1h", scan_n=50) or []
+                    _cvs = {p.get("symbol") for p in _cv}
+                except Exception:
+                    _cvs = set()
+                _srs = {p.get("symbol") for p in _scan
+                        if float(p.get("score") or 0) >= 88
+                        and p.get("tier") in ("HIGH", "MAX")}
+                _rg = load_market_regime()
+                try:
+                    _r = _ssa_bt.run_pipeline(
+                        _scan, _rg, _cvs, _srs, _elite, news_headlines=[],
+                        det_floor=55.0, llm_top_n=0, use_llm=False,
+                        max_picks=24)
+                except Exception:
+                    _r = {"sure_shots": []}
+                return [p for p in (_r.get("sure_shots") or [])
+                        if float(p.get("conviction") or 0) >= 70]
+
+            _bt_picks = list(_best_trades_now(int(time.time() // 180)))
+        except Exception:
+            _bt_picks = []
+        for _p in _bt_picks:
+            _pl = _p.get("trade_plan") or {}
+            _p["_bt_et"] = _entry_timing_cached(
+                _p.get("symbol"), _p.get("side"),
+                float(_pl.get("entry") or 0), int(time.time() // 60))
+        _bt_rank = {"TAKE_NOW": 3, "WAIT": 2, "UNKNOWN": 1, "MISSED": 0}
+        _bt_picks.sort(
+            key=lambda p: (_bt_rank.get((p.get("_bt_et") or {}).get("status"), 1),
+                           float(p.get("conviction") or 0)),
+            reverse=True)
+        _bt_open = {p.get("symbol") for p in (pb_state.get("open") or [])}
+        _bt_show = [p for p in _bt_picks if p.get("symbol") not in _bt_open]
+        if not _bt_show:
+            st.info("No SST1 conv≥70 trades right now — the proven tier is "
+                    "selective (<1/day). The boards below show more setups.")
+        else:
+            for _p in _bt_show[:6]:
+                _p_sym = _p.get("symbol")
+                _p_base = _p.get("base") or (_p_sym or "").replace("USDT", "")
+                _p_side = (_p.get("side") or "").upper()
+                _p_conv = float(_p.get("conviction") or 0)
+                _pl = _p.get("trade_plan") or {}
+                _p_entry = float(_pl.get("entry") or 0)
+                _p_stop = float(_pl.get("stop") or 0)
+                _p_tp1 = float(_pl.get("tp1") or 0)
+                _p_tp2 = float(_pl.get("tp2") or 0)
+                _et = _p.get("_bt_et") or {}
+                _et_st = _et.get("status", "")
+                _p_live = float(_et.get("px") or _p_entry)
+                _scol = "#2ed47a" if _p_side == "LONG" else "#ff5c5c"
+                if _et_st == "TAKE_NOW":
+                    _etb = ("<span style='background:#0b8a3e;color:#fff;"
+                            "padding:1px 9px;border-radius:5px;"
+                            "font-size:0.72rem;font-weight:800'>"
+                            "✅ TAKE NOW</span>")
+                elif _et_st == "WAIT":
+                    _etb = ("<span style='background:rgba(224,169,43,0.18);"
+                            "color:#e0a92b;padding:1px 9px;border-radius:5px;"
+                            "font-size:0.72rem;font-weight:700'>⏳ WAIT</span>")
+                elif _et_st == "MISSED":
+                    _etb = ("<span style='background:rgba(139,141,152,0.2);"
+                            "color:#8b8d98;padding:1px 9px;border-radius:5px;"
+                            "font-size:0.72rem;font-weight:700'>"
+                            "⤴ ran away</span>")
+                else:
+                    _etb = ""
+                _bc1, _bc2 = st.columns([5, 1])
+                _bc1.markdown(
+                    f"<div style='background:linear-gradient(135deg,"
+                    f"rgba(255,215,0,0.08),rgba(167,139,250,0.06));"
+                    f"border:1px solid {_scol}55;border-radius:12px;"
+                    f"padding:11px 15px;margin-bottom:6px'>"
+                    f"<div style='font-size:1rem;font-weight:800'>"
+                    f"<b>{_p_base}</b> <span style='color:{_scol}'>"
+                    f"{_p_side}</span> "
+                    f"<span style='color:#ffd700;font-size:0.78rem'>"
+                    f"· 🎯 conv {_p_conv:.0f}</span> {_etb}</div>"
+                    f"<div style='color:#9aa7c7;font-size:0.78rem;"
+                    f"margin-top:3px'>entry {_p_live:g} · SL {_p_stop:g} · "
+                    f"TP {_p_tp1:g} · {_et.get('reason', '')}</div></div>",
+                    unsafe_allow_html=True)
+                if _bc2.button("📥 Open", key=f"bt_open_{_p_sym}",
+                               use_container_width=True):
+                    try:
+                        _bt_alert = {
+                            "symbol": _p_sym, "base": _p_base,
+                            "side": _p_side, "entry_low": _p_live,
+                            "stop": _p_stop, "target": _p_tp1,
+                            "target_2": _p_tp2 or None,
+                            "confidence": int(_p_conv),
+                            "strength_factor": max(
+                                0.5, min(1.0, _p_conv / 100.0)),
+                            "_unified_source": "best_trades_now_sst1",
+                        }
+                        _bt_pos = paper_bot.open_position(
+                            pb_state, _bt_alert, _p_live)
+                        paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                        if _bt_pos:
+                            st.success(f"Opened {_p_side} {_p_base}")
+                            st.rerun()
+                    except Exception as _exc:
+                        st.error(f"Open failed: {_exc}")
+        st.divider()
+
+        # ====================================================================
         # ⏳ ACTIVE ELITE SETUPS (armed) — NEW, fully separate from ELITE
         # ====================================================================
         # User ask 2026-06-18: ELITE's MAX & HIGH conviction picks are the
@@ -11568,6 +11758,28 @@ if active_section == "🧪 Paper Trader":
                 _ae_em = "🟢" if _ae_side == "LONG" else "🩸"
                 _ae_pct_str = (f"{_ae_pct:+.2f}% since fire"
                                if _ae_pct is not None else "")
+                # Entry-timing signal (backtested ~58% on confirmation vs
+                # ~26% at fire). Tells you WHEN this alive setup is worth it.
+                _ae_et = _entry_timing_cached(
+                    _ae_sym, _ae_side, _ae_entry, int(time.time() // 60))
+                _ae_et_status = _ae_et.get("status", "")
+                if _ae_et_status == "TAKE_NOW":
+                    _ae_et_badge = (
+                        " <span style='background:#0b8a3e;color:#fff;"
+                        "padding:1px 9px;border-radius:5px;font-size:0.72rem;"
+                        "font-weight:800'>✅ TAKE NOW</span>")
+                elif _ae_et_status == "MISSED":
+                    _ae_et_badge = (
+                        " <span style='background:rgba(139,141,152,0.2);"
+                        "color:#8b8d98;padding:1px 9px;border-radius:5px;"
+                        "font-size:0.72rem;font-weight:700'>⤴ ran away</span>")
+                elif _ae_et_status == "WAIT":
+                    _ae_et_badge = (
+                        " <span style='background:rgba(224,169,43,0.18);"
+                        "color:#e0a92b;padding:1px 9px;border-radius:5px;"
+                        "font-size:0.72rem;font-weight:700'>⏳ WAIT</span>")
+                else:
+                    _ae_et_badge = ""
                 _ae_c1, _ae_c2 = st.columns([5, 1])
                 _ae_c1.markdown(
                     f"<div style='background:rgba(167,139,250,0.06);"
@@ -11576,7 +11788,8 @@ if active_section == "🧪 Paper Trader":
                     f"<div style='font-size:0.95rem;font-weight:800'>"
                     f"{_ae_em} <b>{_ae_base}</b> {_ae_side} "
                     f"<span style='color:#a78bfa;font-size:0.78rem'>"
-                    f"· {_ae_tier} {_ae_sc:.0f}</span> "
+                    f"· {_ae_tier} {_ae_sc:.0f}</span>"
+                    f"{_ae_et_badge} "
                     f"<span style='color:#e0a92b;font-size:0.74rem'>"
                     f"· ⏳ armed {_ae_age_h:.0f}h ago · still alive</span>"
                     f"</div>"
@@ -13037,6 +13250,7 @@ plus funding rate every 8 hours on open positions.
 
     # --- Load state + settings --------------------------------------------
     lb_state = lb.load_state(config.LIVE_BOT_STATE_PATH)
+    lb_state = _attach_durable_closed("live", lb_state)
     _settings = lb_state.setdefault("settings", dict(config.LIVE_DEFAULTS))
 
     # --- Settings expander ------------------------------------------------
@@ -14554,6 +14768,7 @@ if active_section == "🎯 Sure Shot Trader":
     _SS_START_BAL = float(
         getattr(config, "SURESHOT_STARTING_BALANCE", 10000.0))
     _ss_state = paper_bot.load_state(_SS_PATH)
+    _ss_state = _attach_durable_closed("sureshot", _ss_state)
 
     st.subheader("🎯 Sure Shot Trader")
     st.markdown(

@@ -72,6 +72,16 @@ BYBIT_TESTNET = _secret("BYBIT_TESTNET").lower() in ("1", "true", "yes", "y")
 # Live bot state file (created at runtime, gitignored).
 LIVE_BOT_STATE_PATH = Path(__file__).with_name(".live_bot.json")
 
+# --- Supabase: DURABLE closed-trade storage --------------------------------
+# Streamlit Cloud's filesystem is ephemeral (redeploys wipe the .json bot
+# state). Closed trades are mirrored to a Supabase Postgres table so the
+# history is permanent + readable. Set in Streamlit secrets:
+#   SUPABASE_URL = "https://<project>.supabase.co"
+#   SUPABASE_KEY = "<service_role key>"   # server-side only, never exposed
+# If unset, trade_store.py no-ops and the app runs on local state as before.
+SUPABASE_URL = _secret("SUPABASE_URL")
+SUPABASE_KEY = _secret("SUPABASE_KEY")
+
 # Safety guardrails — every value enforced in live_broker.preflight()
 # / auto_trade_gate() before any real order is placed.
 LIVE_DEFAULTS = {
