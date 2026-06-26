@@ -11661,7 +11661,7 @@ if active_section == "🧪 Paper Trader":
             st.info("No SST1 conv≥70 trades right now — the proven tier is "
                     "selective (<1/day). The boards below show more setups.")
         else:
-            for _p in _bt_show[:6]:
+            for _bt_i, _p in enumerate(_bt_show[:6]):
                 _p_sym = _p.get("symbol")
                 _p_base = _p.get("base") or (_p_sym or "").replace("USDT", "")
                 _p_side = (_p.get("side") or "").upper()
@@ -11706,7 +11706,7 @@ if active_section == "🧪 Paper Trader":
                     f"margin-top:3px'>entry {_p_live:g} · SL {_p_stop:g} · "
                     f"TP {_p_tp1:g} · {_et.get('reason', '')}</div></div>",
                     unsafe_allow_html=True)
-                if _bc2.button("📥 Open", key=f"bt_open_{_p_sym}",
+                if _bc2.button("📥 Open", key=f"bt_open_{_p_sym}_{_bt_i}",
                                use_container_width=True):
                     try:
                         _bt_alert = {
@@ -11805,7 +11805,7 @@ if active_section == "🧪 Paper Trader":
                 st.caption("· No armed ELITE setups alive right now — "
                            "they trigger or expire fast. Check back as "
                            "the market moves.")
-            for _aef in _ae_alive[:12]:
+            for _ae_i, _aef in enumerate(_ae_alive[:12]):
                 _ae_sym = _aef.get("symbol")
                 _ae_base = _aef.get("base") or (_ae_sym or "").replace(
                     "USDT", "")
@@ -11869,7 +11869,8 @@ if active_section == "🧪 Paper Trader":
                 if any(p.get("symbol") == _ae_sym
                        for p in (pb_state.get("open") or [])):
                     _ae_c2.caption("✓ open")
-                elif _ae_c2.button("📥 Open", key=f"ae_open_{_ae_sym}",
+                elif _ae_c2.button("📥 Open",
+                                   key=f"ae_open_{_ae_sym}_{_ae_i}",
                                    use_container_width=True):
                     try:
                         _ae_alert = {
