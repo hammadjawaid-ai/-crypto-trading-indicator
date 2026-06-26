@@ -3442,6 +3442,17 @@ _BROWSER_ALERT_JS = """
 """
 
 
+# ── Notification policy (user 2026-06-26) ───────────────────────────────────
+# Browser/OS notifications (Windows desktop + mobile browser/PWA) are
+# restricted to ONE stream: the TAKE_NOW + ARMING entry signals collected from
+# the HERO board (🏆 BEST TRADES NOW) and the ELITE board (⏳ ACTIVE MAX/HIGH).
+# Every OTHER alert stream still runs through _inject_browser_alerts for its
+# background auto-refresh, but its notification items are dropped at the gate
+# so nothing else ever pops a notification.
+_ENTRY_SIGNAL_NOTIFY_KEY = "ti_notified_entry_signals"
+_NOTIFY_ALLOWLIST = {_ENTRY_SIGNAL_NOTIFY_KEY}
+
+
 def _inject_browser_alerts(items: list[dict], refresh_secs: int,
                            key: str = "ti_notified_alerts") -> None:
     """Inject the JS that fires browser desktop notifications for new alerts
@@ -3452,7 +3463,14 @@ def _inject_browser_alerts(items: list[dict], refresh_secs: int,
     the auto-refresh — a full page reload resets Python state, but the
     browser remembers what it has already notified about and never repeats
     itself. The very first load only seeds that memory; it never fires a
-    burst. A distinct `key` keeps separate alert streams independent."""
+    burst. A distinct `key` keeps separate alert streams independent.
+
+    NOTE: only the allowlisted entry-signal stream actually fires
+    notifications; all other streams have their items suppressed here (the
+    auto-refresh still runs) so the only notifications a user gets are the
+    TAKE_NOW + ARMING entry signals from the HERO + ELITE boards."""
+    if key not in _NOTIFY_ALLOWLIST:
+        items = []
     html = (_BROWSER_ALERT_JS
             .replace("__PAYLOAD__", json.dumps(items))
             .replace("__REFRESH__", str(int(refresh_secs)))
@@ -11613,6 +11631,9 @@ if active_section == "🧪 Paper Trader":
             "backtested), ranked by live entry timing. **✅ TAKE NOW** = "
             "pulled back + confirmation candle; **⏳ WAIT** = hold for "
             "confirmation. Selective by design (often <1/day).")
+        # The ONLY browser/OS notifications fired: TAKE_NOW + ARMING signals
+        # collected from this HERO board and the ELITE board below (user).
+        _entry_notify = []
         try:
             import sureshot_agents as _ssa_bt
             import experimental_signals as _es_bt
@@ -11674,6 +11695,16 @@ if active_section == "🧪 Paper Trader":
                 _p_tp2 = float(_pl.get("tp2") or 0)
                 _et = _p.get("_bt_et") or {}
                 _et_st = _et.get("status", "")
+                if _et_st in ("TAKE_NOW", "GET_READY"):
+                    _entry_notify.append({
+                        "id": f"entry:HERO:{_p_sym}:{_p_side}:{_et_st}",
+                        "title": (("✅ TAKE NOW" if _et_st == "TAKE_NOW"
+                                   else "🔔 ARMING")
+                                  + f" · {_p_base} {_p_side}"),
+                        "body": (f"HERO · BEST TRADES NOW · conv "
+                                 f"{_p_conv:.0f} · entry {_p_entry:g} · "
+                                 f"SL {_p_stop:g} · TP1 {_p_tp1:g}"),
+                    })
                 _p_live = float(_et.get("px") or _p_entry)
                 _scol = "#2ed47a" if _p_side == "LONG" else "#ff5c5c"
                 if _et_st == "TAKE_NOW":
@@ -11832,6 +11863,17 @@ if active_section == "🧪 Paper Trader":
                 _ae_et = _entry_timing_cached(
                     _ae_sym, _ae_side, _ae_entry, int(time.time() // 60))
                 _ae_et_status = _ae_et.get("status", "")
+                if _ae_et_status in ("TAKE_NOW", "GET_READY"):
+                    _entry_notify.append({
+                        "id": (f"entry:ELITE:{_ae_sym}:{_ae_side}:"
+                               f"{_ae_et_status}"),
+                        "title": (("✅ TAKE NOW" if _ae_et_status == "TAKE_NOW"
+                                   else "🔔 ARMING")
+                                  + f" · {_ae_base} {_ae_side}"),
+                        "body": (f"ELITE · ACTIVE MAX/HIGH · {_ae_tier} "
+                                 f"{_ae_sc:.0f} · entry {_ae_entry:g} · "
+                                 f"SL {_ae_stop:g} · TP1 {_ae_tp1:g}"),
+                    })
                 if _ae_et_status == "TAKE_NOW":
                     _ae_et_badge = (
                         " <span style='background:#0b8a3e;color:#fff;"
@@ -11901,6 +11943,16 @@ if active_section == "🧪 Paper Trader":
                                        "rejected.")
                     except Exception as exc:
                         st.error(f"Open failed: {exc}")
+
+        # 🔔 The ONLY browser/OS notifications (Windows + mobile): TAKE_NOW +
+        # ARMING entry signals gathered from the HERO + ELITE boards above.
+        # Every other alert stream is suppressed at the _inject_browser_alerts
+        # gate, so nothing else can ever pop a notification (user 2026-06-26).
+        try:
+            _inject_browser_alerts(_entry_notify, 0,
+                                   key=_ENTRY_SIGNAL_NOTIFY_KEY)
+        except Exception:
+            pass
 
         # ====================================================================
         # 📊 RECENT TRADES (last 12h) — what if you'd opened these?
