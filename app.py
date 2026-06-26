@@ -11650,7 +11650,8 @@ if active_section == "🧪 Paper Trader":
             _p["_bt_et"] = _entry_timing_cached(
                 _p.get("symbol"), _p.get("side"),
                 float(_pl.get("entry") or 0), int(time.time() // 60))
-        _bt_rank = {"TAKE_NOW": 3, "WAIT": 2, "UNKNOWN": 1, "MISSED": 0}
+        _bt_rank = {"TAKE_NOW": 4, "GET_READY": 3, "WAIT": 2,
+                    "UNKNOWN": 1, "MISSED": 0}
         _bt_picks.sort(
             key=lambda p: (_bt_rank.get((p.get("_bt_et") or {}).get("status"), 1),
                            float(p.get("conviction") or 0)),
@@ -11680,6 +11681,11 @@ if active_section == "🧪 Paper Trader":
                             "padding:1px 9px;border-radius:5px;"
                             "font-size:0.72rem;font-weight:800'>"
                             "✅ TAKE NOW</span>")
+                elif _et_st == "GET_READY":
+                    _etb = ("<span style='background:rgba(56,189,248,0.18);"
+                            "color:#38bdf8;padding:1px 9px;border-radius:5px;"
+                            "font-size:0.72rem;font-weight:800'>"
+                            "🔔 ARMING</span>")
                 elif _et_st == "WAIT":
                     _etb = ("<span style='background:rgba(224,169,43,0.18);"
                             "color:#e0a92b;padding:1px 9px;border-radius:5px;"
@@ -11831,6 +11837,11 @@ if active_section == "🧪 Paper Trader":
                         " <span style='background:#0b8a3e;color:#fff;"
                         "padding:1px 9px;border-radius:5px;font-size:0.72rem;"
                         "font-weight:800'>✅ TAKE NOW</span>")
+                elif _ae_et_status == "GET_READY":
+                    _ae_et_badge = (
+                        " <span style='background:rgba(56,189,248,0.18);"
+                        "color:#38bdf8;padding:1px 9px;border-radius:5px;"
+                        "font-size:0.72rem;font-weight:800'>🔔 ARMING</span>")
                 elif _ae_et_status == "MISSED":
                     _ae_et_badge = (
                         " <span style='background:rgba(139,141,152,0.2);"

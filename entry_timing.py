@@ -10,8 +10,10 @@ The winning condition (LONG; SHORT mirrors), straight from the backtest:
   - a CONFIRMATION candle just printed: bullish close (close>open),
     momentum up (close>prev close), trend intact (close>EMA20), and a
     volume uptick (>1.2x the 20-bar average).
-If pulled back but no confirmation yet -> WAIT. If price ran away without
-ever pulling back -> MISSED (let it go).
+Four states: TAKE_NOW (pullback + full confirmation — act), GET_READY
+(pulled back & holding above/below the EMA20, one confirmation candle away —
+poised to act, kills reaction lag), WAIT (no pullback or still falling),
+MISSED (ran away without a pullback — let it go).
 """
 from __future__ import annotations
 
@@ -54,14 +56,25 @@ def entry_signal(symbol: str, side: str, entry: float,
 
     if side == "LONG":
         pulled = float(np.min(l[-win:])) <= entry
+        struct = c[-1] > ema20[-1]              # right side of the EMA20
+        green = c[-1] > o[-1] or c[-1] > c[-2]  # some bullish turn showing
         conf = (c[-1] > o[-1] and c[-1] > c[-2] and c[-1] > ema20[-1]
                 and vol_ok)
         extended = (cur > entry * 1.02) and not pulled
     else:
         pulled = float(np.max(h[-win:])) >= entry
+        struct = c[-1] < ema20[-1]
+        green = c[-1] < o[-1] or c[-1] < c[-2]
         conf = (c[-1] < o[-1] and c[-1] < c[-2] and c[-1] < ema20[-1]
                 and vol_ok)
         extended = (cur < entry * 0.98) and not pulled
+
+    # ARMING = pulled back, holding the right side of the EMA20, and a turn
+    # is showing — but the FULL confirmation candle (momentum + volume kick)
+    # hasn't printed yet. It's a strict subset of the old "pulled, no conf"
+    # WAIT state, so TAKE_NOW fires on EXACTLY the same condition as before —
+    # this only flags that you're one good candle away, zero cost to the edge.
+    arming = pulled and struct and green and not conf
 
     if pulled and conf:
         return {"status": "TAKE_NOW",
@@ -71,6 +84,11 @@ def entry_signal(symbol: str, side: str, entry: float,
     if extended:
         return {"status": "MISSED",
                 "reason": "ran away without a pullback", "px": cur}
+    if arming:
+        return {"status": "GET_READY",
+                "reason": "pulled back & holding the right side of EMA20 — "
+                          "one confirmation candle (momentum + volume) away",
+                "px": cur}
     if pulled:
         return {"status": "WAIT",
                 "reason": "pulled back — waiting for a confirmation candle",
