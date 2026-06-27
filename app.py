@@ -11675,6 +11675,7 @@ if active_section == "🧪 Paper Trader":
                     "UNKNOWN": 1, "MISSED": 0}
         _bt_picks.sort(
             key=lambda p: (_bt_rank.get((p.get("_bt_et") or {}).get("status"), 1),
+                           1 if (p.get("_bt_et") or {}).get("hot") else 0,
                            float(p.get("conviction") or 0)),
             reverse=True)
         _bt_open = {p.get("symbol") for p in (pb_state.get("open") or [])}
@@ -11697,12 +11698,16 @@ if active_section == "🧪 Paper Trader":
                 _et_st = _et.get("status", "")
                 if _et_st in ("TAKE_NOW", "GET_READY"):
                     _entry_notify.append({
-                        "id": f"entry:HERO:{_p_sym}:{_p_side}:{_et_st}",
+                        "id": (f"entry:HERO:{_p_sym}:{_p_side}:{_et_st}:"
+                               f"{'H' if _et.get('hot') else 'n'}"),
                         "title": (("✅ TAKE NOW" if _et_st == "TAKE_NOW"
                                    else "🔔 ARMING")
+                                  + (" 🔥" if _et.get("hot") else "")
                                   + f" · {_p_base} {_p_side}"),
                         "body": (f"HERO · BEST TRADES NOW · conv "
-                                 f"{_p_conv:.0f} · entry {_p_entry:g} · "
+                                 f"{_p_conv:.0f}"
+                                 + (" · 🔥 HOT" if _et.get("hot") else "")
+                                 + f" · entry {_p_entry:g} · "
                                  f"SL {_p_stop:g} · TP1 {_p_tp1:g}"),
                     })
                 _p_live = float(_et.get("px") or _p_entry)
@@ -11728,6 +11733,12 @@ if active_section == "🧪 Paper Trader":
                             "⤴ ran away</span>")
                 else:
                     _etb = ""
+                # 🔥 HOT — validated: a TAKE_NOW firing with elevated ATR wins
+                # more and runs further. Descriptive marker, not a gate.
+                if _et.get("hot") and _et_st in ("TAKE_NOW", "GET_READY"):
+                    _etb += (" <span style='background:rgba(255,107,53,0.2);"
+                             "color:#ff6b35;padding:1px 8px;border-radius:5px;"
+                             "font-size:0.7rem;font-weight:800'>🔥 HOT</span>")
                 _bc1, _bc2 = st.columns([5, 1])
                 _bc1.markdown(
                     f"<div style='background:linear-gradient(135deg,"
@@ -11866,12 +11877,16 @@ if active_section == "🧪 Paper Trader":
                 if _ae_et_status in ("TAKE_NOW", "GET_READY"):
                     _entry_notify.append({
                         "id": (f"entry:ELITE:{_ae_sym}:{_ae_side}:"
-                               f"{_ae_et_status}"),
+                               f"{_ae_et_status}:"
+                               f"{'H' if _ae_et.get('hot') else 'n'}"),
                         "title": (("✅ TAKE NOW" if _ae_et_status == "TAKE_NOW"
                                    else "🔔 ARMING")
+                                  + (" 🔥" if _ae_et.get("hot") else "")
                                   + f" · {_ae_base} {_ae_side}"),
                         "body": (f"ELITE · ACTIVE MAX/HIGH · {_ae_tier} "
-                                 f"{_ae_sc:.0f} · entry {_ae_entry:g} · "
+                                 f"{_ae_sc:.0f}"
+                                 + (" · 🔥 HOT" if _ae_et.get("hot") else "")
+                                 + f" · entry {_ae_entry:g} · "
                                  f"SL {_ae_stop:g} · TP1 {_ae_tp1:g}"),
                     })
                 if _ae_et_status == "TAKE_NOW":
@@ -11896,6 +11911,13 @@ if active_section == "🧪 Paper Trader":
                         "font-size:0.72rem;font-weight:700'>⏳ WAIT</span>")
                 else:
                     _ae_et_badge = ""
+                # 🔥 HOT — elevated ATR; validated to win more + run further.
+                if _ae_et.get("hot") and _ae_et_status in ("TAKE_NOW",
+                                                            "GET_READY"):
+                    _ae_et_badge += (
+                        " <span style='background:rgba(255,107,53,0.2);"
+                        "color:#ff6b35;padding:1px 8px;border-radius:5px;"
+                        "font-size:0.7rem;font-weight:800'>🔥 HOT</span>")
                 _ae_c1, _ae_c2 = st.columns([5, 1])
                 _ae_c1.markdown(
                     f"<div style='background:rgba(167,139,250,0.06);"
