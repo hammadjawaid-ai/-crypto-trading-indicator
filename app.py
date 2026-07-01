@@ -6680,7 +6680,7 @@ if active_section == "🧪 Paper Trader":
                 f"{len(_eb_hits)} fast mover"
                 f"{'s' if len(_eb_hits) != 1 else ''} building "
                 f"(catch ~30-45 min earlier)",
-                expanded=True):
+                expanded=False):
             st.caption(
                 "Scans the 15m clock so a move shows BEFORE the 1h "
                 "candle closes. Catches two patterns: 🔥 BURST "
