@@ -950,6 +950,113 @@ def _render_closed_history(state, bot, label, key):
                      "File → Import → Upload. (One-click export setup: "
                      "see README_GSHEET.md.)")
 
+
+def _render_brain_memory():
+    """Display the 24/7 background brain's LIVE MEMORY — the best-of-the-best
+    (APEX) setups + recent signals it found on its own, even while the browser
+    was closed. Reads the shared worker.db the brain writes (populated on the
+    always-on deploy; empty locally / on Streamlit Cloud). Fail-soft."""
+    try:
+        import worker_store as _ws
+        import json as _json_bm
+        last = _ws.last_cycle()
+        apex_rows = _ws.recent_by_stream("apex", 12)
+        sst1_rows = _ws.recent_by_stream("sst1", 12)
+        tn_rows = _ws.recent_by_stream("takenow", 12)
+    except Exception:
+        return
+
+    st.markdown(
+        "<div style='display:flex;align-items:center;gap:10px;margin-top:8px'>"
+        "<span style='font-size:1.3rem;font-weight:900;background:linear-"
+        "gradient(135deg,#ffd54a,#ff6b35);-webkit-background-clip:text;"
+        "-webkit-text-fill-color:transparent;background-clip:text'>"
+        "🛰️ 24/7 BRAIN — best of the best (live memory)</span></div>",
+        unsafe_allow_html=True)
+
+    def _ago(ts):
+        if not ts:
+            return "—"
+        s = max(0.0, time.time() - float(ts))
+        if s < 5400:
+            return f"{int(s // 60)}m ago"
+        if s < 172800:
+            return f"{int(s // 3600)}h ago"
+        return f"{int(s // 86400)}d ago"
+
+    if not last and not apex_rows and not sst1_rows:
+        st.caption("The always-on brain logs what it finds here every few "
+                   "minutes — even while this page is closed. Nothing recorded "
+                   "on this host yet (it fills in on the 24/7 Render deploy).")
+        st.divider()
+        return
+
+    _reg = (last or {}).get("regime", "—")
+    st.caption(f"Last brain scan **{_ago((last or {}).get('ts'))}** · regime "
+               f"**{_reg}** · runs 24/7 in the background — this is what it "
+               f"found while you were away.")
+
+    def _side_html(s):
+        c = "#2ed47a" if s == "LONG" else "#ff5c5c"
+        return f"<span style='color:{c};font-weight:800'>{s}</span>"
+
+    def _dedup(rows):
+        seen, out = set(), []
+        for r in rows:
+            k = (r.get("base"), r.get("side"))
+            if k in seen:
+                continue
+            seen.add(k)
+            out.append(r)
+        return out
+
+    # 🏆 APEX — several validated edges agree (the best of the best)
+    apex_u = _dedup(apex_rows)
+    if apex_u:
+        st.markdown("**🏆 APEX — where several validated edges agree**")
+        for r in apex_u[:6]:
+            try:
+                _ex = _json_bm.loads(r.get("extra") or "{}")
+            except Exception:
+                _ex = {}
+            _edges = " · ".join(_ex.get("edges", []))
+            _n = _ex.get("apex", len(_ex.get("edges", []) or []))
+            st.markdown(
+                f"<div style='background:rgba(255,107,53,0.08);border:1px solid "
+                f"#ff6b3555;border-radius:11px;padding:9px 13px;margin:4px 0'>"
+                f"<b>🏆 ×{_n}</b> · <b>{r.get('base')}</b> "
+                f"{_side_html(r.get('side'))} "
+                f"<span style='color:#a78bfa;font-size:0.78rem'>· "
+                f"{r.get('tier')}</span> "
+                f"<span style='color:#8b93a7;font-size:0.72rem'>· "
+                f"{_ago(r.get('ts'))}</span><br>"
+                f"<span style='color:#9aa7c7;font-size:0.78rem'>entry "
+                f"{r.get('entry'):g} · SL {r.get('stop'):g} · TP1 "
+                f"{r.get('tp1'):g}</span> "
+                f"<span style='background:rgba(255,107,53,0.18);color:#ff6b35;"
+                f"padding:1px 7px;border-radius:5px;font-size:0.68rem;"
+                f"font-weight:800'>{_edges}</span></div>",
+                unsafe_allow_html=True)
+    else:
+        st.caption("· No APEX consensus right now — it's the rarest tier "
+                   "(needs multiple independent validated edges to agree). "
+                   "SST1 + TAKE NOW below are the next-best the brain sees.")
+
+    # A compact memory line for SST1 + TAKE NOW the brain has been logging.
+    _s1 = _dedup(sst1_rows)
+    _tn = _dedup(tn_rows)
+    _bits = []
+    if _s1:
+        _bits.append("💠 SST1≥70: " + ", ".join(
+            f"{r.get('base')} {r.get('side')}" for r in _s1[:5]))
+    if _tn:
+        _bits.append("✅🔥 TAKE NOW+HOT: " + ", ".join(
+            f"{r.get('base')} {r.get('side')}" for r in _tn[:5]))
+    if _bits:
+        st.caption(" · ".join(_bits))
+    st.divider()
+
+
 # --- 🔥 Persistent signal fire log (every STRONG+ pick gets logged with
 # timestamp + entry price so the 🔥 RECENT FIRES section can surface
 # fires that happened while the user was away).
@@ -11616,6 +11723,14 @@ if active_section == "🧪 Paper Trader":
                                         "rejected.")
                             except Exception as exc:
                                 st.error(f"Open failed: {exc}")
+
+        # 🛰️ 24/7 brain memory — best-of-the-best (APEX) + what it found while
+        # you were away. Reads the shared worker.db (populated on the always-on
+        # deploy). Fail-soft so it never breaks the page.
+        try:
+            _render_brain_memory()
+        except Exception:
+            pass
 
         # ====================================================================
         # 🏆 BEST TRADES NOW — SST1 conv>=70 (proven 72%) + entry timing

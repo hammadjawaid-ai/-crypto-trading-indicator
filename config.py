@@ -76,6 +76,11 @@ WORKER_ALERT_COOLDOWN_MIN = int(_secret("WORKER_ALERT_COOLDOWN_MIN") or "360")
 WORKER_SST1_MIN_CONV = float(_secret("WORKER_SST1_MIN_CONV") or "70")
 WORKER_LEADERBOARD_MIN_SCORE = float(
     _secret("WORKER_LEADERBOARD_MIN_SCORE") or "85")
+# APEX = a setup where at least this many INDEPENDENT validated edges agree
+# (SST1 conv>=70, ELITE MAX/HIGH, TAKE_NOW, HOT, velocity burst>=90,
+# forecast-aligned, multi-TF). The "best of the best" — several independent
+# proven edges pointing the same way on the same coin.
+WORKER_APEX_MIN_EDGES = int(_secret("WORKER_APEX_MIN_EDGES") or "3")
 
 # Optional durable state dir (Render/Railway persistent disk). When set, the
 # worker DB + app state live here so they survive redeploys → true live

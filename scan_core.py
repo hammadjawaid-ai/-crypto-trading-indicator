@@ -18,6 +18,10 @@ import experimental_signals as es
 import sureshot_agents as ssa
 import entry_timing
 import market_regime
+import binance_client
+import velocity_burst as _vb
+import predict_next as _pn
+import config
 
 
 def _regime() -> dict:
@@ -130,5 +134,96 @@ def scan_all(scan_n: int = 60, min_conv: float = 70.0) -> dict:
         })
     leaderboard.sort(key=lambda x: x["score"], reverse=True)
 
-    return {"sst1": sst1, "takenow": takenow,
-            "leaderboard": leaderboard, "regime": regime}
+    # --- Stream 4: APEX — consensus of validated edges (best of the best) --
+    # A setup where >= APEX_MIN independent validated edges agree. Candidate
+    # universe = ELITE MAX/HIGH picks UNION SST1 conv>=70 picks. Every edge
+    # check is fail-soft so one bad fetch never breaks the cycle.
+    apex_min = int(getattr(config, "WORKER_APEX_MIN_EDGES", 3))
+    sst1_by = {p["symbol"]: p for p in sst1}
+    cand: dict = {}
+    for p in scan:
+        if (p.get("tier") or "").upper() in ("MAX", "HIGH"):
+            cand[p.get("symbol")] = {"pick": p, "sst1": sst1_by.get(
+                p.get("symbol"))}
+    for sym, sp in sst1_by.items():
+        if sym not in cand:
+            cand[sym] = {"pick": elite.get(sym), "sst1": sp}
+    apex: list[dict] = []
+    for sym, c in list(cand.items())[:16]:
+        p, sp = c["pick"], c["sst1"]
+        if p:
+            side = (p.get("side") or "").upper()
+            pl = _plan(p)
+            tier = (p.get("tier") or "").upper()
+            score = float(p.get("score") or 0)
+        elif sp:
+            side = sp["side"]
+            pl = {"entry": sp["entry"], "stop": sp["stop"],
+                  "tp1": sp["tp1"], "tp2": sp["tp2"]}
+            tier, score = "", 0.0
+        else:
+            continue
+        entry = float(pl.get("entry") or 0)
+        if side not in ("LONG", "SHORT") or entry <= 0:
+            continue
+        edges = []
+        if sp is not None:
+            edges.append("SST1")
+        if tier in ("MAX", "HIGH"):
+            edges.append("ELITE")
+        df1 = None
+        try:
+            df1 = binance_client.get_klines(sym, "1h", limit=120)
+        except Exception:
+            df1 = None
+        try:
+            et = entry_timing.entry_signal(
+                sym, side, entry, stop=float(pl.get("stop") or 0), df=df1)
+            if et.get("status") == "TAKE_NOW":
+                edges.append("TAKE_NOW")
+            if et.get("hot"):
+                edges.append("HOT")
+        except Exception:
+            pass
+        try:
+            if df1 is not None:
+                bs, bside, _ = _vb.lane_velocity_burst(df1)
+                if bs >= 90 and (bside or "").upper() == side:
+                    edges.append("BURST")
+        except Exception:
+            pass
+        try:
+            pr = _pn.predict(
+                sym, klines_by_tf={"1h": df1} if df1 is not None else None)
+            ol = (pr.get("outlook") or "")
+            if pr.get("aligned") and (
+                    (side == "LONG" and ol == "Bullish")
+                    or (side == "SHORT" and ol == "Bearish")):
+                edges.append("FORECAST")
+        except Exception:
+            pass
+        try:
+            if p is not None and int(p.get("_mtf_aligned") or 0) >= 2:
+                edges.append("MTF")
+        except Exception:
+            pass
+        if len(edges) >= apex_min:
+            apex.append({
+                "symbol": sym,
+                "base": (p or sp).get("base") or (sym or "").replace(
+                    "USDT", ""),
+                "side": side,
+                "tier": tier or "SST1",
+                "score": score if score else float(
+                    (sp or {}).get("conviction") or 0),
+                "entry": entry,
+                "stop": float(pl.get("stop") or 0),
+                "tp1": float(pl.get("tp1") or 0),
+                "tp2": float(pl.get("tp2") or 0),
+                "edges": edges,
+                "apex": len(edges),
+            })
+    apex.sort(key=lambda x: (x["apex"], x["score"]), reverse=True)
+
+    return {"sst1": sst1, "takenow": takenow, "leaderboard": leaderboard,
+            "apex": apex, "regime": regime}

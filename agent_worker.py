@@ -59,15 +59,27 @@ def _fmt_leaderboard(p) -> str:
             f"_top-conviction ELITE — early heads-up_")
 
 
+def _fmt_apex(p) -> str:
+    edges = " · ".join(p.get("edges", []))
+    return (f"🏆🔥 *APEX ×{p.get('apex', 0)}* — {p['base']} {p['side']} "
+            f"({p['tier']} {p['score']:.0f})\n"
+            f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
+            f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
+            f"_best of the best — {edges} all agree_")
+
+
 def cycle() -> None:
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     r = scan_core.scan_all(scan_n=60, min_conv=MIN_CONV)
     sst1, takenow = r["sst1"], r["takenow"]
+    apex = r.get("apex", [])
     lb_all = r.get("leaderboard", [])
     lb = [p for p in lb_all if float(p.get("score") or 0) >= LB_MIN]
     regime = (r.get("regime") or {}).get("regime", "?")
 
     # Store every best-signal this cycle (history for pattern analysis).
+    for p in apex:
+        store.record_signal("apex", p)
     for p in sst1:
         store.record_signal("sst1", p)
     for p in takenow:
@@ -75,7 +87,7 @@ def cycle() -> None:
     for p in lb_all:
         store.record_signal("leaderboard", p)
 
-    # Alert — TAKE NOW 🔥 first (most urgent), then SST1, then leaderboard
+    # Alert — APEX (best of the best) first, then TAKE NOW 🔥, SST1, leaderboard
     # heads-ups. Cooldown-deduped per setup.
     n_alerts = 0
 
@@ -89,14 +101,15 @@ def cycle() -> None:
                 if not ok:
                     print("  tg:", msg, flush=True)
 
+    _push(apex, "apex", _fmt_apex)
     _push(takenow, "takenow", _fmt_takenow)
     _push(sst1, "sst1", _fmt_sst1)
     _push(lb, "lb", _fmt_leaderboard)
 
     store.record_cycle(regime, len(sst1), len(takenow), n_alerts)
-    print(f"[{stamp}] regime={regime} · SST1≥{MIN_CONV:.0f}={len(sst1)} · "
-          f"TAKE_NOW+HOT={len(takenow)} · LB≥{LB_MIN:.0f}={len(lb)} · "
-          f"alerts_sent={n_alerts}", flush=True)
+    print(f"[{stamp}] regime={regime} · APEX={len(apex)} · "
+          f"SST1≥{MIN_CONV:.0f}={len(sst1)} · TAKE_NOW+HOT={len(takenow)} · "
+          f"LB≥{LB_MIN:.0f}={len(lb)} · alerts_sent={n_alerts}", flush=True)
 
 
 def main() -> None:

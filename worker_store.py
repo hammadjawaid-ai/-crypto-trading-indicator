@@ -135,7 +135,15 @@ def _rows(sql: str, args: tuple = ()) -> list[dict]:
 def recent_signals(limit: int = 40) -> list[dict]:
     return _rows(
         "SELECT ts,stream,base,side,tier,score,conviction,hot,atr_pct,"
-        "entry,stop,tp1,tp2 FROM signals ORDER BY id DESC LIMIT ?", (limit,))
+        "entry,stop,tp1,tp2,extra FROM signals ORDER BY id DESC LIMIT ?",
+        (limit,))
+
+
+def recent_by_stream(stream: str, limit: int = 12) -> list[dict]:
+    return _rows(
+        "SELECT ts,stream,base,side,tier,score,conviction,hot,atr_pct,"
+        "entry,stop,tp1,tp2,extra FROM signals WHERE stream=? "
+        "ORDER BY id DESC LIMIT ?", (stream, limit))
 
 
 def recent_cycles(limit: int = 25) -> list[dict]:
