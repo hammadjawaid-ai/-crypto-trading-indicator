@@ -28,6 +28,7 @@ import worker_store as store
 INTERVAL = max(1, int(getattr(config, "WORKER_INTERVAL_MIN", 5))) * 60
 COOLDOWN = max(1, int(getattr(config, "WORKER_ALERT_COOLDOWN_MIN", 360))) * 60
 MIN_CONV = float(getattr(config, "WORKER_SST1_MIN_CONV", 70))
+LB_MIN = float(getattr(config, "WORKER_LEADERBOARD_MIN_SCORE", 85))
 
 
 def _tp2(p):
@@ -50,10 +51,20 @@ def _fmt_sst1(p) -> str:
             f"_proven ~72% tier_")
 
 
+def _fmt_leaderboard(p) -> str:
+    return (f"🏆 *Leaderboard {p['tier']} {p['score']:.0f}* — "
+            f"{p['base']} {p['side']}\n"
+            f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
+            f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
+            f"_top-conviction ELITE — early heads-up_")
+
+
 def cycle() -> None:
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     r = scan_core.scan_all(scan_n=60, min_conv=MIN_CONV)
     sst1, takenow = r["sst1"], r["takenow"]
+    lb_all = r.get("leaderboard", [])
+    lb = [p for p in lb_all if float(p.get("score") or 0) >= LB_MIN]
     regime = (r.get("regime") or {}).get("regime", "?")
 
     # Store every best-signal this cycle (history for pattern analysis).
@@ -61,25 +72,31 @@ def cycle() -> None:
         store.record_signal("sst1", p)
     for p in takenow:
         store.record_signal("takenow", p)
+    for p in lb_all:
+        store.record_signal("leaderboard", p)
 
-    # Alert — TAKE NOW 🔥 first (most urgent), then SST1. Cooldown-deduped.
+    # Alert — TAKE NOW 🔥 first (most urgent), then SST1, then leaderboard
+    # heads-ups. Cooldown-deduped per setup.
     n_alerts = 0
-    for p in takenow:
-        if store.should_alert(f"takenow:{p['symbol']}:{p['side']}", COOLDOWN):
-            ok, msg = tg.send(_fmt_takenow(p))
-            n_alerts += 1 if ok else 0
-            if not ok:
-                print("  tg:", msg, flush=True)
-    for p in sst1:
-        if store.should_alert(f"sst1:{p['symbol']}:{p['side']}", COOLDOWN):
-            ok, msg = tg.send(_fmt_sst1(p))
-            n_alerts += 1 if ok else 0
-            if not ok:
-                print("  tg:", msg, flush=True)
+
+    def _push(items, key_prefix, fmt):
+        nonlocal n_alerts
+        for p in items:
+            if store.should_alert(f"{key_prefix}:{p['symbol']}:{p['side']}",
+                                  COOLDOWN):
+                ok, msg = tg.send(fmt(p))
+                n_alerts += 1 if ok else 0
+                if not ok:
+                    print("  tg:", msg, flush=True)
+
+    _push(takenow, "takenow", _fmt_takenow)
+    _push(sst1, "sst1", _fmt_sst1)
+    _push(lb, "lb", _fmt_leaderboard)
 
     store.record_cycle(regime, len(sst1), len(takenow), n_alerts)
     print(f"[{stamp}] regime={regime} · SST1≥{MIN_CONV:.0f}={len(sst1)} · "
-          f"TAKE_NOW+HOT={len(takenow)} · alerts_sent={n_alerts}", flush=True)
+          f"TAKE_NOW+HOT={len(takenow)} · LB≥{LB_MIN:.0f}={len(lb)} · "
+          f"alerts_sent={n_alerts}", flush=True)
 
 
 def main() -> None:

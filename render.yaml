@@ -1,30 +1,35 @@
-# One-click Render setup for the 24/7 signal service (alert-only).
-# In Render: New + → "Blueprint" → point at this repo → it reads this file.
-# It creates ONE always-on web service that (a) runs the scan loop 24/7 and
-# pushes Telegram alerts, and (b) serves a live dashboard at your public URL.
-# Then set the secret env vars (TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID) in the
-# dashboard. The 1 GB disk keeps the signal history across redeploys.
+# One-click Render setup — the WHOLE app, always-on, with a 24/7 brain.
+# New + → "Blueprint" → point at this repo → Render reads this file and makes
+# ONE web service that runs the full Streamlit app AND a background brain
+# thread (scans + Telegram alerts + memory) around the clock. Then set the
+# secret env vars in the dashboard. The disk keeps live memory across redeploys.
 services:
   - type: web
-    name: crypto-signal-worker
+    name: crypto-indicator-24-7
     runtime: python
-    plan: starter            # cheapest always-on tier (no sleep)
+    plan: standard           # full app + scanning needs RAM; 'starter' may
+                             # work for light use — downgrade to test.
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn -w 1 -t 120 -b 0.0.0.0:$PORT web_dashboard:app
-    healthCheckPath: /health
+    startCommand: python launch.py
+    healthCheckPath: /_stcore/health
     autoDeploy: true
     envVars:
       - key: TELEGRAM_BOT_TOKEN
         sync: false          # set in the dashboard (secret)
       - key: TELEGRAM_CHAT_ID
         sync: false
+      - key: STATE_DIR
+        value: /var/data     # durable live memory (DB + state on the disk)
       - key: WORKER_INTERVAL_MIN
         value: "5"
       - key: WORKER_ALERT_COOLDOWN_MIN
         value: "360"
-      - key: WORKER_DB_PATH
-        value: /var/data/worker.db
+      # Optional app keys (fail-soft if absent):
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: LUNARCRUSH_API_KEY
+        sync: false
     disk:
-      name: worker-data
+      name: app-data
       mountPath: /var/data
       sizeGB: 1

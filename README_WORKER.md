@@ -1,88 +1,84 @@
-# 24/7 Signal Worker — setup (Telegram alerts, always-on)
+# Your whole app, running 24/7 (Render) — setup
 
-This runs your signal engine **24/7 in the cloud**, independent of your laptop
-or any open browser. It scans on a timer, **stores every best-signal**, and
-pushes only the cream to your phone via Telegram:
+This puts your **entire app on an always-on server** with a **background brain**
+that scans, alerts, and remembers **around the clock** — even when no browser
+is open. The webpage becomes a live window into something already running, not
+a thing that only computes when you open it.
 
-- ✅🔥 **TAKE NOW HOT** — an ELITE MAX/HIGH setup that pulled back, confirmed,
-  and is firing with elevated ATR (the validated higher-edge entry).
-- 💠 **SST1 conv ≥ 70** — the proven ~72% tier.
+**One Render web service runs two things together (`launch.py`):**
+1. **The brain** — a background thread that scans every few minutes,
+   independent of any browser, stores everything, and pushes only the best to
+   your phone via Telegram:
+   - ✅🔥 **TAKE NOW HOT** — ELITE MAX/HIGH, pulled back + confirmed + firing.
+   - 💠 **SST1 conv ≥ 70** — the proven ~72% tier.
+   - 🏆 **Leaderboard** — the highest-conviction ELITE MAX/HIGH picks (early
+     heads-up).
+2. **The full Streamlit app** — the exact app you know, served at your own
+   public URL, always awake.
 
-It also serves a **live web dashboard** at your own public URL — open it in any
-browser, on any device, 24/7, to see the latest setups, the alerts it pushed,
-and the scan history. Telegram is the buzz; the page is your window.
-
-It is **alert-only** — it does **not** place any trades. Nothing touches your
-Bybit money.
+State lives on the server's **disk** (`STATE_DIR=/var/data`) so your history
+and positions are **live memory that survives redeploys**. Still **alert-only**
+— no trades are placed.
 
 ---
 
 ## Step 1 — Create a Telegram bot (2 min)
-1. In Telegram, open a chat with **@BotFather**.
-2. Send `/newbot`, pick a name and a username. BotFather replies with a
-   **token** like `123456789:AAH...` — copy it. That's `TELEGRAM_BOT_TOKEN`.
+1. Open **@BotFather** in Telegram → send `/newbot` → pick a name + a username
+   ending in `bot`.
+2. Copy the **token** it gives you → that's `TELEGRAM_BOT_TOKEN`.
+3. Open your new bot, press **Start**, send it "hi".
 
-## Step 2 — Get your chat ID (1 min)
-1. Open a chat with your new bot and send it any message (e.g. "hi").
-2. In Telegram, open a chat with **@userinfobot** and send `/start` — it
-   replies with your numeric **Id**. That's `TELEGRAM_CHAT_ID`.
-   *(Alternative: visit `https://api.telegram.org/bot<TOKEN>/getUpdates` in a
-   browser after messaging your bot, and read `chat.id`.)*
+## Step 2 — Get your Chat ID (1 min)
+- Open **@userinfobot** → it replies with your numeric **Id** →
+  that's `TELEGRAM_CHAT_ID`.
+- (Browser alternative: after messaging your bot, open
+  `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates` and read `chat.id`.)
 
-## Step 3 — Deploy the service (Render, ~$7/mo, easiest)
-1. Push this repo to GitHub (already done).
-2. On **render.com** → **New +** → **Blueprint** → select this repo. Render
-   reads `render.yaml` and creates a **Web Service** (one always-on service
-   that runs the scan loop **and** serves the dashboard).
-3. In the service's **Environment**, set the two secrets:
+## Step 3 — Deploy the whole app on Render
+1. On **render.com** → **New +** → **Blueprint** → select this repo. Render
+   reads `render.yaml` and creates a **Web Service** running `python launch.py`
+   (full app + brain), with a 1 GB disk for live memory.
+2. Set the secret env vars in the service's **Environment**:
    ```
    TELEGRAM_BOT_TOKEN = 123456789:AAH...
    TELEGRAM_CHAT_ID   = 987654321
    ```
-   (If your scan uses any API keys — e.g. `LUNARCRUSH_API_KEY` — add them too.
-   None are required for the core SST1 / TAKE NOW streams.)
-4. **Create** → it builds and starts. Render gives you a public URL like
-   `https://crypto-signal-worker.onrender.com` — **that's your dashboard.**
-   The `render.yaml` mounts a 1 GB disk at `/var/data` so history survives
-   redeploys.
+   Optional (fail-soft if absent): `ANTHROPIC_API_KEY`, `LUNARCRUSH_API_KEY`,
+   and your Bybit keys if/when you go live.
+3. **Create.** Render builds and starts it, and gives you a public URL like
+   `https://crypto-indicator-24-7.onrender.com` — **that URL is your app.**
 
-### Railway alternative
-New Project → Deploy from GitHub → it detects the **Procfile**
-(`worker: python agent_worker.py`). Add the same env vars under **Variables**.
-Add a Volume if you want persistent history.
+> **Plan:** the blueprint uses **standard** (2 GB RAM) because the full app +
+> scanning needs headroom. You can try **starter** to save money, but if it
+> restarts under load, bump it back to standard.
 
-## Step 4 — Verify it's live
-- **Open your Render URL in a browser** (e.g.
-  `https://crypto-signal-worker.onrender.com`) — you'll see the dashboard:
-  last-scan time, regime, latest best setups, alerts pushed, and scan history.
-  It auto-refreshes every 60s. Bookmark it on your phone's home screen and it
-  works like an app.
-- Within a minute you should also get a Telegram message: **"🟢 24/7 worker
-  online"**. That confirms the phone-push pipe.
-- In Render **Logs** you'll see a line each cycle, e.g.
-  `regime=BEAR · SST1≥70=1 · TAKE_NOW+HOT=0 · alerts_sent=0`.
-- Real alerts arrive only when something clears the bar — by design that's
-  selective (often <1/day for SST1). Quiet ≠ broken.
+## Step 4 — Verify
+- **Open your Render URL** — it's your full dashboard, always awake. Bookmark
+  it to your phone's home screen and it behaves like a native app.
+- **Phone:** within ~1 min you get a Telegram **"🟢 App online 24/7"** message.
+- **Logs** (Render dashboard) show a brain line each cycle, e.g.
+  `regime=BEAR · SST1≥70=1 · TAKE_NOW+HOT=0 · LB≥85=1 · alerts_sent=0`.
+- Alerts are **selective** — often nothing for a while, then a real one. Quiet
+  is the system working, not broken.
 
 ---
 
 ## Tuning (optional env vars)
 | Var | Default | Meaning |
 |---|---|---|
-| `WORKER_INTERVAL_MIN` | 5 | minutes between scans |
+| `WORKER_INTERVAL_MIN` | 5 | minutes between brain scans |
 | `WORKER_ALERT_COOLDOWN_MIN` | 360 | don't re-alert the same setup within this window |
 | `WORKER_SST1_MIN_CONV` | 70 | SST1 conviction bar to alert |
-| `WORKER_DB_PATH` | `/var/data/worker.db` | where the SQLite history lives |
+| `WORKER_LEADERBOARD_MIN_SCORE` | 85 | leaderboard score bar to alert |
+| `STATE_DIR` | `/var/data` | durable disk for DB + state (live memory) |
 
-## What it stores (for later pattern/behaviour analysis)
-`worker.db` (SQLite) keeps a `signals` row for every best-signal each cycle,
-an `alerts_sent` dedup ledger, and a `cycles` summary. That's the raw history
-we'll mine later to study which setups actually worked.
-
-## Honest limits
-- **Alert-only** for now — proving the alerts live is Phase 1. Auto-execution
-  on Bybit (with hard rails) is a separate, later switch-on once the alerts
-  are shown to be as good live as they backtested.
-- Telegram push needs the worker running (it is, 24/7) — but if the host
-  itself is down, no alerts. Render/Railway restart workers automatically on
-  crash, and the loop also catches its own errors and retries next cycle.
+## What this is (and isn't) — honest
+- ✅ **Phase A (this):** whole app always awake + 24/7 brain (scanning, alerts,
+  memory on disk). The browser is now a window into a live system.
+- ⏳ **Phase B (next):** move the boards + paper-position stop/target checks
+  into the brain so the app shows continuously-maintained state instantly and
+  trades are managed even with the browser closed.
+- ⏳ **Phase C:** outcome memory — track which signals actually hit TP vs SL so
+  the agent learns what's working and surfaces the positive patterns.
+- **Alert-only** throughout — auto-execution on Bybit stays a separate, later,
+  rails-guarded switch-on once the alerts are proven live.

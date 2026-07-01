@@ -74,6 +74,13 @@ TELEGRAM_CHAT_ID = _secret("TELEGRAM_CHAT_ID")
 WORKER_INTERVAL_MIN = int(_secret("WORKER_INTERVAL_MIN") or "5")
 WORKER_ALERT_COOLDOWN_MIN = int(_secret("WORKER_ALERT_COOLDOWN_MIN") or "360")
 WORKER_SST1_MIN_CONV = float(_secret("WORKER_SST1_MIN_CONV") or "70")
+WORKER_LEADERBOARD_MIN_SCORE = float(
+    _secret("WORKER_LEADERBOARD_MIN_SCORE") or "85")
+
+# Optional durable state dir (Render/Railway persistent disk). When set, the
+# worker DB + app state live here so they survive redeploys → true live
+# memory. e.g. STATE_DIR=/var/data. Empty → files sit next to the code.
+STATE_DIR = _secret("STATE_DIR")
 
 
 # --- Bybit live-trading credentials & settings -----------------------------

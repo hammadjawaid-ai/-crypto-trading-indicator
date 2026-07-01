@@ -104,4 +104,31 @@ def scan_all(scan_n: int = 60, min_conv: float = 70.0) -> dict:
                 "hot": True,
                 "atr_pct": et.get("atr_pct"),
             })
-    return {"sst1": sst1, "takenow": takenow, "regime": regime}
+
+    # --- Stream 3: leaderboard — top-conviction ELITE MAX/HIGH ----------
+    # The highest-score MAX/HIGH picks (the leaderboard), as an early
+    # heads-up before they reach TAKE_NOW. Ranked by the ELITE composite.
+    leaderboard: list[dict] = []
+    for p in scan:
+        if (p.get("tier") or "").upper() not in ("MAX", "HIGH"):
+            continue
+        side = (p.get("side") or "").upper()
+        if side not in ("LONG", "SHORT"):
+            continue
+        pl = _plan(p)
+        leaderboard.append({
+            "symbol": p.get("symbol"),
+            "base": p.get("base") or (p.get("symbol") or "").replace(
+                "USDT", ""),
+            "side": side,
+            "tier": (p.get("tier") or "").upper(),
+            "score": float(p.get("score") or 0),
+            "entry": float(pl.get("entry") or 0),
+            "stop": float(pl.get("stop") or 0),
+            "tp1": float(pl.get("tp1") or 0),
+            "tp2": float(pl.get("tp2") or 0),
+        })
+    leaderboard.sort(key=lambda x: x["score"], reverse=True)
+
+    return {"sst1": sst1, "takenow": takenow,
+            "leaderboard": leaderboard, "regime": regime}

@@ -14,8 +14,20 @@ import sqlite3
 import time
 from pathlib import Path
 
-DB_PATH = os.environ.get(
-    "WORKER_DB_PATH", str(Path(__file__).with_name(".worker.db")))
+import config
+
+
+def _default_db() -> str:
+    explicit = (os.environ.get("WORKER_DB_PATH", "") or "").strip()
+    if explicit:
+        return explicit
+    sd = (getattr(config, "STATE_DIR", "") or "").strip()
+    if sd:
+        return str(Path(sd) / "worker.db")
+    return str(Path(__file__).with_name(".worker.db"))
+
+
+DB_PATH = _default_db()
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS signals (
