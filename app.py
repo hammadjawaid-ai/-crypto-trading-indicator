@@ -951,10 +951,11 @@ def _render_closed_history(state, bot, label, key):
                      "see README_GSHEET.md.)")
 
 
-def _render_brain_memory():
+def _render_brain_memory(pb_state):
     """Display the 24/7 background brain's LIVE MEMORY — the best-of-the-best
     (APEX) setups + recent signals it found on its own, even while the browser
-    was closed. Reads the shared worker.db the brain writes (populated on the
+    was closed. APEX + TAKE NOW HOT cards are openable straight into the Paper
+    Trader. Reads the shared worker.db the brain writes (populated on the
     always-on deploy; empty locally / on Streamlit Cloud). Fail-soft."""
     try:
         import worker_store as _ws
@@ -1010,50 +1011,89 @@ def _render_brain_memory():
             out.append(r)
         return out
 
-    # 🏆 APEX — several validated edges agree (the best of the best)
+    # One openable card: card + 📥 Open button that opens into the Paper
+    # Trader (idealised fill at the setup's planned entry, like the other
+    # boards). Skips if already open.
+    def _open_card(r, key, tag_html, edges_html=""):
+        base = r.get("base")
+        side = (r.get("side") or "").upper()
+        entry = float(r.get("entry") or 0)
+        stop = float(r.get("stop") or 0)
+        tp1 = float(r.get("tp1") or 0)
+        tp2 = float(r.get("tp2") or 0)
+        scol = "#2ed47a" if side == "LONG" else "#ff5c5c"
+        _c1, _c2 = st.columns([5, 1])
+        _c1.markdown(
+            f"<div style='background:rgba(255,107,53,0.07);border:1px solid "
+            f"{scol}44;border-radius:11px;padding:9px 13px;margin:4px 0'>"
+            f"{tag_html} <b>{base}</b> <span style='color:{scol};"
+            f"font-weight:800'>{side}</span> "
+            f"<span style='color:#8b93a7;font-size:0.72rem'>· "
+            f"{_ago(r.get('ts'))}</span>{edges_html}<br>"
+            f"<span style='color:#9aa7c7;font-size:0.78rem'>entry "
+            f"{entry:g} · SL {stop:g} · TP1 {tp1:g}</span></div>",
+            unsafe_allow_html=True)
+        if any(p.get("symbol") == r.get("symbol")
+               for p in (pb_state.get("open") or [])):
+            _c2.caption("✓ open")
+        elif _c2.button("📥 Open", key=key, use_container_width=True):
+            try:
+                _alert = {
+                    "symbol": r.get("symbol"), "base": base, "side": side,
+                    "entry_low": entry, "stop": stop, "target": tp1,
+                    "target_2": tp2 or None,
+                    "confidence": int(float(r.get("score") or 0)),
+                    "strength_factor": 0.7,
+                    "_unified_source": "brain_24_7"}
+                _pos = paper_bot.open_position(pb_state, _alert, entry)
+                paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                if _pos:
+                    st.success(f"Opened {side} {base} (from 24/7 brain)")
+                    st.rerun()
+                else:
+                    st.warning("Not opened — Paper Trader rejected.")
+            except Exception as exc:
+                st.error(f"Open failed: {exc}")
+
+    # 🏆 APEX — several validated edges agree (the best of the best) — openable
     apex_u = _dedup(apex_rows)
     if apex_u:
-        st.markdown("**🏆 APEX — where several validated edges agree**")
-        for r in apex_u[:6]:
+        st.markdown("**🏆 APEX — several validated edges agree · openable**")
+        for _i, r in enumerate(apex_u[:6]):
             try:
                 _ex = _json_bm.loads(r.get("extra") or "{}")
             except Exception:
                 _ex = {}
             _edges = " · ".join(_ex.get("edges", []))
             _n = _ex.get("apex", len(_ex.get("edges", []) or []))
-            st.markdown(
-                f"<div style='background:rgba(255,107,53,0.08);border:1px solid "
-                f"#ff6b3555;border-radius:11px;padding:9px 13px;margin:4px 0'>"
-                f"<b>🏆 ×{_n}</b> · <b>{r.get('base')}</b> "
-                f"{_side_html(r.get('side'))} "
-                f"<span style='color:#a78bfa;font-size:0.78rem'>· "
-                f"{r.get('tier')}</span> "
-                f"<span style='color:#8b93a7;font-size:0.72rem'>· "
-                f"{_ago(r.get('ts'))}</span><br>"
-                f"<span style='color:#9aa7c7;font-size:0.78rem'>entry "
-                f"{r.get('entry'):g} · SL {r.get('stop'):g} · TP1 "
-                f"{r.get('tp1'):g}</span> "
-                f"<span style='background:rgba(255,107,53,0.18);color:#ff6b35;"
-                f"padding:1px 7px;border-radius:5px;font-size:0.68rem;"
-                f"font-weight:800'>{_edges}</span></div>",
-                unsafe_allow_html=True)
+            _tag = (f"<span style='background:rgba(255,107,53,0.2);"
+                    f"color:#ff6b35;padding:1px 7px;border-radius:5px;"
+                    f"font-size:0.7rem;font-weight:800'>🏆 APEX ×{_n}</span>")
+            _eh = (f" <span style='background:rgba(255,107,53,0.15);"
+                   f"color:#ff6b35;padding:1px 6px;border-radius:5px;"
+                   f"font-size:0.66rem;font-weight:700'>{_edges}</span>")
+            _open_card(r, f"brain_apex_{r.get('symbol')}_{_i}", _tag, _eh)
     else:
         st.caption("· No APEX consensus right now — it's the rarest tier "
-                   "(needs multiple independent validated edges to agree). "
-                   "SST1 + TAKE NOW below are the next-best the brain sees.")
+                   "(needs several independent validated edges to agree).")
 
-    # A compact memory line for SST1 + TAKE NOW the brain has been logging.
-    _s1 = _dedup(sst1_rows)
+    # ✅🔥 TAKE NOW + HOT the brain caught 24/7 — openable
     _tn = _dedup(tn_rows)
-    _bits = []
-    if _s1:
-        _bits.append("💠 SST1≥70: " + ", ".join(
-            f"{r.get('base')} {r.get('side')}" for r in _s1[:5]))
     if _tn:
-        _bits.append("✅🔥 TAKE NOW+HOT: " + ", ".join(
-            f"{r.get('base')} {r.get('side')}" for r in _tn[:5]))
-    if _bits:
-        st.caption(" · ".join(_bits))
+        st.markdown("**✅🔥 TAKE NOW + HOT (caught 24/7) · openable**")
+        for _i, r in enumerate(_tn[:6]):
+            _tag = ("<span style='background:#0b8a3e;color:#fff;padding:1px "
+                    "7px;border-radius:5px;font-size:0.7rem;font-weight:800'>"
+                    "✅ TAKE NOW</span> <span style='background:rgba(255,107,"
+                    "53,0.2);color:#ff6b35;padding:1px 7px;border-radius:5px;"
+                    "font-size:0.68rem;font-weight:800'>🔥 HOT</span>")
+            _open_card(r, f"brain_tn_{r.get('symbol')}_{_i}", _tag)
+
+    _s1 = _dedup(sst1_rows)
+    if _s1:
+        st.caption("💠 SST1≥70 the brain is tracking: " + ", ".join(
+            f"{r.get('base')} {r.get('side')}" for r in _s1[:6])
+            + " — also openable on the BEST TRADES NOW board below.")
     st.divider()
 
 
@@ -11728,7 +11768,7 @@ if active_section == "🧪 Paper Trader":
         # you were away. Reads the shared worker.db (populated on the always-on
         # deploy). Fail-soft so it never breaks the page.
         try:
-            _render_brain_memory()
+            _render_brain_memory(pb_state)
         except Exception:
             pass
 
