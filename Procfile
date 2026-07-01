@@ -1,1 +1,1 @@
-worker: python agent_worker.py
+web: gunicorn -w 1 -t 120 -b 0.0.0.0:$PORT web_dashboard:app

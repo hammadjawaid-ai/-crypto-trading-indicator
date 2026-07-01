@@ -108,3 +108,36 @@ def stats() -> dict:
         }
     finally:
         c.close()
+
+
+def _rows(sql: str, args: tuple = ()) -> list[dict]:
+    c = _open()
+    try:
+        c.row_factory = sqlite3.Row
+        cur = c.execute(sql, args)
+        return [dict(r) for r in cur.fetchall()]
+    finally:
+        c.close()
+
+
+def recent_signals(limit: int = 40) -> list[dict]:
+    return _rows(
+        "SELECT ts,stream,base,side,tier,score,conviction,hot,atr_pct,"
+        "entry,stop,tp1,tp2 FROM signals ORDER BY id DESC LIMIT ?", (limit,))
+
+
+def recent_cycles(limit: int = 25) -> list[dict]:
+    return _rows(
+        "SELECT ts,regime,n_sst1,n_takenow,n_alerts FROM cycles "
+        "ORDER BY id DESC LIMIT ?", (limit,))
+
+
+def recent_alerts(limit: int = 25) -> list[dict]:
+    return _rows(
+        "SELECT alert_id,last_ts,count FROM alerts_sent "
+        "ORDER BY last_ts DESC LIMIT ?", (limit,))
+
+
+def last_cycle() -> dict | None:
+    rows = recent_cycles(1)
+    return rows[0] if rows else None

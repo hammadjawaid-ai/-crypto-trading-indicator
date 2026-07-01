@@ -7,4 +7,6 @@ vaderSentiment>=3.3
 tradingview-ta>=3.3
 truststore>=0.9
 pybit>=5.7
+flask>=3.0
+gunicorn>=21.2
 

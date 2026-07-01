@@ -1,14 +1,17 @@
-# One-click Render setup for the 24/7 signal worker (alert-only).
+# One-click Render setup for the 24/7 signal service (alert-only).
 # In Render: New + → "Blueprint" → point at this repo → it reads this file.
+# It creates ONE always-on web service that (a) runs the scan loop 24/7 and
+# pushes Telegram alerts, and (b) serves a live dashboard at your public URL.
 # Then set the secret env vars (TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID) in the
-# dashboard. A 1 GB disk keeps the signal history across redeploys.
+# dashboard. The 1 GB disk keeps the signal history across redeploys.
 services:
-  - type: worker
+  - type: web
     name: crypto-signal-worker
     runtime: python
-    plan: starter            # cheapest always-on worker tier
+    plan: starter            # cheapest always-on tier (no sleep)
     buildCommand: pip install -r requirements.txt
-    startCommand: python agent_worker.py
+    startCommand: gunicorn -w 1 -t 120 -b 0.0.0.0:$PORT web_dashboard:app
+    healthCheckPath: /health
     autoDeploy: true
     envVars:
       - key: TELEGRAM_BOT_TOKEN
