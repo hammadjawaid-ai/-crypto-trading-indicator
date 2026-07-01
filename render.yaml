@@ -1,0 +1,27 @@
+# One-click Render setup for the 24/7 signal worker (alert-only).
+# In Render: New + → "Blueprint" → point at this repo → it reads this file.
+# Then set the secret env vars (TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID) in the
+# dashboard. A 1 GB disk keeps the signal history across redeploys.
+services:
+  - type: worker
+    name: crypto-signal-worker
+    runtime: python
+    plan: starter            # cheapest always-on worker tier
+    buildCommand: pip install -r requirements.txt
+    startCommand: python agent_worker.py
+    autoDeploy: true
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false          # set in the dashboard (secret)
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: WORKER_INTERVAL_MIN
+        value: "5"
+      - key: WORKER_ALERT_COOLDOWN_MIN
+        value: "360"
+      - key: WORKER_DB_PATH
+        value: /var/data/worker.db
+    disk:
+      name: worker-data
+      mountPath: /var/data
+      sizeGB: 1

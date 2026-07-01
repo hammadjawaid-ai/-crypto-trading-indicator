@@ -59,6 +59,23 @@ def _secret(key: str) -> str:
 NTFY_TOPIC = _secret("NTFY_TOPIC")
 
 
+# --- Telegram push (24/7 cloud worker alerts) ------------------------------
+# The always-on worker (agent_worker.py) pushes only the best setups —
+# ✅ TAKE NOW 🔥 and SST1 conv>=70 — straight to your phone via a Telegram
+# bot, even with the app closed. Setup: see README_WORKER.md (talk to
+# @BotFather -> token; message the bot -> chat id). Set in .env / host env:
+#   TELEGRAM_BOT_TOKEN=123456:ABC...
+#   TELEGRAM_CHAT_ID=123456789
+# Both empty -> Telegram push disabled (worker still runs + stores).
+TELEGRAM_BOT_TOKEN = _secret("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = _secret("TELEGRAM_CHAT_ID")
+
+# 24/7 worker cadence + alert bar (overridable via env on the host).
+WORKER_INTERVAL_MIN = int(_secret("WORKER_INTERVAL_MIN") or "5")
+WORKER_ALERT_COOLDOWN_MIN = int(_secret("WORKER_ALERT_COOLDOWN_MIN") or "360")
+WORKER_SST1_MIN_CONV = float(_secret("WORKER_SST1_MIN_CONV") or "70")
+
+
 # --- Bybit live-trading credentials & settings -----------------------------
 # Set in .env (gitignored) or Streamlit Cloud secrets:
 #   BYBIT_API_KEY=...
