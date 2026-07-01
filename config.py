@@ -88,6 +88,22 @@ WORKER_APEX_MIN_EDGES = int(_secret("WORKER_APEX_MIN_EDGES") or "3")
 STATE_DIR = _secret("STATE_DIR")
 
 
+def state_path(name: str) -> Path:
+    """Durable path for a state file — on the persistent disk (STATE_DIR) when
+    set (Render/Railway), else next to the code (local dev). This is what makes
+    paper trades, closed-trade history, and fires SURVIVE redeploys instead of
+    resetting on the container's ephemeral disk."""
+    sd = (STATE_DIR or "").strip()
+    if sd:
+        base = Path(sd)
+        try:
+            base.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            base = Path(__file__).resolve().parent
+        return base / name
+    return Path(__file__).resolve().parent / name
+
+
 # --- Bybit live-trading credentials & settings -----------------------------
 # Set in .env (gitignored) or Streamlit Cloud secrets:
 #   BYBIT_API_KEY=...
@@ -98,8 +114,8 @@ BYBIT_API_KEY = _secret("BYBIT_API_KEY")
 BYBIT_API_SECRET = _secret("BYBIT_API_SECRET")
 BYBIT_TESTNET = _secret("BYBIT_TESTNET").lower() in ("1", "true", "yes", "y")
 
-# Live bot state file (created at runtime, gitignored).
-LIVE_BOT_STATE_PATH = Path(__file__).with_name(".live_bot.json")
+# Live bot state file (created at runtime, gitignored). Durable on STATE_DIR.
+LIVE_BOT_STATE_PATH = state_path(".live_bot.json")
 
 # --- Supabase: DURABLE closed-trade storage --------------------------------
 # Streamlit Cloud's filesystem is ephemeral (redeploys wipe the .json bot
@@ -253,7 +269,7 @@ ANTHROPIC_MODEL = _secret("ANTHROPIC_MODEL") or "claude-3-5-haiku-latest"
 
 # Sure Shot Trader paper account — SEPARATE $10k state file, isolated from
 # the regular Paper Trader (.paper_bot.json) and Live (.live_bot.json).
-SURESHOT_BOT_STATE_PATH = Path(__file__).with_name(".sureshot_bot.json")
+SURESHOT_BOT_STATE_PATH = state_path(".sureshot_bot.json")
 SURESHOT_STARTING_BALANCE = 10000.0
 
 # --- Sure Shot Trader 2 — deep-analysis desk (9 agents) --------------------
@@ -262,7 +278,7 @@ SURESHOT_STARTING_BALANCE = 10000.0
 # the full 7-analyst report per finalist and adjudicates. Called on at most
 # 3 finalists per 3-min scan window, so cost stays modest despite the
 # bigger model. Override the model in .env if desired.
-SURESHOT2_BOT_STATE_PATH = Path(__file__).with_name(".sureshot2_bot.json")
+SURESHOT2_BOT_STATE_PATH = state_path(".sureshot2_bot.json")
 SURESHOT2_STARTING_BALANCE = 10000.0
 ANTHROPIC_MODEL_DEEP = _secret("ANTHROPIC_MODEL_DEEP") or "claude-fable-5"
 

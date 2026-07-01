@@ -825,8 +825,10 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- Paper trading bot state file (lives next to app.py, gitignored) ------
-PAPER_BOT_FILE = Path(__file__).resolve().parent / ".paper_bot.json"
+# --- Paper trading bot state file — DURABLE on STATE_DIR (Render disk) so
+# open + closed trades survive redeploys and never vanish; local dev keeps it
+# next to app.py. gitignored.
+PAPER_BOT_FILE = config.state_path(".paper_bot.json")
 
 # --- DURABLE closed-trade recovery (Supabase) -----------------------------
 # Streamlit Cloud wipes local .json bot state on every redeploy. This merges
@@ -1123,12 +1125,12 @@ def _render_brain_memory(pb_state):
 # --- 🔥 Persistent signal fire log (every STRONG+ pick gets logged with
 # timestamp + entry price so the 🔥 RECENT FIRES section can surface
 # fires that happened while the user was away).
-SIGNAL_FIRES_FILE = Path(__file__).resolve().parent / ".signal_fires.json"
+SIGNAL_FIRES_FILE = config.state_path(".signal_fires.json")
 
 # --- 24/7 Agent bot state file — SEPARATE from paper_bot so the agent
 # section has its own open positions + closed-trade history that doesn't
 # pollute (or get polluted by) the Paper Trader.
-AGENT_BOT_FILE = Path(__file__).resolve().parent / ".agent_bot.json"
+AGENT_BOT_FILE = config.state_path(".agent_bot.json")
 
 
 # --- Colour palette for signal labels --------------------------------------
