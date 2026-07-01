@@ -86,6 +86,8 @@ def cycle() -> None:
         store.record_signal("takenow", p)
     for p in lb_all:
         store.record_signal("leaderboard", p)
+    for p in r.get("elite", []):
+        store.record_signal("elite", p)
 
     # Alert — APEX (best of the best) first, then TAKE NOW 🔥, SST1, leaderboard
     # heads-ups. Cooldown-deduped per setup.

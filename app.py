@@ -964,6 +964,7 @@ def _render_brain_memory(pb_state):
         apex_rows = _ws.recent_by_stream("apex", 12)
         sst1_rows = _ws.recent_by_stream("sst1", 12)
         tn_rows = _ws.recent_by_stream("takenow", 12)
+        elite_rows = _ws.recent_by_stream("elite", 24)
     except Exception:
         return
 
@@ -1094,6 +1095,28 @@ def _render_brain_memory(pb_state):
         st.caption("💠 SST1≥70 the brain is tracking: " + ", ".join(
             f"{r.get('base')} {r.get('side')}" for r in _s1[:6])
             + " — also openable on the BEST TRADES NOW board below.")
+
+    # 🎯 ELITE watch — the full ELITE board the brain scans 24/7 (context).
+    _el = _dedup(elite_rows)
+    if _el:
+        with st.expander(f"🎯 ELITE watch — {len(_el)} picks the brain is "
+                         f"scanning 24/7", expanded=False):
+            _tr = {"MAX": 3, "HIGH": 2, "STRONG": 1}
+            for r in sorted(_el, key=lambda x: (
+                    _tr.get((x.get("tier") or "").upper(), 0),
+                    float(x.get("score") or 0)), reverse=True)[:16]:
+                _sd = (r.get("side") or "").upper()
+                _sc2 = "#2ed47a" if _sd == "LONG" else "#ff5c5c"
+                st.markdown(
+                    f"<div style='font-size:0.8rem;padding:2px 0'>"
+                    f"<b>{r.get('base')}</b> "
+                    f"<span style='color:{_sc2};font-weight:700'>{_sd}</span> "
+                    f"<span style='color:#a78bfa'>· {r.get('tier')} "
+                    f"{float(r.get('score') or 0):.0f}</span> "
+                    f"<span style='color:#8b93a7;font-size:0.72rem'>· "
+                    f"{_ago(r.get('ts'))} · entry {float(r.get('entry') or 0):g}"
+                    f" · SL {float(r.get('stop') or 0):g}</span></div>",
+                    unsafe_allow_html=True)
     st.divider()
 
 

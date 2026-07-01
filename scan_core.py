@@ -225,5 +225,34 @@ def scan_all(scan_n: int = 60, min_conv: float = 70.0) -> dict:
             })
     apex.sort(key=lambda x: (x["apex"], x["score"]), reverse=True)
 
+    # --- Stream 5: ELITE (24/7 watch) — the full ELITE board, continuously.
+    # Reuses the scan already computed above (near-zero extra cost). Top picks
+    # across MAX/HIGH/STRONG so the ELITE section has live 24/7 data too.
+    elite_watch: list[dict] = []
+    for p in scan:
+        tier = (p.get("tier") or "").upper()
+        side = (p.get("side") or "").upper()
+        if tier not in ("MAX", "HIGH", "STRONG"):
+            continue
+        if side not in ("LONG", "SHORT"):
+            continue
+        pl = _plan(p)
+        elite_watch.append({
+            "symbol": p.get("symbol"),
+            "base": p.get("base") or (p.get("symbol") or "").replace(
+                "USDT", ""),
+            "side": side,
+            "tier": tier,
+            "score": float(p.get("score") or 0),
+            "entry": float(pl.get("entry") or 0),
+            "stop": float(pl.get("stop") or 0),
+            "tp1": float(pl.get("tp1") or 0),
+            "tp2": float(pl.get("tp2") or 0),
+        })
+    elite_watch.sort(key=lambda x: (
+        {"MAX": 3, "HIGH": 2, "STRONG": 1}.get(x["tier"], 0), x["score"]),
+        reverse=True)
+    elite_watch = elite_watch[:12]
+
     return {"sst1": sst1, "takenow": takenow, "leaderboard": leaderboard,
-            "apex": apex, "regime": regime}
+            "apex": apex, "elite": elite_watch, "regime": regime}
