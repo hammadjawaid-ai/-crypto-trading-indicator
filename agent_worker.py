@@ -68,6 +68,15 @@ def _fmt_apex(p) -> str:
             f"_best of the best — {edges} all agree_")
 
 
+def _fmt_elite_early(p) -> str:
+    return (f"🌟 *EARLY ELITE* — {p['base']} {p['side']} "
+            f"({p['tier']} {p['score']:.0f} · {p.get('lanes', 0)} lanes)\n"
+            f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
+            f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
+            f"_ELITE MAX/HIGH + 2+ lanes + TAKE NOW 🔥 HOT — early "
+            f"high-conviction entry_")
+
+
 def cycle() -> None:
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     r = scan_core.scan_all(scan_n=60, min_conv=MIN_CONV)
@@ -89,8 +98,13 @@ def cycle() -> None:
     for p in r.get("elite", []):
         store.record_signal("elite", p)
 
-    # Alert — APEX (best of the best) first, then TAKE NOW 🔥, SST1, leaderboard
-    # heads-ups. Cooldown-deduped per setup.
+    # Alert policy (user 2026-07-02) — EXACTLY four streams:
+    #   1. 🏆 APEX
+    #   2. 🌟 EARLY ELITE — ELITE MAX/HIGH + 2+ lanes + TAKE_NOW + HOT
+    #   3. ✅🔥 TAKE NOW + HOT (the rest)
+    #   4. 🏆 Leaderboard top conviction
+    # SST1 standalone alerts REMOVED (SST1 still feeds APEX/TAKE_NOW and is
+    # stored for the app boards — it just doesn't ping on its own).
     n_alerts = 0
 
     def _push(items, key_prefix, fmt):
@@ -103,16 +117,23 @@ def cycle() -> None:
                 if not ok:
                     print("  tg:", msg, flush=True)
 
+    tn_hot = [p for p in takenow if p.get("hot")]
+    elite_early = [p for p in tn_hot
+                   if p.get("tier") in ("MAX", "HIGH")
+                   and int(p.get("lanes") or 0) >= 2]
+    _ee_keys = {(p["symbol"], p["side"]) for p in elite_early}
+    tn_rest = [p for p in tn_hot
+               if (p["symbol"], p["side"]) not in _ee_keys]
     _push(apex, "apex", _fmt_apex)
-    # Store ALL TAKE_NOW; alert only the HOT subset (validated higher edge).
-    _push([p for p in takenow if p.get("hot")], "takenow", _fmt_takenow)
-    _push(sst1, "sst1", _fmt_sst1)
+    _push(elite_early, "elite_early", _fmt_elite_early)
+    _push(tn_rest, "takenow", _fmt_takenow)
     _push(lb, "lb", _fmt_leaderboard)
 
     store.record_cycle(regime, len(sst1), len(takenow), n_alerts)
     print(f"[{stamp}] regime={regime} · APEX={len(apex)} · "
-          f"SST1≥{MIN_CONV:.0f}={len(sst1)} · TAKE_NOW+HOT={len(takenow)} · "
-          f"LB≥{LB_MIN:.0f}={len(lb)} · alerts_sent={n_alerts}", flush=True)
+          f"EARLY_ELITE={len(elite_early)} · TN_HOT={len(tn_hot)} · "
+          f"LB≥{LB_MIN:.0f}={len(lb)} · SST1≥{MIN_CONV:.0f}={len(sst1)}"
+          f"(stored) · alerts_sent={n_alerts}", flush=True)
 
 
 def main() -> None:

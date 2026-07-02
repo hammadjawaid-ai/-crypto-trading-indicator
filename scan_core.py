@@ -89,13 +89,14 @@ def scan_all(scan_n: int = 60, min_conv: float = 70.0) -> dict:
         if (p.get("tier") or "").upper() in ("MAX", "HIGH"):
             _tn_cands.append((p.get("symbol"), (p.get("side") or "").upper(),
                               _plan(p), (p.get("tier") or "").upper(),
-                              float(p.get("score") or 0), p.get("base")))
+                              float(p.get("score") or 0), p.get("base"),
+                              len(p.get("active_lanes") or [])))
     for sp in sst1:
         _tn_cands.append((sp["symbol"], sp["side"],
                           {"entry": sp["entry"], "stop": sp["stop"],
                            "tp1": sp["tp1"], "tp2": sp["tp2"]},
-                          "SST1", sp["conviction"], sp.get("base")))
-    for sym, side, pl, tier, score, base in _tn_cands:
+                          "SST1", sp["conviction"], sp.get("base"), 0))
+    for sym, side, pl, tier, score, base, lanes in _tn_cands:
         entry = float(pl.get("entry") or 0)
         if side not in ("LONG", "SHORT") or entry <= 0:
             continue
@@ -114,6 +115,7 @@ def scan_all(scan_n: int = 60, min_conv: float = 70.0) -> dict:
                 "side": side,
                 "tier": tier,
                 "score": score,
+                "lanes": int(lanes),
                 "entry": entry,
                 "stop": float(pl.get("stop") or 0),
                 "tp1": float(pl.get("tp1") or 0),
