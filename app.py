@@ -11527,10 +11527,16 @@ if active_section == "🧪 Paper Trader":
                     _u_render_list.append(("__SECTION__", "MULTI",
                                           len(_u_multi)))
                     _u_render_list.extend([("PICK", p) for p in _u_multi])
+                # 🔵 LOWER CONFIDENCE (1-2 lanes) — HIDDEN from display per
+                # user 2026-07-02 ("hide 1-2 lanes; show HIGH/MAX"). The
+                # backend still computes these picks fully (they feed fires,
+                # entry-timing, the brain, and the ⚡ EARLY radar) — they just
+                # don't render as cards. Tiny caption keeps it transparent.
                 if _u_single:
-                    _u_render_list.append(("__SECTION__", "SINGLE",
-                                          len(_u_single)))
-                    _u_render_list.extend([("PICK", p) for p in _u_single])
+                    st.caption(f"· {len(_u_single)} lower-confidence "
+                               f"(1-2 lane) pick"
+                               f"{'s' if len(_u_single) != 1 else ''} "
+                               "tracked at the backend, hidden from display.")
 
                 for _u_row in _u_render_list:
                     # Section divider rendering
