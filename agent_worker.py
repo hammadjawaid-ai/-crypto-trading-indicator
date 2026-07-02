@@ -104,7 +104,8 @@ def cycle() -> None:
                     print("  tg:", msg, flush=True)
 
     _push(apex, "apex", _fmt_apex)
-    _push(takenow, "takenow", _fmt_takenow)
+    # Store ALL TAKE_NOW; alert only the HOT subset (validated higher edge).
+    _push([p for p in takenow if p.get("hot")], "takenow", _fmt_takenow)
     _push(sst1, "sst1", _fmt_sst1)
     _push(lb, "lb", _fmt_leaderboard)
 

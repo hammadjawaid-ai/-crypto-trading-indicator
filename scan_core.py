@@ -78,36 +78,51 @@ def scan_all(scan_n: int = 60, min_conv: float = 70.0) -> dict:
     except Exception:
         pass
 
-    # --- Stream 2: ELITE MAX/HIGH that is TAKE_NOW + HOT -----------------
+    # --- Stream 2: ALL TAKE_NOW entries (HOT flagged) ---------------------
+    # Merged universe: ELITE MAX/HIGH picks + SST1 conv>=min picks. Stores
+    # every TAKE_NOW (hot=True/False) so the app's unified TAKE NOW board is
+    # complete; the worker alerts only the HOT subset (validated higher edge).
     takenow: list[dict] = []
+    _tn_seen: set = set()
+    _tn_cands: list[tuple] = []
     for p in scan:
-        if (p.get("tier") or "").upper() not in ("MAX", "HIGH"):
-            continue
-        side = (p.get("side") or "").upper()
-        pl = _plan(p)
+        if (p.get("tier") or "").upper() in ("MAX", "HIGH"):
+            _tn_cands.append((p.get("symbol"), (p.get("side") or "").upper(),
+                              _plan(p), (p.get("tier") or "").upper(),
+                              float(p.get("score") or 0), p.get("base")))
+    for sp in sst1:
+        _tn_cands.append((sp["symbol"], sp["side"],
+                          {"entry": sp["entry"], "stop": sp["stop"],
+                           "tp1": sp["tp1"], "tp2": sp["tp2"]},
+                          "SST1", sp["conviction"], sp.get("base")))
+    for sym, side, pl, tier, score, base in _tn_cands:
         entry = float(pl.get("entry") or 0)
         if side not in ("LONG", "SHORT") or entry <= 0:
             continue
+        if (sym, side) in _tn_seen:
+            continue
         try:
             et = entry_timing.entry_signal(
-                p.get("symbol"), side, entry, stop=float(pl.get("stop") or 0))
+                sym, side, entry, stop=float(pl.get("stop") or 0))
         except Exception:
             continue
-        if et.get("status") == "TAKE_NOW" and et.get("hot"):
+        if et.get("status") == "TAKE_NOW":
+            _tn_seen.add((sym, side))
             takenow.append({
-                "symbol": p.get("symbol"),
-                "base": p.get("base") or (p.get("symbol") or "").replace(
-                    "USDT", ""),
+                "symbol": sym,
+                "base": base or (sym or "").replace("USDT", ""),
                 "side": side,
-                "tier": (p.get("tier") or "").upper(),
-                "score": float(p.get("score") or 0),
+                "tier": tier,
+                "score": score,
                 "entry": entry,
                 "stop": float(pl.get("stop") or 0),
                 "tp1": float(pl.get("tp1") or 0),
                 "tp2": float(pl.get("tp2") or 0),
-                "hot": True,
+                "hot": bool(et.get("hot")),
                 "atr_pct": et.get("atr_pct"),
             })
+    takenow.sort(key=lambda x: (1 if x["hot"] else 0, x["score"]),
+                 reverse=True)
 
     # --- Stream 3: leaderboard — top-conviction ELITE MAX/HIGH ----------
     # The highest-score MAX/HIGH picks (the leaderboard), as an early

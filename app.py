@@ -1058,10 +1058,13 @@ def _render_brain_memory(pb_state):
             except Exception as exc:
                 st.error(f"Open failed: {exc}")
 
-    # 🏆 APEX — several validated edges agree (the best of the best) — openable
+    # ── BOARD 1: 🏆 APEX — several validated edges agree — openable ─────
     apex_u = _dedup(apex_rows)
     if apex_u:
-        st.markdown("**🏆 APEX — several validated edges agree · openable**")
+        st.markdown("### 🏆 APEX — best of the best")
+        st.caption("Setups where **several independent validated edges** "
+                   "agree (SST1 · ELITE · TAKE NOW · HOT · burst · forecast "
+                   "· multi-TF). The rarest, highest-conviction tier.")
         for _i, r in enumerate(apex_u[:6]):
             try:
                 _ex = _json_bm.loads(r.get("extra") or "{}")
@@ -1080,16 +1083,27 @@ def _render_brain_memory(pb_state):
         st.caption("· No APEX consensus right now — it's the rarest tier "
                    "(needs several independent validated edges to agree).")
 
-    # ✅🔥 TAKE NOW + HOT the brain caught 24/7 — openable
+    # ── BOARD 2: ✅ TAKE NOW — every confirmed entry, HOT first — openable ─
     _tn = _dedup(tn_rows)
+    _tn.sort(key=lambda r: (1 if r.get("hot") else 0), reverse=True)
     if _tn:
-        st.markdown("**✅🔥 TAKE NOW + HOT (caught 24/7) · openable**")
-        for _i, r in enumerate(_tn[:6]):
+        st.markdown("### ✅ TAKE NOW — confirmed entries")
+        st.caption("Every setup (ELITE MAX/HIGH + SST1) that pulled back and "
+                   "printed the confirmation candle — the validated entry. "
+                   "**🔥 HOT first** (firing with force — wins more, runs "
+                   "further).")
+        for _i, r in enumerate(_tn[:8]):
             _tag = ("<span style='background:#0b8a3e;color:#fff;padding:1px "
                     "7px;border-radius:5px;font-size:0.7rem;font-weight:800'>"
-                    "✅ TAKE NOW</span> <span style='background:rgba(255,107,"
-                    "53,0.2);color:#ff6b35;padding:1px 7px;border-radius:5px;"
-                    "font-size:0.68rem;font-weight:800'>🔥 HOT</span>")
+                    "✅ TAKE NOW</span>")
+            if r.get("hot"):
+                _tag += (" <span style='background:rgba(255,107,53,0.2);"
+                         "color:#ff6b35;padding:1px 7px;border-radius:5px;"
+                         "font-size:0.68rem;font-weight:800'>🔥 HOT</span>")
+            _tier = (r.get("tier") or "").upper()
+            if _tier:
+                _tag += (f" <span style='color:#a78bfa;font-size:0.72rem'>"
+                         f"{_tier} {float(r.get('score') or 0):.0f}</span>")
             _open_card(r, f"brain_tn_{r.get('symbol')}_{_i}", _tag)
 
     _s1 = _dedup(sst1_rows)
@@ -11093,12 +11107,18 @@ if active_section == "🧪 Paper Trader":
             # Per user: revert to score-only filter. The real value of
             # ELITE is the ⚡ confirmation chip on TOP CONVICTION cards
             # (already wired), not the standalone board.
-            # User: 'Elite Conviction isnt showing anything why?' — drop
-            # display floor from 80 to 75 so STANDARD-tier picks surface
-            # too. Sectioning still highlights the 3+ lane edge.
+            # User 2026-07-02: hide the lower-confidence tiers from the page
+            # (noisy) — the BACKEND still computes + logs them all (fires,
+            # brain, entry-timing); this floor is display-only. STANDARD
+            # (75-79) is hidden; STRONG+ (80+) shows.
             _u_picks = [p for p in (_u_picks_raw or [])
-                        if float(p.get("score") or 0) >= 75]
+                        if float(p.get("score") or 0) >= 80]
             _u_standard_count = (len(_u_picks_raw or []) - len(_u_picks))
+            if _u_standard_count > 0:
+                st.caption(f"· {_u_standard_count} lower-confidence pick"
+                           f"{'s' if _u_standard_count != 1 else ''} "
+                           "(score <80) tracked at the backend, hidden "
+                           "from display.")
 
             # 🔥 Persist every STRONG+ fire to the log so the
             # 🔥 RECENT FIRES section at the top of Paper Trader can
