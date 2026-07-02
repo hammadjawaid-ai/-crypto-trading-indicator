@@ -1045,6 +1045,7 @@ def _render_brain_memory(pb_state):
                     "symbol": r.get("symbol"), "base": base, "side": side,
                     "entry_low": entry, "stop": stop, "target": tp1,
                     "target_2": tp2 or None,
+                    "chase_tp2_eligible": bool(tp2),
                     "confidence": int(float(r.get("score") or 0)),
                     "strength_factor": 0.7,
                     "_unified_source": "brain_24_7"}
@@ -11962,6 +11963,7 @@ if active_section == "🧪 Paper Trader":
                             "side": _p_side, "entry_low": _p_live,
                             "stop": _p_stop, "target": _p_tp1,
                             "target_2": _p_tp2 or None,
+                            "chase_tp2_eligible": bool(_p_tp2),
                             "confidence": int(_p_conv),
                             "strength_factor": max(
                                 0.5, min(1.0, _p_conv / 100.0)),
@@ -12149,6 +12151,7 @@ if active_section == "🧪 Paper Trader":
                             "side": _ae_side, "entry_low": _ae_cur,
                             "stop": _ae_stop, "target": _ae_tp1,
                             "target_2": _ae_tp2 or None,
+                            "chase_tp2_eligible": bool(_ae_tp2),
                             "confidence": int(_ae_sc),
                             "strength_factor": 0.6,  # watch/experimental
                             "_unified_source": "active_elite_armed",
