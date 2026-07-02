@@ -11059,8 +11059,9 @@ if active_section == "🧪 Paper Trader":
         with st.expander('🏆 BEST TRADES NOW (SST1 conv≥70)', expanded=True):
             st.markdown("### 🏆 BEST TRADES NOW")
             st.caption(
-                "Your best edge in one place — SST1 **conv ≥ 70** (72% "
-                "backtested), ranked by live entry timing. **✅ TAKE NOW** = "
+                "Your best edge in one place — SST1 **conv ≥ 70** "
+                "(backtested **+0.62R/trade**, 56–72% win across test "
+                "windows), ranked by live entry timing. **✅ TAKE NOW** = "
                 "pulled back + confirmation candle; **⏳ WAIT** = hold for "
                 "confirmation. Selective by design (often <1/day).")
             # The ONLY browser/OS notifications fired: TAKE_NOW + ARMING signals
@@ -14160,9 +14161,10 @@ plus funding rate every 8 hours on open positions.
         # (preflight caps, conviction-scaled leverage, Preview->Confirm).
         st.markdown("### 🎯 SST1 Sure Shots (conv ≥ 70) — primary edge")
         st.caption(
-            "The backtested 72%-win tier — your best signal. Leverage "
-            "scales with conviction (capped by your settings); every open "
-            "is Preview→Confirm. Fires selectively (often <1/day).")
+            "The backtested premium tier (**+0.62R/trade**, 56–72% win "
+            "across test windows) — your best signal. Leverage scales with "
+            "conviction (capped by your settings); every open is "
+            "Preview→Confirm. Fires selectively (often <1/day).")
         try:
             import sureshot_agents as _ssa_lt
             import experimental_signals as _es_lt
