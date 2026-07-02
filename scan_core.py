@@ -21,6 +21,7 @@ import market_regime
 import binance_client
 import velocity_burst as _vb
 import predict_next as _pn
+import funding_fade as _ff
 import config
 
 
@@ -222,6 +223,13 @@ def scan_all(scan_n: int = 60, min_conv: float = 70.0) -> dict:
         try:
             if p is not None and int(p.get("_mtf_aligned") or 0) >= 2:
                 edges.append("MTF")
+        except Exception:
+            pass
+        try:
+            # Validated funding-velocity fade (59% @48h, +2.5%): counts as
+            # an edge when the fade direction AGREES with the setup side.
+            if _ff.signal(sym).get("fade_side") == side:
+                edges.append("FUND")
         except Exception:
             pass
         if len(edges) >= apex_min:
