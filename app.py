@@ -890,6 +890,45 @@ def _entry_timing_cached(symbol, side, entry, _bust):
         return {"status": "UNKNOWN", "reason": "", "px": 0.0}
 
 
+# --- ⚡ Edge counting — VALIDATED (backtest_apex.py, 40 coins / 87 entries):
+# win rate rises monotonically with the number of independent edges present
+# (0 edges 38% → 1: 48% → 2: 74% → 3+: 78%). Stacked setups are the 70-80%
+# tier, so every board shows + ranks by the edge count.
+@st.cache_data(ttl=120, show_spinner=False)
+def _edges_cached(symbol, side, entry, _bust):
+    """Count validated edges live for one setup: TAKE_NOW, HOT, BURST
+    (>=78 same-side). Caller adds context edges it already knows (SST1
+    membership, ELITE MAX/HIGH tier). Fail-soft -> (0, [])."""
+    edges = []
+    try:
+        et = entry_timing.entry_signal(symbol, side, entry)
+        if et.get("status") == "TAKE_NOW":
+            edges.append("TAKE NOW")
+        if et.get("hot"):
+            edges.append("HOT")
+    except Exception:
+        pass
+    try:
+        import velocity_burst as _vb_e
+        _df_e = binance_client.get_klines(symbol, "1h", limit=120)
+        bs, bside, _ = _vb_e.lane_velocity_burst(_df_e)
+        if bs >= 78 and (bside or "").upper() == (side or "").upper():
+            edges.append("BURST")
+    except Exception:
+        pass
+    return (len(edges), edges)
+
+
+def _edge_chip_html(n_edges, edges):
+    """Small ⚡×N chip listing the agreeing edges. Empty string when none."""
+    if not n_edges:
+        return ""
+    col = "#ffd54a" if n_edges >= 2 else "#8b93a7"
+    return (f" <span style='background:rgba(255,213,74,0.14);color:{col};"
+            f"padding:1px 8px;border-radius:5px;font-size:0.7rem;"
+            f"font-weight:800'>⚡×{n_edges} {' · '.join(edges)}</span>")
+
+
 # --- Always-visible closed-trades history (never hidden) -------------------
 import gsheet_export
 
@@ -4176,12 +4215,15 @@ if _qp_mode not in ("Futures", "Spot"):
     _qp_mode = "Futures"
 
 # Section navigation lives on the LEFT side as the user requested.
+# SST2 removed from the nav per user 2026-07-02 (LLM-desk research: no
+# credible evidence vs deterministic rules; SST1 is the proven pipeline).
+# The section code stays below but is unreachable.
 SECTIONS = [
     "🔍 Market Scanner", "🔮 Forecast", "🚀 Breakout Radar",
     "🤖 Ask the Oracle", "🪙 Coin Analysis", "📰 News & Sentiment",
     "🧭 Decision Mode", "🧪 Paper Trader", "💸 Live Trading",
     "💎 Spot Long-Term", "🤖 24/7 Agent", "🎯 Sure Shot Trader",
-    "💠 Sure Shot Trader 2", "🔮 Predictor",
+    "🔮 Predictor",
 ]
 _qp_section = _qp.get("section", SECTIONS[0])
 if _qp_section not in SECTIONS:
@@ -10560,6 +10602,20 @@ if active_section == "🧪 Paper Trader":
                             + " · ".join(horizon_bits) + "</div>")
 
                 with st.container(border=True):
+                    # ⚡ edge-count chip — validated (backtest_apex.py):
+                    # stacked edges = the 70-80% tier. Live TAKE_NOW/HOT/
+                    # BURST + ELITE-confirm context edge.
+                    try:
+                        _eg_n, _eg_list = _edges_cached(
+                            s["symbol"], side,
+                            float(s.get("entry_low") or 0),
+                            int(time.time() // 120))
+                        if elite_chip:
+                            _eg_n += 1
+                            _eg_list = _eg_list + ["ELITE"]
+                        edge_chip = _edge_chip_html(_eg_n, _eg_list)
+                    except Exception:
+                        edge_chip = ""
                     pa, pb = st.columns([6, 1])
                     pa.markdown(
                         f"<div style='display:flex;align-items:center;"
@@ -10573,6 +10629,7 @@ if active_section == "🧪 Paper Trader":
                         f"color:{str_color};padding:2px 8px;border-radius:"
                         f"5px;font-size:0.72rem;font-weight:700'>"
                         f"{str_label} · {combined_display}</span>"
+                        f"{edge_chip}"
                         f"{act_now_chip}"
                         f"{new_chip}"
                         f"{conviction_chip}"
@@ -11663,6 +11720,22 @@ if active_section == "🧪 Paper Trader":
                             f"{', '.join(_u_early)}'>"
                             f"⚡ EARLY{_u_vb_tag}</span>")
 
+                    # ⚡ edge-count chip — validated: stacked edges =
+                    # the 70-80% tier (backtest_apex.py). ELITE tier
+                    # itself counts as one context edge.
+                    try:
+                        _u_pl = _u.get("trade_plan") or {}
+                        _u_eg_n, _u_eg = _edges_cached(
+                            _u_sym, _u_side,
+                            float(_u_pl.get("entry") or 0),
+                            int(time.time() // 120))
+                        if _u_tier in ("MAX", "HIGH"):
+                            _u_eg_n += 1
+                            _u_eg = _u_eg + ["ELITE"]
+                        _u_edge_chip = _edge_chip_html(_u_eg_n, _u_eg)
+                    except Exception:
+                        _u_edge_chip = ""
+
                     # Premium card — full-width gradient surface with
                     # tier-coded border and glow. Matches the
                     # SURE SHOT design from BEST TRADES NOW.
@@ -11714,6 +11787,8 @@ if active_section == "🧪 Paper Trader":
                             f"{_u_win_chip}"
                             # ⚡ Early-catch chip (velocity/early lanes)
                             f"{_u_early_chip}"
+                            # ⚡×N validated edge-count chip
+                            f"{_u_edge_chip}"
                             f"</div>"
                             # Lane chips row — wrapping
                             f"<div style='margin-bottom:10px'>"
@@ -11940,6 +12015,14 @@ if active_section == "🧪 Paper Trader":
                     _etb += (" <span style='background:rgba(255,107,53,0.2);"
                              "color:#ff6b35;padding:1px 8px;border-radius:5px;"
                              "font-size:0.7rem;font-weight:800'>🔥 HOT</span>")
+                # ⚡×N validated edge count (SST1 membership = 1 context edge)
+                try:
+                    _bt_eg_n, _bt_eg = _edges_cached(
+                        _p_sym, _p_side, _p_entry, int(time.time() // 120))
+                    _etb += _edge_chip_html(_bt_eg_n + 1,
+                                            _bt_eg + ["SST1"])
+                except Exception:
+                    pass
                 _bc1, _bc2 = st.columns([5, 1])
                 _bc1.markdown(
                     f"<div style='background:linear-gradient(135deg,"
