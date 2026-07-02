@@ -30,8 +30,8 @@ def _brain() -> None:
         import telegram_notify as tg
         if tg.enabled():
             tg.send("🟢 *App online 24/7* — the brain is scanning in the "
-                    "background. Alerts: ✅🔥 TAKE NOW HOT · 💠 SST1 conv≥70 · "
-                    "🏆 leaderboard.", silent=True)
+                    "background. Alerts: 🏆 APEX · 🌟 EARLY ELITE · "
+                    "✅🔥 TAKE NOW HOT · 🏆 leaderboard.", silent=True)
     except Exception:
         pass
     print("[brain] 24/7 loop started "
