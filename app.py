@@ -1141,10 +1141,11 @@ def _render_brain_memory(pb_state):
     # empty state instead of hiding, so the section reads as a permanent
     # board alongside APEX and TAKE NOW.
     st.markdown("### 🌱 FRESH MOVERS — first fires, firing hot")
-    st.caption("Brand-new movers (first signal on this coin+side in "
-               "72h) that confirmed **🔥 HOT** — the ARPA/ALLO shape, "
-               "caught at their first valid entry. Validated: **74% "
-               "win · 1.5R** median run.")
+    st.caption("**Any coin** starting a new move — first signal on that "
+               "coin+side in 72h, confirmed **🔥 HOT** — caught at its "
+               "first valid entry. The scan universe is volume-ranked, so "
+               "new movers enter it automatically. Validated: **74% win · "
+               "1.5R** median run.")
     if _fresh_rows:
         for _i, r in enumerate(_fresh_rows[:6]):
             _tag = ("<span style='background:rgba(46,212,122,0.18);"
