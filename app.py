@@ -1137,12 +1137,15 @@ def _render_brain_memory(pb_state):
                 _fresh_rows.append(r)
         except Exception:
             continue
+    # ALWAYS-VISIBLE separate board (user 2026-07-03): shows a friendly
+    # empty state instead of hiding, so the section reads as a permanent
+    # board alongside APEX and TAKE NOW.
+    st.markdown("### 🌱 FRESH MOVERS — first fires, firing hot")
+    st.caption("Brand-new movers (first signal on this coin+side in "
+               "72h) that confirmed **🔥 HOT** — the ARPA/ALLO shape, "
+               "caught at their first valid entry. Validated: **74% "
+               "win · 1.5R** median run.")
     if _fresh_rows:
-        st.markdown("### 🌱 FRESH MOVERS — first fires, firing hot")
-        st.caption("Brand-new movers (first signal on this coin+side in "
-                   "72h) that confirmed **🔥 HOT** — the ARPA/ALLO shape, "
-                   "caught at their first valid entry. Validated: **74% "
-                   "win · 1.5R** median run.")
         for _i, r in enumerate(_fresh_rows[:6]):
             _tag = ("<span style='background:rgba(46,212,122,0.18);"
                     "color:#2ed47a;padding:1px 7px;border-radius:5px;"
@@ -1153,6 +1156,11 @@ def _render_brain_memory(pb_state):
                     "53,0.2);color:#ff6b35;padding:1px 7px;border-radius:5px;"
                     "font-size:0.68rem;font-weight:800'>🔥 HOT</span>")
             _open_card(r, f"brain_fresh_{r.get('symbol')}_{_i}", _tag)
+    else:
+        st.caption("· No fresh movers at this moment — the rarest slice "
+                   "(first fire in 72h **and** hot confirmation, a few/day "
+                   "across the market). The 24/7 brain stamps every new "
+                   "fire; the next one appears here automatically.")
 
     # ── BOARD 2: ✅ TAKE NOW — every confirmed entry, HOT first — openable ─
     _tn = _dedup(tn_rows)
