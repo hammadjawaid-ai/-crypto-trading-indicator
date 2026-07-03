@@ -161,3 +161,19 @@ def recent_alerts(limit: int = 25) -> list[dict]:
 def last_cycle() -> dict | None:
     rows = recent_cycles(1)
     return rows[0] if rows else None
+
+
+def seen_between(stream: str, symbol: str, side: str,
+                 ts_from: float, ts_to: float) -> bool:
+    """True if this (stream, symbol, side) was recorded in [ts_from, ts_to).
+    Used for 🌱 freshness: a setup is a FIRST FIRE when it has no record in
+    the trailing window (excluding the current sighting streak)."""
+    c = _open()
+    try:
+        row = c.execute(
+            "SELECT COUNT(*) FROM signals WHERE stream=? AND symbol=? "
+            "AND side=? AND ts>=? AND ts<?",
+            (stream, symbol, side, ts_from, ts_to)).fetchone()
+        return bool(row and row[0] > 0)
+    finally:
+        c.close()

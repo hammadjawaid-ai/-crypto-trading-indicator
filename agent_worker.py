@@ -86,6 +86,19 @@ def cycle() -> None:
     lb = [p for p in lb_all if float(p.get("score") or 0) >= LB_MIN]
     regime = (r.get("regime") or {}).get("regime", "?")
 
+    # 🌱 freshness — first fire in 72h (excluding the current <2h sighting
+    # streak), computed from the brain's own 24/7 memory BEFORE storing.
+    # Validated cell (backtest_fresh2, 40 coins): FRESH+HOT = 74.1% / 1.5R.
+    # Descriptive only — alerts stay the locked four streams.
+    _now = time.time()
+    for p in takenow:
+        try:
+            p["fresh"] = not store.seen_between(
+                "takenow", p["symbol"], p["side"],
+                _now - 72 * 3600, _now - 2 * 3600)
+        except Exception:
+            p["fresh"] = False
+
     # Store every best-signal this cycle (history for pattern analysis).
     for p in apex:
         store.record_signal("apex", p)

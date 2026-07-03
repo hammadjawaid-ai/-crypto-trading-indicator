@@ -1123,6 +1123,37 @@ def _render_brain_memory(pb_state):
         st.caption("· No APEX consensus right now — it's the rarest tier "
                    "(needs several independent validated edges to agree).")
 
+    # ── 🌱 FRESH MOVERS — first fires (72h) that are HOT — separate section
+    # per user (ARPA/ALLO shape). Validated cell (backtest_fresh2, 40 coins /
+    # 67 entries): FRESH+HOT = 74.1% win, 1.5R median run (n=27). Honest note:
+    # freshness alone adds nothing beyond the edge stack — this section is
+    # the validated first-fire+HOT slice, not a new standalone edge.
+    _fresh_rows = []
+    for r in _dedup(tn_rows):
+        if not r.get("hot"):
+            continue
+        try:
+            if _json_bm.loads(r.get("extra") or "{}").get("fresh"):
+                _fresh_rows.append(r)
+        except Exception:
+            continue
+    if _fresh_rows:
+        st.markdown("### 🌱 FRESH MOVERS — first fires, firing hot")
+        st.caption("Brand-new movers (first signal on this coin+side in "
+                   "72h) that confirmed **🔥 HOT** — the ARPA/ALLO shape, "
+                   "caught at their first valid entry. Validated: **74% "
+                   "win · 1.5R** median run.")
+        for _i, r in enumerate(_fresh_rows[:6]):
+            _tag = ("<span style='background:rgba(46,212,122,0.18);"
+                    "color:#2ed47a;padding:1px 7px;border-radius:5px;"
+                    "font-size:0.7rem;font-weight:800'>🌱 FRESH</span> "
+                    "<span style='background:#0b8a3e;color:#fff;padding:1px "
+                    "7px;border-radius:5px;font-size:0.7rem;font-weight:800'>"
+                    "✅ TAKE NOW</span> <span style='background:rgba(255,107,"
+                    "53,0.2);color:#ff6b35;padding:1px 7px;border-radius:5px;"
+                    "font-size:0.68rem;font-weight:800'>🔥 HOT</span>")
+            _open_card(r, f"brain_fresh_{r.get('symbol')}_{_i}", _tag)
+
     # ── BOARD 2: ✅ TAKE NOW — every confirmed entry, HOT first — openable ─
     _tn = _dedup(tn_rows)
     _tn.sort(key=lambda r: (1 if r.get("hot") else 0), reverse=True)
