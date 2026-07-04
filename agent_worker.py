@@ -59,6 +59,16 @@ def _fmt_leaderboard(p) -> str:
             f"_top-conviction ELITE — early heads-up_")
 
 
+def _fmt_early_mover(p) -> str:
+    lanes = ", ".join(p.get("early_lanes") or [])
+    return (f"🚀 *EARLY MOVER (big-hit)* — {p['base']} {p['side']} "
+            f"(STRONG {p['score']:.0f})\n"
+            f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
+            f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
+            f"_TAKE NOW 🔥 HOT + early lanes ({lanes}) — enters earliest, "
+            f"22% reach 2R+ (65% win). Size smaller._")
+
+
 def _fmt_apex(p) -> str:
     edges = " · ".join(p.get("edges", []))
     return (f"🏆🔥 *APEX ×{p.get('apex', 0)}* — {p['base']} {p['side']} "
@@ -124,13 +134,16 @@ def cycle() -> None:
     for p in r.get("early_strong", []):
         store.record_signal("early_strong", p)
 
-    # Alert policy (user 2026-07-02) — EXACTLY four streams:
+    # Alert policy (user 2026-07-05) — EXACTLY five streams, essential-grade
+    # only. One buzz per setup, richest label wins:
     #   1. 🏆 APEX
     #   2. 🌟 EARLY ELITE — ELITE MAX/HIGH + 2+ lanes + TAKE_NOW + HOT
-    #   3. ✅🔥 TAKE NOW + HOT (the rest)
-    #   4. 🏆 Leaderboard top conviction
-    # SST1 standalone alerts REMOVED (SST1 still feeds APEX/TAKE_NOW and is
-    # stored for the app boards — it just doesn't ping on its own).
+    #   3. 🌱 FRESH — first fire 72h + TAKE_NOW + HOT
+    #   4. ✅🔥 TAKE NOW + HOT (the rest)
+    #   5. 🚀 EARLY MOVER big-hit — STRONG + TAKE_NOW + HOT + early lanes
+    #      (validated: 22% reach 2R+, 65% win — the VANRY-hunter subset only)
+    # REMOVED: Leaderboard alerts (heads-up tier, ~33-45% forward — weakest
+    # link; still stored + shown in-app). SST1 standalone removed earlier.
     n_alerts = 0
 
     def _push(items, key_prefix, fmt):
@@ -156,16 +169,20 @@ def cycle() -> None:
     _fr_keys = _ee_keys | {(p["symbol"], p["side"]) for p in fresh_m}
     tn_rest = [p for p in tn_hot
                if (p["symbol"], p["side"]) not in _fr_keys]
+    # 🚀 EARLY MOVER big-hit subset (STRONG tier — no overlap with the
+    # takenow stream, which is MAX/HIGH + SST1 only).
+    em_big = [p for p in r.get("early_strong", [])
+              if p.get("early_lanes")]
     _push(apex, "apex", _fmt_apex)
     _push(elite_early, "elite_early", _fmt_elite_early)
     _push(fresh_m, "fresh", _fmt_fresh)
     _push(tn_rest, "takenow", _fmt_takenow)
-    _push(lb, "lb", _fmt_leaderboard)
+    _push(em_big, "em", _fmt_early_mover)
 
     store.record_cycle(regime, len(sst1), len(takenow), n_alerts)
     print(f"[{stamp}] regime={regime} · APEX={len(apex)} · "
           f"EARLY_ELITE={len(elite_early)} · TN_HOT={len(tn_hot)} · "
-          f"LB≥{LB_MIN:.0f}={len(lb)} · SST1≥{MIN_CONV:.0f}={len(sst1)}"
+          f"EM🚀={len(em_big)} · SST1≥{MIN_CONV:.0f}={len(sst1)}"
           f"(stored) · alerts_sent={n_alerts}", flush=True)
 
 

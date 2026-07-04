@@ -31,7 +31,8 @@ def _brain() -> None:
         if tg.enabled():
             tg.send("🟢 *App online 24/7* — the brain is scanning in the "
                     "background. Alerts: 🏆 APEX · 🌟 EARLY ELITE · "
-                    "✅🔥 TAKE NOW HOT · 🏆 leaderboard.", silent=True)
+                    "🌱 FRESH · ✅🔥 TAKE NOW HOT · 🚀 EARLY MOVER big-hit.",
+                    silent=True)
     except Exception:
         pass
     print("[brain] 24/7 loop started "
