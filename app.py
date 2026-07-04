@@ -1013,6 +1013,7 @@ def _render_brain_memory(pb_state, live_prices=None):
         sst1_rows = _ws.recent_by_stream("sst1", 12)
         tn_rows = _ws.recent_by_stream("takenow", 12)
         es_rows = _ws.recent_by_stream("early_strong", 12)
+        ride_rows = _ws.recent_by_stream("tp2ride", 12)
         elite_rows = _ws.recent_by_stream("elite", 24)
     except Exception:
         return
@@ -1028,6 +1029,7 @@ def _render_brain_memory(pb_state, live_prices=None):
     apex_rows = _recent_rows(apex_rows, 12)
     tn_rows = _recent_rows(tn_rows, 4)
     es_rows = _recent_rows(es_rows, 4)
+    ride_rows = _recent_rows(ride_rows, 2)
 
     st.markdown(
         "<div style='display:flex;align-items:center;gap:10px;margin-top:8px'>"
@@ -1100,7 +1102,9 @@ def _render_brain_memory(pb_state, live_prices=None):
             f"<span style='color:#8b93a7;font-size:0.72rem'>· "
             f"{_ago(r.get('ts'))}</span>{edges_html}<br>"
             f"<span style='color:#9aa7c7;font-size:0.78rem'>entry "
-            f"{entry:g} · SL {stop:g} · TP1 {tp1:g}{_live_str}</span></div>",
+            f"{entry:g} · SL {stop:g} · TP1 {tp1:g}"
+            f"{(' · TP2 ' + format(tp2, 'g')) if tp2 else ''}"
+            f"{_live_str}</span></div>",
             unsafe_allow_html=True)
         if any(p.get("symbol") == r.get("symbol")
                for p in (pb_state.get("open") or [])):
@@ -1256,6 +1260,43 @@ def _render_brain_memory(pb_state, live_prices=None):
         st.caption("· None confirming at this moment — these fire a few "
                    "times a day across the market; the 24/7 brain logs each "
                    "one here as it confirms.")
+
+    # ── 🎯 RIDING TO TP2 — TP1 hit, momentum intact (user 2026-07-05, ADA
+    # case). Manage-your-position info: if you're in from the signal, the
+    # runner is still alive — stop at TP1, target TP2 (the ladder's chase
+    # logic). NO Open button: a fresh entry after TP1 is breakout-chasing
+    # (tested 24%, rejected).
+    _rides = _dedup(ride_rows)
+    if _rides:
+        st.markdown("### 🎯 RIDING TO TP2 — TP1 hit, momentum still strong")
+        st.caption("These setups already **hit TP1** and the trend + heat "
+                   "are still intact — if you're in the trade, the runner "
+                   "is alive: **stop at TP1, target TP2**. (No fresh "
+                   "entries here — chasing after TP1 tested at 24%.)")
+        for r in _rides[:6]:
+            _sd = (r.get("side") or "").upper()
+            _sc2 = "#2ed47a" if _sd == "LONG" else "#ff5c5c"
+            try:
+                _src = _json_bm.loads(r.get("extra") or "{}").get("src", "")
+            except Exception:
+                _src = ""
+            _src_tag = (f" <span style='color:#a78bfa;font-size:0.7rem'>"
+                        f"via {_src}</span>" if _src else "")
+            st.markdown(
+                f"<div style='background:rgba(46,212,122,0.07);border:1px "
+                f"solid {_sc2}44;border-radius:11px;padding:9px 13px;"
+                f"margin:4px 0'>"
+                f"<span style='background:rgba(46,212,122,0.18);"
+                f"color:#2ed47a;padding:1px 7px;border-radius:5px;"
+                f"font-size:0.7rem;font-weight:800'>🎯 TP1 ✅ → TP2</span> "
+                f"<b>{r.get('base')}</b> <span style='color:{_sc2};"
+                f"font-weight:800'>{_sd}</span>{_src_tag} "
+                f"<span style='color:#8b93a7;font-size:0.72rem'>· "
+                f"{_ago(r.get('ts'))}</span><br>"
+                f"<span style='color:#9aa7c7;font-size:0.78rem'>"
+                f"TP1 {float(r.get('tp1') or 0):g} hit · ride to TP2 "
+                f"{float(r.get('tp2') or 0):g} · stop → TP1</span></div>",
+                unsafe_allow_html=True)
 
     _s1 = _dedup(sst1_rows)
     if _s1:

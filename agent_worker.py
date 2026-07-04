@@ -134,6 +134,26 @@ def cycle() -> None:
     for p in r.get("early_strong", []):
         store.record_signal("early_strong", p)
 
+    # 🎯 TP2 RIDES (user 2026-07-05, ADA case): after a best-signal's TP1 is
+    # hit, keep tracking it while momentum stays intact (trend + hot) so the
+    # runner to TP2 stays visible. Board-only; never alerted.
+    try:
+        _rc: dict = {}
+        for _stream in ("apex", "takenow", "early_strong"):
+            for row in store.recent_by_stream(_stream, 20):
+                ts0 = float(row.get("ts") or 0)
+                if _now - ts0 > 48 * 3600:
+                    continue
+                k = (row.get("symbol"), row.get("side"))
+                if k not in _rc:      # rows come newest-first
+                    _rc[k] = row
+        rides = scan_core.tp2_rides(list(_rc.values()), max_checks=10)
+        for p in rides:
+            store.record_signal("tp2ride", p)
+    except Exception as exc:
+        rides = []
+        print("  tp2ride error:", exc, flush=True)
+
     # Alert policy (user 2026-07-05) — EXACTLY five streams, essential-grade
     # only. One buzz per setup, richest label wins:
     #   1. 🏆 APEX

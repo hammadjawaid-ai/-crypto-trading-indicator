@@ -25,6 +25,72 @@ import funding_fade as _ff
 import config
 
 
+def tp2_rides(cands: list, max_checks: int = 10) -> list:
+    """🎯 TP2 continuation tracker — for recent best-signals whose TP1 has
+    been HIT since the signal, check if momentum is STILL intact (close on
+    the right side of EMA20 + ATR still hot — the validated components).
+    Returns the setups worth riding to TP2 (stop managed at TP1, per the
+    ladder's chase logic). Display/manage info only — a FRESH entry after
+    TP1 is breakout-chasing (tested 24%, rejected)."""
+    import numpy as np
+    import pandas as pd
+    out = []
+    for cd in cands[:max_checks]:
+        sym = cd.get("symbol")
+        side = (cd.get("side") or "").upper()
+        tp1 = float(cd.get("tp1") or 0)
+        tp2 = float(cd.get("tp2") or 0)
+        t0 = float(cd.get("ts") or 0)
+        if not sym or side not in ("LONG", "SHORT") or tp1 <= 0 or tp2 <= 0:
+            continue
+        try:
+            df = binance_client.get_klines(sym, "1h", limit=120)
+        except Exception:
+            continue
+        if df is None or len(df) < 30:
+            continue
+        ts_s = df.index.values.astype("datetime64[s]").astype("int64")
+        idx = int(np.searchsorted(ts_s, t0, side="right"))
+        if idx >= len(df):
+            continue
+        h = df["high"].to_numpy(); l = df["low"].to_numpy()
+        c = df["close"].to_numpy()
+        ema20 = df["close"].ewm(span=20, adjust=False).mean().to_numpy()
+        cur = float(c[-1])
+        if side == "LONG":
+            if float(np.max(h[idx:])) < tp1:      # TP1 not reached yet
+                continue
+            if cur >= tp2 or cur <= tp1 * 0.995:  # done, or fell back
+                continue
+            trend = cur > ema20[-1]
+        else:
+            if float(np.min(l[idx:])) > tp1:
+                continue
+            if cur <= tp2 or cur >= tp1 * 1.005:
+                continue
+            trend = cur < ema20[-1]
+        pc = np.roll(c, 1); pc[0] = c[0]
+        tr = np.maximum(h - l, np.maximum(np.abs(h - pc), np.abs(l - pc)))
+        atr = pd.Series(tr).rolling(14).mean().to_numpy()
+        ref = atr[-100:]; ref = ref[~np.isnan(ref)]
+        hot = (len(ref) > 0 and atr[-1] == atr[-1]
+               and float((ref < atr[-1]).mean() * 100) >= 60)
+        if trend and hot:
+            out.append({
+                "symbol": sym,
+                "base": cd.get("base") or sym.replace("USDT", ""),
+                "side": side,
+                "tier": cd.get("tier"),
+                "score": cd.get("score"),
+                "entry": cd.get("entry"),
+                "stop": cd.get("stop"),
+                "tp1": tp1, "tp2": tp2,
+                "px": cur,
+                "src": cd.get("stream", ""),
+            })
+    return out
+
+
 def _regime() -> dict:
     try:
         return market_regime.detect_regime()
