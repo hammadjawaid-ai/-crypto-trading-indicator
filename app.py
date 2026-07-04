@@ -1235,6 +1235,22 @@ def _render_brain_memory(pb_state, live_prices=None):
                     "✅ TAKE NOW</span> <span style='background:rgba(255,107,"
                     "53,0.2);color:#ff6b35;padding:1px 7px;border-radius:5px;"
                     "font-size:0.68rem;font-weight:800'>🔥 HOT</span>")
+            # 🚀 early-lane tag — validated (backtest_early_lanes): enters
+            # ~35% earlier in the move, hits >=2R ~50% more often (22% vs
+            # 15%), 65% win vs 75% — same expectancy, big-hit profile.
+            try:
+                _r_el = _json_bm.loads(
+                    r.get("extra") or "{}").get("early_lanes") or []
+            except Exception:
+                _r_el = []
+            if _r_el:
+                _tag += (" <span style='background:rgba(56,189,248,0.18);"
+                         "color:#38bdf8;padding:1px 7px;border-radius:5px;"
+                         "font-size:0.68rem;font-weight:800' "
+                         f"title='Early lanes firing: {', '.join(_r_el)} — "
+                         "enters earlier, hits 2R+ ~50% more often "
+                         "(22% vs 15%); 65% win vs 75%'>🚀 EARLY · "
+                         "big-hit profile</span>")
             _open_card(r, f"brain_es_{r.get('symbol')}_{_i}", _tag)
     else:
         st.caption("· None confirming at this moment — these fire a few "

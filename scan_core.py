@@ -151,6 +151,14 @@ def scan_all(scan_n: int = 60, min_conv: float = 70.0) -> dict:
         except Exception:
             continue
         if et.get("status") == "TAKE_NOW" and et.get("hot"):
+            # 🚀 early-lane flag — validated (backtest_early_lanes, 40 coins
+            # / 518 entries): fires with these lanes active enter with ~35%
+            # less of the move gone and hit >=2R ~50% more often (22% vs
+            # 15%), at 64.8% vs 75.2% win. Same expectancy — different
+            # profile. Descriptive tag only.
+            _elanes = sorted(set(p.get("active_lanes") or [])
+                             & {"velocity_burst", "early_trend",
+                                "early_momentum"})
             early_strong.append({
                 "symbol": p.get("symbol"),
                 "base": p.get("base") or (p.get("symbol") or "").replace(
@@ -164,6 +172,7 @@ def scan_all(scan_n: int = 60, min_conv: float = 70.0) -> dict:
                 "tp2": float(pl.get("tp2") or 0),
                 "hot": True,
                 "atr_pct": et.get("atr_pct"),
+                "early_lanes": _elanes,
             })
     early_strong.sort(key=lambda x: x["score"], reverse=True)
     early_strong = early_strong[:8]
