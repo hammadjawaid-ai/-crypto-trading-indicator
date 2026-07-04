@@ -11345,7 +11345,9 @@ if active_section == "🧪 Paper Trader":
                         f"· 🎯 conv {_p_conv:.0f}</span> {_etb}</div>"
                         f"<div style='color:#9aa7c7;font-size:0.78rem;"
                         f"margin-top:3px'>entry {_p_live:g} · SL {_p_stop:g} · "
-                        f"TP {_p_tp1:g} · {_et.get('reason', '')}</div></div>",
+                        f"TP1 {_p_tp1:g}"
+                        f"{(' · TP2 ' + format(_p_tp2, 'g')) if _p_tp2 else ''}"
+                        f" · {_et.get('reason', '')}</div></div>",
                         unsafe_allow_html=True)
                     if _bc2.button("📥 Open", key=f"bt_open_{_p_sym}_{_bt_i}",
                                    use_container_width=True):
