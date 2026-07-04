@@ -992,12 +992,19 @@ def _render_closed_history(state, bot, label, key):
                      "see README_GSHEET.md.)")
 
 
-def _render_brain_memory(pb_state):
+def _render_brain_memory(pb_state, live_prices=None):
     """Display the 24/7 background brain's LIVE MEMORY — the best-of-the-best
     (APEX) setups + recent signals it found on its own, even while the browser
     was closed. APEX + TAKE NOW HOT cards are openable straight into the Paper
     Trader. Reads the shared worker.db the brain writes (populated on the
-    always-on deploy; empty locally / on Streamlit Cloud). Fail-soft."""
+    always-on deploy; empty locally / on Streamlit Cloud). Fail-soft.
+
+    STALENESS GUARD (user 2026-07-05, VANRY case): cards used to freeze the
+    plan prices from record time while the coin kept moving — reading as
+    'wrong SL/entry/TP' against the live chart. Actionable boards now show
+    only RECENT rows (the validated stats are measured from confirmation-time
+    entry, so old cards aren't the validated trade anyway) and each card
+    shows the LIVE price next to the plan."""
     try:
         import worker_store as _ws
         import json as _json_bm
@@ -1009,6 +1016,18 @@ def _render_brain_memory(pb_state):
         elite_rows = _ws.recent_by_stream("elite", 24)
     except Exception:
         return
+
+    # Actionable boards show only RECENT rows — a plan frozen hours ago is
+    # not the validated trade and reads wrong against the live chart.
+    _now_ts = time.time()
+
+    def _recent_rows(rows, hours):
+        return [r for r in rows
+                if r.get("ts") and _now_ts - float(r["ts"]) <= hours * 3600]
+
+    apex_rows = _recent_rows(apex_rows, 12)
+    tn_rows = _recent_rows(tn_rows, 4)
+    es_rows = _recent_rows(es_rows, 4)
 
     st.markdown(
         "<div style='display:flex;align-items:center;gap:10px;margin-top:8px'>"
@@ -1065,6 +1084,13 @@ def _render_brain_memory(pb_state):
         tp1 = float(r.get("tp1") or 0)
         tp2 = float(r.get("tp2") or 0)
         scol = "#2ed47a" if side == "LONG" else "#ff5c5c"
+        _live = None
+        try:
+            _live = (live_prices or {}).get(r.get("symbol"))
+        except Exception:
+            _live = None
+        _live_str = (f" · <b style='color:#e6e9f0'>now {float(_live):g}</b>"
+                     if _live else "")
         _c1, _c2 = st.columns([5, 1])
         _c1.markdown(
             f"<div style='background:rgba(255,107,53,0.07);border:1px solid "
@@ -1074,7 +1100,7 @@ def _render_brain_memory(pb_state):
             f"<span style='color:#8b93a7;font-size:0.72rem'>· "
             f"{_ago(r.get('ts'))}</span>{edges_html}<br>"
             f"<span style='color:#9aa7c7;font-size:0.78rem'>entry "
-            f"{entry:g} · SL {stop:g} · TP1 {tp1:g}</span></div>",
+            f"{entry:g} · SL {stop:g} · TP1 {tp1:g}{_live_str}</span></div>",
             unsafe_allow_html=True)
         if any(p.get("symbol") == r.get("symbol")
                for p in (pb_state.get("open") or [])):
@@ -12127,7 +12153,11 @@ if active_section == "🧪 Paper Trader":
         # you were away. Reads the shared worker.db (populated on the always-on
         # deploy). Fail-soft so it never breaks the page.
         try:
-            _render_brain_memory(pb_state)
+            try:
+                _bm_prices = prices or {}
+            except NameError:
+                _bm_prices = {}
+            _render_brain_memory(pb_state, _bm_prices)
         except Exception:
             pass
 
