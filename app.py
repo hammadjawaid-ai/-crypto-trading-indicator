@@ -1005,6 +1005,7 @@ def _render_brain_memory(pb_state):
         apex_rows = _ws.recent_by_stream("apex", 12)
         sst1_rows = _ws.recent_by_stream("sst1", 12)
         tn_rows = _ws.recent_by_stream("takenow", 12)
+        es_rows = _ws.recent_by_stream("early_strong", 12)
         elite_rows = _ws.recent_by_stream("elite", 24)
     except Exception:
         return
@@ -1185,6 +1186,34 @@ def _render_brain_memory(pb_state):
                 _tag += (f" <span style='color:#a78bfa;font-size:0.72rem'>"
                          f"{_tier} {float(r.get('score') or 0):.0f}</span>")
             _open_card(r, f"brain_tn_{r.get('symbol')}_{_i}", _tag)
+
+    # ── ⚡ EARLY MOVERS (STRONG) — separate board after TAKE NOW (user
+    # 2026-07-05). Validated cell (backtest_early_strong, 40 coins / 540
+    # entries): STRONG + TAKE_NOW + HOT = 69.3% win, 0.82R median run on
+    # n=176 decided — near-premium win rate at ~8x frequency, shorter runs.
+    # Board-only: never alerted; the bread-and-butter volume lane.
+    st.markdown("### ⚡ EARLY MOVERS (STRONG) — frequent early entries")
+    st.caption("STRONG-tier setups that pulled back and confirmed **🔥 HOT** "
+               "— the high-frequency lane. Validated: **69% win · 0.8R** "
+               "median run (n=176, the best-powered cell in the system). "
+               "Smaller moves than APEX/EARLY ELITE — size accordingly.")
+    _es_u = _dedup(es_rows)
+    if _es_u:
+        for _i, r in enumerate(_es_u[:6]):
+            _tag = ("<span style='background:rgba(255,213,74,0.16);"
+                    "color:#ffd54a;padding:1px 7px;border-radius:5px;"
+                    "font-size:0.7rem;font-weight:800'>⚡ STRONG "
+                    f"{float(r.get('score') or 0):.0f}</span> "
+                    "<span style='background:#0b8a3e;color:#fff;padding:1px "
+                    "7px;border-radius:5px;font-size:0.7rem;font-weight:800'>"
+                    "✅ TAKE NOW</span> <span style='background:rgba(255,107,"
+                    "53,0.2);color:#ff6b35;padding:1px 7px;border-radius:5px;"
+                    "font-size:0.68rem;font-weight:800'>🔥 HOT</span>")
+            _open_card(r, f"brain_es_{r.get('symbol')}_{_i}", _tag)
+    else:
+        st.caption("· None confirming at this moment — these fire a few "
+                   "times a day across the market; the 24/7 brain logs each "
+                   "one here as it confirms.")
 
     _s1 = _dedup(sst1_rows)
     if _s1:

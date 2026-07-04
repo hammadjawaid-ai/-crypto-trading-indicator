@@ -119,6 +119,10 @@ def cycle() -> None:
         store.record_signal("leaderboard", p)
     for p in r.get("elite", []):
         store.record_signal("elite", p)
+    # ⚡ EARLY MOVERS (STRONG + TAKE_NOW + HOT) — board-only stream
+    # (user 2026-07-05): stored + displayed, never alerted.
+    for p in r.get("early_strong", []):
+        store.record_signal("early_strong", p)
 
     # Alert policy (user 2026-07-02) — EXACTLY four streams:
     #   1. 🏆 APEX

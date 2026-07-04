@@ -127,6 +127,47 @@ def scan_all(scan_n: int = 60, min_conv: float = 70.0) -> dict:
     takenow.sort(key=lambda x: (1 if x["hot"] else 0, x["score"]),
                  reverse=True)
 
+    # --- Stream 2b: ⚡ EARLY MOVERS — STRONG tier + TAKE_NOW + HOT --------
+    # Validated (backtest_early_strong, 40 coins / 540 entries): 69.3% win,
+    # 0.82R median run on n=176 decided — near-premium win rate at ~8x the
+    # frequency, shorter runs. BOARD-ONLY stream (user 2026-07-05): stored +
+    # displayed in its own section, never alerted. Separate from the takenow
+    # stream so the existing boards/alerts are untouched.
+    early_strong: list[dict] = []
+    for p in scan:
+        if (p.get("tier") or "").upper() != "STRONG":
+            continue
+        side = (p.get("side") or "").upper()
+        pl = _plan(p)
+        entry = float(pl.get("entry") or 0)
+        if side not in ("LONG", "SHORT") or entry <= 0:
+            continue
+        if float(p.get("score") or 0) < 80:
+            continue
+        try:
+            et = entry_timing.entry_signal(
+                p.get("symbol"), side, entry,
+                stop=float(pl.get("stop") or 0))
+        except Exception:
+            continue
+        if et.get("status") == "TAKE_NOW" and et.get("hot"):
+            early_strong.append({
+                "symbol": p.get("symbol"),
+                "base": p.get("base") or (p.get("symbol") or "").replace(
+                    "USDT", ""),
+                "side": side,
+                "tier": "STRONG",
+                "score": float(p.get("score") or 0),
+                "entry": entry,
+                "stop": float(pl.get("stop") or 0),
+                "tp1": float(pl.get("tp1") or 0),
+                "tp2": float(pl.get("tp2") or 0),
+                "hot": True,
+                "atr_pct": et.get("atr_pct"),
+            })
+    early_strong.sort(key=lambda x: x["score"], reverse=True)
+    early_strong = early_strong[:8]
+
     # --- Stream 3: leaderboard — top-conviction ELITE MAX/HIGH ----------
     # The highest-score MAX/HIGH picks (the leaderboard), as an early
     # heads-up before they reach TAKE_NOW. Ranked by the ELITE composite.
@@ -280,4 +321,5 @@ def scan_all(scan_n: int = 60, min_conv: float = 70.0) -> dict:
     elite_watch = elite_watch[:12]
 
     return {"sst1": sst1, "takenow": takenow, "leaderboard": leaderboard,
-            "apex": apex, "elite": elite_watch, "regime": regime}
+            "apex": apex, "elite": elite_watch,
+            "early_strong": early_strong, "regime": regime}
