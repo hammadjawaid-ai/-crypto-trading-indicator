@@ -77,6 +77,15 @@ def _fmt_elite_early(p) -> str:
             f"high-conviction entry_")
 
 
+def _fmt_fresh(p) -> str:
+    return (f"🌱 *FRESH MOVER* — {p['base']} {p['side']} "
+            f"({p['tier']} {p['score']:.0f})\n"
+            f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
+            f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
+            f"_first signal in 72h + TAKE NOW 🔥 HOT — validated 74% · "
+            f"1.5R_")
+
+
 def cycle() -> None:
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     r = scan_core.scan_all(scan_n=60, min_conv=MIN_CONV)
@@ -135,10 +144,17 @@ def cycle() -> None:
                    if p.get("tier") in ("MAX", "HIGH")
                    and int(p.get("lanes") or 0) >= 2]
     _ee_keys = {(p["symbol"], p["side"]) for p in elite_early}
+    # 🌱 FRESH stream (user-approved add-on 2026-07-05): first fire in 72h +
+    # TAKE_NOW + HOT (validated 74% / 1.5R). One buzz per setup — priority:
+    # APEX > EARLY ELITE > FRESH > TAKE NOW rest > leaderboard.
+    fresh_m = [p for p in tn_hot if p.get("fresh")
+               and (p["symbol"], p["side"]) not in _ee_keys]
+    _fr_keys = _ee_keys | {(p["symbol"], p["side"]) for p in fresh_m}
     tn_rest = [p for p in tn_hot
-               if (p["symbol"], p["side"]) not in _ee_keys]
+               if (p["symbol"], p["side"]) not in _fr_keys]
     _push(apex, "apex", _fmt_apex)
     _push(elite_early, "elite_early", _fmt_elite_early)
+    _push(fresh_m, "fresh", _fmt_fresh)
     _push(tn_rest, "takenow", _fmt_takenow)
     _push(lb, "lb", _fmt_leaderboard)
 
