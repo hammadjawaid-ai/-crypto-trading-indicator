@@ -880,6 +880,7 @@ def _attach_durable_closed(bot, state):
 # STRENGTHENED as the sample grew — a real edge). Surfaced as
 # ✅ TAKE NOW / ⏳ WAIT per card so you only take the confirmed ones.
 import entry_timing
+import px_round
 
 
 @st.cache_data(ttl=60, show_spinner=False)
@@ -1091,8 +1092,11 @@ def _render_brain_memory(pb_state, live_prices=None):
             _live = (live_prices or {}).get(r.get("symbol"))
         except Exception:
             _live = None
-        _live_str = (f" · <b style='color:#e6e9f0'>now {float(_live):g}</b>"
-                     if _live else "")
+        # Futures-ready prices (user trades Bybit perps): every level is
+        # rounded to the symbol's real tick size — copy-paste ready.
+        _sym_r = r.get("symbol") or ""
+        _live_str = (f" · <b style='color:#e6e9f0'>now "
+                     f"{px_round.fmt_px(_sym_r, _live)}</b>" if _live else "")
         _c1, _c2 = st.columns([5, 1])
         _c1.markdown(
             f"<div style='background:rgba(255,107,53,0.07);border:1px solid "
@@ -1102,8 +1106,10 @@ def _render_brain_memory(pb_state, live_prices=None):
             f"<span style='color:#8b93a7;font-size:0.72rem'>· "
             f"{_ago(r.get('ts'))}</span>{edges_html}<br>"
             f"<span style='color:#9aa7c7;font-size:0.78rem'>entry "
-            f"{entry:g} · SL {stop:g} · TP1 {tp1:g}"
-            f"{(' · TP2 ' + format(tp2, 'g')) if tp2 else ''}"
+            f"{px_round.fmt_px(_sym_r, entry)} · "
+            f"SL {px_round.fmt_px(_sym_r, stop)} · "
+            f"TP1 {px_round.fmt_px(_sym_r, tp1)}"
+            f"{(' · TP2 ' + px_round.fmt_px(_sym_r, tp2)) if tp2 else ''}"
             f"{_live_str}</span></div>",
             unsafe_allow_html=True)
         if any(p.get("symbol") == r.get("symbol")
@@ -1294,8 +1300,10 @@ def _render_brain_memory(pb_state, live_prices=None):
                 f"<span style='color:#8b93a7;font-size:0.72rem'>· "
                 f"{_ago(r.get('ts'))}</span><br>"
                 f"<span style='color:#9aa7c7;font-size:0.78rem'>"
-                f"TP1 {float(r.get('tp1') or 0):g} hit · ride to TP2 "
-                f"{float(r.get('tp2') or 0):g} · stop → TP1</span></div>",
+                f"TP1 {px_round.fmt_px(r.get('symbol') or '', r.get('tp1'))}"
+                f" hit · ride to TP2 "
+                f"{px_round.fmt_px(r.get('symbol') or '', r.get('tp2'))}"
+                f" · stop → TP1</span></div>",
                 unsafe_allow_html=True)
 
     _s1 = _dedup(sst1_rows)
@@ -11344,9 +11352,11 @@ if active_section == "🧪 Paper Trader":
                         f"<span style='color:#ffd700;font-size:0.78rem'>"
                         f"· 🎯 conv {_p_conv:.0f}</span> {_etb}</div>"
                         f"<div style='color:#9aa7c7;font-size:0.78rem;"
-                        f"margin-top:3px'>entry {_p_live:g} · SL {_p_stop:g} · "
-                        f"TP1 {_p_tp1:g}"
-                        f"{(' · TP2 ' + format(_p_tp2, 'g')) if _p_tp2 else ''}"
+                        f"margin-top:3px'>entry "
+                        f"{px_round.fmt_px(_p_sym, _p_live)} · "
+                        f"SL {px_round.fmt_px(_p_sym, _p_stop)} · "
+                        f"TP1 {px_round.fmt_px(_p_sym, _p_tp1)}"
+                        f"{(' · TP2 ' + px_round.fmt_px(_p_sym, _p_tp2)) if _p_tp2 else ''}"
                         f" · {_et.get('reason', '')}</div></div>",
                         unsafe_allow_html=True)
                     if _bc2.button("📥 Open", key=f"bt_open_{_p_sym}_{_bt_i}",
@@ -12385,9 +12395,12 @@ if active_section == "🧪 Paper Trader":
                         f"· ⏳ armed {_ae_age_h:.0f}h ago · still alive</span>"
                         f"</div>"
                         f"<div style='color:#9aa7c7;font-size:0.78rem;"
-                        f"margin-top:3px'>entry {_ae_entry:g} · now "
-                        f"{_ae_cur:g} · SL {_ae_stop:g} · TP1 {_ae_tp1:g}"
-                        f"{(' · TP2 ' + format(_ae_tp2, 'g')) if _ae_tp2 else ''}"
+                        f"margin-top:3px'>entry "
+                        f"{px_round.fmt_px(_ae_sym, _ae_entry)} · now "
+                        f"{px_round.fmt_px(_ae_sym, _ae_cur)} · SL "
+                        f"{px_round.fmt_px(_ae_sym, _ae_stop)} · TP1 "
+                        f"{px_round.fmt_px(_ae_sym, _ae_tp1)}"
+                        f"{(' · TP2 ' + px_round.fmt_px(_ae_sym, _ae_tp2)) if _ae_tp2 else ''}"
                         f" · {_ae_pct_str}</div></div>",
                         unsafe_allow_html=True)
                     if any(p.get("symbol") == _ae_sym
