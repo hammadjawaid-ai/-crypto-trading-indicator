@@ -5529,6 +5529,12 @@ if active_section == "🧪 Paper Trader":
     #      the (now possibly-modified) pb_state at line 5543
     pb_state = paper_bot.load_state(PAPER_BOT_FILE)
     pb_state = _attach_durable_closed("paper", pb_state)
+    # Warm the Bybit tick-size cache in ONE call (self-throttled to once/hour)
+    # so per-card fmt_px never blocks on the network mid-render.
+    try:
+        px_round.prefetch_ticks()
+    except Exception:
+        pass
 
     # ============================================================
     # 💾 BROWSER localStorage QUERY-PARAM RESTORE

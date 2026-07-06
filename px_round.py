@@ -1,10 +1,14 @@
-"""Exchange-accurate price formatting for futures trading.
+"""Exchange-accurate price formatting for futures trading — NON-BLOCKING.
 
 Card plans used to display raw floats (SL 0.0344763) that no exchange
-accepts — the user trades Bybit futures and had to hand-round every level.
-`fmt_px(symbol, price)` rounds to the symbol's REAL Bybit linear (USDT-perp)
-tick size, fetched once and cached 24h. Fail-soft: if Bybit is unreachable,
-falls back to 5-significant-digit rounding (close to typical ticks).
+accepts — the user trades Bybit futures. `fmt_px(symbol, price)` rounds to
+the symbol's REAL Bybit linear (USDT-perp) tick size.
+
+PERF: tick sizes are batch-prefetched for ALL linear symbols in ONE call
+(prefetch_ticks(), self-throttled to once/hour) and cached. During render,
+`fmt_px`/`_tick_for` NEVER make a network call — a cache miss falls back
+instantly to integer-safe significant-digit rounding. This keeps the paper
+trader snappy (the old per-symbol 6s-timeout fetch stalled every render).
 """
 from __future__ import annotations
 
@@ -14,28 +18,43 @@ from decimal import Decimal, ROUND_HALF_UP
 import requests
 
 _S = requests.Session()
-_CACHE: dict = {}          # symbol -> (expires_at, Decimal tick | None)
+_CACHE: dict = {}          # symbol -> (expires_at, Decimal tick)
 _TTL_OK = 24 * 3600.0
-_TTL_FAIL = 1800.0
+_ALL_FETCHED = [0.0]       # last full-universe prefetch timestamp
+_PREFETCH_EVERY = 3600.0   # refresh the whole tick map at most once/hour
+
+
+def prefetch_ticks() -> None:
+    """Populate the tick cache for ALL Bybit linear symbols in ONE request.
+    Self-throttled: no-ops if called again within the hour. Fail-soft."""
+    now = time.time()
+    if now - _ALL_FETCHED[0] < _PREFETCH_EVERY:
+        return
+    try:
+        j = _S.get("https://api.bybit.com/v5/market/instruments-info",
+                   params={"category": "linear"}, timeout=8).json()
+        lst = (j.get("result") or {}).get("list") or []
+        for it in lst:
+            sym = it.get("symbol")
+            ts = (it.get("priceFilter") or {}).get("tickSize")
+            if sym and ts:
+                try:
+                    _CACHE[sym] = (now + _TTL_OK, Decimal(str(ts)))
+                except Exception:
+                    pass
+        if lst:
+            _ALL_FETCHED[0] = now
+    except Exception:
+        # leave _ALL_FETCHED so we retry sooner than an hour on failure
+        pass
 
 
 def _tick_for(symbol: str):
-    now = time.time()
+    """Cached tick or None — NON-BLOCKING (never fetches during render)."""
     hit = _CACHE.get(symbol)
-    if hit and now < hit[0]:
+    if hit and time.time() < hit[0]:
         return hit[1]
-    tick = None
-    try:
-        j = _S.get("https://api.bybit.com/v5/market/instruments-info",
-                   params={"category": "linear", "symbol": symbol},
-                   timeout=6).json()
-        lst = (j.get("result") or {}).get("list") or []
-        if lst:
-            tick = Decimal(str(lst[0]["priceFilter"]["tickSize"]))
-    except Exception:
-        tick = None
-    _CACHE[symbol] = (now + (_TTL_OK if tick else _TTL_FAIL), tick)
-    return tick
+    return None
 
 
 def _sig5(price: float) -> str:
@@ -51,7 +70,8 @@ def _sig5(price: float) -> str:
 
 def fmt_px(symbol: str, price) -> str:
     """Format a price rounded to the symbol's Bybit futures tick size —
-    copy-paste ready for a real order. Fail-soft to 5 significant digits."""
+    copy-paste ready for a real order. Instant sig-digit fallback if the
+    tick isn't cached (never blocks on the network)."""
     try:
         p = float(price)
     except (TypeError, ValueError):
