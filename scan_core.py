@@ -22,6 +22,7 @@ import binance_client
 import velocity_burst as _vb
 import predict_next as _pn
 import funding_fade as _ff
+import smart_stop as _ss
 import config
 
 
@@ -283,6 +284,7 @@ def scan_all(scan_n: int = 60, min_conv: float = 70.0) -> dict:
         if sym not in cand:
             cand[sym] = {"pick": elite.get(sym), "sst1": sp}
     apex: list[dict] = []
+    _cand_edges: dict = {}      # sym -> corroborating edges (for SST1 v2)
     for sym, c in list(cand.items())[:16]:
         p, sp = c["pick"], c["sst1"]
         if p:
@@ -348,6 +350,9 @@ def scan_all(scan_n: int = 60, min_conv: float = 70.0) -> dict:
                 edges.append("FUND")
         except Exception:
             pass
+        # capture corroborating edges (exclude SST1 self-edge) for the
+        # SST1 v2 re-grounded conviction below
+        _cand_edges[sym] = [e for e in edges if e != "SST1"]
         if len(edges) >= apex_min:
             apex.append({
                 "symbol": sym,
@@ -394,6 +399,63 @@ def scan_all(scan_n: int = 60, min_conv: float = 70.0) -> dict:
         {"MAX": 3, "HIGH": 2, "STRONG": 1}.get(x["tier"], 0), x["score"]),
         reverse=True)
     elite_watch = elite_watch[:12]
+
+    # ── 🎯 SST1 v2 — RE-GROUND conviction on VALIDATED edge count. The old
+    # conviction was compressed (93% in 70-79) and did NOT sort winners
+    # (backtest_sst1cal). The edge-count conviction DOES (backtest_sst1v2,
+    # 617 entries): 0-edge 54% win, 1-edge 71%, 2-edge 76%. So: conviction =
+    # 50 + 10×(corroborating edges), and 0-edge weak setups (the 54% junk)
+    # are dropped from the SST1 tier. Un-scored picks keep the old number.
+    _sst1_v2: list[dict] = []
+    for p in sst1:
+        sym = p.get("symbol")
+        if sym in _cand_edges:
+            ec = len(_cand_edges[sym])
+            p["edges"] = ec
+            p["edge_names"] = _cand_edges[sym]
+            p["conviction_old"] = p.get("conviction")
+            p["conviction"] = float(50 + 10 * ec)
+            if ec < 1:                      # 0-edge = 54% win → not a sureshot
+                continue
+        _sst1_v2.append(p)
+    sst1 = _sst1_v2
+    sst1.sort(key=lambda x: x["conviction"], reverse=True)
+
+    # ── 🛡️ STRUCTURAL STOP (validated deploy) — move every pick's SL below
+    # the recent swing low instead of a fixed distance, so ordinary noise
+    # can't wick it out (the GIGGLE fix). Validated (backtest_stopval, 575
+    # entries, 4-month multi-regime): +0.011R/signal & +1-2pt win in EVERY
+    # regime, both-positive in the normal window. Applied here so it flows
+    # to the DB, boards, Telegram alerts AND paper trader in one place.
+    _sd_cache: dict = {}
+
+    def _restop(picks):
+        for p in picks:
+            sym = p.get("symbol")
+            side = (p.get("side") or "").upper()
+            entry = float(p.get("entry") or 0)
+            stop = float(p.get("stop") or 0)
+            tp1 = float(p.get("tp1") or 0)
+            if not sym or entry <= 0 or stop <= 0 or tp1 <= 0:
+                continue
+            if sym not in _sd_cache:
+                try:
+                    _sd_cache[sym] = binance_client.get_klines(
+                        sym, "1h", limit=120)
+                except Exception:
+                    _sd_cache[sym] = None
+            df = _sd_cache[sym]
+            if df is not None:
+                new_stop = _ss.structural_stop(df, side, entry, stop, tp1)
+                if new_stop and new_stop > 0:
+                    p["stop"] = float(new_stop)
+
+    for _stream in (sst1, takenow, leaderboard, apex, early_strong,
+                    elite_watch):
+        try:
+            _restop(_stream)
+        except Exception:
+            pass
 
     return {"sst1": sst1, "takenow": takenow, "leaderboard": leaderboard,
             "apex": apex, "elite": elite_watch,

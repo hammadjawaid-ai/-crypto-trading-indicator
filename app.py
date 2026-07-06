@@ -1308,9 +1308,16 @@ def _render_brain_memory(pb_state, live_prices=None):
 
     _s1 = _dedup(sst1_rows)
     if _s1:
-        st.caption("💠 SST1≥70 the brain is tracking: " + ", ".join(
-            f"{r.get('base')} {r.get('side')}" for r in _s1[:6])
-            + " — also openable on the BEST TRADES NOW board below.")
+        def _s1lbl(r):
+            try:
+                _e = _json_bm.loads(r.get("extra") or "{}").get("edges")
+            except Exception:
+                _e = None
+            _et = f" ⚡×{_e}" if _e is not None else ""
+            return f"{r.get('base')} {r.get('side')}{_et}"
+        st.caption("💠 SST1 the brain is tracking (conviction = validated "
+                   "edge count): " + ", ".join(_s1lbl(r) for r in _s1[:6])
+                   + " — also openable on the BEST TRADES NOW board below.")
 
     # 🎯 ELITE watch — the full ELITE board the brain scans 24/7 (context).
     _el = _dedup(elite_rows)
@@ -11216,7 +11223,8 @@ if active_section == "🧪 Paper Trader":
         # chip + all firing lane chips + full plan + 📥 Open.
         # Trades open to PAPER_BOT_FILE with `_unified_source`
         # tag for A/B testing in closed-trade history.
-        with st.expander('🏆 BEST TRADES NOW (SST1 conv≥70)', expanded=True):
+        with st.expander('🏆 BEST TRADES NOW (SST1 · validated edges)',
+                         expanded=True):
             st.markdown("### 🏆 BEST TRADES NOW")
             st.caption(
                 "Your best edge in one place — SST1 **conv ≥ 70** "
@@ -11274,7 +11282,7 @@ if active_section == "🧪 Paper Trader":
             _bt_open = {p.get("symbol") for p in (pb_state.get("open") or [])}
             _bt_show = [p for p in _bt_picks if p.get("symbol") not in _bt_open]
             if not _bt_show:
-                st.info("No SST1 conv≥70 trades right now — the proven tier is "
+                st.info("No SST1 edge-backed trades right now — the proven tier is "
                         "selective (<1/day). The boards below show more setups.")
             else:
                 for _bt_i, _p in enumerate(_bt_show[:6]):
