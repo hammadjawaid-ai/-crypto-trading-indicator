@@ -20,8 +20,10 @@ from datetime import datetime, timezone
 if hasattr(sys.stdout, "buffer"):
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
+import binance_client
 import config
 import scan_core
+import shadow_trader
 import telegram_notify as tg
 import worker_store as store
 
@@ -199,11 +201,40 @@ def cycle() -> None:
     _push(tn_rest, "takenow", _fmt_takenow)
     _push(em_big, "em", _fmt_early_mover)
 
+    # ✳️ DECISION DESK — the brain TAKES every tier's signal itself as a
+    # forward shadow trade (live entry price, real fees, ladder + 48h
+    # time-stop) and manages open ones each cycle. This builds the per-tier
+    # LIVE track record; a tier earns 🟢 GREEN LIGHT only when its own
+    # record is profitable after fees. (User 2026-07-08: forward proof.)
+    n_shadow_open = n_shadow_closed = 0
+    try:
+        def _live(sym):
+            try:
+                return binance_client.get_ticker_price(sym)
+            except Exception:
+                return None
+        _tiers = (("apex", apex), ("takenow_hot", tn_hot),
+                  ("fresh", fresh_m), ("early_movers",
+                                       r.get("early_strong", [])),
+                  ("early_lane", em_big))
+        for _tname, _sigs in _tiers:
+            for p in _sigs:
+                if shadow_trader.open_from_signal(_tname, p,
+                                                  _live(p.get("symbol"))):
+                    n_shadow_open += 1
+        _open_syms = {t["symbol"] for t in store.shadow_open_trades()}
+        _pxs = {s: _live(s) for s in _open_syms}
+        n_shadow_closed = len(shadow_trader.manage(
+            {k: v for k, v in _pxs.items() if v}))
+    except Exception as exc:
+        print("  shadow error:", exc, flush=True)
+
     store.record_cycle(regime, len(sst1), len(takenow), n_alerts)
     print(f"[{stamp}] regime={regime} · APEX={len(apex)} · "
           f"EARLY_ELITE={len(elite_early)} · TN_HOT={len(tn_hot)} · "
           f"EM🚀={len(em_big)} · SST1≥{MIN_CONV:.0f}={len(sst1)}"
-          f"(stored) · alerts_sent={n_alerts}", flush=True)
+          f"(stored) · alerts_sent={n_alerts} · "
+          f"shadow +{n_shadow_open}/-{n_shadow_closed}", flush=True)
 
 
 def main() -> None:

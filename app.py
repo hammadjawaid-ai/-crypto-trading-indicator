@@ -1135,6 +1135,69 @@ def _render_brain_memory(pb_state, live_prices=None):
             except Exception as exc:
                 st.error(f"Open failed: {exc}")
 
+    # ── ✳️ DECISION DESK — FORWARD PROOF (user 2026-07-08) ──────────────
+    # The brain takes every tier's signal itself as a live shadow trade
+    # (real entry price at signal time, real fees, ladder + 48h time-stop)
+    # and shows the honest per-tier track record. 🟢 GREEN LIGHT = the tier
+    # is PROVEN profitable after fees in its own live record (>=20 trades,
+    # >=+2R net). 🧪 PROVING = record still building. No backtest numbers.
+    try:
+        _sh_sum = _ws.shadow_summary()
+        _sh_recent = _ws.shadow_recent(10)
+    except Exception:
+        _sh_sum, _sh_recent = [], []
+    st.markdown("### ✳️ DECISION DESK — live forward proof")
+    st.caption("The brain **takes every signal itself** at live prices with "
+               "real fees and manages the exit (BE→TP1 lock→trail, 48h max "
+               "hold). A tier gets **🟢 GREEN LIGHT** only when its own "
+               "live record is profitable after fees — not backtests. "
+               "Trade the green ones; treat 🧪 as unproven.")
+    _tier_names = {"apex": "🏆 APEX", "takenow_hot": "✅🔥 TAKE NOW HOT",
+                   "fresh": "🌱 FRESH", "early_movers": "⚡ EARLY MOVERS",
+                   "early_lane": "🚀 EARLY-LANE"}
+    if _sh_sum:
+        for rec in _sh_sum:
+            _nm = _tier_names.get(rec.get("tier"), rec.get("tier"))
+            _n = int(rec.get("n") or 0)
+            _wins = int(rec.get("wins") or 0)
+            _net = float(rec.get("net_r") or 0.0)
+            _opn = int(rec.get("open_n") or 0)
+            _wr = (_wins / _n * 100.0) if _n else 0.0
+            _green = _n >= 20 and _net >= 2.0
+            _badge = ("<span style='background:#0b8a3e;color:#fff;padding:"
+                      "2px 9px;border-radius:6px;font-weight:800;font-size:"
+                      "0.72rem'>🟢 GREEN LIGHT</span>" if _green else
+                      "<span style='background:rgba(255,213,74,0.15);color:"
+                      "#ffd54a;padding:2px 9px;border-radius:6px;"
+                      "font-weight:800;font-size:0.72rem'>🧪 PROVING</span>")
+            _ncol = "#2ed47a" if _net > 0 else "#ff5c5c"
+            st.markdown(
+                f"<div style='background:rgba(255,255,255,0.03);border:1px "
+                f"solid rgba(255,255,255,0.08);border-radius:10px;padding:"
+                f"8px 13px;margin:4px 0'>{_badge} <b>{_nm}</b> "
+                f"<span style='color:#9aa7c7;font-size:0.8rem'>· "
+                f"{_n} closed · win {_wr:.0f}% · net "
+                f"<b style='color:{_ncol}'>{_net:+.2f}R</b> after fees · "
+                f"{_opn} open</span></div>", unsafe_allow_html=True)
+        if _sh_recent:
+            with st.expander("📜 recent shadow trades (the receipts)",
+                             expanded=False):
+                for t in _sh_recent:
+                    _pr = float(t.get("pnl_r") or 0)
+                    _pc = "#2ed47a" if _pr > 0 else "#ff5c5c"
+                    st.markdown(
+                        f"<span style='font-size:0.8rem;color:#9aa7c7'>"
+                        f"{_tier_names.get(t.get('tier'), t.get('tier'))} · "
+                        f"<b>{(t.get('symbol') or '').replace('USDT','')}</b>"
+                        f" {t.get('side')} · {t.get('exit_reason')} · "
+                        f"<b style='color:{_pc}'>{_pr:+.2f}R</b></span>",
+                        unsafe_allow_html=True)
+    else:
+        st.caption("· Record starts building with the next brain cycles — "
+                   "every signal from every tier becomes a live shadow "
+                   "trade with real fees. Within days each tier has an "
+                   "honest, forward win rate here.")
+
     # ── BOARD 1: 🏆 APEX — several validated edges agree — openable ─────
     apex_u = _dedup(apex_rows)
     if apex_u:

@@ -43,6 +43,14 @@ CREATE TABLE IF NOT EXISTS cycles (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ts REAL, regime TEXT, n_sst1 INTEGER, n_takenow INTEGER, n_alerts INTEGER
 );
+CREATE TABLE IF NOT EXISTS shadow_trades (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tier TEXT, symbol TEXT, side TEXT,
+  entry REAL, stop REAL, stop0 REAL, tp1 REAL, tp2 REAL,
+  peak REAL, be_set INTEGER DEFAULT 0, tp1_hit INTEGER DEFAULT 0,
+  opened_at REAL, status TEXT DEFAULT 'OPEN',
+  exit_px REAL, exit_reason TEXT, closed_at REAL, pnl_r REAL
+);
 """
 
 
@@ -164,6 +172,77 @@ def recent_alerts(limit: int = 25) -> list[dict]:
 def last_cycle() -> dict | None:
     rows = recent_cycles(1)
     return rows[0] if rows else None
+
+
+def shadow_has_open(tier: str, symbol: str) -> bool:
+    c = _open()
+    try:
+        row = c.execute(
+            "SELECT COUNT(*) FROM shadow_trades WHERE tier=? AND symbol=? "
+            "AND status='OPEN'", (tier, symbol)).fetchone()
+        return bool(row and row[0] > 0)
+    finally:
+        c.close()
+
+
+def shadow_open(tier: str, symbol: str, side: str, entry: float,
+                stop: float, tp1: float, tp2: float) -> None:
+    c = _open()
+    try:
+        c.execute(
+            "INSERT INTO shadow_trades (tier,symbol,side,entry,stop,stop0,"
+            "tp1,tp2,peak,opened_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (tier, symbol, side, entry, stop, stop, tp1, tp2, entry,
+             time.time()))
+        c.commit()
+    finally:
+        c.close()
+
+
+def shadow_open_trades() -> list[dict]:
+    return _rows("SELECT * FROM shadow_trades WHERE status='OPEN'")
+
+
+def shadow_update(tid: int, stop: float, peak: float, be_set: int,
+                  tp1_hit: int) -> None:
+    c = _open()
+    try:
+        c.execute(
+            "UPDATE shadow_trades SET stop=?, peak=?, be_set=?, tp1_hit=? "
+            "WHERE id=?", (stop, peak, be_set, tp1_hit, tid))
+        c.commit()
+    finally:
+        c.close()
+
+
+def shadow_close(tid: int, exit_px: float, reason: str,
+                 pnl_r: float) -> None:
+    c = _open()
+    try:
+        c.execute(
+            "UPDATE shadow_trades SET status='CLOSED', exit_px=?, "
+            "exit_reason=?, closed_at=?, pnl_r=? WHERE id=?",
+            (exit_px, reason, time.time(), pnl_r, tid))
+        c.commit()
+    finally:
+        c.close()
+
+
+def shadow_summary() -> list[dict]:
+    return _rows(
+        "SELECT tier, "
+        "SUM(CASE WHEN status='CLOSED' THEN 1 ELSE 0 END) AS n, "
+        "SUM(CASE WHEN status='CLOSED' AND pnl_r>0 THEN 1 ELSE 0 END) "
+        "AS wins, "
+        "SUM(CASE WHEN status='CLOSED' THEN pnl_r ELSE 0 END) AS net_r, "
+        "SUM(CASE WHEN status='OPEN' THEN 1 ELSE 0 END) AS open_n "
+        "FROM shadow_trades GROUP BY tier ORDER BY net_r DESC")
+
+
+def shadow_recent(limit: int = 30) -> list[dict]:
+    return _rows(
+        "SELECT * FROM shadow_trades WHERE status='CLOSED' "
+        "ORDER BY closed_at DESC LIMIT ?", (limit,))
 
 
 def seen_between(stream: str, symbol: str, side: str,
