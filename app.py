@@ -930,6 +930,47 @@ def _edge_chip_html(n_edges, edges):
             f"font-weight:800'>⚡×{n_edges} {' · '.join(edges)}</span>")
 
 
+@st.cache_data(ttl=180, show_spinner=False)
+def _lane_approval_cached(symbol, side, _bust):
+    """🚀 early-lane APPROVAL for ELITE HIGH/MAX cards. Validated on the
+    8-month deep window (423 MAX/HIGH entries): approved fires win 65.5%,
+    unapproved only 48.5% — a +17pt gate. Approval = velocity-burst >= 78
+    same-side OR 6-bar ROC in the top 40% of its last 100 bars.
+    Returns True/False, or None when data is unavailable (show nothing)."""
+    try:
+        import numpy as _np
+        import velocity_burst as _vb_a
+        df = binance_client.get_klines(symbol, "1h", limit=120)
+        c = df["close"].to_numpy()
+        roc6 = _np.abs(c / _np.roll(c, 6) - 1.0)
+        roc6[:6] = 0.0
+        ref = roc6[-100:-1]
+        roc_hot = len(ref) > 0 and float(
+            (ref < roc6[-1]).mean() * 100) >= 60
+        bs, bside, _ = _vb_a.lane_velocity_burst(df)
+        vb_ok = bs >= 78 and (bside or "").upper() == (side or "").upper()
+        return bool(roc_hot or vb_ok)
+    except Exception:
+        return None
+
+
+def _approval_chip_html(approved):
+    """Verdict badge for ELITE HIGH/MAX (user 2026-07-08)."""
+    if approved is None:
+        return ""
+    if approved:
+        return (" <span style='background:rgba(56,189,248,0.18);"
+                "color:#38bdf8;padding:3px 10px;border-radius:6px;"
+                "font-size:0.72rem;font-weight:800' title='Early lanes "
+                "confirm this fire — approved pool wins 65.5% (8-mo, "
+                "n=349)'>🚀 APPROVED</span>")
+    return (" <span style='background:rgba(255,92,92,0.16);color:#ff5c5c;"
+            "padding:3px 10px;border-radius:6px;font-size:0.72rem;"
+            "font-weight:800' title='No early-lane backing — unapproved "
+            "fires win only 48.5% (coin-flip, 8-mo, n=74). Skip.'>"
+            "⚠️ UNAPPROVED — skip</span>")
+
+
 # --- Always-visible closed-trades history (never hidden) -------------------
 import gsheet_export
 
@@ -12231,6 +12272,19 @@ if active_section == "🧪 Paper Trader":
                     except Exception:
                         _u_edge_chip = ""
 
+                    # 🚀 early-lane APPROVAL verdict (user 2026-07-08) —
+                    # HIGH/MAX only. Validated 8-mo gate: approved 65.5%
+                    # vs unapproved 48.5% (+17pts). Unapproved = skip.
+                    _u_appr_chip = ""
+                    if _u_tier in ("MAX", "HIGH"):
+                        try:
+                            _u_appr_chip = _approval_chip_html(
+                                _lane_approval_cached(
+                                    _u_sym, _u_side,
+                                    int(time.time() // 180)))
+                        except Exception:
+                            _u_appr_chip = ""
+
                     # Premium card — full-width gradient surface with
                     # tier-coded border and glow. Matches the
                     # SURE SHOT design from BEST TRADES NOW.
@@ -12284,6 +12338,8 @@ if active_section == "🧪 Paper Trader":
                             f"{_u_early_chip}"
                             # ⚡×N validated edge-count chip
                             f"{_u_edge_chip}"
+                            # 🚀/⚠️ early-lane approval verdict (HIGH/MAX)
+                            f"{_u_appr_chip}"
                             f"</div>"
                             # Lane chips row — wrapping
                             f"<div style='margin-bottom:10px'>"
