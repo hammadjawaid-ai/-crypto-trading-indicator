@@ -1155,6 +1155,7 @@ def _render_brain_memory(pb_state, live_prices=None):
                "live record is profitable after fees — not backtests. "
                "Trade the green ones; treat 🧪 as unproven.")
     _tier_names = {"apex": "🏆 APEX", "takenow_hot": "✅🔥 TAKE NOW HOT",
+                   "elite_early": "🌟 EARLY ELITE", "sst1": "💠 SST1",
                    "fresh": "🌱 FRESH", "early_movers": "⚡ EARLY MOVERS",
                    "early_lane": "🚀 EARLY-LANE",
                    "trend_rider": "🌊 TREND RIDER"}

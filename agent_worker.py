@@ -242,6 +242,8 @@ def cycle() -> None:
             except Exception:
                 return None
         _tiers = (("apex", apex), ("takenow_hot", tn_hot),
+                  ("elite_early", elite_early),
+                  ("sst1", sst1),
                   ("fresh", fresh_m), ("early_movers",
                                        r.get("early_strong", [])),
                   ("early_lane", em_big),
