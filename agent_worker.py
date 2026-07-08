@@ -353,6 +353,49 @@ def cycle() -> None:
     except Exception:
         pass
 
+    # 🌆 EVENING REPORT — pre-US-session day-trade briefing (user
+    # 2026-07-08). Default 13:00 UTC = 18:00 Pakistan (US opens ~18:30
+    # PKT); override with WORKER_EVENING_HOUR_UTC. Day-trade lanes first.
+    try:
+        _eh_utc = int(getattr(config, "WORKER_EVENING_HOUR_UTC", 13))
+        if datetime.now(timezone.utc).hour == _eh_utc and store.should_alert(
+                "evening_digest", 22 * 3600):
+            lines = ["🌆 *EVENING REPORT* — US session ahead"]
+            _picks = []
+            for p in em_big[:2]:
+                _picks.append(("🚀 EARLY-LANE (81% cell)", p))
+            _pk_syms = {p.get("symbol") for _, p in _picks}
+            for p in r.get("early_strong", []):
+                if p.get("symbol") not in _pk_syms and len(_picks) < 3:
+                    _picks.append(("⚡ EARLY MOVERS", p))
+            for p in apex[:2]:
+                _picks.append(("🏆 APEX", p))
+            for p in elite_early[:1]:
+                _picks.append(("🌟 EARLY ELITE", p))
+            for p in r.get("trend", [])[:1]:
+                _picks.append(("🌊 TREND (money core)", p))
+            _picks = _picks[:5]
+            if _picks:
+                lines.append("*Best setups for the session:*")
+                for _lbl, p in _picks:
+                    lines.append(
+                        f"• {_lbl} — *{p['base']} {p['side']}* · entry "
+                        f"`{p['entry']:g}` · SL `{p['stop']:g}` · TP1 "
+                        f"`{p['tp1']:g}`")
+            else:
+                lines.append("_No qualifying setups into the US session — "
+                             "sit tight._")
+            _opn = [t for t in store.shadow_open_trades()
+                    if t["tier"] == "trend_rider"]
+            if _opn:
+                lines.append("🌊 open trend rides: " + ", ".join(
+                    t["symbol"].replace("USDT", "") for t in _opn))
+            lines.append(f"regime: {regime}")
+            ok, _ = tg.send("\n".join(lines), silent=True)
+            n_alerts += 1 if ok else 0
+    except Exception:
+        pass
+
     store.record_cycle(regime, len(sst1), len(takenow), n_alerts)
     print(f"[{stamp}] regime={regime} · 🌊TREND={len(r.get('trend', []))} · "
           f"APEX={len(apex)} · EARLY_ELITE={len(elite_early)} · "
