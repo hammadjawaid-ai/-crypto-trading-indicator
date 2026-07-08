@@ -23,6 +23,7 @@ import velocity_burst as _vb
 import predict_next as _pn
 import funding_fade as _ff
 import smart_stop as _ss
+import trend_rider as _tr
 import config
 
 
@@ -457,6 +458,18 @@ def scan_all(scan_n: int = 60, min_conv: float = 70.0) -> dict:
         except Exception:
             pass
 
+    # ── 🌊 TREND RIDER — the validated MONEY CORE (backtest_trendrider,
+    # 3yr daily, fees in, OOS-surviving: +0.32R top-40 / +0.15R OOS per
+    # trade, long-only). Its stops are its OWN policy (2.5×ATR-daily +
+    # chandelier trail) — deliberately NOT re-stopped by the 1h structural
+    # pass above.
+    trend: list[dict] = []
+    try:
+        _t_syms = binance_client.get_top_symbols(scan_n)["symbol"].tolist()
+        trend = _tr.scan(_t_syms)[:8]
+    except Exception:
+        trend = []
+
     return {"sst1": sst1, "takenow": takenow, "leaderboard": leaderboard,
             "apex": apex, "elite": elite_watch,
-            "early_strong": early_strong, "regime": regime}
+            "early_strong": early_strong, "trend": trend, "regime": regime}

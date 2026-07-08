@@ -89,6 +89,15 @@ def _fmt_elite_early(p) -> str:
             f"high-conviction entry_")
 
 
+def _fmt_trend(p) -> str:
+    return (f"🌊 *TREND RIDER* — {p['base']} LONG "
+            f"(breakout +{p['score']:.1f}%)\n"
+            f"entry `{p['entry']:g}` · SL `{p['stop']:g}` (2.5×ATR-d) · "
+            f"ride the trail\n"
+            f"_the validated money core: 3yr +0.15-0.32R/trade after fees, "
+            f"hold days-to-weeks, winners 2.6× losers_")
+
+
 def _fmt_fresh(p) -> str:
     return (f"🌱 *FRESH MOVER* — {p['base']} {p['side']} "
             f"({p['tier']} {p['score']:.0f})\n"
@@ -135,6 +144,9 @@ def cycle() -> None:
     # (user 2026-07-05): stored + displayed, never alerted.
     for p in r.get("early_strong", []):
         store.record_signal("early_strong", p)
+    # 🌊 TREND RIDER — the money core (user-approved 2026-07-08)
+    for p in r.get("trend", []):
+        store.record_signal("trend", p)
 
     # 🎯 TP2 RIDES (user 2026-07-05, ADA case): after a best-signal's TP1 is
     # hit, keep tracking it while momentum stays intact (trend + hot) so the
@@ -195,11 +207,32 @@ def cycle() -> None:
     # takenow stream, which is MAX/HIGH + SST1 only).
     em_big = [p for p in r.get("early_strong", [])
               if p.get("early_lanes")]
-    _push(apex, "apex", _fmt_apex)
-    _push(elite_early, "elite_early", _fmt_elite_early)
-    _push(fresh_m, "fresh", _fmt_fresh)
-    _push(tn_rest, "takenow", _fmt_takenow)
-    _push(em_big, "em", _fmt_early_mover)
+    # LEAN ALERT POLICY (user 2026-07-08: "no noise, concrete trades"):
+    # only PROVEN money may buzz. 🌊 TREND (3yr validated) always alerts;
+    # every other tier alerts ONLY once its own Decision Desk record is
+    # 🟢 GREEN (>=20 closed, >=+2R net after fees). Earn-back by live proof.
+    _push(r.get("trend", []), "trend", _fmt_trend)
+    try:
+        _green = {rec["tier"] for rec in shadow_trader.tier_records()
+                  if rec.get("green")}
+    except Exception:
+        _green = set()
+    if "apex" in _green:
+        _push(apex, "apex", _fmt_apex)
+    if "takenow_hot" in _green:
+        _push(elite_early, "elite_early", _fmt_elite_early)
+        _push(tn_rest, "takenow", _fmt_takenow)
+    if "fresh" in _green:
+        _push(fresh_m, "fresh", _fmt_fresh)
+    if "early_lane" in _green:
+        _push(em_big, "em", _fmt_early_mover)
+    # 🟢 GREEN LIGHT unlock announcement (once per tier per 30 days)
+    for _gt in _green:
+        if store.should_alert(f"green:{_gt}", 30 * 24 * 3600):
+            ok, _ = tg.send(f"🟢 *GREEN LIGHT UNLOCKED* — `{_gt}` is now "
+                            f"PROVEN profitable after fees in its live "
+                            f"forward record. Its alerts are ON.")
+            n_alerts += 1 if ok else 0
 
     # ✳️ DECISION DESK — the brain TAKES every tier's signal itself as a
     # forward shadow trade (live entry price, real fees, ladder + 48h
@@ -216,7 +249,8 @@ def cycle() -> None:
         _tiers = (("apex", apex), ("takenow_hot", tn_hot),
                   ("fresh", fresh_m), ("early_movers",
                                        r.get("early_strong", [])),
-                  ("early_lane", em_big))
+                  ("early_lane", em_big),
+                  ("trend_rider", r.get("trend", [])))
         for _tname, _sigs in _tiers:
             for p in _sigs:
                 if shadow_trader.open_from_signal(_tname, p,
@@ -224,16 +258,79 @@ def cycle() -> None:
                     n_shadow_open += 1
         _open_syms = {t["symbol"] for t in store.shadow_open_trades()}
         _pxs = {s: _live(s) for s in _open_syms}
-        n_shadow_closed = len(shadow_trader.manage(
-            {k: v for k, v in _pxs.items() if v}))
+        _sh_closed = shadow_trader.manage(
+            {k: v for k, v in _pxs.items() if v})
+        n_shadow_closed = len(_sh_closed)
     except Exception as exc:
+        _sh_closed = []
+        _pxs = {}
         print("  shadow error:", exc, flush=True)
 
+    # 🟡🔴 TREND HEALTH pings (user: "caution if the money bet stops
+    # surviving"). 🔴 = a trend shadow trade just closed (trail/stop hit).
+    # 🟡 = an open trend trade is losing AND within 25% of its stop.
+    try:
+        for t in _sh_closed:
+            if t.get("tier") != "trend_rider":
+                continue
+            _pr = float(t.get("pnl_r") or 0)
+            ok, _ = tg.send(
+                f"🔴 *TREND EXIT* — {t['symbol'].replace('USDT','')} closed "
+                f"({t.get('reason')}) at `{t.get('exit'):g}` · "
+                f"{_pr:+.2f}R after fees. The trail decided — as designed.")
+            n_alerts += 1 if ok else 0
+    except Exception:
+        pass
+    try:
+        for t in store.shadow_open_trades():
+            if t["tier"] != "trend_rider":
+                continue
+            px = _pxs.get(t["symbol"])
+            if not px:
+                continue
+            entry, stop0 = float(t["entry"]), float(t["stop0"])
+            rng = entry - stop0
+            if rng > 0 and px < entry and (px - stop0) / rng < 0.25:
+                if store.should_alert(f"tr_caution:{t['symbol']}",
+                                      12 * 3600):
+                    ok, _ = tg.send(
+                        f"🟡 *TREND CAUTION* — {t['symbol'].replace('USDT','')} "
+                        f"LONG is {((px/entry)-1)*100:+.1f}% and near its "
+                        f"stop `{stop0:g}`. Plan says: let the stop decide "
+                        f"— no adds.")
+                    n_alerts += 1 if ok else 0
+    except Exception:
+        pass
+
+    # 📊 DAILY DIGEST — one status message per day (~09:00 UTC window).
+    try:
+        if datetime.now(timezone.utc).hour == 9 and store.should_alert(
+                "daily_digest", 22 * 3600):
+            recs = shadow_trader.tier_records()
+            lines = ["📊 *DAILY DESK REPORT*"]
+            for rec in recs:
+                dot = "🟢" if rec["green"] else "🧪"
+                lines.append(
+                    f"{dot} `{rec['tier']}` — {rec['n']} closed · "
+                    f"win {rec['win_pct']:.0f}% · net {rec['net_r']:+.1f}R "
+                    f"· {rec['open']} open")
+            _opn = [t for t in store.shadow_open_trades()
+                    if t["tier"] == "trend_rider"]
+            if _opn:
+                lines.append("🌊 open trend rides: " + ", ".join(
+                    t["symbol"].replace("USDT", "") for t in _opn))
+            lines.append(f"regime: {regime}")
+            ok, _ = tg.send("\n".join(lines), silent=True)
+            n_alerts += 1 if ok else 0
+    except Exception:
+        pass
+
     store.record_cycle(regime, len(sst1), len(takenow), n_alerts)
-    print(f"[{stamp}] regime={regime} · APEX={len(apex)} · "
-          f"EARLY_ELITE={len(elite_early)} · TN_HOT={len(tn_hot)} · "
-          f"EM🚀={len(em_big)} · SST1≥{MIN_CONV:.0f}={len(sst1)}"
-          f"(stored) · alerts_sent={n_alerts} · "
+    print(f"[{stamp}] regime={regime} · 🌊TREND={len(r.get('trend', []))} · "
+          f"APEX={len(apex)} · EARLY_ELITE={len(elite_early)} · "
+          f"TN_HOT={len(tn_hot)} · EM🚀={len(em_big)} · "
+          f"SST1≥{MIN_CONV:.0f}={len(sst1)}(stored) · "
+          f"alerts_sent={n_alerts} · "
           f"shadow +{n_shadow_open}/-{n_shadow_closed}", flush=True)
 
 

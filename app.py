@@ -1015,6 +1015,7 @@ def _render_brain_memory(pb_state, live_prices=None):
         tn_rows = _ws.recent_by_stream("takenow", 12)
         es_rows = _ws.recent_by_stream("early_strong", 12)
         ride_rows = _ws.recent_by_stream("tp2ride", 12)
+        trend_rows = _ws.recent_by_stream("trend", 12)
         elite_rows = _ws.recent_by_stream("elite", 24)
     except Exception:
         return
@@ -1031,6 +1032,7 @@ def _render_brain_memory(pb_state, live_prices=None):
     tn_rows = _recent_rows(tn_rows, 4)
     es_rows = _recent_rows(es_rows, 4)
     ride_rows = _recent_rows(ride_rows, 2)
+    trend_rows = _recent_rows(trend_rows, 24)   # daily signals live longer
 
     st.markdown(
         "<div style='display:flex;align-items:center;gap:10px;margin-top:8px'>"
@@ -1154,7 +1156,8 @@ def _render_brain_memory(pb_state, live_prices=None):
                "Trade the green ones; treat 🧪 as unproven.")
     _tier_names = {"apex": "🏆 APEX", "takenow_hot": "✅🔥 TAKE NOW HOT",
                    "fresh": "🌱 FRESH", "early_movers": "⚡ EARLY MOVERS",
-                   "early_lane": "🚀 EARLY-LANE"}
+                   "early_lane": "🚀 EARLY-LANE",
+                   "trend_rider": "🌊 TREND RIDER"}
     if _sh_sum:
         for rec in _sh_sum:
             _nm = _tier_names.get(rec.get("tier"), rec.get("tier"))
@@ -1179,6 +1182,28 @@ def _render_brain_memory(pb_state, live_prices=None):
                 f"{_n} closed · win {_wr:.0f}% · net "
                 f"<b style='color:{_ncol}'>{_net:+.2f}R</b> after fees · "
                 f"{_opn} open</span></div>", unsafe_allow_html=True)
+        try:
+            _sh_open_all = _ws.shadow_open_trades()
+        except Exception:
+            _sh_open_all = []
+        if _sh_open_all:
+            with st.expander(
+                    f"📂 open shadow positions ({len(_sh_open_all)}) — "
+                    f"what the brain is holding right now", expanded=False):
+                for t in _sh_open_all:
+                    _lad = ("TP1 locked·trailing" if t.get("tp1_hit")
+                            else ("BE set" if t.get("be_set")
+                                  else "initial stop"))
+                    st.markdown(
+                        f"<span style='font-size:0.8rem;color:#9aa7c7'>"
+                        f"{_tier_names.get(t.get('tier'), t.get('tier'))} · "
+                        f"<b>{(t.get('symbol') or '').replace('USDT','')}</b>"
+                        f" {t.get('side')} · entry "
+                        f"{px_round.fmt_px(t.get('symbol'), t.get('entry'))}"
+                        f" · stop "
+                        f"{px_round.fmt_px(t.get('symbol'), t.get('stop'))}"
+                        f" ({_lad}) · {_ago(t.get('opened_at'))}</span>",
+                        unsafe_allow_html=True)
         if _sh_recent:
             with st.expander("📜 recent shadow trades (the receipts)",
                              expanded=False):
@@ -1197,6 +1222,60 @@ def _render_brain_memory(pb_state, live_prices=None):
                    "every signal from every tier becomes a live shadow "
                    "trade with real fees. Within days each tier has an "
                    "honest, forward win rate here.")
+
+    # ── 🌊 TREND RIDER — THE MONEY CORE (user-approved 2026-07-08) ──────
+    # The only strategy that survived full validation: 3 years daily, fees
+    # included, out-of-sample coins. Long-only 20d breakout + EMA50, stop
+    # 2.5×ATR(1d), chandelier trail, hold days-to-weeks.
+    st.markdown("### 🌊 TREND RIDER — the money core")
+    st.caption("**The only strategy that survived 3 years + out-of-sample "
+               "validation with fees included** (+0.32R/trade top-40, "
+               "+0.15R fresh coins): daily 20-day breakout in an uptrend, "
+               "long-only. Stop 2.5×ATR(daily); **ride the trail for days "
+               "to weeks — no fixed TP**. ~40% win rate by design: losers "
+               "die small, winners run 2.6× bigger. Expect ~+2-6%/month at "
+               "1% risk, lumpy. The 1h boards below are context — this is "
+               "the engine.")
+    _tr_u = _dedup(trend_rows)
+    try:
+        _tr_open_syms = {t["symbol"] for t in _ws.shadow_open_trades()
+                         if t.get("tier") == "trend_rider"}
+    except Exception:
+        _tr_open_syms = set()
+    if _tr_u:
+        for _i, r in enumerate(_tr_u[:6]):
+            # status changes WHILE IN THE TRADE (user 2026-07-08): a fresh
+            # breakout shows TAKE NOW; once the desk holds it, 🟢 RIDING.
+            _riding = r.get("symbol") in _tr_open_syms
+            _state = ("<span style='background:#0b8a3e;color:#fff;padding:"
+                      "1px 7px;border-radius:5px;font-size:0.7rem;"
+                      "font-weight:800'>🟢 RIDING</span>" if _riding else
+                      "<span style='background:rgba(46,212,122,0.16);"
+                      "color:#2ed47a;padding:1px 7px;border-radius:5px;"
+                      "font-size:0.7rem;font-weight:800'>✅ TAKE NOW</span>")
+            _tag = ("<span style='background:rgba(56,189,248,0.2);"
+                    "color:#38bdf8;padding:1px 7px;border-radius:5px;"
+                    "font-size:0.7rem;font-weight:800'>🌊 TREND "
+                    f"+{float(r.get('score') or 0):.1f}% breakout</span> "
+                    f"{_state} "
+                    "<span style='background:rgba(255,255,255,0.08);"
+                    "color:#9aa7c7;padding:1px 7px;border-radius:5px;"
+                    "font-size:0.68rem;font-weight:800'>hold days-to-weeks"
+                    "</span>")
+            _open_card(r, f"brain_trend_{r.get('symbol')}_{_i}", _tag)
+    else:
+        st.caption("· No fresh daily breakouts right now — the money core "
+                   "fires ~once a day across the whole universe, and in "
+                   "downtrends it deliberately stands aside. Patience IS "
+                   "the strategy.")
+
+    # ── 🕐 1h SIGNAL BOARDS below (honesty label, user 2026-07-08) ──────
+    st.markdown("#### 🕐 1h signals — context & day-trade lane")
+    st.caption("Real win rates (8-mo deep validation) but **~breakeven "
+               "after taker fees** — trade small with maker/limit entries "
+               "only, or just read them as context. The money engine is "
+               "🌊 TREND RIDER above. The Decision Desk is testing every "
+               "tier forward; green records earn their alerts back.")
 
     # ── BOARD 1: 🏆 APEX — several validated edges agree — openable ─────
     apex_u = _dedup(apex_rows)
@@ -1223,45 +1302,10 @@ def _render_brain_memory(pb_state, live_prices=None):
         st.caption("· No APEX consensus right now — it's the rarest tier "
                    "(needs several independent validated edges to agree).")
 
-    # ── 🌱 FRESH MOVERS — first fires (72h) that are HOT — separate section
-    # per user (ARPA/ALLO shape). Validated cell (backtest_fresh2, 40 coins /
-    # 67 entries): FRESH+HOT = 74.1% win, 1.5R median run (n=27). Honest note:
-    # freshness alone adds nothing beyond the edge stack — this section is
-    # the validated first-fire+HOT slice, not a new standalone edge.
-    _fresh_rows = []
-    for r in _dedup(tn_rows):
-        if not r.get("hot"):
-            continue
-        try:
-            if _json_bm.loads(r.get("extra") or "{}").get("fresh"):
-                _fresh_rows.append(r)
-        except Exception:
-            continue
-    # ALWAYS-VISIBLE separate board (user 2026-07-03): shows a friendly
-    # empty state instead of hiding, so the section reads as a permanent
-    # board alongside APEX and TAKE NOW.
-    st.markdown("### 🌱 FRESH MOVERS — first fires, firing hot")
-    st.caption("**Any coin** starting a new move — first signal on that "
-               "coin+side in 72h, confirmed **🔥 HOT** — caught at its "
-               "first valid entry. The scan universe is volume-ranked, so "
-               "new movers enter it automatically. Validated: **74% win · "
-               "1.5R** median run.")
-    if _fresh_rows:
-        for _i, r in enumerate(_fresh_rows[:6]):
-            _tag = ("<span style='background:rgba(46,212,122,0.18);"
-                    "color:#2ed47a;padding:1px 7px;border-radius:5px;"
-                    "font-size:0.7rem;font-weight:800'>🌱 FRESH</span> "
-                    "<span style='background:#0b8a3e;color:#fff;padding:1px "
-                    "7px;border-radius:5px;font-size:0.7rem;font-weight:800'>"
-                    "✅ TAKE NOW</span> <span style='background:rgba(255,107,"
-                    "53,0.2);color:#ff6b35;padding:1px 7px;border-radius:5px;"
-                    "font-size:0.68rem;font-weight:800'>🔥 HOT</span>")
-            _open_card(r, f"brain_fresh_{r.get('symbol')}_{_i}", _tag)
-    else:
-        st.caption("· No fresh movers at this moment — the rarest slice "
-                   "(first fire in 72h **and** hot confirmation, a few/day "
-                   "across the market). The 24/7 brain stamps every new "
-                   "fire; the next one appears here automatically.")
+    # 🌱 FRESH board REMOVED (user 2026-07-08 cleanup): failed deep
+    # validation (55% win / negative exp on 8 months — the 74% was window
+    # luck). The stream is still stored and the Decision Desk keeps testing
+    # the tier forward; it can earn a comeback with a green live record.
 
     # ── BOARD 2: ✅ TAKE NOW — every confirmed entry, HOT first — openable ─
     _tn = _dedup(tn_rows)
@@ -1293,9 +1337,12 @@ def _render_brain_memory(pb_state, live_prices=None):
     # Board-only: never alerted; the bread-and-butter volume lane.
     st.markdown("### ⚡ EARLY MOVERS (STRONG) — frequent early entries")
     st.caption("STRONG-tier setups that pulled back and confirmed **🔥 HOT** "
-               "— the high-frequency lane. Validated: **69% win · 0.8R** "
-               "median run (n=176, the best-powered cell in the system). "
-               "Smaller moves than APEX/EARLY ELITE — size accordingly.")
+               "— the high-frequency lane. Deep 8-month validation: **76.6% "
+               "win (n=1092)**, and the 🚀 early-lane subset is the best 1h "
+               "cell at **81.3% (n=796)** — but after fees the 1h construct "
+               "is ~breakeven: **treat as signals/context, not the money "
+               "engine (that's 🌊 TREND RIDER)**. Decision Desk is proving "
+               "the true forward record.")
     _es_u = _dedup(es_rows)
     if _es_u:
         for _i, r in enumerate(_es_u[:6]):
@@ -5598,6 +5645,16 @@ if active_section == "🧪 Paper Trader":
         px_round.prefetch_ticks()
     except Exception:
         pass
+    # One-time mirror of the user's REAL account ($1,500 — 2026-07-08) so
+    # paper results translate 1:1 to real money. Preserves all history and
+    # open positions; only the balance resets.
+    if not pb_state.get("_bal_1500_migrated"):
+        pb_state["balance"] = 1500.0
+        pb_state["_bal_1500_migrated"] = True
+        try:
+            paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+        except Exception:
+            pass
 
     # ============================================================
     # 💾 BROWSER localStorage QUERY-PARAM RESTORE
@@ -11293,7 +11350,7 @@ if active_section == "🧪 Paper Trader":
         # Trades open to PAPER_BOT_FILE with `_unified_source`
         # tag for A/B testing in closed-trade history.
         with st.expander('🏆 BEST TRADES NOW (SST1 · validated edges)',
-                         expanded=True):
+                         expanded=False):
             st.markdown("### 🏆 BEST TRADES NOW")
             st.caption(
                 "Your best edge in one place — SST1 **conv ≥ 70** "
