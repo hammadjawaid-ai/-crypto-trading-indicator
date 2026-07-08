@@ -207,31 +207,26 @@ def cycle() -> None:
     # takenow stream, which is MAX/HIGH + SST1 only).
     em_big = [p for p in r.get("early_strong", [])
               if p.get("early_lanes")]
-    # LEAN ALERT POLICY (user 2026-07-08: "no noise, concrete trades"):
-    # only PROVEN money may buzz. 🌊 TREND (3yr validated) always alerts;
-    # every other tier alerts ONLY once its own Decision Desk record is
-    # 🟢 GREEN (>=20 closed, >=+2R net after fees). Earn-back by live proof.
+    # Alert policy (user 2026-07-08): keep the existing five streams AS IS,
+    # ADD 🌊 TREND RIDER + reports. The lean proven-only gating is shelved
+    # until the keyword "Lets deploy The new system".
     _push(r.get("trend", []), "trend", _fmt_trend)
+    _push(apex, "apex", _fmt_apex)
+    _push(elite_early, "elite_early", _fmt_elite_early)
+    _push(fresh_m, "fresh", _fmt_fresh)
+    _push(tn_rest, "takenow", _fmt_takenow)
+    _push(em_big, "em", _fmt_early_mover)
+    # 🟢 GREEN LIGHT announcements stay (desk reports, rare + informative)
     try:
         _green = {rec["tier"] for rec in shadow_trader.tier_records()
                   if rec.get("green")}
     except Exception:
         _green = set()
-    if "apex" in _green:
-        _push(apex, "apex", _fmt_apex)
-    if "takenow_hot" in _green:
-        _push(elite_early, "elite_early", _fmt_elite_early)
-        _push(tn_rest, "takenow", _fmt_takenow)
-    if "fresh" in _green:
-        _push(fresh_m, "fresh", _fmt_fresh)
-    if "early_lane" in _green:
-        _push(em_big, "em", _fmt_early_mover)
-    # 🟢 GREEN LIGHT unlock announcement (once per tier per 30 days)
     for _gt in _green:
         if store.should_alert(f"green:{_gt}", 30 * 24 * 3600):
-            ok, _ = tg.send(f"🟢 *GREEN LIGHT UNLOCKED* — `{_gt}` is now "
-                            f"PROVEN profitable after fees in its live "
-                            f"forward record. Its alerts are ON.")
+            ok, _ = tg.send(f"🟢 *GREEN LIGHT* — `{_gt}` is now PROVEN "
+                            f"profitable after fees in its live forward "
+                            f"record on the Decision Desk.")
             n_alerts += 1 if ok else 0
 
     # ✳️ DECISION DESK — the brain TAKES every tier's signal itself as a

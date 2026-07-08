@@ -1269,14 +1269,6 @@ def _render_brain_memory(pb_state, live_prices=None):
                    "downtrends it deliberately stands aside. Patience IS "
                    "the strategy.")
 
-    # ── 🕐 1h SIGNAL BOARDS below (honesty label, user 2026-07-08) ──────
-    st.markdown("#### 🕐 1h signals — context & day-trade lane")
-    st.caption("Real win rates (8-mo deep validation) but **~breakeven "
-               "after taker fees** — trade small with maker/limit entries "
-               "only, or just read them as context. The money engine is "
-               "🌊 TREND RIDER above. The Decision Desk is testing every "
-               "tier forward; green records earn their alerts back.")
-
     # ── BOARD 1: 🏆 APEX — several validated edges agree — openable ─────
     apex_u = _dedup(apex_rows)
     if apex_u:
@@ -1302,10 +1294,37 @@ def _render_brain_memory(pb_state, live_prices=None):
         st.caption("· No APEX consensus right now — it's the rarest tier "
                    "(needs several independent validated edges to agree).")
 
-    # 🌱 FRESH board REMOVED (user 2026-07-08 cleanup): failed deep
-    # validation (55% win / negative exp on 8 months — the 74% was window
-    # luck). The stream is still stored and the Decision Desk keeps testing
-    # the tier forward; it can earn a comeback with a green live record.
+    # ── 🌱 FRESH MOVERS — restored per user 2026-07-08 ("keep the system
+    # as it is"); caption stays honest about the deep-validation numbers.
+    _fresh_rows = []
+    for r in _dedup(tn_rows):
+        if not r.get("hot"):
+            continue
+        try:
+            if _json_bm.loads(r.get("extra") or "{}").get("fresh"):
+                _fresh_rows.append(r)
+        except Exception:
+            continue
+    st.markdown("### 🌱 FRESH MOVERS — first fires, firing hot")
+    st.caption("**Any coin** starting a new move — first signal on that "
+               "coin+side in 72h, confirmed **🔥 HOT**. Honest note: deep "
+               "8-month validation reads this tier at ~55% — the Decision "
+               "Desk is testing it forward.")
+    if _fresh_rows:
+        for _i, r in enumerate(_fresh_rows[:6]):
+            _tag = ("<span style='background:rgba(46,212,122,0.18);"
+                    "color:#2ed47a;padding:1px 7px;border-radius:5px;"
+                    "font-size:0.7rem;font-weight:800'>🌱 FRESH</span> "
+                    "<span style='background:#0b8a3e;color:#fff;padding:1px "
+                    "7px;border-radius:5px;font-size:0.7rem;font-weight:800'>"
+                    "✅ TAKE NOW</span> <span style='background:rgba(255,107,"
+                    "53,0.2);color:#ff6b35;padding:1px 7px;border-radius:5px;"
+                    "font-size:0.68rem;font-weight:800'>🔥 HOT</span>")
+            _open_card(r, f"brain_fresh_{r.get('symbol')}_{_i}", _tag)
+    else:
+        st.caption("· No fresh movers at this moment — first fire in 72h "
+                   "plus hot confirmation is a rare slice; the next one "
+                   "appears here automatically.")
 
     # ── BOARD 2: ✅ TAKE NOW — every confirmed entry, HOT first — openable ─
     _tn = _dedup(tn_rows)
@@ -5645,12 +5664,13 @@ if active_section == "🧪 Paper Trader":
         px_round.prefetch_ticks()
     except Exception:
         pass
-    # One-time mirror of the user's REAL account ($1,500 — 2026-07-08) so
-    # paper results translate 1:1 to real money. Preserves all history and
-    # open positions; only the balance resets.
-    if not pb_state.get("_bal_1500_migrated"):
-        pb_state["balance"] = 1500.0
-        pb_state["_bal_1500_migrated"] = True
+    # Paper balance stays $20,000 (user 2026-07-08: real trading is 10x lev
+    # on $100-200 positions; paper is kept at 20k). Restores the balance if
+    # the brief $1,500 mirror migration ran on a redeploy in between.
+    if not pb_state.get("_bal_20k_restored"):
+        if pb_state.get("_bal_1500_migrated"):
+            pb_state["balance"] = 20000.0
+        pb_state["_bal_20k_restored"] = True
         try:
             paper_bot.save_state(PAPER_BOT_FILE, pb_state)
         except Exception:
@@ -11350,7 +11370,7 @@ if active_section == "🧪 Paper Trader":
         # Trades open to PAPER_BOT_FILE with `_unified_source`
         # tag for A/B testing in closed-trade history.
         with st.expander('🏆 BEST TRADES NOW (SST1 · validated edges)',
-                         expanded=False):
+                         expanded=True):
             st.markdown("### 🏆 BEST TRADES NOW")
             st.caption(
                 "Your best edge in one place — SST1 **conv ≥ 70** "
