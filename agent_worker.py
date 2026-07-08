@@ -304,12 +304,38 @@ def cycle() -> None:
     except Exception:
         pass
 
-    # 📊 DAILY DIGEST — one status message per day (~09:00 UTC window).
+    # 📊🌅 DAILY MORNING REPORT — desk status + the 4-5 best qualifying
+    # setups of the morning (user 2026-07-08). Default 04:00 UTC = 09:00
+    # Pakistan; override with WORKER_DIGEST_HOUR_UTC.
     try:
-        if datetime.now(timezone.utc).hour == 9 and store.should_alert(
+        _dh_utc = int(getattr(config, "WORKER_DIGEST_HOUR_UTC", 4))
+        if datetime.now(timezone.utc).hour == _dh_utc and store.should_alert(
                 "daily_digest", 22 * 3600):
             recs = shadow_trader.tier_records()
-            lines = ["📊 *DAILY DESK REPORT*"]
+            lines = ["🌅 *MORNING REPORT*"]
+            # -- best picks of the morning, ranked by validated quality ----
+            _picks = []
+            for p in r.get("trend", [])[:3]:
+                _picks.append(("🌊 TREND (money core)", p))
+            for p in em_big[:2]:
+                _picks.append(("🚀 EARLY-LANE (81% cell)", p))
+            for p in apex[:2]:
+                _picks.append(("🏆 APEX", p))
+            for p in elite_early[:2]:
+                _picks.append(("🌟 EARLY ELITE", p))
+            _picks = _picks[:5]
+            if _picks:
+                lines.append("*Best setups right now:*")
+                for _lbl, p in _picks:
+                    lines.append(
+                        f"• {_lbl} — *{p['base']} {p['side']}* · entry "
+                        f"`{p['entry']:g}` · SL `{p['stop']:g}` · TP1 "
+                        f"`{p['tp1']:g}`")
+            else:
+                lines.append("_No fresh qualifying setups this morning — "
+                             "patience is a position._")
+            # -- desk record ----------------------------------------------
+            lines.append("*Desk record (live, after fees):*")
             for rec in recs:
                 dot = "🟢" if rec["green"] else "🧪"
                 lines.append(
