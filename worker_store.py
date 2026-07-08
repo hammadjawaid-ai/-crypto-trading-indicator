@@ -239,6 +239,16 @@ def shadow_summary() -> list[dict]:
         "FROM shadow_trades GROUP BY tier ORDER BY net_r DESC")
 
 
+def shadow_purge_tier(tier: str) -> None:
+    """Remove a tier's shadow trades entirely (user cut, e.g. sst1)."""
+    c = _open()
+    try:
+        c.execute("DELETE FROM shadow_trades WHERE tier=?", (tier,))
+        c.commit()
+    finally:
+        c.close()
+
+
 def shadow_recent(limit: int = 30) -> list[dict]:
     return _rows(
         "SELECT * FROM shadow_trades WHERE status='CLOSED' "

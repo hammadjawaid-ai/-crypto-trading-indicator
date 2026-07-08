@@ -236,6 +236,12 @@ def cycle() -> None:
     # record is profitable after fees. (User 2026-07-08: forward proof.)
     n_shadow_open = n_shadow_closed = 0
     try:
+        # user 2026-07-08: SST1 tier cut from the desk — purge any rows the
+        # brief earlier deploy created (idempotent, cheap).
+        store.shadow_purge_tier("sst1")
+    except Exception:
+        pass
+    try:
         def _live(sym):
             try:
                 return binance_client.get_ticker_price(sym)
@@ -243,7 +249,6 @@ def cycle() -> None:
                 return None
         _tiers = (("apex", apex), ("takenow_hot", tn_hot),
                   ("elite_early", elite_early),
-                  ("sst1", sst1),
                   ("fresh", fresh_m), ("early_movers",
                                        r.get("early_strong", [])),
                   ("early_lane", em_big),
