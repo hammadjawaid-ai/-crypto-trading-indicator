@@ -1144,6 +1144,17 @@ def _render_brain_memory(pb_state, live_prices=None):
         _sym_r = r.get("symbol") or ""
         _live_str = (f" · <b style='color:#e6e9f0'>now "
                      f"{px_round.fmt_px(_sym_r, _live)}</b>" if _live else "")
+        # ❌ DEAD-SETUP GUARD (user KAITO case 2026-07-08): if live price has
+        # crossed the stop, the setup is INVALID — mark it and remove the
+        # Open button so a stopped-out card can never look tradeable.
+        _dead = bool(_live) and stop > 0 and (
+            (side == "LONG" and float(_live) <= stop)
+            or (side == "SHORT" and float(_live) >= stop))
+        if _dead:
+            tag_html += (" <span style='background:rgba(255,92,92,0.18);"
+                         "color:#ff5c5c;padding:1px 7px;border-radius:5px;"
+                         "font-size:0.7rem;font-weight:800'>❌ STOPPED — "
+                         "setup invalid</span>")
         _c1, _c2 = st.columns([5, 1])
         _c1.markdown(
             f"<div style='background:{_card_bg};border:1px solid "
@@ -1159,8 +1170,10 @@ def _render_brain_memory(pb_state, live_prices=None):
             f"{(' · TP2 ' + px_round.fmt_px(_sym_r, tp2)) if tp2 else ''}"
             f"{_live_str}</span></div>",
             unsafe_allow_html=True)
-        if any(p.get("symbol") == r.get("symbol")
-               for p in (pb_state.get("open") or [])):
+        if _dead:
+            _c2.caption("✖ dead")
+        elif any(p.get("symbol") == r.get("symbol")
+                 for p in (pb_state.get("open") or [])):
             _c2.caption("✓ open")
         elif _c2.button("📥 Open", key=key, use_container_width=True):
             try:
