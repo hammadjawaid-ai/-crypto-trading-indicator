@@ -1081,7 +1081,7 @@ def _render_brain_memory(pb_state, live_prices=None):
     # One openable card: card + 📥 Open button that opens into the Paper
     # Trader (idealised fill at the setup's planned entry, like the other
     # boards). Skips if already open.
-    def _open_card(r, key, tag_html, edges_html=""):
+    def _open_card(r, key, tag_html, edges_html="", accent=None):
         base = r.get("base")
         side = (r.get("side") or "").upper()
         entry = float(r.get("entry") or 0)
@@ -1089,6 +1089,10 @@ def _render_brain_memory(pb_state, live_prices=None):
         tp1 = float(r.get("tp1") or 0)
         tp2 = float(r.get("tp2") or 0)
         scol = "#2ed47a" if side == "LONG" else "#ff5c5c"
+        # accent overrides the card colour (e.g. 🚀 early-lane = blue)
+        _card_bg = ("rgba(56,189,248,0.10)" if accent
+                    else "rgba(255,107,53,0.07)")
+        _card_bd = f"{accent}66" if accent else f"{scol}44"
         _live = None
         try:
             _live = (live_prices or {}).get(r.get("symbol"))
@@ -1101,8 +1105,8 @@ def _render_brain_memory(pb_state, live_prices=None):
                      f"{px_round.fmt_px(_sym_r, _live)}</b>" if _live else "")
         _c1, _c2 = st.columns([5, 1])
         _c1.markdown(
-            f"<div style='background:rgba(255,107,53,0.07);border:1px solid "
-            f"{scol}44;border-radius:11px;padding:9px 13px;margin:4px 0'>"
+            f"<div style='background:{_card_bg};border:1px solid "
+            f"{_card_bd};border-radius:11px;padding:9px 13px;margin:4px 0'>"
             f"{tag_html} <b>{base}</b> <span style='color:{scol};"
             f"font-weight:800'>{side}</span> "
             f"<span style='color:#8b93a7;font-size:0.72rem'>· "
@@ -1391,7 +1395,10 @@ def _render_brain_memory(pb_state, live_prices=None):
                          "enters earlier, hits 2R+ ~50% more often "
                          "(22% vs 15%); 65% win vs 75%'>🚀 EARLY · "
                          "big-hit profile</span>")
-            _open_card(r, f"brain_es_{r.get('symbol')}_{_i}", _tag)
+            # 🚀 early-lane cards render BLUE so they're spottable at a
+            # glance inside EARLY MOVERS (user 2026-07-08)
+            _open_card(r, f"brain_es_{r.get('symbol')}_{_i}", _tag,
+                       accent="#38bdf8" if _r_el else None)
     else:
         st.caption("· None confirming at this moment — these fire a few "
                    "times a day across the market; the 24/7 brain logs each "
