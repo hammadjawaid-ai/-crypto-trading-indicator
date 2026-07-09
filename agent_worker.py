@@ -309,8 +309,9 @@ def cycle() -> None:
     # Pakistan; override with WORKER_DIGEST_HOUR_UTC.
     try:
         _dh_utc = int(getattr(config, "WORKER_DIGEST_HOUR_UTC", 4))
-        if datetime.now(timezone.utc).hour == _dh_utc and store.should_alert(
-                "daily_digest", 22 * 3600):
+        _hr_now = datetime.now(timezone.utc).hour
+        if (_dh_utc <= _hr_now < _dh_utc + 3
+                and store.should_alert("daily_digest", 20 * 3600)):
             recs = shadow_trader.tier_records()
             lines = ["🌅 *MORNING REPORT*"]
             # -- best picks of the morning, ranked by validated quality ----
@@ -348,7 +349,9 @@ def cycle() -> None:
                 lines.append("🌊 open trend rides: " + ", ".join(
                     t["symbol"].replace("USDT", "") for t in _opn))
             lines.append(f"regime: {regime}")
-            ok, _ = tg.send("\n".join(lines), silent=True)
+            ok, _dmsg = tg.send("\n".join(lines))
+            print(f"  digest sent={ok}" + ("" if ok else f" ({_dmsg})"),
+                  flush=True)
             n_alerts += 1 if ok else 0
     except Exception:
         pass
@@ -358,8 +361,9 @@ def cycle() -> None:
     # PKT); override with WORKER_EVENING_HOUR_UTC. Day-trade lanes first.
     try:
         _eh_utc = int(getattr(config, "WORKER_EVENING_HOUR_UTC", 13))
-        if datetime.now(timezone.utc).hour == _eh_utc and store.should_alert(
-                "evening_digest", 22 * 3600):
+        _hr_now2 = datetime.now(timezone.utc).hour
+        if (_eh_utc <= _hr_now2 < _eh_utc + 3
+                and store.should_alert("evening_digest", 20 * 3600)):
             lines = ["🌆 *EVENING REPORT* — US session ahead"]
             _picks = []
             for p in em_big[:2]:
@@ -391,7 +395,9 @@ def cycle() -> None:
                 lines.append("🌊 open trend rides: " + ", ".join(
                     t["symbol"].replace("USDT", "") for t in _opn))
             lines.append(f"regime: {regime}")
-            ok, _ = tg.send("\n".join(lines), silent=True)
+            ok, _dmsg = tg.send("\n".join(lines))
+            print(f"  digest sent={ok}" + ("" if ok else f" ({_dmsg})"),
+                  flush=True)
             n_alerts += 1 if ok else 0
     except Exception:
         pass
