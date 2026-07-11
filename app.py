@@ -1058,6 +1058,7 @@ def _render_brain_memory(pb_state, live_prices=None):
         ride_rows = _ws.recent_by_stream("tp2ride", 12)
         trend_rows = _ws.recent_by_stream("trend", 12)
         elite_rows = _ws.recent_by_stream("elite", 24)
+        best_rows = _ws.recent_by_stream("best", 12)
     except Exception:
         return
 
@@ -1074,6 +1075,7 @@ def _render_brain_memory(pb_state, live_prices=None):
     es_rows = _recent_rows(es_rows, 4)
     ride_rows = _recent_rows(ride_rows, 2)
     trend_rows = _recent_rows(trend_rows, 24)   # daily signals live longer
+    best_rows = _recent_rows(best_rows, 8)
 
     st.markdown(
         "<div style='display:flex;align-items:center;gap:10px;margin-top:8px'>"
@@ -1230,6 +1232,107 @@ def _render_brain_memory(pb_state, live_prices=None):
             except Exception as exc:
                 st.error(f"Open failed: {exc}")
 
+    # ── 💎 BEST TRADE ZONE (user 2026-07-11) — ONE consolidated board ───
+    # Every validated lane votes on the same candidate (weights = each
+    # system's validated after-fee record, incl the 🌊🟢 spot-driven OI
+    # cell from the 4-year positioning validation). A card appears only
+    # when the stack clears the bar: a top cell alone (early-lane 81% /
+    # spot-driven breakout 74%) or 2+ systems agreeing. Structural SL;
+    # the desk-managed copy runs BE at +1R → TP1 lock → trail.
+    st.markdown(
+        "<div style='display:flex;align-items:center;gap:10px;"
+        "margin-top:14px'>"
+        "<span style='font-size:1.25rem;font-weight:900;background:linear-"
+        "gradient(135deg,#7ef9ff,#ffd700);-webkit-background-clip:text;"
+        "-webkit-text-fill-color:transparent;background-clip:text'>"
+        "💎 BEST TRADE ZONE — every system, one board</span></div>",
+        unsafe_allow_html=True)
+    st.caption("**The single consolidated board.** All lanes — 🚀 early-lane, "
+               "🌊 trend (+OI context), 🏆 apex, 🌟 elite, 🌱 fresh — vote on "
+               "the same candidate; only stacked confluence or a validated "
+               "top cell appears. Early entry, structural SL, and the "
+               "desk copy protects profit (breakeven at +1R, trail after "
+               "TP1). Fewer cards, higher bar.")
+    if best_rows:
+        for _i, r in enumerate(_dedup(best_rows)[:6]):
+            try:
+                _bx = _json_bm.loads(r.get("extra") or "{}")
+            except Exception:
+                _bx = {}
+            _bsc = _bx.get("best_score") or 0
+            _tag = ("<span style='background:linear-gradient(90deg,"
+                    "#7ef9ff,#ffd700);color:#06121f;padding:1px 8px;"
+                    "border-radius:5px;font-size:0.72rem;font-weight:800'>"
+                    f"💎 STACK {_bsc:g}</span>")
+            _chips = "".join(
+                f" <span style='background:rgba(126,249,255,0.10);"
+                f"color:#9fe8ff;padding:1px 6px;border-radius:5px;"
+                f"font-size:0.67rem;font-weight:700'>{_t}</span>"
+                for _t in (_bx.get("tags") or [])[:4])
+            _bh = _bx.get("hold_est")
+            if _bh:
+                _chips += (f" <span style='background:rgba(255,213,74,0.10);"
+                           f"color:#ffd54a;padding:1px 6px;border-radius:5px;"
+                           f"font-size:0.67rem;font-weight:700'>⏱ hold "
+                           f"{_bh}</span>")
+            _open_card(r, f"brain_best_{r.get('symbol')}_{_i}", _tag,
+                       edges_html=_chips, accent="#7ef9ff")
+    else:
+        st.caption("· Nothing clears the 💎 bar right now — the zone only "
+                   "shows a card when a top validated cell fires or 2+ "
+                   "systems agree on the same coin and side. When one "
+                   "appears here (and on your Telegram), it's the best "
+                   "the whole system has.")
+    # 💎 record + open trades + history (desk-managed, real fees)
+    try:
+        _bz_sum = next((x for x in _ws.shadow_summary()
+                        if x.get("tier") == "best_board"), None)
+        _bz_open = [t for t in _ws.shadow_open_trades()
+                    if t.get("tier") == "best_board"]
+        _bz_hist = [t for t in _ws.shadow_recent(60)
+                    if t.get("tier") == "best_board"][:15]
+    except Exception:
+        _bz_sum, _bz_open, _bz_hist = None, [], []
+    if _bz_sum and int(_bz_sum.get("n") or 0) + len(_bz_open) > 0:
+        _bn = int(_bz_sum.get("n") or 0)
+        _bw = int(_bz_sum.get("wins") or 0)
+        _bnet = float(_bz_sum.get("net_r") or 0.0)
+        _bcol = "#2ed47a" if _bnet > 0 else "#ff5c5c"
+        st.markdown(
+            f"<span style='font-size:0.82rem;color:#9aa7c7'>💎 live record: "
+            f"{_bn} closed · win {(_bw / _bn * 100) if _bn else 0:.0f}% · "
+            f"net <b style='color:{_bcol}'>{_bnet:+.2f}R</b> after fees · "
+            f"{len(_bz_open)} open</span>", unsafe_allow_html=True)
+    if _bz_open:
+        with st.expander(f"📂 open 💎 trades ({len(_bz_open)})",
+                         expanded=True):
+            for t in _bz_open:
+                _lad = ("TP1 locked·trailing" if t.get("tp1_hit")
+                        else ("BE set — can't lose" if t.get("be_set")
+                              else "initial stop"))
+                st.markdown(
+                    f"<span style='font-size:0.8rem;color:#9aa7c7'>"
+                    f"<b>{(t.get('symbol') or '').replace('USDT', '')}</b>"
+                    f" {t.get('side')} · entry "
+                    f"{px_round.fmt_px(t.get('symbol'), t.get('entry'))}"
+                    f" · stop "
+                    f"{px_round.fmt_px(t.get('symbol'), t.get('stop'))}"
+                    f" ({_lad}) · {_ago(t.get('opened_at'))}</span>",
+                    unsafe_allow_html=True)
+    if _bz_hist:
+        with st.expander(f"📜 💎 trade history ({len(_bz_hist)})",
+                         expanded=False):
+            for t in _bz_hist:
+                _pr = float(t.get("pnl_r") or 0)
+                _pc = "#2ed47a" if _pr > 0 else "#ff5c5c"
+                st.markdown(
+                    f"<span style='font-size:0.8rem;color:#9aa7c7'>"
+                    f"<b>{(t.get('symbol') or '').replace('USDT', '')}</b>"
+                    f" {t.get('side')} · {t.get('exit_reason')} · "
+                    f"<b style='color:{_pc}'>{_pr:+.2f}R</b> · "
+                    f"{_ago(t.get('closed_at'))}</span>",
+                    unsafe_allow_html=True)
+
     # ── ✳️ DECISION DESK — FORWARD PROOF (user 2026-07-08) ──────────────
     # The brain takes every tier's signal itself as a live shadow trade
     # (real entry price at signal time, real fees, ladder + 48h time-stop)
@@ -1251,6 +1354,7 @@ def _render_brain_memory(pb_state, live_prices=None):
                    "elite_early": "🌟 EARLY ELITE", "sst1": "💠 SST1",
                    "fresh": "🌱 FRESH", "early_movers": "⚡ EARLY MOVERS",
                    "early_lane": "🚀 EARLY-LANE",
+                   "best_board": "💎 BEST ZONE",
                    "trend_rider": "🌊 TREND RIDER"}
     if _sh_sum:
         for rec in _sh_sum:

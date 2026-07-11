@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 if hasattr(sys.stdout, "buffer"):
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
+import best_board
 import binance_client
 import config
 import lunarcrush
@@ -61,6 +62,20 @@ def _fmt_leaderboard(p) -> str:
             f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
             f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
             f"_top-conviction ELITE — early heads-up_")
+
+
+def _fmt_best(p) -> str:
+    tags = " · ".join(p.get("tags") or [])
+    prog = p.get("_prog")
+    zone = (f" · 🟢 IN ZONE ({prog * 100:.0f}% to TP1)"
+            if prog is not None else "")
+    hold = p.get("hold_est") or "hours-2 days"
+    return (f"💎 *BEST OF THE BEST* — {p['base']} {p['side']} "
+            f"(stack {p.get('best_score', 0):g}){zone}\n"
+            f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
+            f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
+            f"⏱ hold: *{hold}*\n"
+            f"_{tags} — systems agreeing; BE at +1R, trail after TP1._")
 
 
 def _fmt_prime(p) -> str:
@@ -249,34 +264,59 @@ def cycle() -> None:
     # takenow stream, which is MAX/HIGH + SST1 only).
     em_big = [p for p in r.get("early_strong", [])
               if p.get("early_lanes")]
-    # Alert policy (user 2026-07-08): keep the existing five streams AS IS,
-    # ADD 🌊 TREND RIDER + reports. The lean proven-only gating is shelved
-    # until the keyword "Lets deploy The new system".
-    _push(r.get("trend", []), "trend", _fmt_trend)
-    _push(apex, "apex", _fmt_apex)
-    _push(elite_early, "elite_early", _fmt_elite_early)
-    _push(fresh_m, "fresh", _fmt_fresh)
-    _push(tn_rest, "takenow", _fmt_takenow)
-    # ⭐ PRIME ENTRIES (user 2026-07-11): the early-lane stream, pushed only
-    # while still 🟢 IN ZONE (<=25% toward TP1) and alive at push time —
-    # mirrors the ⭐ PRIME board. Late/dead ones stay board-only, no buzz.
-    _prime = []
-    for p in em_big:
+
+    # 💎 BEST TRADE ZONE (user 2026-07-11): ONE consolidated board — every
+    # validated lane votes on the same candidate (weights = each system's
+    # validated after-fee record, incl the 🌊🟢 spot-driven OI cell). Only
+    # stacked confluence or a top cell qualifies. Stored + desk-taken +
+    # alerted with the in-zone gate.
+    try:
+        best = best_board.compose(r.get("trend", []), apex, elite_early,
+                                  fresh_m, tn_hot, em_big)
+    except Exception as exc:
+        best = []
+        print("  best_board error:", exc, flush=True)
+    for p in best:
+        store.record_signal("best", p)
+    _best_keys = {(p.get("symbol"), p.get("side")) for p in best}
+
+    def _in_zone(p):
+        """🟢 gate: alert only while <=25% of entry→TP1 is gone and the
+        stop is untouched. Price-fetch failure fails open (alerts fire
+        at signal birth when progression is ~0 by construction)."""
         try:
             _lv = binance_client.get_ticker_price(p["symbol"])
             _e, _t1 = float(p["entry"]), float(p["tp1"])
             _st = float(p["stop"])
             if not _lv or _t1 == _e:
-                raise ValueError
+                return True
             _f = ((_lv - _e) / (_t1 - _e) if p["side"] == "LONG"
                   else (_e - _lv) / (_e - _t1))
             _dd = _lv <= _st if p["side"] == "LONG" else _lv >= _st
-            if not _dd and _f <= 0.25:
-                p["_prog"] = _f
-                _prime.append(p)
+            if _dd or _f > 0.25:
+                return False
+            p["_prog"] = _f
+            return True
         except Exception:
-            _prime.append(p)   # price hiccup — alert fires at birth anyway
-    _push(_prime, "em", _fmt_prime)
+            return True
+
+    def _not_best(items):
+        return [p for p in items
+                if (p.get("symbol"), p.get("side")) not in _best_keys]
+
+    # Alert policy (user 2026-07-08 + 2026-07-11): one buzz per setup,
+    # richest label wins — 💎 BEST first, then the locked streams for
+    # whatever didn't make the zone. The lean proven-only gating stays
+    # shelved until the keyword "Lets deploy The new system".
+    _push([p for p in best if _in_zone(p)], "best", _fmt_best)
+    _push(_not_best(r.get("trend", [])), "trend", _fmt_trend)
+    _push(_not_best(apex), "apex", _fmt_apex)
+    _push(_not_best(elite_early), "elite_early", _fmt_elite_early)
+    _push(_not_best(fresh_m), "fresh", _fmt_fresh)
+    _push(_not_best(tn_rest), "takenow", _fmt_takenow)
+    # ⭐ PRIME (2026-07-11): early-lane stream, in-zone only — covers any
+    # early-lane pick that fell off the 💎 top list.
+    _push([p for p in _not_best(em_big) if _in_zone(p)], "em", _fmt_prime)
     # 🟢 GREEN LIGHT announcements stay (desk reports, rare + informative)
     try:
         _green = {rec["tier"] for rec in shadow_trader.tier_records()
@@ -308,7 +348,8 @@ def cycle() -> None:
                 return binance_client.get_ticker_price(sym)
             except Exception:
                 return None
-        _tiers = (("apex", apex), ("takenow_hot", tn_hot),
+        _tiers = (("best_board", best),
+                  ("apex", apex), ("takenow_hot", tn_hot),
                   ("elite_early", elite_early),
                   ("fresh", fresh_m), ("early_movers",
                                        r.get("early_strong", [])),
@@ -377,6 +418,8 @@ def cycle() -> None:
             lines = ["🌅 *MORNING REPORT*"]
             # -- best picks of the morning, ranked by validated quality ----
             _picks = []
+            for p in best[:3]:
+                _picks.append(("💎 BEST ZONE", p))
             for p in r.get("trend", [])[:3]:
                 _picks.append(("🌊 TREND (money core)", p))
             for p in em_big[:2]:
@@ -385,7 +428,10 @@ def cycle() -> None:
                 _picks.append(("🏆 APEX", p))
             for p in elite_early[:2]:
                 _picks.append(("🌟 EARLY ELITE", p))
-            _picks = _picks[:5]
+            _seen_pk: set = set()
+            _picks = [(_l, _p) for _l, _p in _picks
+                      if not (_p.get("symbol") in _seen_pk
+                              or _seen_pk.add(_p.get("symbol")))][:5]
             if _picks:
                 lines.append("*Best setups right now:*")
                 for _lbl, p in _picks:
@@ -431,11 +477,13 @@ def cycle() -> None:
                 and store.should_alert("evening_digest", 20 * 3600)):
             lines = ["🌆 *EVENING REPORT* — US session ahead"]
             _picks = []
+            for p in best[:3]:
+                _picks.append(("💎 BEST ZONE", p))
             for p in em_big[:2]:
                 _picks.append(("🚀 EARLY-LANE (81% cell)", p))
             _pk_syms = {p.get("symbol") for _, p in _picks}
             for p in r.get("early_strong", []):
-                if p.get("symbol") not in _pk_syms and len(_picks) < 3:
+                if p.get("symbol") not in _pk_syms and len(_picks) < 4:
                     _picks.append(("⚡ EARLY MOVERS", p))
             for p in apex[:2]:
                 _picks.append(("🏆 APEX", p))
@@ -443,7 +491,10 @@ def cycle() -> None:
                 _picks.append(("🌟 EARLY ELITE", p))
             for p in r.get("trend", [])[:1]:
                 _picks.append(("🌊 TREND (money core)", p))
-            _picks = _picks[:5]
+            _seen_pk2: set = set()
+            _picks = [(_l, _p) for _l, _p in _picks
+                      if not (_p.get("symbol") in _seen_pk2
+                              or _seen_pk2.add(_p.get("symbol")))][:5]
             if _picks:
                 lines.append("*Best setups for the session:*")
                 for _lbl, p in _picks:
