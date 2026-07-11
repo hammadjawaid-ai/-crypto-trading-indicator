@@ -63,14 +63,17 @@ def _fmt_leaderboard(p) -> str:
             f"_top-conviction ELITE — early heads-up_")
 
 
-def _fmt_early_mover(p) -> str:
+def _fmt_prime(p) -> str:
     lanes = ", ".join(p.get("early_lanes") or [])
-    return (f"🚀 *EARLY MOVER (big-hit)* — {p['base']} {p['side']} "
-            f"(STRONG {p['score']:.0f})\n"
+    prog = p.get("_prog")
+    zone = (f" · 🟢 IN ZONE ({prog * 100:.0f}% to TP1)"
+            if prog is not None else "")
+    return (f"⭐🚀 *PRIME ENTRY* — {p['base']} {p['side']} "
+            f"(STRONG {p['score']:.0f}){zone}\n"
             f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
             f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
-            f"_TAKE NOW 🔥 HOT + early lanes ({lanes}) — enters earliest, "
-            f"22% reach 2R+ (65% win). Size smaller._")
+            f"_early-lane cell ({lanes}) — 81.3% / +0.066R on 8 months. "
+            f"Take while green; never chase._")
 
 
 def _fmt_apex(p) -> str:
@@ -254,7 +257,26 @@ def cycle() -> None:
     _push(elite_early, "elite_early", _fmt_elite_early)
     _push(fresh_m, "fresh", _fmt_fresh)
     _push(tn_rest, "takenow", _fmt_takenow)
-    _push(em_big, "em", _fmt_early_mover)
+    # ⭐ PRIME ENTRIES (user 2026-07-11): the early-lane stream, pushed only
+    # while still 🟢 IN ZONE (<=25% toward TP1) and alive at push time —
+    # mirrors the ⭐ PRIME board. Late/dead ones stay board-only, no buzz.
+    _prime = []
+    for p in em_big:
+        try:
+            _lv = binance_client.get_ticker_price(p["symbol"])
+            _e, _t1 = float(p["entry"]), float(p["tp1"])
+            _st = float(p["stop"])
+            if not _lv or _t1 == _e:
+                raise ValueError
+            _f = ((_lv - _e) / (_t1 - _e) if p["side"] == "LONG"
+                  else (_e - _lv) / (_e - _t1))
+            _dd = _lv <= _st if p["side"] == "LONG" else _lv >= _st
+            if not _dd and _f <= 0.25:
+                p["_prog"] = _f
+                _prime.append(p)
+        except Exception:
+            _prime.append(p)   # price hiccup — alert fires at birth anyway
+    _push(_prime, "em", _fmt_prime)
     # 🟢 GREEN LIGHT announcements stay (desk reports, rare + informative)
     try:
         _green = {rec["tier"] for rec in shadow_trader.tier_records()
