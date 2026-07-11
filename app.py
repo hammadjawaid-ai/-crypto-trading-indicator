@@ -1150,11 +1150,44 @@ def _render_brain_memory(pb_state, live_prices=None):
         _dead = bool(_live) and stop > 0 and (
             (side == "LONG" and float(_live) <= stop)
             or (side == "SHORT" and float(_live) >= stop))
+        # 🟢🟡⛔ TRAFFIC LIGHT (user VIRTUAL case 2026-07-09): how much of
+        # the entry→TP1 move is already gone? Math-derived thresholds (plan
+        # RR ~1:1 → entering at fraction f leaves RR=(1-f)/(1+f); breakeven
+        # at ~65-75% win sits near f=0.4):
+        #   🟢 f <= 0.25  in the entry zone — take
+        #   🟡 0.25-0.50  stretched — hold if in, don't chase fresh
+        #   ⛔ f > 0.50   move mostly gone — Open LOCKED
+        _f = None
+        _too_late = False
+        if _live and not _dead and tp1 and entry and tp1 != entry:
+            if side == "LONG":
+                _f = (float(_live) - entry) / (tp1 - entry)
+            else:
+                _f = (entry - float(_live)) / (entry - tp1)
         if _dead:
             tag_html += (" <span style='background:rgba(255,92,92,0.18);"
                          "color:#ff5c5c;padding:1px 7px;border-radius:5px;"
                          "font-size:0.7rem;font-weight:800'>❌ STOPPED — "
                          "setup invalid</span>")
+        elif _f is not None:
+            if _f > 0.5:
+                _too_late = True
+                tag_html += (" <span style='background:rgba(255,92,92,0.18);"
+                             "color:#ff5c5c;padding:1px 7px;border-radius:"
+                             "5px;font-size:0.7rem;font-weight:800'>"
+                             f"⛔ TOO LATE — {min(_f, 1.5)*100:.0f}% of move "
+                             "gone</span>")
+            elif _f > 0.25:
+                tag_html += (" <span style='background:rgba(255,213,74,"
+                             "0.16);color:#ffd54a;padding:1px 7px;"
+                             "border-radius:5px;font-size:0.7rem;"
+                             f"font-weight:800'>🟡 STRETCHED — {_f*100:.0f}% "
+                             "gone · hold, don't chase</span>")
+            else:
+                tag_html += (" <span style='background:rgba(46,212,122,"
+                             "0.16);color:#2ed47a;padding:1px 7px;"
+                             "border-radius:5px;font-size:0.7rem;"
+                             "font-weight:800'>🟢 IN ZONE — take</span>")
         _c1, _c2 = st.columns([5, 1])
         _c1.markdown(
             f"<div style='background:{_card_bg};border:1px solid "
@@ -1172,6 +1205,8 @@ def _render_brain_memory(pb_state, live_prices=None):
             unsafe_allow_html=True)
         if _dead:
             _c2.caption("✖ dead")
+        elif _too_late:
+            _c2.caption("✖ late")
         elif any(p.get("symbol") == r.get("symbol")
                  for p in (pb_state.get("open") or [])):
             _c2.caption("✓ open")
@@ -1281,6 +1316,49 @@ def _render_brain_memory(pb_state, live_prices=None):
                    "every signal from every tier becomes a live shadow "
                    "trade with real fees. Within days each tier has an "
                    "honest, forward win rate here.")
+
+    # ── ⭐ PRIME ENTRIES — THE one concrete board (user 2026-07-09):
+    # ONLY 🚀 early-lane setups (the 81.3% cell) that are alive AND still
+    # in the entry zone (🟢: <=25% of the move gone). No stretched, no
+    # late, no dead — if it shows here, it's takeable right now.
+    st.markdown("### ⭐ PRIME ENTRIES — best of the best, in the zone")
+    st.caption("**🚀 early-lane setups (81.3% validated cell) that are "
+               "still in their entry zone right now.** Traffic-light "
+               "filtered: anything stretched (🟡), late (⛔) or dead (❌) "
+               "never appears here. Maker/limit entries, small size, "
+               "TP1-and-done.")
+    _prime = []
+    for r in _dedup(es_rows):
+        try:
+            if not _json_bm.loads(r.get("extra") or "{}").get("early_lanes"):
+                continue
+        except Exception:
+            continue
+        _pv = (live_prices or {}).get(r.get("symbol"))
+        _pe = float(r.get("entry") or 0)
+        _pt = float(r.get("tp1") or 0)
+        _ps = float(r.get("stop") or 0)
+        if not _pv or _pe <= 0 or _pt <= 0 or _ps <= 0 or _pt == _pe:
+            continue
+        _sd = (r.get("side") or "").upper()
+        _pdead = ((_sd == "LONG" and float(_pv) <= _ps)
+                  or (_sd == "SHORT" and float(_pv) >= _ps))
+        _pf = ((float(_pv) - _pe) / (_pt - _pe) if _sd == "LONG"
+               else (_pe - float(_pv)) / (_pe - _pt))
+        if not _pdead and _pf <= 0.25:
+            _prime.append(r)
+    if _prime:
+        for _i, r in enumerate(_prime[:4]):
+            _tag = ("<span style='background:linear-gradient(90deg,"
+                    "#ffd700,#38bdf8);color:#06121f;padding:1px 8px;"
+                    "border-radius:5px;font-size:0.72rem;font-weight:800'>"
+                    "⭐ PRIME</span>")
+            _open_card(r, f"brain_prime_{r.get('symbol')}_{_i}", _tag,
+                       accent="#ffd700")
+    else:
+        st.caption("· Nothing PRIME right now — no early-lane setup is "
+                   "both alive and in its entry zone. The bar is the "
+                   "point: when a card appears here, it's a real take.")
 
     # ── 🌊 TREND RIDER — THE MONEY CORE (user-approved 2026-07-08) ──────
     # The only strategy that survived full validation: 3 years daily, fees
