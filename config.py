@@ -283,6 +283,13 @@ SURESHOT2_STARTING_BALANCE = 10000.0
 ANTHROPIC_MODEL_DEEP = _secret("ANTHROPIC_MODEL_DEEP") or "claude-fable-5"
 
 
+# --- Coinalyze derivatives data (free API — key set in .env) ---------------
+# OI / funding / long-short ratio / liquidation history across exchanges.
+# Free key from https://coinalyze.net (account -> API). 40 calls/min.
+# Hourly intraday history reaches back ~60-80 days; daily is kept forever.
+COINALYZE_BASE = "https://api.coinalyze.net/v1"
+COINALYZE_API_KEY = _secret("COINALYZE_API_KEY")
+
 # --- LunarCrush social intelligence (paid API — key set in .env) -----------
 # Aggregates X/Twitter & other social data into Galaxy Score, AltRank and
 # sentiment. Subscribe at lunarcrush.com, then put the key in a .env file.

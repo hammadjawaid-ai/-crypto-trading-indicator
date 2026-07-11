@@ -22,6 +22,8 @@ if hasattr(sys.stdout, "buffer"):
 
 import binance_client
 import config
+import lunarcrush
+import polymarket_events
 import scan_core
 import shadow_trader
 import telegram_notify as tg
@@ -128,6 +130,43 @@ def cycle() -> None:
                 _now - 72 * 3600, _now - 2 * 3600)
         except Exception:
             p["fresh"] = False
+
+    # 🌙 LunarCrush social capture (user-approved 2026-07-11): ONE API call
+    # per cycle; galaxy score / alt rank / sentiment ride along inside each
+    # stored signal's extra JSON so the desk can validate later whether
+    # social predicts wins. Data capture ONLY — no gating, no alert change.
+    _lc_rows: list = []
+    try:
+        _lc_rows = lunarcrush.coin_list()
+        _lc_map = lunarcrush.top_coins(_lc_rows)
+    except Exception:
+        _lc_map = {}
+    if _lc_map:
+        for _sigs in (apex, sst1, takenow, lb_all, r.get("elite", []),
+                      r.get("early_strong", []), r.get("trend", [])):
+            for p in _sigs:
+                _s = _lc_map.get(str(p.get("base", "")).upper())
+                if _s:
+                    p["social"] = _s
+    # market-wide social mood — one line in the daily reports
+    _mood_line = ""
+    try:
+        _mood = lunarcrush.crypto_social(_lc_rows) if _lc_rows else None
+        if _mood:
+            _g = (f" · galaxy {_mood['galaxy']:.0f}"
+                  if _mood.get("galaxy") else "")
+            _mood_line = (f"🌙 social: {_mood['mood']} "
+                          f"(sentiment {_mood['sentiment']:.0f}{_g})")
+    except Exception:
+        pass
+    # ⚠️ Polymarket event radar (free public API, cached 30 min): binary
+    # macro/crypto events resolving within 72h — a heads-up line in the
+    # daily reports. Informational only; gates nothing.
+    _event_line = ""
+    try:
+        _event_line = polymarket_events.radar_line(72)
+    except Exception:
+        pass
 
     # Store every best-signal this cycle (history for pattern analysis).
     for p in apex:
@@ -348,6 +387,10 @@ def cycle() -> None:
             if _opn:
                 lines.append("🌊 open trend rides: " + ", ".join(
                     t["symbol"].replace("USDT", "") for t in _opn))
+            if _event_line:
+                lines.append(_event_line)
+            if _mood_line:
+                lines.append(_mood_line)
             lines.append(f"regime: {regime}")
             ok, _dmsg = tg.send("\n".join(lines))
             print(f"  digest sent={ok}" + ("" if ok else f" ({_dmsg})"),
@@ -394,6 +437,10 @@ def cycle() -> None:
             if _opn:
                 lines.append("🌊 open trend rides: " + ", ".join(
                     t["symbol"].replace("USDT", "") for t in _opn))
+            if _event_line:
+                lines.append(_event_line)
+            if _mood_line:
+                lines.append(_mood_line)
             lines.append(f"regime: {regime}")
             ok, _dmsg = tg.send("\n".join(lines))
             print(f"  digest sent={ok}" + ("" if ok else f" ({_dmsg})"),
