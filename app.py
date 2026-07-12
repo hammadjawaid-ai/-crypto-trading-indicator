@@ -1034,7 +1034,7 @@ def _render_closed_history(state, bot, label, key):
                      "see README_GSHEET.md.)")
 
 
-def _render_brain_memory(pb_state, live_prices=None):
+def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
     """Display the 24/7 background brain's LIVE MEMORY — the best-of-the-best
     (APEX) setups + recent signals it found on its own, even while the browser
     was closed. APEX + TAKE NOW HOT cards are openable straight into the Paper
@@ -1077,13 +1077,15 @@ def _render_brain_memory(pb_state, live_prices=None):
     trend_rows = _recent_rows(trend_rows, 24)   # daily signals live longer
     best_rows = _recent_rows(best_rows, 8)
 
-    st.markdown(
-        "<div style='display:flex;align-items:center;gap:10px;margin-top:8px'>"
-        "<span style='font-size:1.3rem;font-weight:900;background:linear-"
-        "gradient(135deg,#ffd54a,#ff6b35);-webkit-background-clip:text;"
-        "-webkit-text-fill-color:transparent;background-clip:text'>"
-        "🛰️ 24/7 BRAIN — best of the best (live memory)</span></div>",
-        unsafe_allow_html=True)
+    if not best_zone_only:
+        st.markdown(
+            "<div style='display:flex;align-items:center;gap:10px;"
+            "margin-top:8px'>"
+            "<span style='font-size:1.3rem;font-weight:900;background:linear-"
+            "gradient(135deg,#ffd54a,#ff6b35);-webkit-background-clip:text;"
+            "-webkit-text-fill-color:transparent;background-clip:text'>"
+            "🛰️ 24/7 BRAIN — best of the best (live memory)</span></div>",
+            unsafe_allow_html=True)
 
     def _ago(ts):
         if not ts:
@@ -1095,7 +1097,7 @@ def _render_brain_memory(pb_state, live_prices=None):
             return f"{int(s // 3600)}h ago"
         return f"{int(s // 86400)}d ago"
 
-    if not last and not apex_rows and not sst1_rows:
+    if not best_zone_only and not last and not apex_rows and not sst1_rows:
         st.caption("The always-on brain logs what it finds here every few "
                    "minutes — even while this page is closed. Nothing recorded "
                    "on this host yet (it fills in on the 24/7 Render deploy).")
@@ -1232,106 +1234,116 @@ def _render_brain_memory(pb_state, live_prices=None):
             except Exception as exc:
                 st.error(f"Open failed: {exc}")
 
-    # ── 💎 BEST TRADE ZONE (user 2026-07-11) — ONE consolidated board ───
-    # Every validated lane votes on the same candidate (weights = each
-    # system's validated after-fee record, incl the 🌊🟢 spot-driven OI
-    # cell from the 4-year positioning validation). A card appears only
-    # when the stack clears the bar: a top cell alone (early-lane 81% /
-    # spot-driven breakout 74%) or 2+ systems agreeing. Structural SL;
-    # the desk-managed copy runs BE at +1R → TP1 lock → trail.
-    st.markdown(
-        "<div style='display:flex;align-items:center;gap:10px;"
-        "margin-top:14px'>"
-        "<span style='font-size:1.25rem;font-weight:900;background:linear-"
-        "gradient(135deg,#7ef9ff,#ffd700);-webkit-background-clip:text;"
-        "-webkit-text-fill-color:transparent;background-clip:text'>"
-        "💎 BEST TRADE ZONE — every system, one board</span></div>",
-        unsafe_allow_html=True)
-    st.caption("**The single consolidated board.** All lanes — 🚀 early-lane, "
-               "🌊 trend (+OI context), 🏆 apex, 🌟 elite, 🌱 fresh — vote on "
-               "the same candidate; only stacked confluence or a validated "
-               "top cell appears. Early entry, structural SL, and the "
-               "desk copy protects profit (breakeven at +1R, trail after "
-               "TP1). Fewer cards, higher bar.")
-    if best_rows:
-        for _i, r in enumerate(_dedup(best_rows)[:6]):
-            try:
-                _bx = _json_bm.loads(r.get("extra") or "{}")
-            except Exception:
-                _bx = {}
-            _bsc = _bx.get("best_score") or 0
-            _tag = ("<span style='background:linear-gradient(90deg,"
-                    "#7ef9ff,#ffd700);color:#06121f;padding:1px 8px;"
-                    "border-radius:5px;font-size:0.72rem;font-weight:800'>"
-                    f"💎 STACK {_bsc:g}</span>")
-            _chips = "".join(
-                f" <span style='background:rgba(126,249,255,0.10);"
-                f"color:#9fe8ff;padding:1px 6px;border-radius:5px;"
-                f"font-size:0.67rem;font-weight:700'>{_t}</span>"
-                for _t in (_bx.get("tags") or [])[:4])
-            _bh = _bx.get("hold_est")
-            if _bh:
-                _chips += (f" <span style='background:rgba(255,213,74,0.10);"
-                           f"color:#ffd54a;padding:1px 6px;border-radius:5px;"
-                           f"font-size:0.67rem;font-weight:700'>⏱ hold "
-                           f"{_bh}</span>")
-            _open_card(r, f"brain_best_{r.get('symbol')}_{_i}", _tag,
-                       edges_html=_chips, accent="#7ef9ff")
-    else:
-        st.caption("· Nothing clears the 💎 bar right now — the zone only "
-                   "shows a card when a top validated cell fires or 2+ "
-                   "systems agree on the same coin and side. When one "
-                   "appears here (and on your Telegram), it's the best "
-                   "the whole system has.")
-    # 💎 record + open trades + history (desk-managed, real fees)
-    try:
-        _bz_sum = next((x for x in _ws.shadow_summary()
-                        if x.get("tier") == "best_board"), None)
-        _bz_open = [t for t in _ws.shadow_open_trades()
-                    if t.get("tier") == "best_board"]
-        _bz_hist = [t for t in _ws.shadow_recent(60)
-                    if t.get("tier") == "best_board"][:15]
-    except Exception:
-        _bz_sum, _bz_open, _bz_hist = None, [], []
-    if _bz_sum and int(_bz_sum.get("n") or 0) + len(_bz_open) > 0:
-        _bn = int(_bz_sum.get("n") or 0)
-        _bw = int(_bz_sum.get("wins") or 0)
-        _bnet = float(_bz_sum.get("net_r") or 0.0)
-        _bcol = "#2ed47a" if _bnet > 0 else "#ff5c5c"
+    # ── 💎 BEST TRADE ZONE (user 2026-07-11) — ONE consolidated board,
+    # now its OWN left-bar section (user 2026-07-12: the Paper Trader page
+    # got too noisy). Every validated lane votes on the same candidate
+    # (weights = each system's validated after-fee record, incl the 🌊🟢
+    # spot-driven OI cell from the 4-year positioning validation). A card
+    # appears only when the stack clears the bar: a top cell alone
+    # (early-lane 81% / spot-driven breakout 74%) or 2+ systems agreeing.
+    # Structural SL; the desk copy runs BE at +1R → TP1 lock → trail.
+    if best_zone_only:
         st.markdown(
-            f"<span style='font-size:0.82rem;color:#9aa7c7'>💎 live record: "
-            f"{_bn} closed · win {(_bw / _bn * 100) if _bn else 0:.0f}% · "
-            f"net <b style='color:{_bcol}'>{_bnet:+.2f}R</b> after fees · "
-            f"{len(_bz_open)} open</span>", unsafe_allow_html=True)
-    if _bz_open:
-        with st.expander(f"📂 open 💎 trades ({len(_bz_open)})",
-                         expanded=True):
-            for t in _bz_open:
-                _lad = ("TP1 locked·trailing" if t.get("tp1_hit")
-                        else ("BE set — can't lose" if t.get("be_set")
-                              else "initial stop"))
-                st.markdown(
-                    f"<span style='font-size:0.8rem;color:#9aa7c7'>"
-                    f"<b>{(t.get('symbol') or '').replace('USDT', '')}</b>"
-                    f" {t.get('side')} · entry "
-                    f"{px_round.fmt_px(t.get('symbol'), t.get('entry'))}"
-                    f" · stop "
-                    f"{px_round.fmt_px(t.get('symbol'), t.get('stop'))}"
-                    f" ({_lad}) · {_ago(t.get('opened_at'))}</span>",
-                    unsafe_allow_html=True)
-    if _bz_hist:
-        with st.expander(f"📜 💎 trade history ({len(_bz_hist)})",
-                         expanded=False):
-            for t in _bz_hist:
-                _pr = float(t.get("pnl_r") or 0)
-                _pc = "#2ed47a" if _pr > 0 else "#ff5c5c"
-                st.markdown(
-                    f"<span style='font-size:0.8rem;color:#9aa7c7'>"
-                    f"<b>{(t.get('symbol') or '').replace('USDT', '')}</b>"
-                    f" {t.get('side')} · {t.get('exit_reason')} · "
-                    f"<b style='color:{_pc}'>{_pr:+.2f}R</b> · "
-                    f"{_ago(t.get('closed_at'))}</span>",
-                    unsafe_allow_html=True)
+            "<div style='display:flex;align-items:center;gap:10px;"
+            "margin-top:14px'>"
+            "<span style='font-size:1.25rem;font-weight:900;background:"
+            "linear-gradient(135deg,#7ef9ff,#ffd700);-webkit-background-"
+            "clip:text;-webkit-text-fill-color:transparent;background-clip:"
+            "text'>💎 BEST TRADE ZONE — every system, one board</span>"
+            "</div>", unsafe_allow_html=True)
+        st.caption("**The single consolidated board.** All lanes — 🚀 "
+                   "early-lane, 🌊 trend (+OI context), 🏆 apex, 🌟 elite, "
+                   "🌱 fresh — vote on the same candidate; only stacked "
+                   "confluence or a validated top cell appears. Early "
+                   "entry, structural SL, and the desk copy protects "
+                   "profit (breakeven at +1R, trail after TP1). Fewer "
+                   "cards, higher bar.")
+        if best_rows:
+            for _i, r in enumerate(_dedup(best_rows)[:6]):
+                try:
+                    _bx = _json_bm.loads(r.get("extra") or "{}")
+                except Exception:
+                    _bx = {}
+                _bsc = _bx.get("best_score") or 0
+                _tag = ("<span style='background:linear-gradient(90deg,"
+                        "#7ef9ff,#ffd700);color:#06121f;padding:1px 8px;"
+                        "border-radius:5px;font-size:0.72rem;"
+                        f"font-weight:800'>💎 STACK {_bsc:g}</span>")
+                _chips = "".join(
+                    f" <span style='background:rgba(126,249,255,0.10);"
+                    f"color:#9fe8ff;padding:1px 6px;border-radius:5px;"
+                    f"font-size:0.67rem;font-weight:700'>{_t}</span>"
+                    for _t in (_bx.get("tags") or [])[:4])
+                _bh = _bx.get("hold_est")
+                if _bh:
+                    _chips += (f" <span style='background:rgba(255,213,74,"
+                               f"0.10);color:#ffd54a;padding:1px 6px;"
+                               f"border-radius:5px;font-size:0.67rem;"
+                               f"font-weight:700'>⏱ hold {_bh}</span>")
+                _open_card(r, f"brain_best_{r.get('symbol')}_{_i}", _tag,
+                           edges_html=_chips, accent="#7ef9ff")
+        else:
+            st.caption("· Nothing clears the 💎 bar right now — the zone "
+                       "only shows a card when a top validated cell fires "
+                       "or 2+ systems agree on the same coin and side. "
+                       "When one appears here (and on your Telegram), "
+                       "it's the best the whole system has.")
+        # 💎 record + open trades + history (desk-managed, real fees)
+        try:
+            _bz_sum = next((x for x in _ws.shadow_summary()
+                            if x.get("tier") == "best_board"), None)
+            _bz_open = [t for t in _ws.shadow_open_trades()
+                        if t.get("tier") == "best_board"]
+            _bz_hist = [t for t in _ws.shadow_recent(60)
+                        if t.get("tier") == "best_board"][:15]
+        except Exception:
+            _bz_sum, _bz_open, _bz_hist = None, [], []
+        if _bz_sum and int(_bz_sum.get("n") or 0) + len(_bz_open) > 0:
+            _bn = int(_bz_sum.get("n") or 0)
+            _bw = int(_bz_sum.get("wins") or 0)
+            _bnet = float(_bz_sum.get("net_r") or 0.0)
+            _bcol = "#2ed47a" if _bnet > 0 else "#ff5c5c"
+            st.markdown(
+                f"<span style='font-size:0.82rem;color:#9aa7c7'>💎 live "
+                f"record: {_bn} closed · win "
+                f"{(_bw / _bn * 100) if _bn else 0:.0f}% · net "
+                f"<b style='color:{_bcol}'>{_bnet:+.2f}R</b> after fees · "
+                f"{len(_bz_open)} open</span>", unsafe_allow_html=True)
+        if _bz_open:
+            with st.expander(f"📂 open 💎 trades ({len(_bz_open)})",
+                             expanded=True):
+                for t in _bz_open:
+                    _lad = ("TP1 locked·trailing" if t.get("tp1_hit")
+                            else ("BE set — can't lose" if t.get("be_set")
+                                  else "initial stop"))
+                    st.markdown(
+                        f"<span style='font-size:0.8rem;color:#9aa7c7'>"
+                        f"<b>{(t.get('symbol') or '').replace('USDT', '')}"
+                        f"</b> {t.get('side')} · entry "
+                        f"{px_round.fmt_px(t.get('symbol'), t.get('entry'))}"
+                        f" · stop "
+                        f"{px_round.fmt_px(t.get('symbol'), t.get('stop'))}"
+                        f" ({_lad}) · {_ago(t.get('opened_at'))}</span>",
+                        unsafe_allow_html=True)
+        if _bz_hist:
+            with st.expander(f"📜 💎 trade history ({len(_bz_hist)})",
+                             expanded=False):
+                for t in _bz_hist:
+                    _pr = float(t.get("pnl_r") or 0)
+                    _pc = "#2ed47a" if _pr > 0 else "#ff5c5c"
+                    st.markdown(
+                        f"<span style='font-size:0.8rem;color:#9aa7c7'>"
+                        f"<b>{(t.get('symbol') or '').replace('USDT', '')}"
+                        f"</b> {t.get('side')} · {t.get('exit_reason')} · "
+                        f"<b style='color:{_pc}'>{_pr:+.2f}R</b> · "
+                        f"{_ago(t.get('closed_at'))}</span>",
+                        unsafe_allow_html=True)
+        return
+
+    # Paper Trader flow: the 💎 board moved to its own left-bar section —
+    # one pointer line here keeps this page lean.
+    st.caption("💎 **BEST TRADE ZONE** — the consolidated best-of-the-best "
+               "board — now lives in its own section in the left bar.")
 
     # ── ✳️ DECISION DESK — FORWARD PROOF (user 2026-07-08) ──────────────
     # The brain takes every tier's signal itself as a live shadow trade
@@ -4759,6 +4771,7 @@ if _qp_mode not in ("Futures", "Spot"):
 # credible evidence vs deterministic rules; SST1 is the proven pipeline).
 # The section code stays below but is unreachable.
 SECTIONS = [
+    "💎 Best Trade Zone",
     "🔍 Market Scanner", "🔮 Forecast", "🚀 Breakout Radar",
     "🤖 Ask the Oracle", "🪙 Coin Analysis", "📰 News & Sentiment",
     "🧭 Decision Mode", "🧪 Paper Trader", "💸 Live Trading",
@@ -4965,6 +4978,35 @@ if not _alert_merged.empty:
 
 # Section is selected from the sidebar radio above — no horizontal tab bar.
 
+
+# ===========================================================================
+# 💎 Best Trade Zone — ONE consolidated best-of-the-best dashboard
+# (user 2026-07-12: its own left-bar section; Paper Trader was too noisy)
+# ===========================================================================
+if active_section == "💎 Best Trade Zone":
+    try:
+        _bz_state = paper_bot.load_state(PAPER_BOT_FILE)
+        _bz_state = _attach_durable_closed("paper", _bz_state)
+    except Exception:
+        _bz_state = {"open": []}
+    # live prices: top-N map + direct lookups for any 💎 symbol outside it,
+    # so the traffic-light / dead guards always have a price to work with.
+    _bz_prices = dict(prices or {})
+    try:
+        import worker_store as _ws_bz
+        for _r_bz in _ws_bz.recent_by_stream("best", 12):
+            _s_bz = _r_bz.get("symbol")
+            if _s_bz and _s_bz not in _bz_prices:
+                try:
+                    _bz_prices[_s_bz] = binance_client.get_ticker_price(_s_bz)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    try:
+        _render_brain_memory(_bz_state, _bz_prices, best_zone_only=True)
+    except Exception as _exc_bz:
+        st.error(f"Best Trade Zone failed to render: {_exc_bz}")
 
 # ===========================================================================
 # Tab 1 — Market Scanner
