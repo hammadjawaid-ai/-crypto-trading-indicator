@@ -272,7 +272,8 @@ def cycle() -> None:
     # alerted with the in-zone gate.
     try:
         best = best_board.compose(r.get("trend", []), apex, elite_early,
-                                  fresh_m, tn_hot, em_big)
+                                  fresh_m, tn_hot, em_big,
+                                  elite_watch=r.get("elite", []))
     except Exception as exc:
         best = []
         print("  best_board error:", exc, flush=True)

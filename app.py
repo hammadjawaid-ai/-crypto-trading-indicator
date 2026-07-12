@@ -1251,13 +1251,17 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
             "clip:text;-webkit-text-fill-color:transparent;background-clip:"
             "text'>💎 BEST TRADE ZONE — every system, one board</span>"
             "</div>", unsafe_allow_html=True)
-        st.caption("**The single consolidated board.** All lanes — 🚀 "
-                   "early-lane, 🌊 trend (+OI context), 🏆 apex, 🌟 elite, "
-                   "🌱 fresh — vote on the same candidate; only stacked "
-                   "confluence or a validated top cell appears. Early "
-                   "entry, structural SL, and the desk copy protects "
-                   "profit (breakeven at +1R, trail after TP1). Fewer "
-                   "cards, higher bar.")
+        st.caption("**The single consolidated board — every system votes "
+                   "together.** 🚀 early-lane (velocity burst / early "
+                   "trend / early momentum — named on each card), 🌊 trend "
+                   "(+OI context), 🏆 apex, 🌟 early elite, 🛡 elite "
+                   "conviction, 🌱 fresh, ✅🔥 hot and 🎯 pattern scout "
+                   "all vote on the same candidate; only stacked "
+                   "confluence or a validated top cell appears. "
+                   "(CONVERGENCE re-backtested negative — deliberately "
+                   "excluded.) Early entry, structural SL, and the desk "
+                   "copy protects profit (breakeven at +1R, trail after "
+                   "TP1). Fewer cards, higher bar.")
         if best_rows:
             for _i, r in enumerate(_dedup(best_rows)[:6]):
                 try:

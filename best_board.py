@@ -6,6 +6,8 @@ the systems' own validated after-fee records (8-month master validation
 2026-07-07 + positioning validation 2026-07-11) — not invented numbers:
 
   ⭐🚀 early-lane            81.3% / +0.066R (n=796)   -> 3.0 (alone = in)
+       (= velocity_burst / early_trend / early_momentum lanes — the
+        card tag names which ones fired)
   🌊🟢 spot-driven breakout  74.2% / +1.04R  (n=62,
        falling 5d OI, every-era consistent)           -> 3.0 (alone = in)
   🌊 trend breakout          +0.15-0.32R/trade         -> 1.5
@@ -13,7 +15,15 @@ the systems' own validated after-fee records (8-month master validation
   🏆 apex                    64.9% / +0.009R           -> 1.5
   🌟 early elite             65.5% approved cell       -> 1.5
   🌱 fresh                   74% short-window cell     -> 1.0
+  🛡 elite conviction MAX/HIGH (validated composite)   -> 0.75
   ✅🔥 take-now hot           validated construct       -> 0.5
+  🎯 pattern scout           same-side validated-edge
+       pattern >= 70 (V-bottom 75%, aligned-longs
+       67%, morning star / hammer 60-75%)             -> 0.5 (confirm)
+
+DELIBERATELY OUT: CONVERGENCE — re-backtested NEGATIVE in the worker
+era (scan_core), despite the older app-side "+6.8pp" claim. A negative
+edge cannot vote on the best board.
 
 QUALIFY: votes >= 3.0 — a single top cell, or 2+ systems agreeing.
 Plan (entry/SL/TP) is taken from the EARLIEST-entering source (early-lane
@@ -28,7 +38,9 @@ from __future__ import annotations
 
 import time
 
+import binance_client
 import coinalyze_client as cz
+import pattern_scout
 
 W_EARLY_LANE = 3.0
 W_TREND_SPOT = 3.0
@@ -37,9 +49,12 @@ W_TREND_CROWDED = 0.75
 W_APEX = 1.5
 W_ELITE_EARLY = 1.5
 W_FRESH = 1.0
+W_ELITE_WATCH = 0.75
 W_TN_HOT = 0.5
+W_PATTERN = 0.5
 MIN_SCORE = 3.0
 TOP = 6
+PATTERN_MAX_CHECKS = 12
 
 _oi_cache: dict = {}
 _OI_TTL = 3600.0
@@ -90,7 +105,9 @@ def _hold_est(p: dict, from_trend: bool) -> str:
 
 
 def compose(trend: list, apex: list, elite_early: list, fresh_m: list,
-            tn_hot: list, em_big: list, top: int = TOP) -> list[dict]:
+            tn_hot: list, em_big: list, top: int = TOP,
+            elite_watch: list | None = None,
+            pattern_votes: bool = True) -> list[dict]:
     """The 💎 list: candidates from every lane, vote-stacked and ranked."""
     cands: dict = {}
 
@@ -110,7 +127,10 @@ def compose(trend: list, apex: list, elite_early: list, fresh_m: list,
             c["plan"] = p
 
     for p in em_big:
-        _add(p, W_EARLY_LANE, "⭐🚀 prime early-lane 81%", 0)
+        # name the actual early systems that fired (user 2026-07-13:
+        # early_trend / early_momentum must be visible in the stack)
+        _lanes = "+".join(p.get("early_lanes") or []) or "early-lane"
+        _add(p, W_EARLY_LANE, f"⭐🚀 early-lane 81% ({_lanes})", 0)
     for p in elite_early:
         _add(p, W_ELITE_EARLY, "🌟 early elite", 1)
     for p in apex:
@@ -127,6 +147,35 @@ def compose(trend: list, apex: list, elite_early: list, fresh_m: list,
             _add(p, W_TREND_CROWDED, "🌊⚠️ crowded breakout", 5)
         else:
             _add(p, W_TREND, "🌊 trend breakout", 5)
+    # 🛡 ELITE conviction watch (user 2026-07-13): the full MAX/HIGH
+    # conviction board confirms as a vote — plan only as last resort
+    # (watch rows can be pre-confirmation/ARMING).
+    for p in elite_watch or []:
+        if (p.get("tier") or "").upper() in ("MAX", "HIGH"):
+            _add(p, W_ELITE_WATCH, "🛡 elite conviction", 7)
+
+    # 🎯 PATTERN SCOUT confirmation (user 2026-07-13): a validated-edge
+    # candle pattern firing on the SAME side adds +0.5. Run only for
+    # near-qualified candidates (votes >= 1.5), best-first, capped —
+    # keeps the worker cycle fast. Fail-soft per symbol.
+    if pattern_votes:
+        _checked = 0
+        for (sym, side), c in sorted(cands.items(),
+                                     key=lambda kv: -kv[1]["votes"]):
+            if c["votes"] < 1.5:
+                continue
+            if _checked >= PATTERN_MAX_CHECKS:
+                break
+            _checked += 1
+            try:
+                df = binance_client.get_klines(sym, "1h", limit=120)
+                ps = pattern_scout.scan_one(sym, df)
+                if ((ps.get("side") or "").upper() == side
+                        and float(ps.get("score") or 0) >= 70):
+                    c["votes"] += W_PATTERN
+                    c["tags"].append(f"🎯 pattern: {ps.get('best_signal')}")
+            except Exception:
+                pass
 
     out = []
     for (_sym, _side), c in cands.items():
