@@ -348,6 +348,10 @@ def open_position(state: dict, alert: dict,
         "opened_at": time.time(),
         "confidence": int(alert.get("confidence", 0) or 0),
         "rr": float(alert.get("rr", 0.0) or 0.0),
+        # which board opened it (e.g. "best_zone") — closed records copy
+        # the position dict, so the tag survives into history for
+        # per-board open/closed views.
+        "source": str(alert.get("_unified_source") or ""),
     }
     state["open"].append(pos)
     return pos

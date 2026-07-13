@@ -1034,6 +1034,50 @@ def _render_closed_history(state, bot, label, key):
                      "see README_GSHEET.md.)")
 
 
+def _bz_position_chart(symbol, side, entry, stop, target, cur_price):
+    """Mini chart for one open 💎 position — recent 1h price line with
+    Entry / Stop / Target levels and a live-price dot. Same visual as the
+    Paper Trader's position charts (that one is nested in its fragment,
+    so the 💎 page keeps its own module-level copy)."""
+    try:
+        kdf = load_klines(symbol, "1h").tail(72)
+    except Exception:
+        return
+    if kdf is None or kdf.empty:
+        return
+    line_color = "#2ed47a" if side == "LONG" else "#ff5c5c"
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=kdf.index, y=kdf["close"], mode="lines",
+        line=dict(color=line_color, width=2),
+        showlegend=False, name="Price"))
+    fig.add_trace(go.Scatter(
+        x=[kdf.index[-1]], y=[cur_price], mode="markers",
+        marker=dict(color="#fff", size=9,
+                    line=dict(color=line_color, width=2)),
+        showlegend=False, name="Now"))
+    for level, lcol, name in (
+            (entry,  "#6e8bff", f"Entry {fmt_price(entry)}"),
+            (stop,   "#ff5c5c", f"Stop {fmt_price(stop)}"),
+            (target, "#2ed47a", f"Target {fmt_price(target)}")):
+        fig.add_hline(
+            y=level, line_color=lcol,
+            line_dash="dot" if name.startswith("Entry") else "dash",
+            annotation_text=name, annotation_position="right",
+            annotation=dict(font=dict(size=10, color=lcol)))
+    fig.update_layout(
+        height=180, margin=dict(l=0, r=90, t=10, b=10),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        dragmode="pan",
+        xaxis=dict(showgrid=False, color="#888", fixedrange=True),
+        yaxis=dict(showgrid=False, color="#888", fixedrange=True))
+    st.plotly_chart(
+        fig, use_container_width=True,
+        config={"displayModeBar": False, "scrollZoom": False,
+                "doubleClick": False, "staticPlot": False})
+
+
 def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
     """Display the 24/7 background brain's LIVE MEMORY — the best-of-the-best
     (APEX) setups + recent signals it found on its own, even while the browser
@@ -1126,7 +1170,8 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
     # One openable card: card + 📥 Open button that opens into the Paper
     # Trader (idealised fill at the setup's planned entry, like the other
     # boards). Skips if already open.
-    def _open_card(r, key, tag_html, edges_html="", accent=None):
+    def _open_card(r, key, tag_html, edges_html="", accent=None,
+                   src="brain_24_7"):
         base = r.get("base")
         side = (r.get("side") or "").upper()
         entry = float(r.get("entry") or 0)
@@ -1223,7 +1268,7 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                     "chase_tp2_eligible": bool(tp2),
                     "confidence": int(float(r.get("score") or 0)),
                     "strength_factor": 0.7,
-                    "_unified_source": "brain_24_7"}
+                    "_unified_source": src}
                 _pos = paper_bot.open_position(pb_state, _alert, entry)
                 paper_bot.save_state(PAPER_BOT_FILE, pb_state)
                 if _pos:
@@ -1285,95 +1330,117 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                                f"border-radius:5px;font-size:0.67rem;"
                                f"font-weight:700'>⏱ hold {_bh}</span>")
                 _open_card(r, f"brain_best_{r.get('symbol')}_{_i}", _tag,
-                           edges_html=_chips, accent="#7ef9ff")
+                           edges_html=_chips, accent="#7ef9ff",
+                           src="best_zone")
         else:
             st.caption("· Nothing clears the 💎 bar right now — the zone "
                        "only shows a card when a top validated cell fires "
                        "or 2+ systems agree on the same coin and side. "
                        "When one appears here (and on your Telegram), "
                        "it's the best the whole system has.")
-        # 💎 open trades + closed record (desk-managed, real fees)
-        try:
-            _bz_open = [t for t in _ws.shadow_open_trades()
-                        if t.get("tier") == "best_board"]
-            _bz_hist = [t for t in _ws.shadow_recent(100)
-                        if t.get("tier") == "best_board"]
-        except Exception:
-            _bz_open, _bz_hist = [], []
+        # ── 📂 my open 💎 trades — MANUAL only (user 2026-07-13: nothing
+        # opens by itself on this page). You hit 📥 Open on a card above;
+        # the position appears here with the same card + live chart as
+        # the Paper Trader. The brain's auto-validation copies still run
+        # silently and keep their record on the Decision Desk.
         _lp_map = dict(live_prices or {})
-        for t in _bz_open:
-            _s0 = t.get("symbol")
-            if _s0 and _s0 not in _lp_map:
-                try:
-                    _lp_map[_s0] = binance_client.get_ticker_price(_s0)
-                except Exception:
-                    pass
-
-        # ── 📂 open 💎 trades — full position cards, same style as the
-        # Paper Trader (user 2026-07-13). Desk-managed: no Close button.
-        st.markdown(f"#### 📂 open 💎 trades ({len(_bz_open)})")
-        if not _bz_open:
-            st.caption("None open right now — the desk auto-takes every 💎 "
-                       "signal at live price with real fees; positions "
-                       "appear here the moment one fires.")
-        for t in _bz_open:
-            _sym = t.get("symbol") or ""
-            _side = (t.get("side") or "").upper()
+        _bz_pos = [p for p in (pb_state.get("open") or [])
+                   if (p.get("source") or "") == "best_zone"]
+        for p in _bz_pos:
+            try:
+                _lpv = live_price(p["symbol"])
+                if _lpv and _lpv > 0:
+                    _lp_map[p["symbol"]] = float(_lpv)
+            except Exception:
+                pass
+        # evaluate SL/TP with live prices so 💎 trades close honestly
+        # even when the Paper Trader page is never visited
+        try:
+            _cl_now = paper_bot.evaluate(
+                pb_state, {p["symbol"]: _lp_map[p["symbol"]]
+                           for p in _bz_pos if _lp_map.get(p["symbol"])})
+            if _cl_now:
+                paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                for c in _cl_now:
+                    st.toast(f"{'✅' if c['pnl_usd'] > 0 else '❌'} "
+                             f"{c['base']} closed at {c['exit_reason']} · "
+                             f"{c['pnl_pct']:+.2f}%", icon="💎")
+                _bz_pos = [p for p in (pb_state.get("open") or [])
+                           if (p.get("source") or "") == "best_zone"]
+        except Exception:
+            pass
+        st.markdown(f"#### 📂 my open 💎 trades ({len(_bz_pos)})")
+        if not _bz_pos:
+            st.caption("No open 💎 trades — hit **📥 Open** on a card "
+                       "above and it appears here with its live chart. "
+                       "Nothing opens automatically on this page; the "
+                       "brain's auto-validation record lives on the "
+                       "Decision Desk (Paper Trader page).")
+        for p in _bz_pos:
+            _sym = p["symbol"]
+            _side = (p.get("side") or "").upper()
             _long = _side == "LONG"
-            _e = float(t.get("entry") or 0)
-            _stp = float(t.get("stop") or 0)
-            _stp0 = float(t.get("stop0") or _stp)
-            _t1 = float(t.get("tp1") or 0)
-            _t2 = float(t.get("tp2") or 0)
+            _e = float(p.get("entry") or 0)
+            _stp = float(p.get("stop") or 0)
+            _tgt = float(p.get("target") or 0)
+            _qty = float(p.get("qty") or 0)
+            _ntl = float(p.get("notional") or (_qty * _e))
+            _lev = int(p.get("leverage") or 1)
             _cur = float(_lp_map.get(_sym) or _e)
-            _risk0 = abs(_e - _stp0)
-            _ur = ((( _cur - _e) if _long else (_e - _cur)) / _risk0
-                   if _risk0 > 0 else 0.0)
+            _upnl = ((_cur - _e) if _long else (_e - _cur)) * _qty
             _pctm = ((_cur / _e - 1) * 100 * (1 if _long else -1)
                      if _e > 0 else 0.0)
-            _pc = "#2ed47a" if _ur >= 0 else "#ff5c5c"
+            _pc = "#2ed47a" if _upnl >= 0 else "#ff5c5c"
             _sc = "#2ed47a" if _long else "#ff5c5c"
-            _lad = ("🔒 TP1 locked · trailing" if t.get("tp1_hit")
-                    else ("🛡 BE set — can't lose" if t.get("be_set")
-                          else "initial stop"))
+            _be = (" · 🛡 break-even set" if p.get("break_even_set")
+                   else "")
+            _lev_txt = f" · {_lev}× lev" if _lev > 1 else ""
             with st.container(border=True):
-                _ic, _pcol = st.columns([2.6, 1.4])
+                _ic, _pcol, _bc = st.columns([2.4, 1.8, 0.8])
                 _ic.markdown(
-                    f"<div style='font-size:1.02rem;font-weight:800;"
-                    f"margin-bottom:2px'>{_sym.replace('USDT', '')} "
+                    f"<div style='font-size:1.05rem;font-weight:800;"
+                    f"margin-bottom:2px'>{p.get('base') or _sym} "
                     f"<span style='background:{_sc};color:#06121f;"
-                    f"padding:2px 10px;border-radius:5px;font-size:0.72rem;"
-                    f"font-weight:800;margin-left:6px'>{_side}</span> "
-                    f"<span style='background:rgba(126,249,255,0.12);"
-                    f"color:#7ef9ff;padding:2px 8px;border-radius:5px;"
-                    f"font-size:0.7rem;font-weight:700;margin-left:4px'>"
-                    f"{_lad}</span></div>"
+                    f"padding:2px 10px;border-radius:5px;font-size:"
+                    f"0.72rem;font-weight:800;margin-left:6px'>"
+                    f"{_side}</span></div>"
+                    f"<div style='color:#d5d7e0;font-size:0.84rem;"
+                    f"margin:3px 0'><b>{_qty:.6f} {p.get('base')}</b> · "
+                    f"notional <b>${_ntl:,.2f}</b>{_lev_txt}</div>"
                     f"<div style='color:#8b8d98;font-size:0.78rem'>"
-                    f"Entry {px_round.fmt_px(_sym, _e)} · SL "
-                    f"{px_round.fmt_px(_sym, _stp)} · TP1 "
-                    f"{px_round.fmt_px(_sym, _t1)}"
-                    + (f" · TP2 {px_round.fmt_px(_sym, _t2)}" if _t2 else "")
-                    + f" · opened {_ago(t.get('opened_at'))}</div>",
+                    f"Entry {fmt_price(_e)} · Stop {fmt_price(_stp)} · "
+                    f"Target {fmt_price(_tgt)}{_be}</div>",
                     unsafe_allow_html=True)
                 _pcol.markdown(
-                    f"<div style='text-align:right;font-size:1.12rem;"
-                    f"font-weight:800;color:#fff'>"
-                    f"{px_round.fmt_px(_sym, _cur)}</div>"
+                    f"<div style='text-align:right;font-size:1.15rem;"
+                    f"font-weight:800;color:#fff'>{fmt_price(_cur)}</div>"
                     f"<div style='text-align:right;color:{_pc};"
-                    f"font-size:1.08rem;font-weight:800;margin-top:2px'>"
-                    f"{_ur:+.2f}R</div>"
+                    f"font-size:1.1rem;font-weight:800;margin-top:2px'>"
+                    f"${_upnl:+,.2f}</div>"
                     f"<div style='text-align:right;color:{_pc};"
-                    f"font-size:0.76rem;font-weight:700'>"
+                    f"font-size:0.78rem;font-weight:700;margin-top:1px'>"
                     f"{_pctm:+.2f}% from entry</div>",
                     unsafe_allow_html=True)
-                if _t1 != _e:
-                    _fz = ((_cur - _e) / (_t1 - _e) if _long
-                           else (_e - _cur) / (_e - _t1))
+                if _bc.button("Close", key=f"bz_close_{_sym}",
+                              use_container_width=True):
+                    _clm = paper_bot.close_position_at(
+                        pb_state, _sym, _cur, reason="manual")
+                    if _clm:
+                        paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                        st.toast(
+                            f"{'✅' if _clm['pnl_usd'] > 0 else '❌'} "
+                            f"Closed {_clm['base']} · "
+                            f"{_clm['pnl_pct']:+.2f}%", icon="💎")
+                        st.rerun()
+                if _tgt != _e:
+                    _fz = ((_cur - _e) / (_tgt - _e) if _long
+                           else (_e - _cur) / (_e - _tgt))
                     if _fz >= 0:
                         st.markdown(
                             f"<span style='font-size:0.76rem'>🎯 <b style="
                             f"'color:#2ed47a'>{min(_fz, 1) * 100:.0f}%</b>"
-                            f" toward TP1</span>", unsafe_allow_html=True)
+                            f" toward target</span>",
+                            unsafe_allow_html=True)
                     else:
                         _fs = (abs(_cur - _e) / abs(_e - _stp)
                                if _e != _stp else 0)
@@ -1381,41 +1448,45 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                             f"<span style='font-size:0.76rem'>⚠️ <b style="
                             f"'color:#ff5c5c'>{min(_fs, 1) * 100:.0f}%</b>"
                             f" toward stop</span>", unsafe_allow_html=True)
+                _bz_position_chart(_sym, _side, _e, _stp, _tgt, _cur)
 
-        # ── 📋 closed 💎 trades — visual record (user 2026-07-13):
-        # summary metrics + cumulative-R equity curve + green/red cards.
-        st.markdown(f"#### 📋 closed 💎 trades ({len(_bz_hist)})")
-        if not _bz_hist:
-            st.caption("No closed 💎 trades yet — every exit lands here "
-                       "with its receipt the moment the desk closes one.")
+        # ── 📋 my closed 💎 trades — visual record of MANUAL trades:
+        # metrics + cumulative P&L curve + green/red receipt cards.
+        _bz_closed = [t for t in (pb_state.get("closed") or [])
+                      if (t.get("source") or "") == "best_zone"]
+        st.markdown(f"#### 📋 closed 💎 trades ({len(_bz_closed)})")
+        if not _bz_closed:
+            st.caption("No closed 💎 trades yet — when one of your open "
+                       "💎 trades exits (SL, target or manual close), the "
+                       "receipt and the equity curve build here.")
         else:
-            _bn = len(_bz_hist)
-            _bw = sum(1 for t in _bz_hist
-                      if float(t.get("pnl_r") or 0) > 0)
-            _bnet = sum(float(t.get("pnl_r") or 0) for t in _bz_hist)
+            _bn = len(_bz_closed)
+            _bw = sum(1 for t in _bz_closed
+                      if float(t.get("pnl_usd") or 0) > 0)
+            _bnet = sum(float(t.get("pnl_usd") or 0) for t in _bz_closed)
             _m1, _m2, _m3 = st.columns(3)
             _m1.metric("closed", f"{_bn}")
             _m2.metric("win rate", f"{_bw / _bn * 100:.0f}%")
-            _m3.metric("net after fees", f"{_bnet:+.2f}R")
+            _m3.metric("total P&L", f"${_bnet:+,.2f}")
             _bh_sorted = sorted(
-                _bz_hist, key=lambda t: float(t.get("closed_at") or 0))
+                _bz_closed, key=lambda t: float(t.get("exit_at") or 0))
             if len(_bh_sorted) >= 2:
                 _cum, _acc = [], 0.0
                 for t in _bh_sorted:
-                    _acc += float(t.get("pnl_r") or 0)
-                    _cum.append(round(_acc, 3))
+                    _acc += float(t.get("pnl_usd") or 0)
+                    _cum.append(round(_acc, 2))
                 st.area_chart(
-                    pd.DataFrame({"cumulative R (after fees)": _cum}),
+                    pd.DataFrame({"cumulative P&L ($)": _cum}),
                     height=180)
             for t in _bh_sorted[::-1][:12]:
                 _sym = t.get("symbol") or ""
                 _side = (t.get("side") or "").upper()
-                _pr = float(t.get("pnl_r") or 0)
-                _win = _pr > 0
+                _pn = float(t.get("pnl_usd") or 0)
+                _win = _pn > 0
                 _cc = "#2ed47a" if _win else "#ff5c5c"
                 _rgb = "46,212,122" if _win else "255,92,92"
-                _sc = "#2ed47a" if _side == "LONG" else "#ff5c5c"
-                _dur = (float(t.get("closed_at") or 0)
+                _sc2 = "#2ed47a" if _side == "LONG" else "#ff5c5c"
+                _dur = (float(t.get("exit_at") or 0)
                         - float(t.get("opened_at") or 0))
                 _held = (f"{_dur / 3600:.1f}h" if 0 < _dur < 172800
                          else (f"{_dur / 86400:.1f}d" if _dur > 0 else "—"))
@@ -1426,18 +1497,20 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                     f"display:flex;justify-content:space-between;"
                     f"align-items:center'>"
                     f"<span><b style='font-size:0.95rem'>"
-                    f"{_sym.replace('USDT', '')}</b> "
-                    f"<span style='color:{_sc};font-weight:800;"
+                    f"{t.get('base') or _sym}</b> "
+                    f"<span style='color:{_sc2};font-weight:800;"
                     f"font-size:0.78rem'>{_side}</span> "
                     f"<span style='color:#8b93a7;font-size:0.74rem'>· "
-                    f"{t.get('exit_reason')} · held {_held} · "
-                    f"{_ago(t.get('closed_at'))}</span><br>"
+                    f"{t.get('exit_reason')} · held {_held}</span><br>"
                     f"<span style='color:#9aa7c7;font-size:0.76rem'>entry "
-                    f"{px_round.fmt_px(_sym, t.get('entry'))} → exit "
-                    f"{px_round.fmt_px(_sym, t.get('exit_px'))}</span>"
-                    f"</span>"
-                    f"<span style='color:{_cc};font-size:1.2rem;"
-                    f"font-weight:900'>{_pr:+.2f}R</span></div>",
+                    f"{fmt_price(t.get('entry'))} → exit "
+                    f"{fmt_price(t.get('exit'))}</span></span>"
+                    f"<span style='text-align:right'>"
+                    f"<span style='color:{_cc};font-size:1.15rem;"
+                    f"font-weight:900'>${_pn:+,.2f}</span><br>"
+                    f"<span style='color:{_cc};font-size:0.74rem;"
+                    f"font-weight:700'>{float(t.get('pnl_pct') or 0):+.2f}%"
+                    f"</span></span></div>",
                     unsafe_allow_html=True)
             if len(_bh_sorted) > 12:
                 st.caption(f"· showing the latest 12 of {len(_bh_sorted)} "
