@@ -29,6 +29,10 @@ import worker_store as store
 
 TAKER_FEE = 0.00055          # per side (Bybit futures taker)
 MAX_HOLD_H = 48.0            # time-stop: the "how long to hold" policy
+# 🌊 trend_rider is a DAYS-TO-WEEKS strategy (validated ~7-10d avg hold,
+# trail-decided) — the uniform 48h cut was force-closing its rides early
+# and mismeasuring the tier (found 2026-07-13: LDO cut at 48h as "TIME").
+MAX_HOLD_H_BY_TIER = {"trend_rider": 21 * 24.0}
 TRAIL_R = 1.2                # post-TP1 trail distance in initial-risk units
 GREEN_MIN_TRADES = 20        # a tier needs this many closed trades...
 GREEN_MIN_NET_R = 2.0        # ...and this much net R after fees to go GREEN
@@ -102,7 +106,8 @@ def manage(prices: dict) -> list[dict]:
         reason = None
         stopped = (px <= stop) if long else (px >= stop)
         hit_tp2 = tp2 > 0 and ((px >= tp2) if long else (px <= tp2))
-        expired = (now - float(t["opened_at"])) >= MAX_HOLD_H * 3600
+        _hold_h = MAX_HOLD_H_BY_TIER.get(t["tier"], MAX_HOLD_H)
+        expired = (now - float(t["opened_at"])) >= _hold_h * 3600
         if stopped:
             exit_px, reason = stop, ("TP1_LOCK" if st.get("tp1_hit")
                                      else "STOP")
