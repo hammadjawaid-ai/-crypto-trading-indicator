@@ -1292,56 +1292,156 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                        "or 2+ systems agree on the same coin and side. "
                        "When one appears here (and on your Telegram), "
                        "it's the best the whole system has.")
-        # 💎 record + open trades + history (desk-managed, real fees)
+        # 💎 open trades + closed record (desk-managed, real fees)
         try:
-            _bz_sum = next((x for x in _ws.shadow_summary()
-                            if x.get("tier") == "best_board"), None)
             _bz_open = [t for t in _ws.shadow_open_trades()
                         if t.get("tier") == "best_board"]
-            _bz_hist = [t for t in _ws.shadow_recent(60)
-                        if t.get("tier") == "best_board"][:15]
+            _bz_hist = [t for t in _ws.shadow_recent(100)
+                        if t.get("tier") == "best_board"]
         except Exception:
-            _bz_sum, _bz_open, _bz_hist = None, [], []
-        if _bz_sum and int(_bz_sum.get("n") or 0) + len(_bz_open) > 0:
-            _bn = int(_bz_sum.get("n") or 0)
-            _bw = int(_bz_sum.get("wins") or 0)
-            _bnet = float(_bz_sum.get("net_r") or 0.0)
-            _bcol = "#2ed47a" if _bnet > 0 else "#ff5c5c"
-            st.markdown(
-                f"<span style='font-size:0.82rem;color:#9aa7c7'>💎 live "
-                f"record: {_bn} closed · win "
-                f"{(_bw / _bn * 100) if _bn else 0:.0f}% · net "
-                f"<b style='color:{_bcol}'>{_bnet:+.2f}R</b> after fees · "
-                f"{len(_bz_open)} open</span>", unsafe_allow_html=True)
-        if _bz_open:
-            with st.expander(f"📂 open 💎 trades ({len(_bz_open)})",
-                             expanded=True):
-                for t in _bz_open:
-                    _lad = ("TP1 locked·trailing" if t.get("tp1_hit")
-                            else ("BE set — can't lose" if t.get("be_set")
-                                  else "initial stop"))
-                    st.markdown(
-                        f"<span style='font-size:0.8rem;color:#9aa7c7'>"
-                        f"<b>{(t.get('symbol') or '').replace('USDT', '')}"
-                        f"</b> {t.get('side')} · entry "
-                        f"{px_round.fmt_px(t.get('symbol'), t.get('entry'))}"
-                        f" · stop "
-                        f"{px_round.fmt_px(t.get('symbol'), t.get('stop'))}"
-                        f" ({_lad}) · {_ago(t.get('opened_at'))}</span>",
-                        unsafe_allow_html=True)
-        if _bz_hist:
-            with st.expander(f"📜 💎 trade history ({len(_bz_hist)})",
-                             expanded=False):
-                for t in _bz_hist:
-                    _pr = float(t.get("pnl_r") or 0)
-                    _pc = "#2ed47a" if _pr > 0 else "#ff5c5c"
-                    st.markdown(
-                        f"<span style='font-size:0.8rem;color:#9aa7c7'>"
-                        f"<b>{(t.get('symbol') or '').replace('USDT', '')}"
-                        f"</b> {t.get('side')} · {t.get('exit_reason')} · "
-                        f"<b style='color:{_pc}'>{_pr:+.2f}R</b> · "
-                        f"{_ago(t.get('closed_at'))}</span>",
-                        unsafe_allow_html=True)
+            _bz_open, _bz_hist = [], []
+        _lp_map = dict(live_prices or {})
+        for t in _bz_open:
+            _s0 = t.get("symbol")
+            if _s0 and _s0 not in _lp_map:
+                try:
+                    _lp_map[_s0] = binance_client.get_ticker_price(_s0)
+                except Exception:
+                    pass
+
+        # ── 📂 open 💎 trades — full position cards, same style as the
+        # Paper Trader (user 2026-07-13). Desk-managed: no Close button.
+        st.markdown(f"#### 📂 open 💎 trades ({len(_bz_open)})")
+        if not _bz_open:
+            st.caption("None open right now — the desk auto-takes every 💎 "
+                       "signal at live price with real fees; positions "
+                       "appear here the moment one fires.")
+        for t in _bz_open:
+            _sym = t.get("symbol") or ""
+            _side = (t.get("side") or "").upper()
+            _long = _side == "LONG"
+            _e = float(t.get("entry") or 0)
+            _stp = float(t.get("stop") or 0)
+            _stp0 = float(t.get("stop0") or _stp)
+            _t1 = float(t.get("tp1") or 0)
+            _t2 = float(t.get("tp2") or 0)
+            _cur = float(_lp_map.get(_sym) or _e)
+            _risk0 = abs(_e - _stp0)
+            _ur = ((( _cur - _e) if _long else (_e - _cur)) / _risk0
+                   if _risk0 > 0 else 0.0)
+            _pctm = ((_cur / _e - 1) * 100 * (1 if _long else -1)
+                     if _e > 0 else 0.0)
+            _pc = "#2ed47a" if _ur >= 0 else "#ff5c5c"
+            _sc = "#2ed47a" if _long else "#ff5c5c"
+            _lad = ("🔒 TP1 locked · trailing" if t.get("tp1_hit")
+                    else ("🛡 BE set — can't lose" if t.get("be_set")
+                          else "initial stop"))
+            with st.container(border=True):
+                _ic, _pcol = st.columns([2.6, 1.4])
+                _ic.markdown(
+                    f"<div style='font-size:1.02rem;font-weight:800;"
+                    f"margin-bottom:2px'>{_sym.replace('USDT', '')} "
+                    f"<span style='background:{_sc};color:#06121f;"
+                    f"padding:2px 10px;border-radius:5px;font-size:0.72rem;"
+                    f"font-weight:800;margin-left:6px'>{_side}</span> "
+                    f"<span style='background:rgba(126,249,255,0.12);"
+                    f"color:#7ef9ff;padding:2px 8px;border-radius:5px;"
+                    f"font-size:0.7rem;font-weight:700;margin-left:4px'>"
+                    f"{_lad}</span></div>"
+                    f"<div style='color:#8b8d98;font-size:0.78rem'>"
+                    f"Entry {px_round.fmt_px(_sym, _e)} · SL "
+                    f"{px_round.fmt_px(_sym, _stp)} · TP1 "
+                    f"{px_round.fmt_px(_sym, _t1)}"
+                    + (f" · TP2 {px_round.fmt_px(_sym, _t2)}" if _t2 else "")
+                    + f" · opened {_ago(t.get('opened_at'))}</div>",
+                    unsafe_allow_html=True)
+                _pcol.markdown(
+                    f"<div style='text-align:right;font-size:1.12rem;"
+                    f"font-weight:800;color:#fff'>"
+                    f"{px_round.fmt_px(_sym, _cur)}</div>"
+                    f"<div style='text-align:right;color:{_pc};"
+                    f"font-size:1.08rem;font-weight:800;margin-top:2px'>"
+                    f"{_ur:+.2f}R</div>"
+                    f"<div style='text-align:right;color:{_pc};"
+                    f"font-size:0.76rem;font-weight:700'>"
+                    f"{_pctm:+.2f}% from entry</div>",
+                    unsafe_allow_html=True)
+                if _t1 != _e:
+                    _fz = ((_cur - _e) / (_t1 - _e) if _long
+                           else (_e - _cur) / (_e - _t1))
+                    if _fz >= 0:
+                        st.markdown(
+                            f"<span style='font-size:0.76rem'>🎯 <b style="
+                            f"'color:#2ed47a'>{min(_fz, 1) * 100:.0f}%</b>"
+                            f" toward TP1</span>", unsafe_allow_html=True)
+                    else:
+                        _fs = (abs(_cur - _e) / abs(_e - _stp)
+                               if _e != _stp else 0)
+                        st.markdown(
+                            f"<span style='font-size:0.76rem'>⚠️ <b style="
+                            f"'color:#ff5c5c'>{min(_fs, 1) * 100:.0f}%</b>"
+                            f" toward stop</span>", unsafe_allow_html=True)
+
+        # ── 📋 closed 💎 trades — visual record (user 2026-07-13):
+        # summary metrics + cumulative-R equity curve + green/red cards.
+        st.markdown(f"#### 📋 closed 💎 trades ({len(_bz_hist)})")
+        if not _bz_hist:
+            st.caption("No closed 💎 trades yet — every exit lands here "
+                       "with its receipt the moment the desk closes one.")
+        else:
+            _bn = len(_bz_hist)
+            _bw = sum(1 for t in _bz_hist
+                      if float(t.get("pnl_r") or 0) > 0)
+            _bnet = sum(float(t.get("pnl_r") or 0) for t in _bz_hist)
+            _m1, _m2, _m3 = st.columns(3)
+            _m1.metric("closed", f"{_bn}")
+            _m2.metric("win rate", f"{_bw / _bn * 100:.0f}%")
+            _m3.metric("net after fees", f"{_bnet:+.2f}R")
+            _bh_sorted = sorted(
+                _bz_hist, key=lambda t: float(t.get("closed_at") or 0))
+            if len(_bh_sorted) >= 2:
+                _cum, _acc = [], 0.0
+                for t in _bh_sorted:
+                    _acc += float(t.get("pnl_r") or 0)
+                    _cum.append(round(_acc, 3))
+                st.area_chart(
+                    pd.DataFrame({"cumulative R (after fees)": _cum}),
+                    height=180)
+            for t in _bh_sorted[::-1][:12]:
+                _sym = t.get("symbol") or ""
+                _side = (t.get("side") or "").upper()
+                _pr = float(t.get("pnl_r") or 0)
+                _win = _pr > 0
+                _cc = "#2ed47a" if _win else "#ff5c5c"
+                _rgb = "46,212,122" if _win else "255,92,92"
+                _sc = "#2ed47a" if _side == "LONG" else "#ff5c5c"
+                _dur = (float(t.get("closed_at") or 0)
+                        - float(t.get("opened_at") or 0))
+                _held = (f"{_dur / 3600:.1f}h" if 0 < _dur < 172800
+                         else (f"{_dur / 86400:.1f}d" if _dur > 0 else "—"))
+                st.markdown(
+                    f"<div style='background:rgba({_rgb},0.07);border:1px "
+                    f"solid {_cc}44;border-left:4px solid {_cc};"
+                    f"border-radius:10px;padding:8px 14px;margin:4px 0;"
+                    f"display:flex;justify-content:space-between;"
+                    f"align-items:center'>"
+                    f"<span><b style='font-size:0.95rem'>"
+                    f"{_sym.replace('USDT', '')}</b> "
+                    f"<span style='color:{_sc};font-weight:800;"
+                    f"font-size:0.78rem'>{_side}</span> "
+                    f"<span style='color:#8b93a7;font-size:0.74rem'>· "
+                    f"{t.get('exit_reason')} · held {_held} · "
+                    f"{_ago(t.get('closed_at'))}</span><br>"
+                    f"<span style='color:#9aa7c7;font-size:0.76rem'>entry "
+                    f"{px_round.fmt_px(_sym, t.get('entry'))} → exit "
+                    f"{px_round.fmt_px(_sym, t.get('exit_px'))}</span>"
+                    f"</span>"
+                    f"<span style='color:{_cc};font-size:1.2rem;"
+                    f"font-weight:900'>{_pr:+.2f}R</span></div>",
+                    unsafe_allow_html=True)
+            if len(_bh_sorted) > 12:
+                st.caption(f"· showing the latest 12 of {len(_bh_sorted)} "
+                           f"closed trades")
         return
 
     # Paper Trader flow: the 💎 board moved to its own left-bar section —
