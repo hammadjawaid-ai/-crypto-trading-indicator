@@ -412,6 +412,20 @@ def cycle() -> None:
                 "HALTED and stays halted until you and Claude review.")
             n_alerts += 1 if ok else 0
         for _note in _lx.get("notes", []):
+            if ("loss limit" in _note.lower()
+                    and store.should_alert("live_daily_halt", 20 * 3600)):
+                ok, _ = tg.send(
+                    "⛔ *LIVE DAILY HALT* — the -"
+                    f"{live_executor.DAILY_LOSS_PCT:g}% daily loss cap "
+                    "was hit. No new live entries for the next 24h; open "
+                    "positions keep their exchange stops and ladder. "
+                    "This is the seatbelt working, not a malfunction.")
+                n_alerts += 1 if ok else 0
+            if ("adopted external" in _note
+                    and store.should_alert(f"live_adopt:{_note[:60]}",
+                                           12 * 3600)):
+                ok, _ = tg.send(f"👀 *LIVE* — {_note}")
+                n_alerts += 1 if ok else 0
             if "ARMED" in _note:
                 ok, _ = tg.send(
                     f"🤖💸 *LIVE EXECUTOR {_note}* — trading the proven "

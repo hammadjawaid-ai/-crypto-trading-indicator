@@ -103,6 +103,12 @@ def _ladder(s: dict, prices: dict) -> list[dict]:
     closed: list[dict] = []
     now = time.time()
     for p in list(s.get("open") or []):
+        # HANDS OFF adopted positions (manual trades the user opened on
+        # Bybit, or crash-orphans): their exchange-side SL/TP governs.
+        # Managing them here could close the user's own manual trade at
+        # our 48h rule — never. They still occupy slots (conservative).
+        if p.get("imported_from_exchange"):
+            continue
         px = prices.get(p["symbol"])
         expired = (now - float(p.get("opened_at") or now)
                    >= MAX_HOLD_H * 3600)
@@ -123,6 +129,15 @@ def _ladder(s: dict, prices: dict) -> list[dict]:
         p.setdefault("original_stop", orig)
         risk = abs(entry - orig)
         if risk <= 0:
+            # unmanageable (no usable stop) — we never HOLD what we
+            # cannot manage; close at market.
+            try:
+                cl = lb.close_position_at(s, p["symbol"], px,
+                                          reason="UNMANAGED")
+                if cl:
+                    closed.append(cl)
+            except Exception:
+                pass
             continue
         tp1 = float(p.get("tp1") or p.get("target") or 0)
         tp2 = float(p.get("tp2") or 0)
@@ -234,10 +249,23 @@ def run_cycle(tier_signals: dict, live_px_fn) -> dict:
         return out
 
     # --- reconcile with the exchange (SL/TP may have fired) --------------
+    # closes the sync detects (stop/target fired while we weren't looking)
+    # are surfaced in out["closed"] so the user gets the Telegram receipt;
+    # adopted external positions are announced but NEVER managed.
+    _n_closed_before = len(s.get("closed") or [])
+    _syms_before = {p.get("symbol") for p in s.get("open") or []}
     try:
         lb.sync_positions(s)
     except Exception:
         pass
+    out["closed"] += list(s.get("closed") or [])[_n_closed_before:]
+    for p in s.get("open") or []:
+        if (p.get("imported_from_exchange")
+                and p.get("symbol") not in _syms_before):
+            out["notes"].append(
+                f"adopted external position {p.get('symbol')} "
+                f"{p.get('side')} — leaving it to its exchange SL/TP "
+                f"(occupies a slot, never auto-managed)")
 
     # --- manage opens: FULL desk-parity ladder (BE -> TP1 lock -> trail
     # -> TP2/trail/48h). lb.evaluate is deliberately NOT used here — its
@@ -331,6 +359,9 @@ def run_cycle(tier_signals: dict, live_px_fn) -> dict:
                 pos["original_stop"] = stop
                 pos["peak"] = float(pos.get("entry") or entry)
                 out["opened"].append(dict(pos))
+                # save IMMEDIATELY — a crash between open and end-of-cycle
+                # must never orphan a live position from local state.
+                lb.save_state(STATE_PATH, s)
 
     lb.save_state(STATE_PATH, s)
     return out
