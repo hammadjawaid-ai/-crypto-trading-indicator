@@ -31,6 +31,17 @@ services:
         sync: false
       - key: COINALYZE_API_KEY
         sync: false
+      # 🤖💸 Agentic live trading (real money) — the executor arms ONLY
+      # when ALL THREE are set in the dashboard. Use a Bybit key with
+      # WITHDRAWALS DISABLED. LIVE_EXECUTOR=1 is the master switch.
+      - key: BYBIT_API_KEY
+        sync: false
+      - key: BYBIT_API_SECRET
+        sync: false
+      - key: LIVE_EXECUTOR
+        sync: false
+      - key: LIVE_RISK_PCT
+        value: "1.0"
     disk:
       name: app-data
       mountPath: /var/data

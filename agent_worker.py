@@ -23,6 +23,7 @@ if hasattr(sys.stdout, "buffer"):
 import best_board
 import binance_client
 import config
+import live_executor
 import lunarcrush
 import polymarket_events
 import scan_core
@@ -371,6 +372,58 @@ def cycle() -> None:
         _pxs = {}
         print("  shadow error:", exc, flush=True)
 
+    # 🤖💸 AGENTIC LIVE EXECUTOR (user go 2026-07-13, after the desk gate
+    # was met on live forward records). Real Bybit orders from the PROVEN
+    # tiers only (early_lane > apex > fresh > early_movers, deduped,
+    # in-zone). Armed ONLY when LIVE_EXECUTOR=1 + Bybit keys are set in
+    # the environment; every rail lives in live_executor/live_broker
+    # (1% risk, max 3 open, daily -3% halt, -15% kill switch, exchange-
+    # side stops, 48h policy parity with the desk).
+    try:
+        def _live_px(sym):
+            try:
+                return binance_client.get_ticker_price(sym)
+            except Exception:
+                return None
+        _lx = live_executor.run_cycle(
+            {"early_lane": em_big, "apex": apex, "fresh": fresh_m,
+             "early_movers": r.get("early_strong", [])}, _live_px)
+        for _po in _lx.get("opened", []):
+            ok, _ = tg.send(
+                f"💸 *LIVE OPENED* — {_po.get('base')} {_po.get('side')} "
+                f"({_po.get('tier')})\n"
+                f"qty `{_po.get('qty')}` @ `{_po.get('entry'):g}` · "
+                f"SL `{_po.get('stop'):g}` · TP `{_po.get('target'):g}` · "
+                f"{_po.get('leverage')}x\n"
+                f"_exchange-side stop set · BE at +1R · 48h max_")
+            n_alerts += 1 if ok else 0
+        for _pc in _lx.get("closed", []):
+            _pu = float(_pc.get("pnl_usd") or 0)
+            ok, _ = tg.send(
+                f"💸 *LIVE CLOSED* — {_pc.get('base')} "
+                f"{_pc.get('exit_reason')} · "
+                f"${_pu:+,.2f} ({float(_pc.get('pnl_pct') or 0):+.2f}%)")
+            n_alerts += 1 if ok else 0
+        if _lx.get("killed"):
+            ok, _ = tg.send(
+                "🛑 *KILL SWITCH FIRED* — live equity hit the max-drawdown "
+                "floor. Everything closed at market; live trading is "
+                "HALTED and stays halted until you and Claude review.")
+            n_alerts += 1 if ok else 0
+        for _note in _lx.get("notes", []):
+            if "ARMED" in _note:
+                ok, _ = tg.send(
+                    f"🤖💸 *LIVE EXECUTOR {_note}* — trading the proven "
+                    f"tiers (early-lane, apex, fresh, early movers) at "
+                    f"{live_executor.RISK_PCT:g}% risk/trade, max "
+                    f"{live_executor.MAX_CONCURRENT} open, daily "
+                    f"-{live_executor.DAILY_LOSS_PCT:g}% halt, "
+                    f"-{live_executor.KILL_PCT:g}% kill switch.")
+                n_alerts += 1 if ok else 0
+            print(f"  live_exec: {_note}", flush=True)
+    except Exception as exc:
+        print("  live_exec error:", exc, flush=True)
+
     # 🟡🔴 TREND HEALTH pings (user: "caution if the money bet stops
     # surviving"). 🔴 = a trend shadow trade just closed (trail/stop hit).
     # 🟡 = an open trend trade is losing AND within 25% of its stop.
@@ -456,6 +509,17 @@ def cycle() -> None:
             if _opn:
                 lines.append("🌊 open trend rides: " + ", ".join(
                     t["symbol"].replace("USDT", "") for t in _opn))
+            try:
+                _lst = live_executor.status()
+                if _lst.get("enabled"):
+                    _lmode = ("🛑 HALTED" if _lst.get("halted") else
+                              ("LIVE" if _lst.get("ready")
+                               else "waiting for keys"))
+                    lines.append(
+                        f"💸 live: {_lmode} · bal ${_lst['balance']:,.2f}"
+                        f" · {_lst['open']} open · {_lst['closed']} closed")
+            except Exception:
+                pass
             if _event_line:
                 lines.append(_event_line)
             if _mood_line:
@@ -511,6 +575,17 @@ def cycle() -> None:
             if _opn:
                 lines.append("🌊 open trend rides: " + ", ".join(
                     t["symbol"].replace("USDT", "") for t in _opn))
+            try:
+                _lst = live_executor.status()
+                if _lst.get("enabled"):
+                    _lmode = ("🛑 HALTED" if _lst.get("halted") else
+                              ("LIVE" if _lst.get("ready")
+                               else "waiting for keys"))
+                    lines.append(
+                        f"💸 live: {_lmode} · bal ${_lst['balance']:,.2f}"
+                        f" · {_lst['open']} open · {_lst['closed']} closed")
+            except Exception:
+                pass
             if _event_line:
                 lines.append(_event_line)
             if _mood_line:

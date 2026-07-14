@@ -47,3 +47,4 @@ screenshot*.png
 .premium_test.py
 .plan_test.py
 .commit_msg.tmp
+.live_exec.json
