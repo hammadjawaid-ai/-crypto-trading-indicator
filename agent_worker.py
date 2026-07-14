@@ -122,15 +122,6 @@ def _fmt_elite_early(p) -> str:
             f"high-conviction entry_")
 
 
-def _fmt_trend(p) -> str:
-    return (f"🌊 *TREND RIDER* — {p['base']} LONG "
-            f"(breakout +{p['score']:.1f}%)\n"
-            f"entry `{p['entry']:g}` · SL `{p['stop']:g}` (2.5×ATR-d) · "
-            f"ride the trail\n"
-            f"_the validated money core: 3yr +0.15-0.32R/trade after fees, "
-            f"hold days-to-weeks, winners 2.6× losers_")
-
-
 def _fmt_fresh(p) -> str:
     return (f"🌱 *FRESH MOVER* — {p['base']} {p['side']} "
             f"({p['tier']} {p['score']:.0f})\n"
@@ -322,8 +313,10 @@ def cycle() -> None:
     # richest label wins — 💎 BEST first, then the locked streams for
     # whatever didn't make the zone. The lean proven-only gating stays
     # shelved until the keyword "Lets deploy The new system".
+    # 🌊 TREND RIDER pushes removed entirely (user 2026-07-13) — board +
+    # desk shadow record continue silently; a trend-sourced 💎 pick can
+    # still buzz as BEST (that's the validated spot-driven cell voting).
     _push([p for p in best if _in_zone(p)], "best", _fmt_best)
-    _push(_not_best(r.get("trend", [])), "trend", _fmt_trend)
     _push(_not_best(apex), "apex", _fmt_apex)
     _push(_not_best(elite_early), "elite_early", _fmt_elite_early)
     _push(_not_best(fresh_m), "fresh", _fmt_fresh)
@@ -458,41 +451,9 @@ def cycle() -> None:
     except Exception as exc:
         print("  live_exec error:", exc, flush=True)
 
-    # 🟡🔴 TREND HEALTH pings (user: "caution if the money bet stops
-    # surviving"). 🔴 = a trend shadow trade just closed (trail/stop hit).
-    # 🟡 = an open trend trade is losing AND within 25% of its stop.
-    try:
-        for t in _sh_closed:
-            if t.get("tier") != "trend_rider":
-                continue
-            _pr = float(t.get("pnl_r") or 0)
-            ok, _ = tg.send(
-                f"🔴 *TREND EXIT* — {t['symbol'].replace('USDT','')} closed "
-                f"({t.get('reason')}) at `{t.get('exit'):g}` · "
-                f"{_pr:+.2f}R after fees. The trail decided — as designed.")
-            n_alerts += 1 if ok else 0
-    except Exception:
-        pass
-    try:
-        for t in store.shadow_open_trades():
-            if t["tier"] != "trend_rider":
-                continue
-            px = _pxs.get(t["symbol"])
-            if not px:
-                continue
-            entry, stop0 = float(t["entry"]), float(t["stop0"])
-            rng = entry - stop0
-            if rng > 0 and px < entry and (px - stop0) / rng < 0.25:
-                if store.should_alert(f"tr_caution:{t['symbol']}",
-                                      12 * 3600):
-                    ok, _ = tg.send(
-                        f"🟡 *TREND CAUTION* — {t['symbol'].replace('USDT','')} "
-                        f"LONG is {((px/entry)-1)*100:+.1f}% and near its "
-                        f"stop `{stop0:g}`. Plan says: let the stop decide "
-                        f"— no adds.")
-                    n_alerts += 1 if ok else 0
-    except Exception:
-        pass
+    # 🌊 TREND HEALTH pings (🔴 exit / 🟡 caution) REMOVED entirely per
+    # user 2026-07-13 ("I don't want the trend rider notification") —
+    # the desk shadow record keeps building silently on the app.
 
     # 📊🌅 DAILY MORNING REPORT — desk status + the 4-5 best qualifying
     # setups of the morning (user 2026-07-08). Default 04:00 UTC = 09:00
@@ -508,8 +469,6 @@ def cycle() -> None:
             _picks = []
             for p in best[:3]:
                 _picks.append(("💎 BEST ZONE", p))
-            for p in r.get("trend", [])[:3]:
-                _picks.append(("🌊 TREND (money core)", p))
             for p in em_big[:2]:
                 _picks.append(("🚀 EARLY-LANE (81% cell)", p))
             for p in apex[:2]:
@@ -538,11 +497,6 @@ def cycle() -> None:
                     f"{dot} `{rec['tier']}` — {rec['n']} closed · "
                     f"win {rec['win_pct']:.0f}% · net {rec['net_r']:+.1f}R "
                     f"· {rec['open']} open")
-            _opn = [t for t in store.shadow_open_trades()
-                    if t["tier"] == "trend_rider"]
-            if _opn:
-                lines.append("🌊 open trend rides: " + ", ".join(
-                    t["symbol"].replace("USDT", "") for t in _opn))
             try:
                 _lst = live_executor.status()
                 if _lst.get("enabled"):
@@ -588,8 +542,6 @@ def cycle() -> None:
                 _picks.append(("🏆 APEX", p))
             for p in elite_early[:1]:
                 _picks.append(("🌟 EARLY ELITE", p))
-            for p in r.get("trend", [])[:1]:
-                _picks.append(("🌊 TREND (money core)", p))
             _seen_pk2: set = set()
             _picks = [(_l, _p) for _l, _p in _picks
                       if not (_p.get("symbol") in _seen_pk2
@@ -604,11 +556,6 @@ def cycle() -> None:
             else:
                 lines.append("_No qualifying setups into the US session — "
                              "sit tight._")
-            _opn = [t for t in store.shadow_open_trades()
-                    if t["tier"] == "trend_rider"]
-            if _opn:
-                lines.append("🌊 open trend rides: " + ", ".join(
-                    t["symbol"].replace("USDT", "") for t in _opn))
             try:
                 _lst = live_executor.status()
                 if _lst.get("enabled"):
