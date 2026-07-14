@@ -393,9 +393,10 @@ def cycle() -> None:
                 f"💸 *LIVE OPENED* — {_po.get('base')} {_po.get('side')} "
                 f"({_po.get('tier')})\n"
                 f"qty `{_po.get('qty')}` @ `{_po.get('entry'):g}` · "
-                f"SL `{_po.get('stop'):g}` · TP `{_po.get('target'):g}` · "
-                f"{_po.get('leverage')}x\n"
-                f"_exchange-side stop set · BE at +1R · 48h max_")
+                f"SL `{_po.get('stop'):g}` · TP1 `{_po.get('tp1'):g}` · "
+                f"ride to `{_po.get('target'):g}` · {_po.get('leverage')}x\n"
+                f"_exchange stop set · BE at +1R · TP1 locks the win · "
+                f"trail rides · 48h max_")
             n_alerts += 1 if ok else 0
         for _pc in _lx.get("closed", []):
             _pu = float(_pc.get("pnl_usd") or 0)

@@ -8,7 +8,11 @@ REAL orders through live_broker.py using the exact policy the desk proved:
   entry:   market order at signal time (the desk record already includes
            taker fees both sides — parity with the proof)
   stops:   exchange-side SL + TP set the moment the position opens
-  ladder:  BE at +1R (exchange stop moved), target = TP1, 48h time-stop
+  ladder:  FULL DESK PARITY (user 2026-07-13 "ride the trade"): BE at
+           +1R -> TP1 LOCK (stop jumps to TP1, win banked) -> trail at
+           peak-1.2R -> exit at TP2 / trail / 48h time-stop. The
+           exchange TP sits at TP2 so winners RIDE; every stop ratchet
+           is mirrored to the exchange.
   picks:   ONLY tiers that are 🟢 GREEN on the desk RIGHT NOW — a tier
            whose live record degrades below the gate auto-pauses
   dedup:   one position per symbol; priority early_lane > apex > fresh >
@@ -73,6 +77,94 @@ def _load() -> dict:
     s["settings"].update(_SETTINGS)
     s["risk_per_trade_pct"] = RISK_PCT
     return s
+
+
+def _set_exchange_stop(symbol: str, sl: float | None = None,
+                       tp: float | None = None) -> None:
+    """Mirror a ladder stop/target move to the exchange. Fail-soft — the
+    local backup close in _ladder still protects if this call fails."""
+    try:
+        kwargs = {"category": "linear", "symbol": symbol,
+                  "tpslMode": "Full", "positionIdx": 0}
+        if sl is not None:
+            kwargs["stopLoss"] = str(sl)
+        if tp is not None:
+            kwargs["takeProfit"] = str(tp)
+        lb.client().set_trading_stop(**kwargs)
+    except Exception:
+        pass
+
+
+def _ladder(s: dict, prices: dict) -> list[dict]:
+    """The DESK-PARITY exit policy on every open live position — the
+    exact ladder the tiers were proven with (shadow_trader.manage):
+    BE at +1R, TP1 lock, 1.2R trail after TP1, TP2 / trail / 48h exit.
+    Every stop improvement is mirrored to the exchange."""
+    closed: list[dict] = []
+    now = time.time()
+    for p in list(s.get("open") or []):
+        px = prices.get(p["symbol"])
+        expired = (now - float(p.get("opened_at") or now)
+                   >= MAX_HOLD_H * 3600)
+        if not px:
+            if expired:
+                try:
+                    cl = lb.close_position_at(
+                        s, p["symbol"], float(p["entry"]), reason="TIME")
+                    if cl:
+                        closed.append(cl)
+                except Exception:
+                    pass
+            continue
+        px = float(px)
+        long = p["side"] == "LONG"
+        entry = float(p["entry"])
+        orig = float(p.get("original_stop") or p["stop"])
+        p.setdefault("original_stop", orig)
+        risk = abs(entry - orig)
+        if risk <= 0:
+            continue
+        tp1 = float(p.get("tp1") or p.get("target") or 0)
+        tp2 = float(p.get("tp2") or 0)
+        gain = (px - entry) if long else (entry - px)
+        peak = float(p.get("peak") or entry)
+        peak = max(peak, px) if long else min(peak, px)
+        p["peak"] = peak
+        new_stop = float(p["stop"])
+        if not p.get("break_even_set") and gain >= risk:
+            new_stop = entry
+            p["break_even_set"] = True
+        hit_tp1 = tp1 > 0 and ((px >= tp1) if long else (px <= tp1))
+        if hit_tp1 and not p.get("tp1_locked"):
+            new_stop = tp1
+            p["tp1_locked"] = True
+        if p.get("tp1_locked"):
+            trail = (peak - 1.2 * risk) if long else (peak + 1.2 * risk)
+            new_stop = max(new_stop, trail) if long else min(new_stop, trail)
+        if ((long and new_stop > float(p["stop"]))
+                or (not long and new_stop < float(p["stop"]))):
+            p["stop"] = float(new_stop)
+            _set_exchange_stop(p["symbol"], sl=new_stop)
+        # exits — backup to the exchange-side SL/TP (sync ran first)
+        stopped = (px <= float(p["stop"])) if long \
+            else (px >= float(p["stop"]))
+        hit_tp2 = tp2 > 0 and ((px >= tp2) if long else (px <= tp2))
+        if stopped or hit_tp2 or expired:
+            if hit_tp2:
+                xp, reason = tp2, "TP2"
+            elif stopped:
+                xp = float(p["stop"])
+                reason = "TP1_LOCK" if p.get("tp1_locked") else \
+                    ("BE" if p.get("break_even_set") else "stop")
+            else:
+                xp, reason = px, "TIME"
+            try:
+                cl = lb.close_position_at(s, p["symbol"], xp, reason=reason)
+                if cl:
+                    closed.append(cl)
+            except Exception:
+                pass
+    return closed
 
 
 def status() -> dict:
@@ -147,7 +239,9 @@ def run_cycle(tier_signals: dict, live_px_fn) -> dict:
     except Exception:
         pass
 
-    # --- manage opens: BE ladder + backup stop/target + 48h time-stop ----
+    # --- manage opens: FULL desk-parity ladder (BE -> TP1 lock -> trail
+    # -> TP2/trail/48h). lb.evaluate is deliberately NOT used here — its
+    # partial-take policy differs from the proven desk ladder.
     prices = {}
     for p in list(s.get("open") or []):
         try:
@@ -156,19 +250,7 @@ def run_cycle(tier_signals: dict, live_px_fn) -> dict:
                 prices[p["symbol"]] = float(px)
         except Exception:
             pass
-    try:
-        out["closed"] += lb.evaluate(s, prices)
-    except Exception:
-        pass
-    for p in list(s.get("open") or []):
-        if now - float(p.get("opened_at") or now) >= MAX_HOLD_H * 3600:
-            px = prices.get(p["symbol"]) or float(p["entry"])
-            try:
-                cl = lb.close_position_at(s, p["symbol"], px, reason="TIME")
-                if cl:
-                    out["closed"].append(cl)
-            except Exception:
-                pass
+    out["closed"] += _ladder(s, prices)
 
     # --- entries: proven tiers only, deduped, in-zone --------------------
     greens = set()
@@ -213,11 +295,16 @@ def run_cycle(tier_signals: dict, live_px_fn) -> dict:
             if dead or f > 0.25:
                 continue
             conf = int(float(p.get("score") or p.get("conviction") or 0))
+            tp2 = float(p.get("tp2") or 0)
+            # RIDE policy (user 2026-07-13): the exchange TP sits at TP2
+            # so winners can run; the ladder locks TP1 and trails — the
+            # exact policy the desk record was earned with.
             alert = {
                 "symbol": sym,
                 "base": p.get("base") or sym.replace("USDT", ""),
                 "side": side, "entry_low": entry, "stop": stop,
-                "target": tp1, "target_2": p.get("tp2") or None,
+                "target": tp2 if tp2 > 0 else tp1,
+                "target_2": tp2 or None,
                 # preflight needs conf>=70 for the leverage ladder; the
                 # tier's green record is the real gate, so floor at 75.
                 "confidence": max(75, conf),
@@ -236,7 +323,13 @@ def run_cycle(tier_signals: dict, live_px_fn) -> dict:
                 out["notes"].append(f"{sym}: {exc}")
                 continue
             if pos:
+                # ladder bookkeeping — pos is the same object stored in
+                # state["open"], so these fields persist with the state.
                 pos["tier"] = tier
+                pos["tp1"] = tp1
+                pos["tp2"] = tp2
+                pos["original_stop"] = stop
+                pos["peak"] = float(pos.get("entry") or entry)
                 out["opened"].append(dict(pos))
 
     lb.save_state(STATE_PATH, s)
