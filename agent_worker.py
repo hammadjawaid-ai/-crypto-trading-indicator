@@ -79,6 +79,18 @@ def _fmt_best(p) -> str:
             f"_{tags} — systems agreeing; BE at +1R, trail after TP1._")
 
 
+def _fmt_early_rest(p) -> str:
+    prog = p.get("_prog")
+    zone = (f" · 🟢 IN ZONE ({prog * 100:.0f}% to TP1)"
+            if prog is not None else "")
+    return (f"⚡ *EARLY MOVER* — {p['base']} {p['side']} "
+            f"(STRONG {p['score']:.0f}){zone}\n"
+            f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
+            f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
+            f"_STRONG + TAKE NOW 🔥 HOT (69% cell) — desk tier is 🟢 "
+            f"green. Size smaller than 🚀 early-lane._")
+
+
 def _fmt_prime(p) -> str:
     lanes = ", ".join(p.get("early_lanes") or [])
     prog = p.get("_prog")
@@ -319,6 +331,13 @@ def cycle() -> None:
     # ⭐ PRIME (2026-07-11): early-lane stream, in-zone only — covers any
     # early-lane pick that fell off the 💎 top list.
     _push([p for p in _not_best(em_big) if _in_zone(p)], "em", _fmt_prime)
+    # ⚡ EARLY MOVERS full stream (user 2026-07-13: "notify me for early
+    # movers!"): the plain STRONG+HOT rest was board-only since
+    # 2026-07-05 — now that it's a 🟢 green tier the live executor
+    # trades, every fire buzzes too. In-zone gated, richest label wins.
+    _em_rest = [p for p in _not_best(r.get("early_strong", []))
+                if not p.get("early_lanes")]
+    _push([p for p in _em_rest if _in_zone(p)], "emrest", _fmt_early_rest)
     # 🟢 GREEN LIGHT announcements stay (desk reports, rare + informative)
     try:
         _green = {rec["tier"] for rec in shadow_trader.tier_records()
