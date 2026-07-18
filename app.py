@@ -1654,51 +1654,11 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "both alive and in its entry zone. The bar is the "
                    "point: when a card appears here, it's a real take.")
 
-    # ── 🌊 TREND RIDER — THE MONEY CORE (user-approved 2026-07-08) ──────
-    # The only strategy that survived full validation: 3 years daily, fees
-    # included, out-of-sample coins. Long-only 20d breakout + EMA50, stop
-    # 2.5×ATR(1d), chandelier trail, hold days-to-weeks.
-    st.markdown("### 🌊 TREND RIDER — the money core")
-    st.caption("**The only strategy that survived 3 years + out-of-sample "
-               "validation with fees included** (+0.32R/trade top-40, "
-               "+0.15R fresh coins): daily 20-day breakout in an uptrend, "
-               "long-only. Stop 2.5×ATR(daily); **ride the trail for days "
-               "to weeks — no fixed TP**. ~40% win rate by design: losers "
-               "die small, winners run 2.6× bigger. Expect ~+2-6%/month at "
-               "1% risk, lumpy. The 1h boards below are context — this is "
-               "the engine.")
-    _tr_u = _dedup(trend_rows)
-    try:
-        _tr_open_syms = {t["symbol"] for t in _ws.shadow_open_trades()
-                         if t.get("tier") == "trend_rider"}
-    except Exception:
-        _tr_open_syms = set()
-    if _tr_u:
-        for _i, r in enumerate(_tr_u[:6]):
-            # status changes WHILE IN THE TRADE (user 2026-07-08): a fresh
-            # breakout shows TAKE NOW; once the desk holds it, 🟢 RIDING.
-            _riding = r.get("symbol") in _tr_open_syms
-            _state = ("<span style='background:#0b8a3e;color:#fff;padding:"
-                      "1px 7px;border-radius:5px;font-size:0.7rem;"
-                      "font-weight:800'>🟢 RIDING</span>" if _riding else
-                      "<span style='background:rgba(46,212,122,0.16);"
-                      "color:#2ed47a;padding:1px 7px;border-radius:5px;"
-                      "font-size:0.7rem;font-weight:800'>✅ TAKE NOW</span>")
-            _tag = ("<span style='background:rgba(56,189,248,0.2);"
-                    "color:#38bdf8;padding:1px 7px;border-radius:5px;"
-                    "font-size:0.7rem;font-weight:800'>🌊 TREND "
-                    f"+{float(r.get('score') or 0):.1f}% breakout</span> "
-                    f"{_state} "
-                    "<span style='background:rgba(255,255,255,0.08);"
-                    "color:#9aa7c7;padding:1px 7px;border-radius:5px;"
-                    "font-size:0.68rem;font-weight:800'>hold days-to-weeks"
-                    "</span>")
-            _open_card(r, f"brain_trend_{r.get('symbol')}_{_i}", _tag)
-    else:
-        st.caption("· No fresh daily breakouts right now — the money core "
-                   "fires ~once a day across the whole universe, and in "
-                   "downtrends it deliberately stands aside. Patience IS "
-                   "the strategy.")
+    # ── 🌊 TREND RIDER board REMOVED (user 2026-07-17: "trend rider is
+    # useless, remove it from boards and telegram — it's not making any
+    # money"). Telegram pushes were already removed 2026-07-13. The desk
+    # shadow tier keeps its silent record on the Decision Desk (fixed
+    # 21-day holds) in case it ever earns a green record.
 
     # ── BOARD 1: 🏆 APEX — several validated edges agree — openable ─────
     apex_u = _dedup(apex_rows)
@@ -7657,32 +7617,12 @@ if active_section == "🧪 Paper Trader":
         # first, then 📈 FIRING (strong momentum but outside the proven
         # slice). User: "should be for every coin that is firing high,
         # not the XPL pattern only."
-        _grinds = sorted(
-            [h for h in _eb_hits if h.get("pattern") == "grind"],
-            key=lambda h: (1 if h.get("validated") else 0,
-                           h.get("score", 0)),
-            reverse=True)
-        _n_val = sum(1 for h in _grinds if h.get("validated"))
-        st.markdown(
-            "<div style='display:flex;align-items:center;gap:12px;"
-            "margin-top:24px;margin-bottom:6px'>"
-            "<span style='font-size:1.35rem;font-weight:900;"
-            "background:linear-gradient(135deg,#6e8bff,#00d4ff);"
-            "-webkit-background-clip:text;-webkit-text-fill-color:"
-            "transparent;background-clip:text'>📈 GRIND TRADES</span>"
-            "<span style='color:#aab;font-size:0.82rem'>"
-            "every coin building strong steady momentum · "
-            f"{len(_grinds)} firing ({_n_val} ✅ validated) · "
-            "scale-out, ~52% backtested win on the validated slice"
-            "</span></div>",
-            unsafe_allow_html=True)
-        if not _grinds:
-            st.caption(
-                "No coin is firing a grind right now (needs a steady "
-                "≥2.5% / 2h move, 5+/8 candles one direction, above "
-                "EMA20). Scans the top 55 movers, refreshes every 60s "
-                "— a card appears the moment one fires.")
-        else:
+        # 📈 GRIND TRADES board HIDDEN (user 2026-07-17: "hide grind
+        # trades board — it's useless for me"). The grind detector still
+        # runs for the early-burst chips above; only this board's render
+        # is gated off. Flip _grinds back to the sorted list to restore.
+        _grinds = []
+        if _grinds:
             for _gi, _g in enumerate(_grinds):
                 _g_side_col = ("#2ed47a" if _g["side"] == "LONG"
                                else "#ff5c5c")
