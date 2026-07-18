@@ -305,7 +305,6 @@ def cycle() -> None:
         print("  best_board error:", exc, flush=True)
     for p in best:
         store.record_signal("best", p)
-    _best_keys = {(p.get("symbol"), p.get("side")) for p in best}
 
     def _in_zone(p):
         """🟢 gate: alert only while <=25% of entry→TP1 is gone and the
@@ -327,35 +326,26 @@ def cycle() -> None:
         except Exception:
             return True
 
-    def _not_best(items):
-        return [p for p in items
-                if (p.get("symbol"), p.get("side")) not in _best_keys]
-
-    # Alert policy (user 2026-07-08 + 2026-07-11): one buzz per setup,
-    # richest label wins — 💎 BEST first, then the locked streams for
-    # whatever didn't make the zone. The lean proven-only gating stays
-    # shelved until the keyword "Lets deploy The new system".
-    # 🌊 TREND RIDER pushes removed entirely (user 2026-07-13) — board +
-    # desk shadow record continue silently; a trend-sourced 💎 pick can
-    # still buzz as BEST (that's the validated spot-driven cell voting).
+    # Alert policy (user 2026-07-18): INDEPENDENT streams — every tier
+    # buzzes on its own; duplicates across streams are fine ("it can
+    # buzz with multiple notifications, that is ok"). 💎 BEST still
+    # fires on top when systems agree. The 85-conf floor now applies
+    # only where min_conf isn't overridden; 🎯 conf shown everywhere.
+    # In-zone gates stay on the entry-timing-sensitive streams (no
+    # chasing). 🌊 TREND RIDER stays removed (2026-07-13). The lean
+    # proven-only gating stays shelved until the keyword
+    # "Lets deploy The new system".
     _push([p for p in best if _in_zone(p)], "best", _fmt_best)
-    _push(_not_best(apex), "apex", _fmt_apex)
-    _push(_not_best(elite_early), "elite_early", _fmt_elite_early)
-    # 🌱 FRESH exempt from the 85 floor (user 2026-07-18): best forward
-    # win-rate tier (62%) whose nature is FIRST FIRE — it rarely has
-    # time to stack. Conf still computed + shown, never blocked.
-    _push(_not_best(fresh_m), "fresh", _fmt_fresh, min_conf=0)
-    _push(_not_best(tn_rest), "takenow", _fmt_takenow)
-    # ⭐ PRIME (2026-07-11): early-lane stream, in-zone only — covers any
-    # early-lane pick that fell off the 💎 top list.
-    _push([p for p in _not_best(em_big) if _in_zone(p)], "em", _fmt_prime)
-    # ⚡ EARLY MOVERS full stream (user 2026-07-13: "notify me for early
-    # movers!"): the plain STRONG+HOT rest was board-only since
-    # 2026-07-05 — now that it's a 🟢 green tier the live executor
-    # trades, every fire buzzes too. In-zone gated, richest label wins.
-    _em_rest = [p for p in _not_best(r.get("early_strong", []))
+    _push(apex, "apex", _fmt_apex, min_conf=0)
+    _push(elite_early, "elite_early", _fmt_elite_early, min_conf=0)
+    _push(fresh_m, "fresh", _fmt_fresh, min_conf=0)
+    _push(tn_rest, "takenow", _fmt_takenow, min_conf=0)
+    _push([p for p in em_big if _in_zone(p)], "em", _fmt_prime,
+          min_conf=0)
+    _em_rest = [p for p in r.get("early_strong", [])
                 if not p.get("early_lanes")]
-    _push([p for p in _em_rest if _in_zone(p)], "emrest", _fmt_early_rest)
+    _push([p for p in _em_rest if _in_zone(p)], "emrest",
+          _fmt_early_rest, min_conf=0)
     # 🟢 GREEN LIGHT announcements stay (desk reports, rare + informative)
     try:
         _green = {rec["tier"] for rec in shadow_trader.tier_records()
