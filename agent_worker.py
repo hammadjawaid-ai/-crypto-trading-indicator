@@ -248,16 +248,19 @@ def cycle() -> None:
     # link; still stored + shown in-app). SST1 standalone removed earlier.
     n_alerts = 0
 
-    def _push(items, key_prefix, fmt, conf_gated=True):
+    def _push(items, key_prefix, fmt, conf_gated=True, min_conf=None):
         nonlocal n_alerts
         for p in items:
             # 🎯 confidence floor (user 2026-07-14): buzz only stacked
             # max-confidence setups; everything else stays board-only.
+            # min_conf overrides the floor per stream (user 2026-07-18:
+            # FRESH buzzes regardless of stacking — pass min_conf=0).
             if conf_gated:
                 _cf = best_board.confidence(p.get("symbol"),
                                             p.get("side"))
                 p["_conf"] = _cf
-                if _cf < ALERT_CONF_MIN:
+                _floor = ALERT_CONF_MIN if min_conf is None else min_conf
+                if _cf < _floor:
                     continue
             if store.should_alert(f"{key_prefix}:{p['symbol']}:{p['side']}",
                                   COOLDOWN):
@@ -338,7 +341,10 @@ def cycle() -> None:
     _push([p for p in best if _in_zone(p)], "best", _fmt_best)
     _push(_not_best(apex), "apex", _fmt_apex)
     _push(_not_best(elite_early), "elite_early", _fmt_elite_early)
-    _push(_not_best(fresh_m), "fresh", _fmt_fresh)
+    # 🌱 FRESH exempt from the 85 floor (user 2026-07-18): best forward
+    # win-rate tier (62%) whose nature is FIRST FIRE — it rarely has
+    # time to stack. Conf still computed + shown, never blocked.
+    _push(_not_best(fresh_m), "fresh", _fmt_fresh, min_conf=0)
     _push(_not_best(tn_rest), "takenow", _fmt_takenow)
     # ⭐ PRIME (2026-07-11): early-lane stream, in-zone only — covers any
     # early-lane pick that fell off the 💎 top list.
