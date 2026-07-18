@@ -35,6 +35,12 @@ INTERVAL = max(1, int(getattr(config, "WORKER_INTERVAL_MIN", 5))) * 60
 COOLDOWN = max(1, int(getattr(config, "WORKER_ALERT_COOLDOWN_MIN", 360))) * 60
 MIN_CONV = float(getattr(config, "WORKER_SST1_MIN_CONV", 70))
 LB_MIN = float(getattr(config, "WORKER_LEADERBOARD_MIN_SCORE", 85))
+# 🎯 CONFIDENCE FLOOR for signal buzzes (user 2026-07-14: "only max
+# confidence, 85 or above"). 85 == the 💎 bar: a validated top cell
+# alone or 2+ systems agreeing. Lone single-system fires stay board-only.
+# Loosen anytime via env ALERT_CONF_MIN (e.g. 60 = everything again).
+import os as _os
+ALERT_CONF_MIN = float(_os.environ.get("ALERT_CONF_MIN", "85") or 85)
 
 
 def _tp2(p):
@@ -241,12 +247,24 @@ def cycle() -> None:
     # link; still stored + shown in-app). SST1 standalone removed earlier.
     n_alerts = 0
 
-    def _push(items, key_prefix, fmt):
+    def _push(items, key_prefix, fmt, conf_gated=True):
         nonlocal n_alerts
         for p in items:
+            # 🎯 confidence floor (user 2026-07-14): buzz only stacked
+            # max-confidence setups; everything else stays board-only.
+            if conf_gated:
+                _cf = best_board.confidence(p.get("symbol"),
+                                            p.get("side"))
+                p["_conf"] = _cf
+                if _cf < ALERT_CONF_MIN:
+                    continue
             if store.should_alert(f"{key_prefix}:{p['symbol']}:{p['side']}",
                                   COOLDOWN):
-                ok, msg = tg.send(fmt(p))
+                _msg = fmt(p)
+                if p.get("_conf") is not None and "\n" in _msg:
+                    _msg = _msg.replace(
+                        "\n", f" · 🎯 conf {p['_conf']}/100\n", 1)
+                ok, msg = tg.send(_msg)
                 n_alerts += 1 if ok else 0
                 if not ok:
                     print("  tg:", msg, flush=True)

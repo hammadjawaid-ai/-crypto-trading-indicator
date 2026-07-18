@@ -59,6 +59,23 @@ PATTERN_MAX_CHECKS = 12
 _oi_cache: dict = {}
 _OI_TTL = 3600.0
 
+# per-cycle vote tally for EVERY candidate (not just 💎 qualifiers) —
+# refreshed by compose(); the worker maps it to the 🎯 confidence score.
+LAST_VOTES: dict = {}
+
+
+def confidence(symbol: str, side: str, fallback_votes: float = 1.5) -> int:
+    """🎯 STRENGTH score 0-98 (user 2026-07-14: 'confidence booster').
+
+    HONEST FRAMING: this is a *system-agreement strength score*, NOT a win
+    probability. Calibrated so 85 == the 💎 qualification bar: a validated
+    top cell alone (early-lane 81.3%) or 2+ systems agreeing. Mapping:
+    conf = 25 + 20 x stacked-votes, capped 98. Lone single-system picks
+    land 50-65 by design — the user's 85 floor keeps only the stacked
+    best-of-the-best audible."""
+    votes = LAST_VOTES.get((symbol, (side or "").upper()), fallback_votes)
+    return int(min(98, 25 + 20 * float(votes)))
+
 
 def _oi5(sym: str) -> float | None:
     """5-day % change in daily open interest (cached 1h, fail-soft)."""
@@ -176,6 +193,9 @@ def compose(trend: list, apex: list, elite_early: list, fresh_m: list,
                     c["tags"].append(f"🎯 pattern: {ps.get('best_signal')}")
             except Exception:
                 pass
+
+    global LAST_VOTES
+    LAST_VOTES = {k: round(c["votes"], 2) for k, c in cands.items()}
 
     out = []
     for (_sym, _side), c in cands.items():
