@@ -23,6 +23,7 @@ if hasattr(sys.stdout, "buffer"):
 import best_board
 import binance_client
 import config
+import liq_flush
 import live_executor
 import lunarcrush
 import polymarket_events
@@ -380,12 +381,26 @@ def cycle() -> None:
                 return binance_client.get_ticker_price(sym)
             except Exception:
                 return None
+        # 🩸 LIQ FLUSH (2026-07-17): long-liquidation snapback — validated
+        # provisionally on 60d of 1h data (57.4% / +0.084R vs -0.087R
+        # baseline, both halves positive). SILENT proving tier: desk
+        # shadow record only — no alerts, no 💎 votes, no live trading
+        # until it earns its own 🟢 GREEN LIGHT.
+        try:
+            _lf = liq_flush.scan(
+                binance_client.get_top_symbols(20)["symbol"].tolist())
+        except Exception as _lf_exc:
+            _lf = []
+            print("  liq_flush error:", _lf_exc, flush=True)
+        for p in _lf:
+            store.record_signal("liq_flush", p)
         _tiers = (("best_board", best),
                   ("apex", apex), ("takenow_hot", tn_hot),
                   ("elite_early", elite_early),
                   ("fresh", fresh_m), ("early_movers",
                                        r.get("early_strong", [])),
                   ("early_lane", em_big),
+                  ("liq_flush", _lf),
                   ("trend_rider", r.get("trend", [])))
         for _tname, _sigs in _tiers:
             for p in _sigs:
