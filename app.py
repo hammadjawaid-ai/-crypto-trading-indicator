@@ -1362,8 +1362,37 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                         "color:#38bdf8;padding:1px 7px;border-radius:5px;"
                         "font-size:0.7rem;font-weight:800'>🚀 approved"
                         "</span>")
+                # cross-tier corroboration (user 2026-07-25: "see if it
+                # qualifies more with take now hot / apex etc") — does
+                # this early pick ALSO appear on the confirmed boards?
+                _k_ign = (r.get("symbol"), r.get("side"))
+                _also = []
+                if any((x.get("symbol"), x.get("side")) == _k_ign
+                       for x in best_rows):
+                    _also.append("💎 BEST")
+                if any((x.get("symbol"), x.get("side")) == _k_ign
+                       for x in apex_rows):
+                    _also.append("🏆 APEX")
+                if any((x.get("symbol"), x.get("side")) == _k_ign
+                       for x in tn_rows):
+                    _also.append("✅ TAKE NOW")
+                if any((x.get("symbol"), x.get("side")) == _k_ign
+                       for x in es_rows):
+                    _also.append("⚡ EM")
+                _also_html = "".join(
+                    f" <span style='background:rgba(46,212,122,0.12);"
+                    f"color:#2ed47a;padding:1px 6px;border-radius:5px;"
+                    f"font-size:0.67rem;font-weight:700'>also {_a}"
+                    f"</span>" for _a in _also)
+                if not _also:
+                    _also_html = (" <span style='background:rgba(255,"
+                                  "213,74,0.10);color:#ffd54a;padding:"
+                                  "1px 6px;border-radius:5px;font-size:"
+                                  "0.67rem;font-weight:700'>early only — "
+                                  "no confirmed tier yet</span>")
                 _open_card(r, f"brain_ign_{r.get('symbol')}_{_i}", _tag,
-                           accent="#ff5c5c", src="best_zone")
+                           edges_html=_also_html, accent="#ff5c5c",
+                           src="best_zone")
         else:
             st.caption("· No approved at-fire setups in the last 3h — "
                        "these decay fast by design; when one appears "
