@@ -23,6 +23,7 @@ if hasattr(sys.stdout, "buffer"):
 import best_board
 import binance_client
 import config
+import fast_confirm
 import ignition
 import liq_flush
 import live_executor
@@ -97,6 +98,17 @@ def _fmt_early_rest(p) -> str:
             f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
             f"_STRONG + TAKE NOW 🔥 HOT (69% cell) — desk tier is 🟢 "
             f"green. Size smaller than 🚀 early-lane._")
+
+
+def _fmt_fast30(p) -> str:
+    return (f"⏱ *FAST CONFIRM 30m* — {p['base']} {p['side']} "
+            f"({p['tier']} {p['score']:.0f} · 🚀 approved)\n"
+            f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
+            f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
+            f"_30m-candle confirm — ~30min earlier than the proven 1h. "
+            f"Measured weaker (68% / −0.02R vs 77% / +0.05R) — your "
+            f"explicit call. SIZE SMALLER. Desk tier fast30 is proving "
+            f"it forward._")
 
 
 def _fmt_ignition(p) -> str:
@@ -375,6 +387,19 @@ def cycle() -> None:
         store.record_signal("ignition", p)
     _push([p for p in _ign if _in_zone(p)], "ignition", _fmt_ignition,
           min_conf=0)
+    # ⏱ FAST CONFIRM 30m (user 2026-07-25: "remove 1h, 30 min confirm").
+    # The proven tiers + executor STAY on 1h (his own tests measured 30m
+    # as the loser twice this week); this is the sanctioned early outlet
+    # — labeled stream + silent desk tier "fast30" earning its record.
+    try:
+        _f30 = fast_confirm.scan(r.get("elite", []))
+    except Exception as _f30_exc:
+        _f30 = []
+        print("  fast30 error:", _f30_exc, flush=True)
+    for p in _f30:
+        store.record_signal("fast30", p)
+    _push([p for p in _f30 if _in_zone(p)], "fast30", _fmt_fast30,
+          min_conf=0)
     _push([p for p in best if _in_zone(p)], "best", _fmt_best,
           tier="best_board")
     _push(apex, "apex", _fmt_apex, min_conf=0, tier="apex")
@@ -441,6 +466,7 @@ def cycle() -> None:
                   ("early_lane", em_big),
                   ("liq_flush", _lf),
                   ("ignition", _ign),
+                  ("fast30", _f30),
                   ("trend_rider", r.get("trend", [])))
         for _tname, _sigs in _tiers:
             for p in _sigs:

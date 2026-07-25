@@ -1607,6 +1607,7 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "best_board": "💎 BEST ZONE",
                    "liq_flush": "🩸 LIQ FLUSH",
                    "ignition": "🚨 IGNITION",
+                   "fast30": "⏱ FAST CONFIRM (30m)",
                    "trend_rider": "🌊 TREND RIDER"}
     # recency-aware green (2026-07-25): badge matches shadow_trader's
     # gate — lifetime AND last-14d must both hold. 14d net shown per row.
