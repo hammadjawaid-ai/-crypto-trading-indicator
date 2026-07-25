@@ -1615,6 +1615,62 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                 f"<b style='color:{_ncol}'>{_net:+.2f}R</b> after fees · "
                 f"14d <b style='color:{_r14c}'>{_r14:+.1f}R</b> · "
                 f"{_opn} open</span></div>", unsafe_allow_html=True)
+        # 💸 SLOT REPLAY (user 2026-07-25: "we can't take every trade in
+        # real money — prove how many trades a day works with $1,200").
+        # Replays the desk's ACTUAL closed trades chronologically under
+        # real-account constraints: K slots, ONE position per coin,
+        # first-come. The honest bridge from desk records to real money.
+        with st.expander("💸 SLOT REPLAY — what a real account could "
+                         "have harvested from these same signals",
+                         expanded=False):
+            try:
+                _all_cl = _ws.shadow_closed_all()
+            except Exception:
+                _all_cl = []
+            _ex_tiers = {"early_lane", "apex", "fresh", "early_movers",
+                         "takenow_hot", "elite_early"}
+            _rp = [t for t in _all_cl
+                   if t.get("tier") in _ex_tiers
+                   and t.get("opened_at") and t.get("closed_at")]
+            if len(_rp) < 50:
+                st.caption("Needs ~50+ closed desk trades to replay — "
+                           "check back as the record grows.")
+            else:
+                _rp.sort(key=lambda t: float(t["opened_at"]))
+                _span_d = max(1e-9, (max(float(t["closed_at"])
+                                         for t in _rp)
+                                     - min(float(t["opened_at"])
+                                           for t in _rp)) / 86400)
+                for K in (1, 2, 3, 4, 5):
+                    _held: list = []
+                    _net = 0.0
+                    _n_t = 0
+                    for t in _rp:
+                        _ot = float(t["opened_at"])
+                        _held = [(ca, sy) for (ca, sy) in _held
+                                 if ca > _ot]
+                        if len(_held) >= K:
+                            continue
+                        if any(sy == t["symbol"] for _, sy in _held):
+                            continue
+                        _held.append((float(t["closed_at"]),
+                                      t["symbol"]))
+                        _net += float(t.get("pnl_r") or 0)
+                        _n_t += 1
+                    _rpd = _net / _span_d
+                    _hl = "**" if K == 3 else ""
+                    st.markdown(
+                        f"- {_hl}{K} slot{'s' if K > 1 else ''}{_hl} — "
+                        f"{_n_t} trades ({_n_t / _span_d:.1f}/day) → "
+                        f"net **{_net:+.1f}R** ({_rpd:+.2f}R/day ≈ "
+                        f"${_rpd * 12:+.0f}/day at 1% risk on $1,200)")
+                st.caption(f"Replayed {len(_rp)} closed desk trades over "
+                           f"{_span_d:.0f} days under real constraints "
+                           "(one position per coin, first-come). 3 slots "
+                           "= your live executor's setting. This is the "
+                           "honest answer to 'how many trades a day "
+                           "works' — measured, not guessed.")
+
         try:
             _sh_open_all = _ws.shadow_open_trades()
         except Exception:

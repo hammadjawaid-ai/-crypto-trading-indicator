@@ -249,6 +249,15 @@ def shadow_purge_tier(tier: str) -> None:
         c.close()
 
 
+def shadow_closed_all(limit: int = 6000) -> list[dict]:
+    """Every closed shadow trade (chronological) — feeds the 💸 SLOT
+    REPLAY that bridges desk records to real-account constraints."""
+    return _rows(
+        "SELECT tier,symbol,side,opened_at,closed_at,pnl_r "
+        "FROM shadow_trades WHERE status='CLOSED' "
+        "ORDER BY opened_at LIMIT ?", (limit,))
+
+
 def shadow_recent_net(tier: str, days: float = 14.0) -> dict:
     """{n, net_r} of CLOSED trades for one tier in the last `days` —
     the recency leg of the green-light gate (a tier bleeding recently

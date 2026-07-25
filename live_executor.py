@@ -281,14 +281,25 @@ def run_cycle(tier_signals: dict, live_px_fn) -> dict:
     out["closed"] += _ladder(s, prices)
 
     # --- entries: proven tiers only, deduped, in-zone --------------------
+    # DYNAMIC PRIORITY (2026-07-25, the slot-scarcity fix): the account
+    # has 3 slots against hundreds of desk signals — so slots go to the
+    # green tiers with the best RECENT (14d) net per closed trade, not a
+    # static order. What's working now gets the money first.
     greens = set()
+    _form: dict = {}
     try:
-        greens = {r["tier"] for r in shadow_trader.tier_records()
-                  if r.get("green")}
+        for _r in shadow_trader.tier_records():
+            if _r.get("green"):
+                greens.add(_r["tier"])
+            _form[_r["tier"]] = (float(_r.get("recent_net") or 0)
+                                 / max(1, int(_r.get("recent_n") or 0)))
     except Exception:
         pass
+    tier_order = sorted([t for t in TIERS if t in greens],
+                        key=lambda t: -_form.get(t, 0.0)) \
+        or [t for t in TIERS if t in greens]
     seen: set = set()
-    for tier in TIERS:
+    for tier in tier_order:
         if tier not in greens:
             continue                     # tier lost its proof — auto-pause
         for p in tier_signals.get(tier) or []:
