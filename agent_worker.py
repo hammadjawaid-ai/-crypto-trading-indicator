@@ -259,9 +259,24 @@ def cycle() -> None:
     # link; still stored + shown in-app). SST1 standalone removed earlier.
     n_alerts = 0
 
-    def _push(items, key_prefix, fmt, conf_gated=True, min_conf=None):
+    # 🟢 DESK AUTO-GATE (user 2026-07-25: "skip the ones that aren't
+    # good"): each stream buzzes only while its own desk tier is GREEN.
+    # Degraded tiers silence themselves; re-proven tiers speak again.
+    # Fail-open when the desk is unreadable. IGNITION is exempt (the
+    # user wants it while unproven, by explicit call).
+    try:
+        _greens_alert = {rec["tier"] for rec in
+                         shadow_trader.tier_records() if rec.get("green")}
+    except Exception:
+        _greens_alert = None
+
+    def _push(items, key_prefix, fmt, conf_gated=True, min_conf=None,
+              tier=None):
         nonlocal n_alerts
         for p in items:
+            if (tier is not None and _greens_alert is not None
+                    and tier not in _greens_alert):
+                continue          # tier's live record not green — silent
             # 🎯 confidence floor (user 2026-07-14): buzz only stacked
             # max-confidence setups; everything else stays board-only.
             # min_conf overrides the floor per stream (user 2026-07-18:
@@ -360,17 +375,20 @@ def cycle() -> None:
         store.record_signal("ignition", p)
     _push([p for p in _ign if _in_zone(p)], "ignition", _fmt_ignition,
           min_conf=0)
-    _push([p for p in best if _in_zone(p)], "best", _fmt_best)
-    _push(apex, "apex", _fmt_apex, min_conf=0)
-    _push(elite_early, "elite_early", _fmt_elite_early, min_conf=0)
-    _push(fresh_m, "fresh", _fmt_fresh, min_conf=0)
-    _push(tn_rest, "takenow", _fmt_takenow, min_conf=0)
+    _push([p for p in best if _in_zone(p)], "best", _fmt_best,
+          tier="best_board")
+    _push(apex, "apex", _fmt_apex, min_conf=0, tier="apex")
+    _push(elite_early, "elite_early", _fmt_elite_early, min_conf=0,
+          tier="elite_early")
+    _push(fresh_m, "fresh", _fmt_fresh, min_conf=0, tier="fresh")
+    _push(tn_rest, "takenow", _fmt_takenow, min_conf=0,
+          tier="takenow_hot")
     _push([p for p in em_big if _in_zone(p)], "em", _fmt_prime,
-          min_conf=0)
+          min_conf=0, tier="early_lane")
     _em_rest = [p for p in r.get("early_strong", [])
                 if not p.get("early_lanes")]
     _push([p for p in _em_rest if _in_zone(p)], "emrest",
-          _fmt_early_rest, min_conf=0)
+          _fmt_early_rest, min_conf=0, tier="early_movers")
     # 🟢 GREEN LIGHT announcements stay (desk reports, rare + informative)
     try:
         _green = {rec["tier"] for rec in shadow_trader.tier_records()
