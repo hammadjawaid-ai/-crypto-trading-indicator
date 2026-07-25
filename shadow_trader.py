@@ -36,6 +36,11 @@ MAX_HOLD_H_BY_TIER = {"trend_rider": 21 * 24.0}
 TRAIL_R = 1.2                # post-TP1 trail distance in initial-risk units
 GREEN_MIN_TRADES = 20        # a tier needs this many closed trades...
 GREEN_MIN_NET_R = 2.0        # ...and this much net R after fees to go GREEN
+# RECENCY leg (2026-07-25, the EARLY-LANE lesson: -19R over 12 days
+# while still lifetime-green): green ALSO requires a non-negative last-
+# 14-days record once there are enough recent closes to judge.
+RECENT_DAYS = 14.0
+RECENT_MIN_N = 10
 
 
 def _fees_r(entry: float, risk: float) -> float:
@@ -129,18 +134,29 @@ def manage(prices: dict) -> list[dict]:
 
 
 def tier_records() -> list[dict]:
-    """Per-tier forward record: n, win%, net R after fees, green-light."""
+    """Per-tier forward record: n, win%, net R after fees, green-light.
+    Green = lifetime gate (>=20 closed, >=+2R) AND recent gate (last
+    14d net > 0, once >=10 recent closes exist to judge by)."""
     out = []
     for rec in store.shadow_summary():
         n = int(rec["n"] or 0)
         wins = int(rec["wins"] or 0)
         net = float(rec["net_r"] or 0.0)
-        green = n >= GREEN_MIN_TRADES and net >= GREEN_MIN_NET_R
+        try:
+            recent = store.shadow_recent_net(rec["tier"], RECENT_DAYS)
+        except Exception:
+            recent = {"n": 0, "net_r": 0.0}
+        recent_ok = (recent["n"] < RECENT_MIN_N
+                     or recent["net_r"] > 0)
+        green = (n >= GREEN_MIN_TRADES and net >= GREEN_MIN_NET_R
+                 and recent_ok)
         out.append({
             "tier": rec["tier"], "n": n,
             "win_pct": (wins / n * 100.0) if n else 0.0,
             "net_r": net,
             "open": int(rec["open_n"] or 0),
+            "recent_n": recent["n"],
+            "recent_net": round(recent["net_r"], 2),
             "green": bool(green),
         })
     return out

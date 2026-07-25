@@ -249,6 +249,22 @@ def shadow_purge_tier(tier: str) -> None:
         c.close()
 
 
+def shadow_recent_net(tier: str, days: float = 14.0) -> dict:
+    """{n, net_r} of CLOSED trades for one tier in the last `days` —
+    the recency leg of the green-light gate (a tier bleeding recently
+    must not keep its voice on lifetime glory)."""
+    cutoff = time.time() - days * 86400
+    c = _open()
+    try:
+        row = c.execute(
+            "SELECT COUNT(*), COALESCE(SUM(pnl_r),0) FROM shadow_trades "
+            "WHERE tier=? AND status='CLOSED' AND closed_at>=?",
+            (tier, cutoff)).fetchone()
+        return {"n": int(row[0] or 0), "net_r": float(row[1] or 0.0)}
+    finally:
+        c.close()
+
+
 def shadow_recent(limit: int = 30) -> list[dict]:
     return _rows(
         "SELECT * FROM shadow_trades WHERE status='CLOSED' "

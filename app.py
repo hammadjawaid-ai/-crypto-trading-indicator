@@ -1579,6 +1579,13 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "liq_flush": "🩸 LIQ FLUSH",
                    "ignition": "🚨 IGNITION",
                    "trend_rider": "🌊 TREND RIDER"}
+    # recency-aware green (2026-07-25): badge matches shadow_trader's
+    # gate — lifetime AND last-14d must both hold. 14d net shown per row.
+    try:
+        import shadow_trader as _sht_app
+        _grn_map = {x["tier"]: x for x in _sht_app.tier_records()}
+    except Exception:
+        _grn_map = {}
     if _sh_sum:
         for rec in _sh_sum:
             _nm = _tier_names.get(rec.get("tier"), rec.get("tier"))
@@ -1587,7 +1594,11 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
             _net = float(rec.get("net_r") or 0.0)
             _opn = int(rec.get("open_n") or 0)
             _wr = (_wins / _n * 100.0) if _n else 0.0
-            _green = _n >= 20 and _net >= 2.0
+            _gr = _grn_map.get(rec.get("tier"))
+            _green = (bool(_gr.get("green")) if _gr
+                      else (_n >= 20 and _net >= 2.0))
+            _r14 = float((_gr or {}).get("recent_net") or 0.0)
+            _r14c = "#2ed47a" if _r14 > 0 else "#ff5c5c"
             _badge = ("<span style='background:#0b8a3e;color:#fff;padding:"
                       "2px 9px;border-radius:6px;font-weight:800;font-size:"
                       "0.72rem'>🟢 GREEN LIGHT</span>" if _green else
@@ -1602,6 +1613,7 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                 f"<span style='color:#9aa7c7;font-size:0.8rem'>· "
                 f"{_n} closed · win {_wr:.0f}% · net "
                 f"<b style='color:{_ncol}'>{_net:+.2f}R</b> after fees · "
+                f"14d <b style='color:{_r14c}'>{_r14:+.1f}R</b> · "
                 f"{_opn} open</span></div>", unsafe_allow_html=True)
         try:
             _sh_open_all = _ws.shadow_open_trades()
