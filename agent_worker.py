@@ -384,7 +384,7 @@ def cycle() -> None:
         # until it earns its own 🟢 GREEN LIGHT.
         try:
             _lf = liq_flush.scan(
-                binance_client.get_top_symbols(20)["symbol"].tolist())
+                binance_client.get_top_symbols(40)["symbol"].tolist())
         except Exception as _lf_exc:
             _lf = []
             print("  liq_flush error:", _lf_exc, flush=True)

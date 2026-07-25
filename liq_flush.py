@@ -25,6 +25,7 @@ to no-signals when the key/API is unavailable.
 """
 from __future__ import annotations
 
+import os
 import time
 
 import pandas as pd
@@ -32,7 +33,10 @@ import pandas as pd
 import binance_client
 import coinalyze_client as cz
 
-TOP_N = 15               # most-liquid coins only — keeps API use tiny
+# Universe widened 15 -> 30 (user RIF case 2026-07-22: small caps erupt
+# INTO the volume ranks exactly when they flush — top-15 missed it; the
+# validation itself ran on a top-40 universe, so this stays in-envelope).
+TOP_N = int(os.environ.get("LIQ_TOP_N", "30") or 30)
 P99_TTL = 6 * 3600.0
 STOP_ATR = 1.5
 TP2_ATR = 3.0
@@ -106,6 +110,14 @@ def scan(symbols: list[str]) -> list[dict]:
         entry = float(c.iloc[-1])
         if not (atr > 0 and entry > 0):
             continue
+        # funding context (informational, fires are rare so one extra
+        # call): deep-negative funding = crowded shorts still paying —
+        # the RIF-type tell (-2%/4h) rides along in the stored signal.
+        fund = None
+        try:
+            fund = (cz.current_funding([mkt]) or {}).get(mkt)
+        except Exception:
+            pass
         out.append({
             "symbol": sym,
             "base": sym.replace("USDT", ""),
@@ -118,5 +130,6 @@ def scan(symbols: list[str]) -> list[dict]:
             "tp2": entry + TP2_ATR * atr,
             "atr_pct": round(atr / entry * 100, 3),
             "liq_spike_at": str(last_spike),
+            "funding": fund,
         })
     return out
