@@ -121,12 +121,46 @@ def _hold_est(p: dict, from_trend: bool) -> str:
     return "hours-2 days (cut at 48h)"
 
 
+def _form_mults() -> dict:
+    """FORM-WEIGHTED voting (2026-07-25, the 💎-desk-negative fix): each
+    voter's weight is scaled by its own desk tier's recent-14d form —
+    the same recency principle already governing the alert gate and the
+    executor's slot priority. In-form voters keep/gain power; bleeding
+    voters (like early-lane's -19R fortnight) get halved. Fail-open to
+    1.0x when the desk is unreadable or the sample is thin."""
+    mults: dict = {}
+    try:
+        import shadow_trader
+        for rec in shadow_trader.tier_records():
+            n = int(rec.get("recent_n") or 0)
+            if n < 10:
+                mults[rec["tier"]] = 1.0
+                continue
+            per = float(rec.get("recent_net") or 0) / n
+            mults[rec["tier"]] = (1.25 if per > 0.10
+                                  else 1.0 if per > 0 else 0.5)
+    except Exception:
+        pass
+    return mults
+
+
+# voter -> desk tier whose form scales its weight
+_VOTER_TIER = {"em_big": "early_lane", "apex": "apex",
+               "elite_early": "elite_early", "fresh": "fresh",
+               "tn_hot": "takenow_hot", "trend": "trend_rider"}
+
+
 def compose(trend: list, apex: list, elite_early: list, fresh_m: list,
             tn_hot: list, em_big: list, top: int = TOP,
             elite_watch: list | None = None,
             pattern_votes: bool = True) -> list[dict]:
-    """The 💎 list: candidates from every lane, vote-stacked and ranked."""
+    """The 💎 list: candidates from every lane, vote-stacked and ranked.
+    Votes are FORM-WEIGHTED by each system's recent desk record."""
     cands: dict = {}
+    _fm = _form_mults()
+
+    def _w(base: float, voter: str) -> float:
+        return base * _fm.get(_VOTER_TIER.get(voter, ""), 1.0)
 
     def _add(p: dict, w: float, tag: str, plan_rank: int) -> None:
         sym = p.get("symbol")
@@ -147,23 +181,25 @@ def compose(trend: list, apex: list, elite_early: list, fresh_m: list,
         # name the actual early systems that fired (user 2026-07-13:
         # early_trend / early_momentum must be visible in the stack)
         _lanes = "+".join(p.get("early_lanes") or []) or "early-lane"
-        _add(p, W_EARLY_LANE, f"⭐🚀 early-lane 81% ({_lanes})", 0)
+        _add(p, _w(W_EARLY_LANE, "em_big"),
+             f"⭐🚀 early-lane 81% ({_lanes})", 0)
     for p in elite_early:
-        _add(p, W_ELITE_EARLY, "🌟 early elite", 1)
+        _add(p, _w(W_ELITE_EARLY, "elite_early"), "🌟 early elite", 1)
     for p in apex:
-        _add(p, W_APEX, "🏆 apex", 2)
+        _add(p, _w(W_APEX, "apex"), "🏆 apex", 2)
     for p in fresh_m:
-        _add(p, W_FRESH, "🌱 fresh", 3)
+        _add(p, _w(W_FRESH, "fresh"), "🌱 fresh", 3)
     for p in tn_hot:
-        _add(p, W_TN_HOT, "✅🔥 hot", 4)
+        _add(p, _w(W_TN_HOT, "tn_hot"), "✅🔥 hot", 4)
     for p in trend:
         oi5 = _oi5(p.get("symbol"))
         if oi5 is not None and oi5 < 0:
-            _add(p, W_TREND_SPOT, "🌊🟢 spot-driven breakout 74%", 5)
+            _add(p, _w(W_TREND_SPOT, "trend"),
+                 "🌊🟢 spot-driven breakout 74%", 5)
         elif oi5 is not None and oi5 > 0.10:
-            _add(p, W_TREND_CROWDED, "🌊⚠️ crowded breakout", 5)
+            _add(p, _w(W_TREND_CROWDED, "trend"), "🌊⚠️ crowded breakout", 5)
         else:
-            _add(p, W_TREND, "🌊 trend breakout", 5)
+            _add(p, _w(W_TREND, "trend"), "🌊 trend breakout", 5)
     # 🛡 ELITE conviction watch (user 2026-07-13): the full MAX/HIGH
     # conviction board confirms as a vote — plan only as last resort
     # (watch rows can be pre-confirmation/ARMING).
