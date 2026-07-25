@@ -1103,6 +1103,7 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
         trend_rows = _ws.recent_by_stream("trend", 12)
         elite_rows = _ws.recent_by_stream("elite", 24)
         best_rows = _ws.recent_by_stream("best", 12)
+        ign_rows = _ws.recent_by_stream("ignition", 8)
     except Exception:
         return
 
@@ -1120,6 +1121,7 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
     ride_rows = _recent_rows(ride_rows, 2)
     trend_rows = _recent_rows(trend_rows, 24)   # daily signals live longer
     best_rows = _recent_rows(best_rows, 8)
+    ign_rows = _recent_rows(ign_rows, 3)   # at-fire decays fast
 
     if not best_zone_only:
         st.markdown(
@@ -1338,6 +1340,36 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                        "or 2+ systems agree on the same coin and side. "
                        "When one appears here (and on your Telegram), "
                        "it's the best the whole system has.")
+        # ── 🚨 IGNITION — the EARLIEST picks (user 2026-07-25: "fast and
+        # early even if it fails — I need that anyhow"). At-fire ELITE
+        # MAX/HIGH + validated 🚀 approval gate, on the ONE dashboard so
+        # proven-best and earliest live on a single screen.
+        st.markdown("#### 🚨 EARLY — at-fire (riskier, by your call)")
+        st.caption("**The earliest entries in the system** — ELITE "
+                   "MAX/HIGH the moment it fires, 🚀 lane-approved, "
+                   "1-2h before the confirmation the 💎 cards wait for. "
+                   "Honest odds ~50-65% (vs 70%+ confirmed) — **size "
+                   "smaller**. The desk is proving this stream forward "
+                   "under 🚨 IGNITION.")
+        _ign_u = _dedup(ign_rows)
+        if _ign_u:
+            for _i, r in enumerate(_ign_u[:4]):
+                _tag = ("<span style='background:rgba(255,92,92,0.18);"
+                        "color:#ff5c5c;padding:1px 8px;border-radius:5px;"
+                        "font-size:0.72rem;font-weight:800'>🚨 EARLY · "
+                        "at-fire</span> "
+                        "<span style='background:rgba(56,189,248,0.18);"
+                        "color:#38bdf8;padding:1px 7px;border-radius:5px;"
+                        "font-size:0.7rem;font-weight:800'>🚀 approved"
+                        "</span>")
+                _open_card(r, f"brain_ign_{r.get('symbol')}_{_i}", _tag,
+                           accent="#ff5c5c", src="best_zone")
+        else:
+            st.caption("· No approved at-fire setups in the last 3h — "
+                       "these decay fast by design; when one appears "
+                       "(and buzzes 🚨 on Telegram), the clock is "
+                       "already running.")
+
         # ── 📂 my open 💎 trades — MANUAL only (user 2026-07-13: nothing
         # opens by itself on this page). You hit 📥 Open on a card above;
         # the position appears here with the same card + live chart as
