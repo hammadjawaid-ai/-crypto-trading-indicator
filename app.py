@@ -1545,6 +1545,7 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "early_lane": "🚀 EARLY-LANE",
                    "best_board": "💎 BEST ZONE",
                    "liq_flush": "🩸 LIQ FLUSH",
+                   "ignition": "🚨 IGNITION",
                    "trend_rider": "🌊 TREND RIDER"}
     if _sh_sum:
         for rec in _sh_sum:

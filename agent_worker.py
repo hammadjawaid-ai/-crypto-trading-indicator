@@ -23,6 +23,7 @@ if hasattr(sys.stdout, "buffer"):
 import best_board
 import binance_client
 import config
+import ignition
 import liq_flush
 import live_executor
 import lunarcrush
@@ -96,6 +97,16 @@ def _fmt_early_rest(p) -> str:
             f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
             f"_STRONG + TAKE NOW 🔥 HOT (69% cell) — desk tier is 🟢 "
             f"green. Size smaller than 🚀 early-lane._")
+
+
+def _fmt_ignition(p) -> str:
+    return (f"🚨 *IGNITION (early)* — {p['base']} {p['side']} "
+            f"({p['tier']} {p['score']:.0f} · 🚀 approved)\n"
+            f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
+            f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
+            f"_AT-FIRE — 1-2h earlier than confirmation, by your call "
+            f"('fast even if it fails'). Honest odds ~50-65%. SIZE "
+            f"SMALLER. Desk is proving it forward._")
 
 
 def _fmt_prime(p) -> str:
@@ -335,6 +346,20 @@ def cycle() -> None:
     # chasing). 🌊 TREND RIDER stays removed (2026-07-13). The lean
     # proven-only gating stays shelved until the keyword
     # "Lets deploy The new system".
+    # 🚨 IGNITION (user 2026-07-25: "fast and early even if it fails —
+    # I need that anyhow"): at-fire ELITE MAX/HIGH + validated approval
+    # gate. Earliest buzz in the system; honest ~50-65% odds stated in
+    # every message; desk shadow tier proves it forward; the LIVE
+    # executor does NOT trade it unless it ever earns green + user go.
+    try:
+        _ign = ignition.scan(r.get("elite", []))
+    except Exception as _ign_exc:
+        _ign = []
+        print("  ignition error:", _ign_exc, flush=True)
+    for p in _ign:
+        store.record_signal("ignition", p)
+    _push([p for p in _ign if _in_zone(p)], "ignition", _fmt_ignition,
+          min_conf=0)
     _push([p for p in best if _in_zone(p)], "best", _fmt_best)
     _push(apex, "apex", _fmt_apex, min_conf=0)
     _push(elite_early, "elite_early", _fmt_elite_early, min_conf=0)
@@ -397,6 +422,7 @@ def cycle() -> None:
                                        r.get("early_strong", [])),
                   ("early_lane", em_big),
                   ("liq_flush", _lf),
+                  ("ignition", _ign),
                   ("trend_rider", r.get("trend", [])))
         for _tname, _sigs in _tiers:
             for p in _sigs:
