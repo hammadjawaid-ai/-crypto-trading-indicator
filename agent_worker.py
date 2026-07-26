@@ -31,6 +31,7 @@ import lunarcrush
 import polymarket_events
 import scan_core
 import shadow_trader
+import surge_radar
 import telegram_notify as tg
 import worker_store as store
 
@@ -98,6 +99,17 @@ def _fmt_early_rest(p) -> str:
             f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
             f"_STRONG + TAKE NOW 🔥 HOT (69% cell) — desk tier is 🟢 "
             f"green. Size smaller than 🚀 early-lane._")
+
+
+def _fmt_surge(p) -> str:
+    return (f"📡 *SURGE (fresh pump)* — {p['base']} LONG "
+            f"(+{p.get('surge_pct')}% in {p.get('surge_age_bars')}x15m · "
+            f"24h {p.get('chg24'):+.0f}%)\n"
+            f"entry `{p['entry']:g}` · SL `{p['stop']:g}` (surge low) · "
+            f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
+            f"_Whole-market ignition radar — fires ONLY in a pump's "
+            f"first ~2h; refuses extended chases. UNPROVEN construct, "
+            f"desk tier 📡 surge is proving it. SIZE SMALL._")
 
 
 def _fmt_fast30(p) -> str:
@@ -400,6 +412,18 @@ def cycle() -> None:
         store.record_signal("fast30", p)
     _push([p for p in _f30 if _in_zone(p)], "fast30", _fmt_fast30,
           min_conf=0)
+    # 📡 SURGE RADAR (user 2026-07-26, LPT case): whole-market fresh-
+    # pump ignition — fires only in a pump's first ~2h, refuses
+    # extended chases. Unproven: labeled stream + desk tier proving.
+    try:
+        _srg = surge_radar.scan()
+    except Exception as _srg_exc:
+        _srg = []
+        print("  surge error:", _srg_exc, flush=True)
+    for p in _srg:
+        store.record_signal("surge", p)
+    _push([p for p in _srg if _in_zone(p)], "surge", _fmt_surge,
+          min_conf=0)
     _push([p for p in best if _in_zone(p)], "best", _fmt_best,
           tier="best_board")
     _push(apex, "apex", _fmt_apex, min_conf=0, tier="apex")
@@ -467,6 +491,7 @@ def cycle() -> None:
                   ("liq_flush", _lf),
                   ("ignition", _ign),
                   ("fast30", _f30),
+                  ("surge", _srg),
                   ("trend_rider", r.get("trend", [])))
         for _tname, _sigs in _tiers:
             for p in _sigs:
