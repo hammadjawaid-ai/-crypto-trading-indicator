@@ -422,8 +422,11 @@ def cycle() -> None:
         print("  surge error:", _srg_exc, flush=True)
     for p in _srg:
         store.record_signal("surge", p)
-    _push([p for p in _srg if _in_zone(p)], "surge", _fmt_surge,
-          min_conf=0)
+    # 📡 buzzes DISABLED pending backtest verdict (user 2026-07-26:
+    # "don't deploy first, test") — desk tier keeps proving silently.
+    # Re-enable by restoring the _push line below once validated.
+    # _push([p for p in _srg if _in_zone(p)], "surge", _fmt_surge,
+    #       min_conf=0)
     _push([p for p in best if _in_zone(p)], "best", _fmt_best,
           tier="best_board")
     _push(apex, "apex", _fmt_apex, min_conf=0, tier="apex")
