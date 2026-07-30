@@ -28,6 +28,7 @@ import ignition
 import liq_flush
 import live_executor
 import lunarcrush
+import one_trade
 import polymarket_events
 import scan_core
 import shadow_trader
@@ -144,6 +145,22 @@ def _fmt_prime(p) -> str:
             f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
             f"_early-lane cell ({lanes}) — 81.3% / +0.066R on 8 months. "
             f"Take while green; never chase._")
+
+
+def _fmt_one(p) -> str:
+    prog = p.get("_prog")
+    zone = (f" · 🟢 IN ZONE ({prog * 100:.0f}% to TP1)"
+            if prog is not None else "")
+    return (f"👑 *ONE TRADE* — {p['base']} {p['side']} "
+            f"[{p.get('_one_label', '')}]{zone}\n"
+            f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
+            f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
+            f"R:R *{p.get('_one_rr', 0):g}x* to TP1 · "
+            f"live `{p.get('_one_live', 0):g}` · "
+            f"24h {p.get('_one_c24', 0):+g}% · 6h {p.get('_one_c6', 0):+g}%\n"
+            f"_THE single best clean setup on the whole board right now — "
+            f"in-zone, conf 70+, not extended, pays >=1x risk. Silence "
+            f"means nothing qualifies. Stop is server-side, always._")
 
 
 def _fmt_apex(p) -> str:
@@ -441,6 +458,28 @@ def cycle() -> None:
                 if not p.get("early_lanes")]
     _push([p for p in _em_rest if _in_zone(p)], "emrest",
           _fmt_early_rest, min_conf=0, tier="early_movers")
+
+    # 👑 ONE TRADE (user 2026-07-28): the concierge ritual, permanent —
+    # every cycle look at EVERY lane's candidates together and buzz AT
+    # MOST ONE: highest conf >= 70, in-zone, not extended (LA/LPT
+    # anti-chase rule), R:R >= 1 at live price. Silent when blank by
+    # explicit request ("its ok if its blank when there is no clear
+    # point"). No desk-tier gate — the stream is self-gated and its own
+    # desk tier below builds the honest forward record of the selector.
+    _one = None
+    try:
+        _one = one_trade.pick((("💎 BEST", best), ("🚨 IGNITION", _ign),
+                               ("🏆 APEX", apex),
+                               ("🌟 EARLY ELITE", elite_early),
+                               ("🌱 FRESH", fresh_m),
+                               ("✅🔥 TAKE NOW", tn_hot),
+                               ("🚀 EARLY-LANE", em_big)))
+    except Exception as _one_exc:
+        print("  one_trade error:", _one_exc, flush=True)
+    if _one is not None:
+        store.record_signal("one_trade", _one)
+        _push([_one], "one", _fmt_one, min_conf=0)
+
     # 🟢 GREEN LIGHT announcements stay (desk reports, rare + informative)
     try:
         _green = {rec["tier"] for rec in shadow_trader.tier_records()
@@ -495,6 +534,7 @@ def cycle() -> None:
                   ("ignition", _ign),
                   ("fast30", _f30),
                   ("surge", _srg),
+                  ("one_trade", [_one] if _one else []),
                   ("trend_rider", r.get("trend", [])))
         for _tname, _sigs in _tiers:
             for p in _sigs:
