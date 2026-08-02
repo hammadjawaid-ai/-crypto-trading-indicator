@@ -1169,53 +1169,48 @@ def _render_true_signal(pb_state, live_prices=None):
     # 🎨 section-scoped design system — glass, gold, glow (matches the
     # app's premium pass; user 2026-07-28: "visually very appealing")
     st.markdown("""<style>
-    .tsx-hero{position:relative;overflow:hidden;background:
-      linear-gradient(135deg,rgba(255,215,0,0.13),rgba(255,157,0,0.05)
-      55%,rgba(126,249,255,0.06));border:1px solid rgba(255,215,0,0.4);
-      border-radius:16px;padding:18px 22px;margin:10px 0 14px}
-    .tsx-hero:after{content:'';position:absolute;top:0;left:-60%;
-      width:40%;height:100%;background:linear-gradient(100deg,
-      transparent,rgba(255,215,0,0.15),transparent);
-      animation:tsx-sweep 3.4s ease-in-out infinite}
-    @keyframes tsx-sweep{0%{left:-60%}55%{left:110%}100%{left:110%}}
-    .tsx-title{font-size:1.55rem;font-weight:900;background:
-      linear-gradient(135deg,#ffd700,#ff9d00);-webkit-background-clip:
-      text;-webkit-text-fill-color:transparent;background-clip:text}
-    .tsx-pill{display:inline-block;background:rgba(255,255,255,0.08);
-      color:#bfc9de;padding:3px 12px;border-radius:14px;
-      font-size:0.74rem;font-weight:700;margin:6px 6px 0 0}
+    .tsx-hero{display:flex;align-items:center;justify-content:
+      space-between;flex-wrap:wrap;gap:8px;background:
+      rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.10);
+      border-radius:14px;padding:14px 20px;margin:10px 0 14px}
+    .tsx-title{font-size:1.45rem;font-weight:800;color:#f2d472}
+    .tsx-pill{display:inline-block;background:rgba(56,189,248,0.12);
+      color:#9fd8f8;padding:3px 13px;border-radius:999px;
+      font-size:0.76rem;font-weight:600;margin-left:8px}
+    .tsx-muted{color:#8b93a7;font-size:0.78rem;font-weight:500}
     .tsx-tiles{display:grid;grid-template-columns:repeat(4,1fr);
       gap:10px;margin:4px 0 14px}
-    .tsx-tile{background:rgba(255,255,255,0.045);border:1px solid
-      rgba(255,255,255,0.10);border-radius:13px;padding:12px 14px;
-      backdrop-filter:blur(8px)}
-    .tsx-tile .l{color:#8b93a7;font-size:0.7rem;font-weight:800;
-      letter-spacing:0.05em;text-transform:uppercase}
-    .tsx-tile .v{font-size:1.35rem;font-weight:900;color:#e6e9f0;
+    .tsx-tile{background:rgba(255,255,255,0.04);border:1px solid
+      rgba(255,255,255,0.08);border-radius:13px;padding:13px 16px}
+    .tsx-tile .l{color:#8b93a7;font-size:0.72rem;font-weight:600}
+    .tsx-tile .v{font-size:1.4rem;font-weight:800;color:#e9ecf3;
       margin-top:3px}
-    .tsx-card{position:relative;background:linear-gradient(160deg,
-      rgba(255,215,0,0.11),rgba(255,215,0,0.03));border:2px solid
-      rgba(255,215,0,0.55);border-radius:15px;padding:14px 18px;
-      margin:8px 0;animation:tsx-glow 2.8s ease-in-out infinite}
-    @keyframes tsx-glow{0%,100%{box-shadow:0 0 12px
-      rgba(255,215,0,0.10)}50%{box-shadow:0 0 26px
-      rgba(255,215,0,0.22)}}
-    .tsx-ladder{display:flex;height:32px;border-radius:8px;
-      overflow:hidden;margin:10px 0 4px;font-size:0.72rem;
-      font-weight:800}
-    .tsx-ladder div{display:flex;align-items:center;
-      justify-content:center;white-space:nowrap}
-    .tsx-row{background:rgba(255,255,255,0.035);border:1px solid
-      rgba(255,255,255,0.09);border-radius:11px;padding:8px 13px;
-      margin:5px 0;backdrop-filter:blur(6px)}
-    .tsx-kb{background:rgba(255,255,255,0.04);border:1px solid
-      rgba(255,255,255,0.09);border-radius:11px;padding:9px 13px;
-      margin:4px 0;backdrop-filter:blur(6px)}
-    .tsx-kbar{position:relative;height:7px;background:
-      rgba(255,255,255,0.08);border-radius:4px;margin-top:7px}
+    .tsx-card{background:rgba(255,255,255,0.035);border:1.5px solid
+      rgba(242,212,114,0.65);border-radius:16px;padding:16px 20px;
+      margin:8px 0}
+    .tsx-chip{display:inline-block;background:rgba(46,212,122,0.13);
+      color:#7fe0ab;padding:3px 12px;border-radius:999px;
+      font-size:0.75rem;font-weight:600;margin:2px 6px 2px 0}
+    .tsx-ladder{display:flex;gap:4px;height:26px;margin:12px 0 6px}
+    .tsx-ladder div{border-radius:7px}
+    .tsx-lab{display:flex;justify-content:space-between;
+      font-size:0.78rem;color:#9aa7c7;margin-bottom:2px}
+    .tsx-kr{display:flex;align-items:center;gap:10px;background:
+      rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.08);
+      border-radius:11px;padding:8px 14px;margin-top:10px;
+      font-size:0.85rem}
+    .tsx-row{background:rgba(255,255,255,0.03);border:1px solid
+      rgba(255,255,255,0.08);border-radius:12px;padding:9px 14px;
+      margin:5px 0}
+    .tsx-kb{background:rgba(255,255,255,0.035);border:1px solid
+      rgba(255,255,255,0.08);border-radius:12px;padding:10px 14px;
+      margin:4px 0}
+    .tsx-kbar{position:relative;height:6px;background:
+      rgba(255,255,255,0.08);border-radius:3px;margin-top:8px}
     </style>""", unsafe_allow_html=True)
 
-    # hero banner — title + live status pills in one glass panel
+    # hero — clean single row (mockup language): title + regime pill
+    # left, scan status right. Calm, not neon.
     _lc = {}
     try:
         _lc = _ws_ts.last_cycle() or {}
@@ -1224,18 +1219,11 @@ def _render_true_signal(pb_state, live_prices=None):
     _lc_age = int(max(0, time.time() - float(_lc.get("ts") or 0)) // 60)
     st.markdown(
         f"<div class='tsx-hero'>"
-        f"<span class='tsx-title'>🎯 TRUE SIGNAL</span> "
-        f"<span style='color:#9aa7c7;font-size:0.9rem;font-weight:600'>"
-        f"— the one surface that speaks</span><br>"
-        f"<span class='tsx-pill'>🧭 regime "
-        f"<b style='color:#38bdf8'>{_lc.get('regime') or '—'}</b></span>"
-        f"<span class='tsx-pill'>⏱ scanned "
-        f"<b style='color:#e6e9f0'>{_lc_age}m ago</b> · 24/7</span>"
-        f"<span class='tsx-pill'>🔮 top layer: kronos "
-        f"<b style='color:#ffd54a'>81.8% agree-bucket (backtest)</b>"
-        f"</span>"
-        f"<span class='tsx-pill'>5 gates · all must pass · "
-        f"<b style='color:#2ed47a'>empty = discipline</b></span>"
+        f"<span><span class='tsx-title'>🎯 True Signal</span>"
+        f"<span class='tsx-pill'>regime "
+        f"{_lc.get('regime') or '—'}</span></span>"
+        f"<span class='tsx-muted'>scanned {_lc_age}m ago · 24/7 · "
+        f"5 gates · 🔮 kronos on top</span>"
         f"</div>", unsafe_allow_html=True)
 
     # glass stat tiles — the desk's vitals
@@ -1326,30 +1314,21 @@ def _render_true_signal(pb_state, live_prices=None):
             _fz = ((_live - entry) / (tp1 - entry) if side == "LONG"
                    else (entry - _live) / (entry - tp1))
         _late = _fz is not None and _fz > 0.5
-        _gates = (
-            f"<span style='background:rgba(46,212,122,0.14);color:"
-            f"#2ed47a;padding:2px 8px;border-radius:6px;font-size:"
-            f"0.72rem;font-weight:800'>✓ {_x.get('ts_source', 'source')}"
-            f"</span> "
-            f"<span style='background:rgba(46,212,122,0.14);color:"
-            f"#2ed47a;padding:2px 8px;border-radius:6px;font-size:"
-            f"0.72rem;font-weight:800'>✓ early "
-            f"{float(_x.get('ts_prog') or 0) * 100:.0f}%</span> "
-            f"<span style='background:rgba(46,212,122,0.14);color:"
-            f"#2ed47a;padding:2px 8px;border-radius:6px;font-size:"
-            f"0.72rem;font-weight:800'>✓ R:R "
-            f"{float(_x.get('ts_rr') or 0):.2f}×</span> "
-            f"<span style='background:rgba(46,212,122,0.14);color:"
-            f"#2ed47a;padding:2px 8px;border-radius:6px;font-size:"
-            f"0.72rem;font-weight:800'>✓ regime</span>")
+        _gates = "".join(
+            f"<span class='tsx-chip'>✓ {_g}</span>"
+            for _g in (_x.get("ts_source", "source"),
+                       f"early {float(_x.get('ts_prog') or 0) * 100:.0f}%",
+                       f"R:R {float(_x.get('ts_rr') or 0):.2f}x",
+                       "kronos " + ("up" if side == "LONG" else "down"),
+                       "regime ok"))
         _kr_line = (
-            f"<div style='background:rgba(46,212,122,0.14);border-left:"
-            f"4px solid #2ed47a;border-radius:6px;padding:5px 10px;"
-            f"margin-top:7px;font-size:0.88rem;font-weight:800;"
-            f"color:#2ed47a'>🔮 KRONOS "
-            f"{'▲ UP' if side == 'LONG' else '▼ DOWN'} "
-            f"{float(_x.get('kr_exp') or 0):+.1f}%/24h — the top layer "
-            f"approves</div>")
+            f"<div class='tsx-kr'>🔮 <span style='color:#9aa7c7'>"
+            f"Kronos 24h:</span> <b style='color:#2ed47a'>"
+            f"{'UP' if side == 'LONG' else 'DOWN'} "
+            f"{float(_x.get('kr_exp') or 0):+.1f}%</b> "
+            f"<span style='color:#8b93a7;font-size:0.76rem'>"
+            f"independent forecast · 59% measured · top layer "
+            f"approves</span></div>")
         _status = ""
         if _dead:
             _status = (" <span style='background:rgba(255,92,92,0.18);"
@@ -1361,50 +1340,53 @@ def _render_true_signal(pb_state, live_prices=None):
                        "color:#ff5c5c;padding:1px 8px;border-radius:5px;"
                        "font-size:0.72rem;font-weight:800'>⛔ TOO LATE "
                        "now</span>")
-        # proportional price ladder: red risk block, green run to TP1,
-        # faded run to TP2 — widths match the real distances
+        # proportional price ladder (mockup layout): soft segments with
+        # gaps, all labels in a row BELOW the bar — calm, readable
         _risk_w = abs(entry - stop)
         _r1_w = abs(tp1 - entry)
         _r2_w = abs(tp2 - tp1) if tp2 else 0
         _tot_w = (_risk_w + _r1_w + _r2_w) or 1.0
+        _now_lab = (f" · live {px_round.fmt_px(_sym, _live)}"
+                    if _live else "")
         _ladder = (
             f"<div class='tsx-ladder'>"
-            f"<div style='flex:{_risk_w / _tot_w * 100:.1f};background:"
-            f"rgba(255,92,92,0.30);color:#ffb3b3'>SL "
-            f"{px_round.fmt_px(_sym, stop)}</div>"
-            f"<div style='flex:2;background:rgba(255,255,255,0.16);"
-            f"color:#e6e9f0'>▮</div>"
-            f"<div style='flex:{_r1_w / _tot_w * 100:.1f};background:"
-            f"rgba(46,212,122,0.30);color:#9ff0c4'>TP1 "
-            f"{px_round.fmt_px(_sym, tp1)}</div>"
+            f"<div style='flex:{_risk_w / _tot_w * 100:.1f};"
+            f"background:rgba(255,92,92,0.22)'></div>"
+            f"<div style='flex:{_r1_w / _tot_w * 100:.1f};"
+            f"background:rgba(46,212,122,0.30)'></div>"
             + (f"<div style='flex:{_r2_w / _tot_w * 100:.1f};"
-               f"background:rgba(46,212,122,0.14);color:#6fd39c'>TP2 "
-               f"{px_round.fmt_px(_sym, tp2)}</div>" if tp2 else "")
+               f"background:rgba(46,212,122,0.13)'></div>"
+               if tp2 else "")
             + "</div>"
-            f"<div style='display:flex;justify-content:space-between;"
-            f"font-size:0.74rem;color:#8b93a7'>"
-            f"<span>risk −{_risk_w / entry * 100 if entry else 0:.1f}%"
-            f"</span><span>entry <b style='color:#e6e9f0'>"
-            f"{px_round.fmt_px(_sym, entry)}</b>"
-            f"{(' · now <b style=' + chr(39) + 'color:#ffd54a'
-                + chr(39) + '>' + px_round.fmt_px(_sym, _live)
-                + '</b>') if _live else ''}</span>"
-            f"<span>+{(_r1_w + _r2_w) / entry * 100 if entry else 0:.1f}"
-            f"% to TP2</span></div>")
+            f"<div class='tsx-lab'>"
+            f"<span style='color:#ff8c8c'>SL "
+            f"{px_round.fmt_px(_sym, stop)} "
+            f"(−{_risk_w / entry * 100 if entry else 0:.1f}%)</span>"
+            f"<span style='color:#c9d2e4'>entry "
+            f"{px_round.fmt_px(_sym, entry)}{_now_lab}</span>"
+            f"<span style='color:#7fe0ab'>TP1 "
+            f"{px_round.fmt_px(_sym, tp1)} "
+            f"(+{_r1_w / entry * 100 if entry else 0:.1f}%)</span>"
+            + (f"<span style='color:#5fb787'>TP2 "
+               f"{px_round.fmt_px(_sym, tp2)} "
+               f"(+{(_r1_w + _r2_w) / entry * 100 if entry else 0:.1f}"
+               f"%)</span>" if tp2 else "")
+            + "</div>")
         _c1, _c2 = st.columns([5, 1])
         _c1.markdown(
             f"<div class='tsx-card'>"
-            f"<span style='background:linear-gradient(90deg,#ffd700,"
-            f"#ff9d00);color:#1a1200;padding:3px 12px;border-radius:7px;"
-            f"font-size:0.76rem;font-weight:900'>🎯 TRUE SIGNAL</span> "
-            f"<b style='font-size:1.25rem;margin-left:4px'>{base}</b> "
-            f"<span style='color:{scol};font-weight:900;font-size:"
-            f"1.05rem'>{side}</span> "
-            f"<span style='color:#8b93a7;font-size:0.74rem'>· "
+            f"<b style='font-size:1.3rem'>{base} "
+            f"<span style='color:{scol}'>{side}</span></b> "
+            f"<span class='tsx-chip' style='background:"
+            f"rgba(242,212,114,0.15);color:#f2d472'>conf "
+            f"{int(float(r.get('score') or 0) or 85)}</span>"
+            f"<span class='tsx-chip'>R:R "
+            f"{float(_x.get('ts_rr') or 0):.1f}x</span>"
+            f"<span style='color:#8b93a7;font-size:0.76rem'> "
             f"{int(max(0, time.time() - float(r.get('ts') or 0)) // 60)}"
             f"m ago · 24h {float(_x.get('ts_c24') or 0):+.1f}% · 6h "
             f"{float(_x.get('ts_c6') or 0):+.1f}%</span>{_status}"
-            f"<div style='margin:8px 0 2px'>{_gates}</div>"
+            f"<div style='margin:10px 0 2px'>{_gates}</div>"
             f"{_ladder}"
             f"{_kr_line}</div>", unsafe_allow_html=True)
         if _dead:
