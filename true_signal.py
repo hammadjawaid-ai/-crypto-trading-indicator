@@ -28,9 +28,13 @@ from __future__ import annotations
 
 import time
 
+# 2026-07-28 user call: TAKE NOW HOT removed as a source — "it sends
+# in very late". EARLY ELITE (its best subset, earlier) + IGNITION
+# (at-fire, earliest) remain. Reversible with evidence: the funnel
+# audit keeps recording, so if data shows TNH-only winners we missed,
+# it comes back with proof. TNH keeps its desk tier + Telegram stream.
 SOURCES = (("elite_early", "🌟 EARLY ELITE"),
-           ("ignition", "🚨 IGNITION"),
-           ("takenow_hot", "✅🔥 TAKE NOW HOT"))
+           ("ignition", "🚨 IGNITION"))
 ZONE_MAX = 0.10
 EXT_24H = 25.0
 EXT_6H = 18.0
