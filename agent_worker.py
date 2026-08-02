@@ -25,11 +25,13 @@ import binance_client
 import config
 import fast_confirm
 import ignition
+import kronos_forecast as kf
 import liq_flush
 import live_executor
 import lunarcrush
 import one_trade
 import polymarket_events
+import true_signal
 import scan_core
 import shadow_trader
 import surge_radar
@@ -37,6 +39,12 @@ import telegram_notify as tg
 import worker_store as store
 
 INTERVAL = max(1, int(getattr(config, "WORKER_INTERVAL_MIN", 5))) * 60
+# 🔮 per-symbol Kronos forecast cache — the worker process is long-lived
+# so this persists across cycles. 24h-horizon forecasts move slowly;
+# 2h TTL + a per-cycle cap keeps CPU/RAM bounded on the deploy.
+_KR_CACHE: dict = {}
+KR_TTL = 2 * 3600
+KR_MAX_PER_CYCLE = 8
 COOLDOWN = max(1, int(getattr(config, "WORKER_ALERT_COOLDOWN_MIN", 360))) * 60
 MIN_CONV = float(getattr(config, "WORKER_SST1_MIN_CONV", 70))
 LB_MIN = float(getattr(config, "WORKER_LEADERBOARD_MIN_SCORE", 85))
@@ -480,6 +488,78 @@ def cycle() -> None:
         store.record_signal("one_trade", _one)
         _push([_one], "one", _fmt_one, min_conf=0)
 
+    # 🔮 KRONOS capture (user 2026-07-28, validated same day: agree
+    # +0.259R vs veto -0.143R on our own entries, n=81). Forecast the
+    # candidates the boards are showing, cache 2h, store for the app's
+    # card strips + the 🎯 gate below. Fail-soft: no torch -> no rows.
+    _kr_ok = False
+    try:
+        _kr_ok = kf.available()
+    except Exception:
+        _kr_ok = False
+    if _kr_ok:
+        _kr_new = 0
+        _kr_seen: set = set()
+        for _kp in (list(best) + list(_ign) + list(apex)
+                    + list(elite_early) + list(fresh_m) + list(tn_hot)
+                    + list(em_big)):
+            _ks = _kp.get("symbol")
+            if not _ks or _ks in _kr_seen:
+                continue
+            _kr_seen.add(_ks)
+            _hit = _KR_CACHE.get(_ks)
+            if _hit and _now - _hit["t"] < KR_TTL:
+                continue
+            if _kr_new >= KR_MAX_PER_CYCLE:
+                continue
+            try:
+                _kv = kf.forecast(_ks, "1h", horizon=24)
+            except Exception as _kexc:
+                print(f"  kronos {_ks}: {_kexc}", flush=True)
+                continue
+            _kr_new += 1
+            if not _kv:
+                continue
+            _KR_CACHE[_ks] = {"t": _now, "s": _kv}
+            store.record_signal("kronos", {
+                "symbol": _ks, "base": _kp.get("base"),
+                "side": {"UP": "LONG", "DOWN": "SHORT"}.get(
+                    _kv["direction"], ""),
+                "kr_dir": _kv["direction"],
+                "kr_exp": _kv["exp_move_pct"],
+                "kr_hi": _kv["path_high_pct"],
+                "kr_lo": _kv["path_low_pct"]})
+
+    def _kr_get(sym, side):
+        _hit = _KR_CACHE.get(sym)
+        return _hit["s"] if _hit and _now - _hit["t"] < KR_TTL else None
+
+    # 🎯 TRUE SIGNAL (user 2026-07-28: "one solid system, no fuzz") —
+    # five gates, Kronos on top with the last word. Desk tier proves it
+    # forward from day one; NO Telegram until it earns it (~20 closed
+    # positive). Kronos offline -> zero cards, and the app says so.
+    _ts_rows = []
+    try:
+        if _kr_ok:
+            _ts_form = {}
+            for _tf_t in ("elite_early", "ignition", "takenow_hot"):
+                try:
+                    _ts_form[_tf_t] = store.shadow_recent_net(
+                        _tf_t)["net_r"]
+                except Exception:
+                    _ts_form[_tf_t] = 0.0
+            _ts_rows = true_signal.compose(
+                {"elite_early": elite_early, "ignition": _ign,
+                 "takenow_hot": tn_hot},
+                _ts_form, (r.get("regime") or {}).get("regime"),
+                binance_client.get_ticker_price,
+                one_trade._extension, _kr_get)
+    except Exception as _ts_exc:
+        _ts_rows = []
+        print("  true_signal error:", _ts_exc, flush=True)
+    for p in _ts_rows:
+        store.record_signal("true_signal", p)
+
     # 🟢 GREEN LIGHT announcements stay (desk reports, rare + informative)
     try:
         _green = {rec["tier"] for rec in shadow_trader.tier_records()
@@ -524,17 +604,21 @@ def cycle() -> None:
             print("  liq_flush error:", _lf_exc, flush=True)
         for p in _lf:
             store.record_signal("liq_flush", p)
+        # 🩸 LIQ FLUSH RETIRED (2026-07-28, its own pre-registered rule:
+        # still negative past ~50 closed — final record -22.6R/110).
+        # Signals stay recorded above for the archive; the desk stops
+        # taking them. Re-add here only if a NEW validation earns it.
         _tiers = (("best_board", best),
                   ("apex", apex), ("takenow_hot", tn_hot),
                   ("elite_early", elite_early),
                   ("fresh", fresh_m), ("early_movers",
                                        r.get("early_strong", [])),
                   ("early_lane", em_big),
-                  ("liq_flush", _lf),
                   ("ignition", _ign),
                   ("fast30", _f30),
                   ("surge", _srg),
                   ("one_trade", [_one] if _one else []),
+                  ("true_signal", _ts_rows),
                   ("trend_rider", r.get("trend", [])))
         for _tname, _sigs in _tiers:
             for p in _sigs:

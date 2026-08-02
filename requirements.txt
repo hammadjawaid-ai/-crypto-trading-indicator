@@ -10,3 +10,13 @@ pybit>=5.7
 flask>=3.0
 gunicorn>=21.2
 
+# 🔮 KRONOS (validated 2026-07-28: agree +0.26R vs veto -0.14R on our
+# entries). CPU-only wheels — the extra-index line keeps Render from
+# pulling the multi-GB CUDA build. Kill switch: KRONOS_ENABLED=0.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.0
+einops>=0.8
+huggingface_hub>=0.30
+safetensors>=0.4
+tqdm>=4.66
+

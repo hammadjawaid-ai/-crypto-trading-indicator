@@ -1078,6 +1078,313 @@ def _bz_position_chart(symbol, side, entry, stop, target, cur_price):
                 "doubleClick": False, "staticPlot": False})
 
 
+def _render_true_signal(pb_state, live_prices=None):
+    """🎯 TRUE SIGNAL — the acting surface (user 2026-07-28 rework).
+
+    One page, at most 3 cards, each having passed ALL five gates with
+    🔮 Kronos on top holding the last word (validated on our own
+    entries: agree +0.259R/81.8% win vs baseline -0.069R, n=81, fees
+    in). Empty is a valid, honest state — the bar is high on purpose.
+    Manual opens only; trades run through the same paper-trader engine
+    tagged source='true_signal'. The desk proves the stream forward.
+    """
+    import json as _json_ts
+
+    import worker_store as _ws_ts
+    st.markdown(
+        "<div style='display:flex;align-items:center;gap:10px;"
+        "margin-top:14px'>"
+        "<span style='font-size:1.3rem;font-weight:900;background:"
+        "linear-gradient(135deg,#ffd700,#ff9d00);-webkit-background-clip:"
+        "text;-webkit-text-fill-color:transparent;background-clip:text'>"
+        "🎯 TRUE SIGNAL — one card at a time</span></div>",
+        unsafe_allow_html=True)
+    st.caption("**The single acting surface.** A card exists only after "
+               "passing all five gates: hot source tier (14d form "
+               "positive) → early (≤10% of move gone, not extended) → "
+               "geometry (R:R ≥ 1.5 live) → **🔮 Kronos agrees** (the "
+               "foundation-model top layer — validated on our own "
+               "entries: its approvals made +0.26R/trade while its "
+               "vetoes lost −0.14R) → regime aligned. **Empty page = "
+               "no trade today, and that's the system working.** "
+               "Manual opens only; the desk proves this stream forward "
+               "under 🎯 before it ever earns Telegram or live money.")
+
+    # 🔮 top-layer health — never silently degrade the construct
+    _kr_fresh = False
+    try:
+        for _kr in _ws_ts.recent_by_stream("kronos", 5):
+            if time.time() - float(_kr.get("ts") or 0) < 3 * 3600:
+                _kr_fresh = True
+                break
+    except Exception:
+        pass
+    if not _kr_fresh:
+        st.warning("🔮 Kronos has produced no fresh forecasts in 3h+ — "
+                   "the top layer may be warming up (first deploy "
+                   "downloads model weights) or offline "
+                   "(KRONOS_ENABLED=0 / torch missing). No cards can "
+                   "qualify until it speaks; the four lower gates are "
+                   "never traded without it.")
+
+    # ── qualifying cards (fresh <6h, deduped) ──
+    try:
+        _rows = _ws_ts.recent_by_stream("true_signal", 12)
+    except Exception:
+        _rows = []
+    _seen_ts, _cards = set(), []
+    for r in _rows:
+        _k = (r.get("symbol"), r.get("side"))
+        if _k in _seen_ts:
+            continue
+        _seen_ts.add(_k)
+        if time.time() - float(r.get("ts") or 0) < 6 * 3600:
+            _cards.append(r)
+    if not _cards:
+        st.markdown(
+            "<div style='background:rgba(255,255,255,0.03);border:1px "
+            "solid rgba(255,255,255,0.08);border-radius:12px;padding:"
+            "18px 20px;margin:10px 0;color:#8b93a7'>🌙 <b>No true "
+            "signal right now.</b> The whole stack is hunting 24/7 — "
+            "when a candidate clears every gate including the 🔮 top "
+            "layer, its card appears here. Silence is a position.</div>",
+            unsafe_allow_html=True)
+    for _i, r in enumerate(_cards[:3]):
+        try:
+            _x = _json_ts.loads(r.get("extra") or "{}")
+        except Exception:
+            _x = {}
+        base = r.get("base")
+        side = (r.get("side") or "").upper()
+        _sym = r.get("symbol") or ""
+        entry = float(r.get("entry") or 0)
+        stop = float(r.get("stop") or 0)
+        tp1 = float(r.get("tp1") or 0)
+        tp2 = float(r.get("tp2") or 0)
+        scol = "#2ed47a" if side == "LONG" else "#ff5c5c"
+        _live = None
+        try:
+            _live = float(live_price(_sym) or 0) or None
+        except Exception:
+            _live = (live_prices or {}).get(_sym)
+        _dead = bool(_live) and stop > 0 and (
+            (side == "LONG" and _live <= stop)
+            or (side == "SHORT" and _live >= stop))
+        _fz = None
+        if _live and tp1 and entry and tp1 != entry and not _dead:
+            _fz = ((_live - entry) / (tp1 - entry) if side == "LONG"
+                   else (entry - _live) / (entry - tp1))
+        _late = _fz is not None and _fz > 0.5
+        _gates = (
+            f"<span style='background:rgba(46,212,122,0.14);color:"
+            f"#2ed47a;padding:2px 8px;border-radius:6px;font-size:"
+            f"0.72rem;font-weight:800'>✓ {_x.get('ts_source', 'source')}"
+            f"</span> "
+            f"<span style='background:rgba(46,212,122,0.14);color:"
+            f"#2ed47a;padding:2px 8px;border-radius:6px;font-size:"
+            f"0.72rem;font-weight:800'>✓ early "
+            f"{float(_x.get('ts_prog') or 0) * 100:.0f}%</span> "
+            f"<span style='background:rgba(46,212,122,0.14);color:"
+            f"#2ed47a;padding:2px 8px;border-radius:6px;font-size:"
+            f"0.72rem;font-weight:800'>✓ R:R "
+            f"{float(_x.get('ts_rr') or 0):.2f}×</span> "
+            f"<span style='background:rgba(46,212,122,0.14);color:"
+            f"#2ed47a;padding:2px 8px;border-radius:6px;font-size:"
+            f"0.72rem;font-weight:800'>✓ regime</span>")
+        _kr_line = (
+            f"<div style='background:rgba(46,212,122,0.14);border-left:"
+            f"4px solid #2ed47a;border-radius:6px;padding:5px 10px;"
+            f"margin-top:7px;font-size:0.88rem;font-weight:800;"
+            f"color:#2ed47a'>🔮 KRONOS "
+            f"{'▲ UP' if side == 'LONG' else '▼ DOWN'} "
+            f"{float(_x.get('kr_exp') or 0):+.1f}%/24h — the top layer "
+            f"approves</div>")
+        _status = ""
+        if _dead:
+            _status = (" <span style='background:rgba(255,92,92,0.18);"
+                       "color:#ff5c5c;padding:1px 8px;border-radius:5px;"
+                       "font-size:0.72rem;font-weight:800'>❌ STOPPED — "
+                       "invalid</span>")
+        elif _late:
+            _status = (" <span style='background:rgba(255,92,92,0.18);"
+                       "color:#ff5c5c;padding:1px 8px;border-radius:5px;"
+                       "font-size:0.72rem;font-weight:800'>⛔ TOO LATE "
+                       "now</span>")
+        _c1, _c2 = st.columns([5, 1])
+        _c1.markdown(
+            f"<div style='background:rgba(255,215,0,0.06);border:2px "
+            f"solid rgba(255,215,0,0.45);border-radius:12px;padding:"
+            f"11px 15px;margin:6px 0'>"
+            f"<span style='background:linear-gradient(90deg,#ffd700,"
+            f"#ff9d00);color:#1a1200;padding:2px 10px;border-radius:6px;"
+            f"font-size:0.74rem;font-weight:900'>🎯 TRUE SIGNAL</span> "
+            f"<b style='font-size:1.05rem'>{base}</b> "
+            f"<span style='color:{scol};font-weight:800'>{side}</span> "
+            f"<span style='color:#8b93a7;font-size:0.72rem'>· "
+            f"{int(max(0, time.time() - float(r.get('ts') or 0)) // 60)}"
+            f"m ago · 24h {float(_x.get('ts_c24') or 0):+.1f}% · 6h "
+            f"{float(_x.get('ts_c6') or 0):+.1f}%</span>{_status}<br>"
+            f"<div style='margin:6px 0 2px'>{_gates}</div>"
+            f"<span style='color:#e6e9f0;font-size:0.86rem'>entry "
+            f"<b>{px_round.fmt_px(_sym, entry)}</b> · SL "
+            f"<b style='color:#ff5c5c'>{px_round.fmt_px(_sym, stop)}</b>"
+            f" · TP1 <b style='color:#2ed47a'>"
+            f"{px_round.fmt_px(_sym, tp1)}</b>"
+            f"{(' · TP2 <b style=' + chr(39) + 'color:#2ed47a' + chr(39)
+                + '>' + px_round.fmt_px(_sym, tp2) + '</b>') if tp2
+               else ''}"
+            f"{(' · now <b>' + px_round.fmt_px(_sym, _live) + '</b>')
+               if _live else ''}</span>"
+            f"{_kr_line}</div>", unsafe_allow_html=True)
+        if _dead:
+            _c2.caption("✖ dead")
+        elif _late:
+            _c2.caption("✖ late")
+        elif any(p.get("symbol") == _sym
+                 for p in (pb_state.get("open") or [])):
+            _c2.caption("✓ open")
+        elif _c2.button("📥 Open", key=f"ts_open_{_sym}_{_i}",
+                        use_container_width=True):
+            try:
+                _alert = {
+                    "symbol": _sym, "base": base, "side": side,
+                    "entry_low": entry, "stop": stop, "target": tp1,
+                    "target_2": tp2 or None,
+                    "chase_tp2_eligible": bool(tp2),
+                    "confidence": int(float(r.get("score") or 0) or 85),
+                    "strength_factor": 0.7,
+                    "_unified_source": "true_signal"}
+                _pos = paper_bot.open_position(
+                    pb_state, _alert, _live or entry)
+                paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                if _pos:
+                    st.success(f"Opened {side} {base} (🎯 TRUE SIGNAL)")
+                    st.rerun()
+                else:
+                    st.warning("Not opened — Paper Trader rejected.")
+            except Exception as exc:
+                st.error(f"Open failed: {exc}")
+
+    # ── 📂 my open 🎯 trades — manual only, live charts ──
+    _lp_map = dict(live_prices or {})
+    _ts_pos = [p for p in (pb_state.get("open") or [])
+               if (p.get("source") or "") == "true_signal"]
+    for p in _ts_pos:
+        try:
+            _lpv = live_price(p["symbol"])
+            if _lpv and _lpv > 0:
+                _lp_map[p["symbol"]] = float(_lpv)
+        except Exception:
+            pass
+    try:
+        _cl_now = paper_bot.evaluate(
+            pb_state, {p["symbol"]: _lp_map[p["symbol"]]
+                       for p in _ts_pos if _lp_map.get(p["symbol"])})
+        if _cl_now:
+            paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+            for c in _cl_now:
+                st.toast(f"{'✅' if c['pnl_usd'] > 0 else '❌'} "
+                         f"{c['base']} closed at {c['exit_reason']} · "
+                         f"{c['pnl_pct']:+.2f}%", icon="🎯")
+            _ts_pos = [p for p in (pb_state.get("open") or [])
+                       if (p.get("source") or "") == "true_signal"]
+    except Exception:
+        pass
+    st.markdown(f"#### 📂 my open 🎯 trades ({len(_ts_pos)})")
+    if not _ts_pos:
+        st.caption("No open 🎯 trades — hit **📥 Open** on a card above "
+                   "and it appears here with its live chart. Nothing "
+                   "opens automatically.")
+    for p in _ts_pos:
+        _sym = p["symbol"]
+        _side = (p.get("side") or "").upper()
+        _long = _side == "LONG"
+        _e = float(p.get("entry") or 0)
+        _stp = float(p.get("stop") or 0)
+        _tgt = float(p.get("target") or 0)
+        _qty = float(p.get("qty") or 0)
+        _cur = float(_lp_map.get(_sym) or _e)
+        _upnl = ((_cur - _e) if _long else (_e - _cur)) * _qty
+        _pc = "#2ed47a" if _upnl >= 0 else "#ff5c5c"
+        _sc = "#2ed47a" if _long else "#ff5c5c"
+        with st.container(border=True):
+            _ic, _pcol, _bc = st.columns([2.4, 1.8, 0.8])
+            _ic.markdown(
+                f"<div style='font-size:1.05rem;font-weight:800'>"
+                f"{p.get('base') or _sym} <span style='background:{_sc};"
+                f"color:#06121f;padding:2px 10px;border-radius:5px;"
+                f"font-size:0.72rem;font-weight:800;margin-left:6px'>"
+                f"{_side}</span></div>"
+                f"<div style='color:#8b8d98;font-size:0.78rem'>Entry "
+                f"{fmt_price(_e)} · Stop {fmt_price(_stp)} · Target "
+                f"{fmt_price(_tgt)}"
+                f"{' · 🛡 BE set' if p.get('break_even_set') else ''}"
+                f"</div>", unsafe_allow_html=True)
+            _pcol.markdown(
+                f"<div style='text-align:right;font-size:1.15rem;"
+                f"font-weight:800;color:#fff'>{fmt_price(_cur)}</div>"
+                f"<div style='text-align:right;color:{_pc};font-size:"
+                f"1.1rem;font-weight:800'>${_upnl:+,.2f}</div>",
+                unsafe_allow_html=True)
+            if _bc.button("Close", key=f"ts_close_{_sym}",
+                          use_container_width=True):
+                _clm = paper_bot.close_position_at(
+                    pb_state, _sym, _cur, reason="manual")
+                if _clm:
+                    paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                    st.toast(f"{'✅' if _clm['pnl_usd'] > 0 else '❌'} "
+                             f"Closed {_clm['base']} · "
+                             f"{_clm['pnl_pct']:+.2f}%", icon="🎯")
+                    st.rerun()
+            _bz_position_chart(_sym, _side, _e, _stp, _tgt, _cur)
+
+    # ── 📋 closed 🎯 record + desk proving strip ──
+    _ts_closed = [t for t in (pb_state.get("closed") or [])
+                  if (t.get("source") or "") == "true_signal"]
+    st.markdown(f"#### 📋 closed 🎯 trades ({len(_ts_closed)})")
+    if _ts_closed:
+        _bn = len(_ts_closed)
+        _bw = sum(1 for t in _ts_closed
+                  if float(t.get("pnl_usd") or 0) > 0)
+        _bnet = sum(float(t.get("pnl_usd") or 0) for t in _ts_closed)
+        _m1, _m2, _m3 = st.columns(3)
+        _m1.metric("closed", f"{_bn}")
+        _m2.metric("win rate", f"{_bw / _bn * 100:.0f}%")
+        _m3.metric("total P&L", f"${_bnet:+,.2f}")
+        _bh = sorted(_ts_closed,
+                     key=lambda t: float(t.get("exit_at") or 0))
+        if len(_bh) >= 2:
+            _cum, _acc = [], 0.0
+            for t in _bh:
+                _acc += float(t.get("pnl_usd") or 0)
+                _cum.append(round(_acc, 2))
+            st.area_chart(pd.DataFrame({"cumulative P&L ($)": _cum}),
+                          height=180)
+    else:
+        st.caption("No closed 🎯 trades yet — the record and $ curve "
+                   "build here as your trades exit.")
+    try:
+        import worker_store as _ws_ts2
+        for rec in _ws_ts2.shadow_summary():
+            if rec.get("tier") == "true_signal":
+                _n = int(rec.get("n") or 0)
+                _w = int(rec.get("wins") or 0)
+                _nt = float(rec.get("net_r") or 0)
+                st.markdown(
+                    f"<div style='background:rgba(255,215,0,0.08);"
+                    f"border:1px solid rgba(255,215,0,0.3);border-radius:"
+                    f"9px;padding:7px 13px;margin-top:8px;font-size:"
+                    f"0.82rem;color:#ffd54a'>🧪 <b>desk proving</b> — "
+                    f"the brain shadow-takes every 🎯 card: {_n} closed"
+                    f" · win {(_w / _n * 100) if _n else 0:.0f}% · net "
+                    f"{_nt:+.2f}R after fees. Telegram + live money "
+                    f"unlock only when this record proves (~20 closed, "
+                    f"positive).</div>", unsafe_allow_html=True)
+                break
+    except Exception:
+        pass
+
+
 def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
     """Display the 24/7 background brain's LIVE MEMORY — the best-of-the-best
     (APEX) setups + recent signals it found on its own, even while the browser
@@ -1169,6 +1476,27 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
             out.append(r)
         return out
 
+    # 🔮 KRONOS strip map (user 2026-07-28: "big enough for me to
+    # register, on any card") — latest stored forecast per symbol from
+    # the worker's capture. Validated the same day on our own entries:
+    # agree +0.259R vs veto -0.143R (n=81, fees in).
+    _kr_map = {}
+    try:
+        import json as _json_kr
+
+        import worker_store as _ws_kr
+        for _kr_r in _ws_kr.recent_by_stream("kronos", 80):
+            _kr_s = _kr_r.get("symbol")
+            if _kr_s and _kr_s not in _kr_map:
+                try:
+                    _kr_map[_kr_s] = {
+                        **_json_kr.loads(_kr_r.get("extra") or "{}"),
+                        "ts": _kr_r.get("ts")}
+                except Exception:
+                    pass
+    except Exception:
+        _kr_map = {}
+
     # One openable card: card + 📥 Open button that opens into the Paper
     # Trader (idealised fill at the setup's planned entry, like the other
     # boards). Skips if already open.
@@ -1239,6 +1567,35 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                              "0.16);color:#2ed47a;padding:1px 7px;"
                              "border-radius:5px;font-size:0.7rem;"
                              "font-weight:800'>🟢 IN ZONE — take</span>")
+        # 🔮 KRONOS strip — the top layer's independent read, full-width
+        # and color-coded so it registers at a glance (user 2026-07-28).
+        _kr_html = ""
+        _krf = _kr_map.get(r.get("symbol"))
+        if _krf and time.time() - float(_krf.get("ts") or 0) < 6 * 3600:
+            _krd = _krf.get("kr_dir")
+            _kre = float(_krf.get("kr_exp") or 0)
+            if _krd in ("UP", "DOWN"):
+                _agree = ((_krd == "UP" and side == "LONG")
+                          or (_krd == "DOWN" and side == "SHORT"))
+                _kc = "#2ed47a" if _agree else "#ff5c5c"
+                _kbg = ("rgba(46,212,122,0.14)" if _agree
+                        else "rgba(255,92,92,0.14)")
+                _kr_html = (
+                    f"<div style='background:{_kbg};border-left:4px "
+                    f"solid {_kc};border-radius:6px;padding:4px 10px;"
+                    f"margin-top:6px;font-size:0.85rem;font-weight:800;"
+                    f"color:{_kc}'>🔮 KRONOS "
+                    f"{'▲' if _krd == 'UP' else '▼'} {_krd} "
+                    f"{_kre:+.1f}%/24h — "
+                    f"{'AGREES' if _agree else 'CONFLICTS'} with this "
+                    f"card</div>")
+            elif _krd == "FLAT":
+                _kr_html = (
+                    "<div style='background:rgba(139,147,167,0.12);"
+                    "border-left:4px solid #8b93a7;border-radius:6px;"
+                    "padding:4px 10px;margin-top:6px;font-size:0.85rem;"
+                    "font-weight:800;color:#8b93a7'>🔮 KRONOS — FLAT · "
+                    "no conviction next 24h</div>")
         _c1, _c2 = st.columns([5, 1])
         _c1.markdown(
             f"<div style='background:{_card_bg};border:1px solid "
@@ -1252,7 +1609,7 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
             f"SL {px_round.fmt_px(_sym_r, stop)} · "
             f"TP1 {px_round.fmt_px(_sym_r, tp1)}"
             f"{(' · TP2 ' + px_round.fmt_px(_sym_r, tp2)) if tp2 else ''}"
-            f"{_live_str}</span></div>",
+            f"{_live_str}</span>{_kr_html}</div>",
             unsafe_allow_html=True)
         if _dead:
             _c2.caption("✖ dead")
@@ -1610,7 +1967,12 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "fast30": "⏱ FAST CONFIRM (30m)",
                    "surge": "📡 SURGE",
                    "one_trade": "👑 ONE TRADE",
+                   "true_signal": "🎯 TRUE SIGNAL",
                    "trend_rider": "🌊 TREND RIDER"}
+    # 2026-07-28 cleanup: retired tiers stay in the archive (bench) but
+    # never in the active view. LIQ FLUSH retired by its own rule
+    # (-22.6R/110 closed, past the ~50-close checkpoint).
+    _retired = {"liq_flush", "sst1"}
     # recency-aware green (2026-07-25): badge matches shadow_trader's
     # gate — lifetime AND last-14d must both hold. 14d net shown per row.
     try:
@@ -1619,7 +1981,12 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
     except Exception:
         _grn_map = {}
     if _sh_sum:
-        for rec in _sh_sum:
+        # 🧹 ACTIVE vs BENCH (user 2026-07-28 cleanup): the eye only
+        # lands on tiers earning NOW — green light, or recent-14d form
+        # positive. Everything else (bleeding / proving / retired)
+        # keeps its record in a collapsed bench and can earn its way
+        # back. Nothing is deleted.
+        def _desk_row(rec, retired=False):
             _nm = _tier_names.get(rec.get("tier"), rec.get("tier"))
             _n = int(rec.get("n") or 0)
             _wins = int(rec.get("wins") or 0)
@@ -1631,12 +1998,20 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                       else (_n >= 20 and _net >= 2.0))
             _r14 = float((_gr or {}).get("recent_net") or 0.0)
             _r14c = "#2ed47a" if _r14 > 0 else "#ff5c5c"
-            _badge = ("<span style='background:#0b8a3e;color:#fff;padding:"
-                      "2px 9px;border-radius:6px;font-weight:800;font-size:"
-                      "0.72rem'>🟢 GREEN LIGHT</span>" if _green else
-                      "<span style='background:rgba(255,213,74,0.15);color:"
-                      "#ffd54a;padding:2px 9px;border-radius:6px;"
-                      "font-weight:800;font-size:0.72rem'>🧪 PROVING</span>")
+            if retired:
+                _badge = ("<span style='background:rgba(139,147,167,0.2);"
+                          "color:#8b93a7;padding:2px 9px;border-radius:6px;"
+                          "font-weight:800;font-size:0.72rem'>⚰️ RETIRED"
+                          "</span>")
+            elif _green:
+                _badge = ("<span style='background:#0b8a3e;color:#fff;"
+                          "padding:2px 9px;border-radius:6px;font-weight:"
+                          "800;font-size:0.72rem'>🟢 GREEN LIGHT</span>")
+            else:
+                _badge = ("<span style='background:rgba(255,213,74,0.15);"
+                          "color:#ffd54a;padding:2px 9px;border-radius:6px;"
+                          "font-weight:800;font-size:0.72rem'>🧪 PROVING"
+                          "</span>")
             _ncol = "#2ed47a" if _net > 0 else "#ff5c5c"
             st.markdown(
                 f"<div style='background:rgba(255,255,255,0.03);border:1px "
@@ -1647,6 +2022,75 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                 f"<b style='color:{_ncol}'>{_net:+.2f}R</b> after fees · "
                 f"14d <b style='color:{_r14c}'>{_r14:+.1f}R</b> · "
                 f"{_opn} open</span></div>", unsafe_allow_html=True)
+
+        _active_rows, _bench_rows = [], []
+        for rec in _sh_sum:
+            _t = rec.get("tier")
+            _gr = _grn_map.get(_t) or {}
+            _is_active = (_t not in _retired
+                          and (bool(_gr.get("green"))
+                               or float(_gr.get("recent_net") or 0) > 0))
+            (_active_rows if _is_active else _bench_rows).append(rec)
+        st.markdown("**ACTIVE — earning right now (14d form positive)**")
+        if _active_rows:
+            for rec in _active_rows:
+                _desk_row(rec)
+        else:
+            st.caption("· no tier is form-positive right now")
+        with st.expander(
+                f"🪑 BENCH — proving / cold / retired "
+                f"({len(_bench_rows)}) — records keep building; a tier "
+                f"earns its way back by turning its 14d form positive",
+                expanded=False):
+            for rec in _bench_rows:
+                _desk_row(rec, retired=rec.get("tier") in _retired)
+        # 🧠 EDGE MINER (user 2026-07-28: "you have huge data from the
+        # desk — decide what is exactly working") — mines every closed
+        # desk trade joined to its at-fire snapshot. Descriptive, honest
+        # min-n flags, refreshed on render.
+        with st.expander("🧠 EDGE MINER — what actually works, mined "
+                         "from every desk trade", expanded=False):
+            try:
+                import edge_miner as _em
+                _rep = _em.mine()
+                _tot = _rep.get("total") or {}
+                st.caption(f"joined {_rep.get('matched_n', 0)} of "
+                           f"{_tot.get('n', 0)} closed desk trades to "
+                           f"their at-fire snapshots. Segments under "
+                           f"{_em.MIN_SEG} trades are marked thin — "
+                           f"read those as hints, not edges.")
+                if _rep.get("loser_tease_pct") is not None:
+                    st.markdown(
+                        f"**{_rep['loser_tease_pct']:.0f}% of losers "
+                        f"were +0.5R in profit first** — the case for "
+                        f"the break-even ladder, measured on our own "
+                        f"trades.")
+                for _sec, _key, _lbl in (
+                        ("best cells (tier × grade × heat)",
+                         "best_cells", "cell"),
+                        ("by signal grade", "by_grade", "grade"),
+                        ("by score bucket", "by_score", "score"),
+                        ("by ATR heat", "by_heat", "heat"),
+                        ("by side", "by_side", "side"),
+                        ("by exit reason", "by_exit", "exit"),
+                        ("did losers pay first?", "by_mfe", "mfe")):
+                    _rows_em = _rep.get(_key) or []
+                    if not _rows_em:
+                        continue
+                    st.markdown(f"**{_sec}**")
+                    for _r_em in _rows_em[:8]:
+                        _thin = " · ⚠️ thin" if _r_em.get("thin") else ""
+                        _ac = ("#2ed47a" if _r_em["avg_r"] > 0
+                               else "#ff5c5c")
+                        st.markdown(
+                            f"<span style='font-size:0.8rem;color:"
+                            f"#9aa7c7'>· <b>{_r_em.get(_lbl)}</b> — "
+                            f"n={_r_em['n']} · win {_r_em['win_pct']:.0f}%"
+                            f" · <b style='color:{_ac}'>"
+                            f"{_r_em['avg_r']:+.3f}R/trade</b>"
+                            f"{_thin}</span>", unsafe_allow_html=True)
+            except Exception as _em_exc:
+                st.caption(f"edge miner unavailable: {_em_exc}")
         # 💸 SLOT REPLAY (user 2026-07-25: "we can't take every trade in
         # real money — prove how many trades a day works with $1,200").
         # Replays the desk's ACTUAL closed trades chronologically under
@@ -5042,6 +5486,7 @@ if _qp_mode not in ("Futures", "Spot"):
 # credible evidence vs deterministic rules; SST1 is the proven pipeline).
 # The section code stays below but is unreachable.
 SECTIONS = [
+    "🎯 True Signal",
     "💎 Best Trade Zone",
     "🔍 Market Scanner", "🔮 Forecast", "🚀 Breakout Radar",
     "🤖 Ask the Oracle", "🪙 Coin Analysis", "📰 News & Sentiment",
@@ -5249,6 +5694,21 @@ if not _alert_merged.empty:
 
 # Section is selected from the sidebar radio above — no horizontal tab bar.
 
+
+# ===========================================================================
+# 🎯 True Signal — THE acting surface (user 2026-07-28 rework): at most
+# 3 cards, five gates each, 🔮 Kronos top layer with the last word.
+# ===========================================================================
+if active_section == "🎯 True Signal":
+    try:
+        _ts_state = paper_bot.load_state(PAPER_BOT_FILE)
+        _ts_state = _attach_durable_closed("paper", _ts_state)
+    except Exception:
+        _ts_state = {"open": []}
+    try:
+        _render_true_signal(_ts_state, dict(prices or {}))
+    except Exception as _exc_ts:
+        st.error(f"True Signal failed to render: {_exc_ts}")
 
 # ===========================================================================
 # 💎 Best Trade Zone — ONE consolidated best-of-the-best dashboard
