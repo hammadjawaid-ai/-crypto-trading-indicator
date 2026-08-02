@@ -79,27 +79,31 @@ def scan(symbols, kronos_fn, max_checks: int = 40) -> list[dict]:
         exp = float(kv.get("exp_move_pct") or 0)
         if abs(exp) < EXP_MIN:
             continue
+        # BREAKOUT-TRIGGER construct (validated 2026-08-03 on recorded
+        # coils: +0.122R/61% win vs -0.21R entering at the coil close —
+        # the shakeout can't fake a confirmed edge break). Entry is a
+        # STOP-ENTRY at the coil edge in Kronos's direction; stop is
+        # the opposite edge; TP1 = 1x range, TP2 = 2x.
         long = kv["direction"] == "UP"
-        px, atr = ctx["px"], ctx["atr"]
+        hi_edge, lo_edge = ctx["swing_hi"], ctx["swing_lo"]
+        rng = hi_edge - lo_edge
+        if rng <= 0:
+            continue
         if long:
-            stop = ctx["swing_lo"] - 0.25 * atr
-            if not (0 < px - stop <= 4 * atr):
-                stop = px - 1.5 * atr
-            tp1 = px + (px - stop)
-            tp2 = px + 2 * (px - stop)
+            entry, stop = hi_edge, lo_edge
+            tp1, tp2 = entry + rng, entry + 2 * rng
         else:
-            stop = ctx["swing_hi"] + 0.25 * atr
-            if not (0 < stop - px <= 4 * atr):
-                stop = px + 1.5 * atr
-            tp1 = px - (stop - px)
-            tp2 = px - 2 * (stop - px)
-        if min(px, stop, tp1) <= 0:
+            entry, stop = lo_edge, hi_edge
+            tp1, tp2 = entry - rng, entry - 2 * rng
+        if min(entry, stop, tp1) <= 0:
             continue
         out.append({"symbol": sym,
                     "base": sym.replace("USDT", ""),
                     "side": "LONG" if long else "SHORT",
                     "tier": "COIL", "score": None, "hot": False,
-                    "entry": px, "stop": stop, "tp1": tp1, "tp2": tp2,
+                    "entry": entry, "stop": stop, "tp1": tp1,
+                    "tp2": tp2, "trigger": entry,
+                    "last_px": ctx["px"],
                     "kr_dir": kv["direction"], "kr_exp": exp,
                     "coil_rng24": ctx["rng24"],
                     "coil_atr_pct": ctx["atr_pct"]})

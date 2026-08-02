@@ -188,12 +188,15 @@ def _fmt_ts(p) -> str:
 def _fmt_preburst(p) -> str:
     return (f"🌋 *PRE-BURST* — {p['base']} {p['side']} (quiet coil + 🔮 "
             f"{p.get('kr_dir')} {float(p.get('kr_exp') or 0):+.1f}%/24h)\n"
-            f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
-            f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
-            f"_Tight base (range {p.get('coil_rng24')}%/24h, volatility "
-            f"compressed) where the model smells a move BEFORE it prints "
-            f"— the PORTAL construct. UNPROVEN: backtest validating in "
-            f"parallel, desk tier 🌋 proving forward. SIZE SMALL._")
+            f"⚠️ STOP-ENTRY only: enter ON BREAK of `{p['entry']:g}` "
+            f"(now `{float(p.get('last_px') or 0):g}`)\n"
+            f"SL `{p['stop']:g}` (opposite edge) · TP1 `{p['tp1']:g}`"
+            f"{_tp2(p)}\n"
+            f"_Loaded base, caught BEFORE the burst (PORTAL construct). "
+            f"Do NOT enter early — the shakeout punishes it (measured "
+            f"-0.21R); the edge-break entry measured +0.12R/61%. If it "
+            f"never breaks, there is no trade. Desk 🌋 proving. SIZE "
+            f"SMALL._")
 
 
 def _fmt_apex(p) -> str:
