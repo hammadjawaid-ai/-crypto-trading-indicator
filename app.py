@@ -2516,6 +2516,7 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "true_signal": "🎯 TRUE SIGNAL",
                    "top_conviction": "🏆 TOP CONVICTION",
                    "preburst": "🌋 PRE-BURST",
+                   "kr_approved": "🔮 KRONOS APPROVED",
                    "trend_rider": "🌊 TREND RIDER"}
     # 2026-07-28 cleanup: retired tiers stay in the archive (bench) but
     # never in the active view. LIQ FLUSH retired by its own rule

@@ -583,6 +583,32 @@ def cycle() -> None:
         _hit = _KR_CACHE.get(sym)
         return _hit["s"] if _hit and _now - _hit["t"] < KR_TTL else None
 
+    # 🔮 KRONOS APPROVED desk tier (user 2026-08-03: "can the 86% be
+    # treated separately?") — every elite-stream signal where Kronos
+    # agrees, REGARDLESS of the other 🎯 gates. The live forward
+    # record of the backtest's agree bucket (86%/+0.34R, n=36) at its
+    # natural breadth. Desk-only: no buzz, no votes.
+    _kr_appr = []
+    if _kr_ok:
+        _ka_seen: set = set()
+        for _kp in (list(apex) + list(elite_early) + list(tn_hot)):
+            _kk = (_kp.get("symbol"), _kp.get("side"))
+            if _kk in _ka_seen or not _kk[0]:
+                continue
+            _ka_seen.add(_kk)
+            _kv2 = _kr_get(_kk[0], _kk[1])
+            if not _kv2:
+                continue
+            if ((_kv2.get("direction") == "UP" and _kk[1] == "LONG")
+                    or (_kv2.get("direction") == "DOWN"
+                        and _kk[1] == "SHORT")):
+                _kp2 = dict(_kp)
+                _kp2["kr_dir"] = _kv2.get("direction")
+                _kp2["kr_exp"] = _kv2.get("exp_move_pct")
+                _kr_appr.append(_kp2)
+        for p in _kr_appr:
+            store.record_signal("kr_approved", p)
+
     # 🎯 TRUE SIGNAL (user 2026-07-28: "one solid system, no fuzz") —
     # five gates, Kronos on top with the last word. Desk tier proves it
     # forward from day one; NO Telegram until it earns it (~20 closed
@@ -725,6 +751,7 @@ def cycle() -> None:
                   ("one_trade", [_one] if _one else []),
                   ("true_signal", _ts_rows),
                   ("preburst", _pb),
+                  ("kr_approved", _kr_appr),
                   ("trend_rider", r.get("trend", [])))
         for _tname, _sigs in _tiers:
             for p in _sigs:
