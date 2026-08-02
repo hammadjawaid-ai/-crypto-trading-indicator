@@ -171,6 +171,20 @@ def _fmt_one(p) -> str:
             f"means nothing qualifies. Stop is server-side, always._")
 
 
+def _fmt_ts(p) -> str:
+    return (f"🎯 *TRUE SIGNAL* — {p['base']} {p['side']} "
+            f"[{p.get('ts_source', '')}]\n"
+            f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
+            f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
+            f"R:R *{p.get('ts_rr', 0):g}x* · zone "
+            f"{float(p.get('ts_prog') or 0) * 100:.0f}% · 🔮 kronos "
+            f"{p.get('kr_dir')} {float(p.get('kr_exp') or 0):+.1f}%/24h\n"
+            f"_ALL FIVE GATES PASSED incl the 🔮 top layer (backtest: "
+            f"agree bucket 81.8% win / +0.26R vs baseline losing). "
+            f"Rare by design. Desk tier 🎯 is proving it forward — "
+            f"honest record on the Decision Desk._")
+
+
 def _fmt_apex(p) -> str:
     edges = " · ".join(p.get("edges", []))
     return (f"🏆🔥 *APEX ×{p.get('apex', 0)}* — {p['base']} {p['side']} "
@@ -559,6 +573,12 @@ def cycle() -> None:
         print("  true_signal error:", _ts_exc, flush=True)
     for p in _ts_rows:
         store.record_signal("true_signal", p)
+    # 🎯 straight to Telegram (user 2026-07-28: "predictions early so I
+    # can bang on the trade") — always-buzz, no desk gate: the stream
+    # is already the strictest construct in the system (5 gates + 🔮),
+    # fires rarely, and every message carries the honest odds. The desk
+    # tier keeps scoring it in parallel.
+    _push(_ts_rows, "ts", _fmt_ts, min_conf=0)
     # 🔬 funnel audit rows — feed the page's living board (every
     # candidate + which gate it died at), even when no card qualifies.
     try:
