@@ -1499,6 +1499,176 @@ def _render_true_signal(pb_state, live_prices=None):
             f"{_ax.get('detail') or ''}</span></div>",
             unsafe_allow_html=True)
 
+    # ── ⚡ TOP CANDIDATES — openable trade plans even while the strict
+    # 🎯 stream is silent (user 2026-07-28: "it should have the boards
+    # like sl tp1 tp2 so i can open trades"). Best fresh rows from the
+    # elite streams, honestly labeled below the full five-gate bar.
+    st.markdown("#### ⚡ TOP CANDIDATES — openable now")
+    st.caption("The best fresh setups from the elite streams (💎 BEST, "
+               "👑 ONE TRADE, 🏆 APEX, 🌟 EARLY ELITE, ✅🔥 TAKE NOW) "
+               "with full plans — **these have NOT passed all five 🎯 "
+               "gates**; the 🔮 strip on each shows where Kronos "
+               "stands. When one clears the full bar it graduates to a "
+               "gold 🎯 card above.")
+    _cand_streams = (("👑 ONE", "one_trade"), ("💎 BEST", "best"),
+                     ("🏆 APEX", "apex"),
+                     ("🌟 ELITE", "elite_early"),
+                     ("✅🔥 TAKE NOW", "takenow"))
+    _cand_seen, _cands = set(), []
+    for _cl, _cs in _cand_streams:
+        try:
+            for _cr in _ws_ts.recent_by_stream(_cs, 6):
+                _ck = (_cr.get("symbol"), _cr.get("side"))
+                if not _ck[0] or _ck in _cand_seen:
+                    continue
+                if time.time() - float(_cr.get("ts") or 0) > 4 * 3600:
+                    continue
+                _cand_seen.add(_ck)
+                _cands.append((_cl, _cr))
+        except Exception:
+            continue
+    # kronos map for the candidate strips
+    _ckr = {}
+    try:
+        for _kx_r in _ws_ts.recent_by_stream("kronos", 60):
+            _s = _kx_r.get("symbol")
+            if _s and _s not in _ckr:
+                try:
+                    _ckr[_s] = {**_json_ts.loads(
+                        _kx_r.get("extra") or "{}"),
+                        "ts": _kx_r.get("ts")}
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    if not _cands:
+        st.caption("· No fresh elite-stream setups in the last 4h — "
+                   "the boards refill as the streams fire.")
+    for _ci, (_cl, _cr) in enumerate(_cands[:5]):
+        _sym = _cr.get("symbol") or ""
+        _cb = _cr.get("base")
+        _csd = (_cr.get("side") or "").upper()
+        _ce = float(_cr.get("entry") or 0)
+        _cst = float(_cr.get("stop") or 0)
+        _ct1 = float(_cr.get("tp1") or 0)
+        _ct2 = float(_cr.get("tp2") or 0)
+        if min(_ce, _cst, _ct1) <= 0:
+            continue
+        _csc = "#2ed47a" if _csd == "LONG" else "#ff5c5c"
+        _clv = None
+        try:
+            _clv = float(live_price(_sym) or 0) or None
+        except Exception:
+            pass
+        _cdead = bool(_clv) and (
+            (_csd == "LONG" and _clv <= _cst)
+            or (_csd == "SHORT" and _clv >= _cst))
+        _cf = None
+        if _clv and _ct1 != _ce and not _cdead:
+            _cf = ((_clv - _ce) / (_ct1 - _ce) if _csd == "LONG"
+                   else (_ce - _clv) / (_ce - _ct1))
+        _clate = _cf is not None and _cf > 0.5
+        if _cf is None:
+            _zchip = ""
+        elif _cf <= 0.25:
+            _zchip = ("<span style='background:rgba(46,212,122,0.16);"
+                      "color:#2ed47a;padding:1px 8px;border-radius:5px;"
+                      "font-size:0.7rem;font-weight:800'>🟢 IN ZONE"
+                      "</span>")
+        elif _cf <= 0.5:
+            _zchip = ("<span style='background:rgba(255,213,74,0.16);"
+                      "color:#ffd54a;padding:1px 8px;border-radius:5px;"
+                      f"font-size:0.7rem;font-weight:800'>🟡 "
+                      f"{_cf * 100:.0f}% gone</span>")
+        else:
+            _zchip = ("<span style='background:rgba(255,92,92,0.18);"
+                      "color:#ff5c5c;padding:1px 8px;border-radius:5px;"
+                      "font-size:0.7rem;font-weight:800'>⛔ TOO LATE"
+                      "</span>")
+        _ckf = _ckr.get(_sym)
+        _ckline = ""
+        _cbord = "border:1px solid rgba(255,255,255,0.12);"
+        if _ckf and time.time() - float(_ckf.get("ts") or 0) < 6 * 3600:
+            _ckd = _ckf.get("kr_dir")
+            _cke = float(_ckf.get("kr_exp") or 0)
+            if _ckd in ("UP", "DOWN"):
+                _cagree = ((_ckd == "UP" and _csd == "LONG")
+                           or (_ckd == "DOWN" and _csd == "SHORT"))
+                _ckc = "#2ed47a" if _cagree else "#ff5c5c"
+                if _cagree:
+                    _cbord = ("border:2px solid rgba(46,212,122,0.8);"
+                              "box-shadow:0 0 14px "
+                              "rgba(46,212,122,0.2);")
+                _ckline = (
+                    f"<div style='background:rgba("
+                    f"{'46,212,122' if _cagree else '255,92,92'},0.13);"
+                    f"border-left:4px solid {_ckc};border-radius:6px;"
+                    f"padding:3px 10px;margin-top:5px;font-size:0.8rem;"
+                    f"font-weight:800;color:{_ckc}'>🔮 "
+                    f"{'▲' if _ckd == 'UP' else '▼'} {_ckd} "
+                    f"{_cke:+.1f}%/24h — "
+                    f"{'AGREES' if _cagree else 'CONFLICTS'}</div>")
+            elif _ckd == "FLAT":
+                _ckline = ("<div style='background:rgba(139,147,167,"
+                           "0.12);border-left:4px solid #8b93a7;"
+                           "border-radius:6px;padding:3px 10px;"
+                           "margin-top:5px;font-size:0.8rem;font-weight:"
+                           "800;color:#8b93a7'>🔮 FLAT · no conviction"
+                           "</div>")
+        _cc1, _cc2 = st.columns([5, 1])
+        _cc1.markdown(
+            f"<div style='background:rgba(255,255,255,0.035);{_cbord}"
+            f"border-radius:12px;padding:10px 14px;margin:5px 0'>"
+            f"<span style='background:rgba(56,189,248,0.16);color:"
+            f"#38bdf8;padding:2px 9px;border-radius:6px;font-size:"
+            f"0.72rem;font-weight:900'>{_cl}</span> "
+            f"<b style='font-size:1.05rem'>{_cb}</b> "
+            f"<span style='color:{_csc};font-weight:800'>{_csd}</span> "
+            f"<span style='color:#8b93a7;font-size:0.72rem'>· "
+            f"{int(max(0, time.time() - float(_cr.get('ts') or 0)) // 60)}"
+            f"m ago</span> {_zchip}<br>"
+            f"<span style='color:#e6e9f0;font-size:0.86rem'>entry "
+            f"<b>{px_round.fmt_px(_sym, _ce)}</b> · SL "
+            f"<b style='color:#ff5c5c'>{px_round.fmt_px(_sym, _cst)}</b>"
+            f" · TP1 <b style='color:#2ed47a'>"
+            f"{px_round.fmt_px(_sym, _ct1)}</b>"
+            f"{(' · TP2 <b style=' + chr(39) + 'color:#2ed47a'
+                + chr(39) + '>' + px_round.fmt_px(_sym, _ct2) + '</b>')
+               if _ct2 else ''}"
+            f"{(' · now <b style=' + chr(39) + 'color:#ffd54a'
+                + chr(39) + '>' + px_round.fmt_px(_sym, _clv) + '</b>')
+               if _clv else ''}</span>"
+            f"{_ckline}</div>", unsafe_allow_html=True)
+        if _cdead:
+            _cc2.caption("✖ dead")
+        elif _clate:
+            _cc2.caption("✖ late")
+        elif any(p.get("symbol") == _sym
+                 for p in (pb_state.get("open") or [])):
+            _cc2.caption("✓ open")
+        elif _cc2.button("📥 Open", key=f"tsc_open_{_sym}_{_ci}",
+                         use_container_width=True):
+            try:
+                _alert = {
+                    "symbol": _sym, "base": _cb, "side": _csd,
+                    "entry_low": _ce, "stop": _cst, "target": _ct1,
+                    "target_2": _ct2 or None,
+                    "chase_tp2_eligible": bool(_ct2),
+                    "confidence": int(float(_cr.get("score") or 0)
+                                      or 80),
+                    "strength_factor": 0.7,
+                    "_unified_source": "true_signal"}
+                _pos = paper_bot.open_position(
+                    pb_state, _alert, _clv or _ce)
+                paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                if _pos:
+                    st.success(f"Opened {_csd} {_cb} (⚡ candidate)")
+                    st.rerun()
+                else:
+                    st.warning("Not opened — Paper Trader rejected.")
+            except Exception as exc:
+                st.error(f"Open failed: {exc}")
+
     # ── 🔮 KRONOS BOARD — the top layer's latest reads ──
     st.markdown("#### 🔮 KRONOS BOARD — latest forecasts")
     st.caption("The foundation model's freshest 24h reads on the coins "
