@@ -1103,6 +1103,24 @@ def _kronos_board(limit=12):
                    "the first worker cycle after deploy, then this "
                    "board fills in.")
         return
+    # symbols that currently have an OPENABLE card somewhere — raw
+    # forecasts stay read-only (standalone kronos measured -26R/332;
+    # it only earns money when attached to structure), but a tile
+    # routes you to its tradeable vehicle when one exists.
+    _act = {}
+    for _st_n, _st_lbl in (("true_signal", "🎯 gold card"),
+                           ("preburst", "🌋 pre-burst plan"),
+                           ("one_trade", "👑 one-trade"),
+                           ("best", "💎 best card"),
+                           ("apex", "🏆 apex card")):
+        try:
+            for _ar in _ws_kb.recent_by_stream(_st_n, 6):
+                _as = _ar.get("symbol")
+                if (_as and _as not in _act and time.time()
+                        - float(_ar.get("ts") or 0) < 4 * 3600):
+                    _act[_as] = _st_lbl
+        except Exception:
+            continue
     _kb_cols = st.columns(2)
     for _j, _k_r in enumerate(_kb[:limit]):
         try:
@@ -1136,6 +1154,15 @@ def _kronos_board(limit=12):
             f"<div style='position:absolute;left:calc({_exp_p:.0f}% - "
             f"4px);top:-2px;width:9px;height:11px;border-radius:3px;"
             f"background:{_kc}'></div></div>")
+        _act_lbl = _act.get(_k_r.get("symbol"))
+        _act_html = (
+            f"<div style='background:rgba(46,212,122,0.12);color:"
+            f"#2ed47a;border-radius:7px;padding:2px 9px;margin-top:5px;"
+            f"font-size:0.72rem;font-weight:800'>⚡ tradeable now — "
+            f"{_act_lbl} on the boards</div>" if _act_lbl else
+            "<div style='color:#5f677a;font-size:0.68rem;margin-top:5px'>"
+            "forecast only — no qualified plan yet (raw calls measured "
+            "-26R standalone; structure required)</div>")
         _kb_cols[_j % 2].markdown(
             f"<div style='background:rgba(255,255,255,0.04);border:1px "
             f"solid rgba(255,255,255,0.09);border-left:4px solid {_kc};"
@@ -1149,7 +1176,7 @@ def _kronos_board(limit=12):
             f"<div style='display:flex;justify-content:space-between;"
             f"font-size:0.68rem;color:#8b93a7;margin-top:3px'>"
             f"<span>{_klo:+.1f}%</span><span>path range</span>"
-            f"<span>{_khi:+.1f}%</span></div></div>",
+            f"<span>{_khi:+.1f}%</span></div>{_act_html}</div>",
             unsafe_allow_html=True)
 
 
