@@ -33,8 +33,14 @@ import time
 # (at-fire, earliest) remain. Reversible with evidence: the funnel
 # audit keeps recording, so if data shows TNH-only winners we missed,
 # it comes back with proof. TNH keeps its desk tier + Telegram stream.
+# 2026-07-29 confirmation head-to-head (20 coins, 130 arm-entries,
+# fees in): at-fire -0.324R (worst by far); 15m/30m/1h confirms all
+# ~breakeven within noise, but 30m enters at 48m avg (vs 125m for 1h)
+# with the best balance (40% win). fast30 = exactly that construct,
+# and its live desk record is GREEN (+6.2R/298). It earns a seat.
 SOURCES = (("elite_early", "🌟 EARLY ELITE"),
-           ("ignition", "🚨 IGNITION"))
+           ("ignition", "🚨 IGNITION"),
+           ("fast30", "⏱ FAST CONFIRM 30m"))
 ZONE_MAX = 0.10
 EXT_24H = 25.0
 EXT_6H = 18.0

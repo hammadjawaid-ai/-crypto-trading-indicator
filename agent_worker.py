@@ -556,7 +556,7 @@ def cycle() -> None:
     try:
         if _kr_ok:
             _ts_form = {}
-            for _tf_t in ("elite_early", "ignition", "takenow_hot"):
+            for _tf_t in ("elite_early", "ignition", "fast30"):
                 try:
                     _ts_form[_tf_t] = store.shadow_recent_net(
                         _tf_t)["net_r"]
@@ -564,7 +564,7 @@ def cycle() -> None:
                     _ts_form[_tf_t] = 0.0
             _ts_rows = true_signal.compose(
                 {"elite_early": elite_early, "ignition": _ign,
-                 "takenow_hot": tn_hot},
+                 "fast30": _f30},
                 _ts_form, (r.get("regime") or {}).get("regime"),
                 binance_client.get_ticker_price,
                 one_trade._extension, _kr_get)
