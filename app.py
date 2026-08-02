@@ -1128,6 +1128,26 @@ def _render_true_signal(pb_state, live_prices=None):
     except Exception:
         pass
 
+    # top metrics row — the desk's vitals at a glance (mockup parity:
+    # the page must read like a trading desk, not an empty section)
+    try:
+        _mt_closed = [t for t in (pb_state.get("closed") or [])
+                      if (t.get("source") or "") == "true_signal"]
+        _mt_open = [p for p in (pb_state.get("open") or [])
+                    if (p.get("source") or "") == "true_signal"]
+        _mt_n = len(_mt_closed)
+        _mt_w = sum(1 for t in _mt_closed
+                    if float(t.get("pnl_usd") or 0) > 0)
+        _mt_net = sum(float(t.get("pnl_usd") or 0) for t in _mt_closed)
+        _mc1, _mc2, _mc3, _mc4 = st.columns(4)
+        _mc1.metric("open 🎯 trades", f"{len(_mt_open)}")
+        _mc2.metric("closed", f"{_mt_n}")
+        _mc3.metric("win rate",
+                    f"{(_mt_w / _mt_n * 100) if _mt_n else 0:.0f}%")
+        _mc4.metric("net P&L", f"${_mt_net:+,.2f}")
+    except Exception:
+        pass
+
     # 🔮 top-layer health — never silently degrade the construct
     _kr_fresh = False
     try:
