@@ -208,11 +208,32 @@ def _fmt_apex(p) -> str:
             f"_best of the best — {edges} all agree_")
 
 
+def _kr_note(p) -> str:
+    """🔮 verdict line for alert messages, from the worker's forecast
+    cache (user 2026-08-03: 'kronos should run on early elite too' —
+    the best-minting stream shows the top layer's read in the buzz)."""
+    try:
+        _hit = _KR_CACHE.get(p.get("symbol"))
+        if not _hit or time.time() - _hit["t"] > KR_TTL:
+            return ""
+        s = _hit["s"]
+        d = s.get("direction")
+        if d not in ("UP", "DOWN"):
+            return ""
+        agree = ((d == "UP" and p.get("side") == "LONG")
+                 or (d == "DOWN" and p.get("side") == "SHORT"))
+        return (f"\n🔮 kronos {d} "
+                f"{float(s.get('exp_move_pct') or 0):+.1f}%/24h — "
+                f"{'AGREES (validated +0.34R edge)' if agree else 'CONFLICTS — caution'}")
+    except Exception:
+        return ""
+
+
 def _fmt_elite_early(p) -> str:
     return (f"🌟 *EARLY ELITE* — {p['base']} {p['side']} "
             f"({p['tier']} {p['score']:.0f} · {p.get('lanes', 0)} lanes)\n"
             f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
-            f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
+            f"TP1 `{p['tp1']:g}`{_tp2(p)}{_kr_note(p)}\n"
             f"_ELITE MAX/HIGH + 2+ lanes + TAKE NOW 🔥 HOT — early "
             f"high-conviction entry_")
 
