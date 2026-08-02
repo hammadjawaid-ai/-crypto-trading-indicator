@@ -1078,6 +1078,81 @@ def _bz_position_chart(symbol, side, entry, stop, target, cur_price):
                 "doubleClick": False, "staticPlot": False})
 
 
+def _kronos_board(limit=12):
+    """🔮 KRONOS BOARD — shared renderer (🎯 page + Paper Trader).
+    Self-contained inline styles so it works on any page. Latest stored
+    forecast per symbol, fresh <6h: direction, magnitude, path range
+    bar with expected-endpoint marker and a zero tick."""
+    import json as _json_kb
+
+    import worker_store as _ws_kb
+    try:
+        _kb_rows = _ws_kb.recent_by_stream("kronos", 40)
+    except Exception:
+        _kb_rows = []
+    _kb_seen, _kb = set(), []
+    for _k_r in _kb_rows:
+        _s = _k_r.get("symbol")
+        if _s in _kb_seen:
+            continue
+        _kb_seen.add(_s)
+        if time.time() - float(_k_r.get("ts") or 0) < 6 * 3600:
+            _kb.append(_k_r)
+    if not _kb:
+        st.caption("· No fresh 🔮 forecasts yet — the model warms up on "
+                   "the first worker cycle after deploy, then this "
+                   "board fills in.")
+        return
+    _kb_cols = st.columns(2)
+    for _j, _k_r in enumerate(_kb[:limit]):
+        try:
+            _kx = _json_kb.loads(_k_r.get("extra") or "{}")
+        except Exception:
+            _kx = {}
+        _kd = _kx.get("kr_dir")
+        _ke = float(_kx.get("kr_exp") or 0)
+        _khi = float(_kx.get("kr_hi") or 0)
+        _klo = float(_kx.get("kr_lo") or 0)
+        _kage = int(max(0, time.time()
+                        - float(_k_r.get("ts") or 0)) // 60)
+        if _kd == "UP":
+            _kc, _arr = "#2ed47a", "▲"
+        elif _kd == "DOWN":
+            _kc, _arr = "#ff5c5c", "▼"
+        else:
+            _kc, _arr = "#8b93a7", "◆"
+        _rng = max(_khi - _klo, 0.1)
+        _zero_p = min(100, max(0, (0 - _klo) / _rng * 100))
+        _exp_p = min(100, max(0, (_ke - _klo) / _rng * 100))
+        _kbar = (
+            f"<div style='position:relative;height:7px;background:"
+            f"rgba(255,255,255,0.08);border-radius:4px;margin-top:7px'>"
+            f"<div style='position:absolute;left:{_zero_p:.0f}%;"
+            f"top:-2px;width:2px;height:11px;background:"
+            f"rgba(255,255,255,0.35)'></div>"
+            f"<div style='position:absolute;left:0;width:{_exp_p:.0f}%;"
+            f"height:7px;border-radius:4px;background:linear-gradient("
+            f"90deg,transparent,{_kc})'></div>"
+            f"<div style='position:absolute;left:calc({_exp_p:.0f}% - "
+            f"4px);top:-2px;width:9px;height:11px;border-radius:3px;"
+            f"background:{_kc}'></div></div>")
+        _kb_cols[_j % 2].markdown(
+            f"<div style='background:rgba(255,255,255,0.04);border:1px "
+            f"solid rgba(255,255,255,0.09);border-left:4px solid {_kc};"
+            f"border-radius:11px;padding:9px 13px;margin:4px 0'>"
+            f"<b style='font-size:0.95rem'>"
+            f"{_k_r.get('base') or _k_r.get('symbol')}</b> "
+            f"<span style='color:{_kc};font-weight:900;font-size:1.0rem'>"
+            f"{_arr} {_kd or '—'} {_ke:+.1f}%</span> "
+            f"<span style='color:#8b93a7;font-size:0.72rem'>/24h · "
+            f"{_kage}m ago</span>{_kbar}"
+            f"<div style='display:flex;justify-content:space-between;"
+            f"font-size:0.68rem;color:#8b93a7;margin-top:3px'>"
+            f"<span>{_klo:+.1f}%</span><span>path range</span>"
+            f"<span>{_khi:+.1f}%</span></div></div>",
+            unsafe_allow_html=True)
+
+
 def _render_true_signal(pb_state, live_prices=None):
     """🎯 TRUE SIGNAL — the acting surface (user 2026-07-28 rework).
 
@@ -1429,71 +1504,7 @@ def _render_true_signal(pb_state, live_prices=None):
     st.caption("The foundation model's freshest 24h reads on the coins "
                "the boards are tracking (updated by the worker, ~2h "
                "cache). Green = up, red = down, gray = no conviction.")
-    try:
-        _kb_rows = _ws_ts.recent_by_stream("kronos", 40)
-    except Exception:
-        _kb_rows = []
-    _kb_seen, _kb = set(), []
-    for _k_r in _kb_rows:
-        _s = _k_r.get("symbol")
-        if _s in _kb_seen:
-            continue
-        _kb_seen.add(_s)
-        if time.time() - float(_k_r.get("ts") or 0) < 6 * 3600:
-            _kb.append(_k_r)
-    if not _kb:
-        st.caption("· No fresh forecasts yet — the model warms up on "
-                   "the first worker cycle after deploy (weights "
-                   "download once), then this board fills in.")
-    else:
-        _kb_cols = st.columns(2)
-        for _j, _k_r in enumerate(_kb[:12]):
-            try:
-                _kx = _json_ts.loads(_k_r.get("extra") or "{}")
-            except Exception:
-                _kx = {}
-            _kd = _kx.get("kr_dir")
-            _ke = float(_kx.get("kr_exp") or 0)
-            _khi = float(_kx.get("kr_hi") or 0)
-            _klo = float(_kx.get("kr_lo") or 0)
-            _kage = int(max(0, time.time()
-                            - float(_k_r.get("ts") or 0)) // 60)
-            if _kd == "UP":
-                _kc, _arr = "#2ed47a", "▲"
-            elif _kd == "DOWN":
-                _kc, _arr = "#ff5c5c", "▼"
-            else:
-                _kc, _arr = "#8b93a7", "◆"
-            # forecast range bar: lo→hi with a marker at the expected
-            # endpoint and a tick at 0%
-            _rng = max(_khi - _klo, 0.1)
-            _zero_p = min(100, max(0, (0 - _klo) / _rng * 100))
-            _exp_p = min(100, max(0, (_ke - _klo) / _rng * 100))
-            _kbar = (
-                f"<div class='tsx-kbar'>"
-                f"<div style='position:absolute;left:{_zero_p:.0f}%;"
-                f"top:-2px;width:2px;height:11px;background:"
-                f"rgba(255,255,255,0.35)'></div>"
-                f"<div style='position:absolute;left:0;width:"
-                f"{_exp_p:.0f}%;height:7px;border-radius:4px;"
-                f"background:linear-gradient(90deg,transparent,{_kc})'>"
-                f"</div>"
-                f"<div style='position:absolute;left:calc({_exp_p:.0f}% "
-                f"- 4px);top:-2px;width:9px;height:11px;border-radius:"
-                f"3px;background:{_kc}'></div></div>")
-            _kb_cols[_j % 2].markdown(
-                f"<div class='tsx-kb' style='border-left:4px solid "
-                f"{_kc}'><b style='font-size:0.95rem'>"
-                f"{_k_r.get('base') or _k_r.get('symbol')}</b> "
-                f"<span style='color:{_kc};font-weight:900;font-size:"
-                f"1.0rem'>{_arr} {_kd or '—'} {_ke:+.1f}%</span> "
-                f"<span style='color:#8b93a7;font-size:0.72rem'>/24h · "
-                f"{_kage}m ago</span>{_kbar}"
-                f"<div style='display:flex;justify-content:"
-                f"space-between;font-size:0.68rem;color:#8b93a7;"
-                f"margin-top:3px'><span>{_klo:+.1f}%</span>"
-                f"<span>path range</span><span>{_khi:+.1f}%</span>"
-                f"</div></div>", unsafe_allow_html=True)
+    _kronos_board()
 
     # ── 📂 my open 🎯 trades — manual only, live charts ──
     _lp_map = dict(live_prices or {})
@@ -1799,7 +1810,10 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                              "font-weight:800'>🟢 IN ZONE — take</span>")
         # 🔮 KRONOS strip — the top layer's independent read, full-width
         # and color-coded so it registers at a glance (user 2026-07-28).
+        # A card the top layer AGREES with gets the BIG GREEN EDGE
+        # (user: "big edge on them if they agree with kronos").
         _kr_html = ""
+        _kr_border = f"border:1px solid {_card_bd};"
         _krf = _kr_map.get(r.get("symbol"))
         if _krf and time.time() - float(_krf.get("ts") or 0) < 6 * 3600:
             _krd = _krf.get("kr_dir")
@@ -1810,6 +1824,10 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                 _kc = "#2ed47a" if _agree else "#ff5c5c"
                 _kbg = ("rgba(46,212,122,0.14)" if _agree
                         else "rgba(255,92,92,0.14)")
+                if _agree:
+                    _kr_border = ("border:2px solid rgba(46,212,122,"
+                                  "0.8);box-shadow:0 0 16px "
+                                  "rgba(46,212,122,0.22);")
                 _kr_html = (
                     f"<div style='background:{_kbg};border-left:4px "
                     f"solid {_kc};border-radius:6px;padding:4px 10px;"
@@ -1817,8 +1835,8 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                     f"color:{_kc}'>🔮 KRONOS "
                     f"{'▲' if _krd == 'UP' else '▼'} {_krd} "
                     f"{_kre:+.1f}%/24h — "
-                    f"{'AGREES' if _agree else 'CONFLICTS'} with this "
-                    f"card</div>")
+                    f"{'AGREES — validated edge' if _agree else 'CONFLICTS'}"
+                    f" with this card</div>")
             elif _krd == "FLAT":
                 _kr_html = (
                     "<div style='background:rgba(139,147,167,0.12);"
@@ -1828,8 +1846,8 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                     "no conviction next 24h</div>")
         _c1, _c2 = st.columns([5, 1])
         _c1.markdown(
-            f"<div style='background:{_card_bg};border:1px solid "
-            f"{_card_bd};border-radius:11px;padding:9px 13px;margin:4px 0'>"
+            f"<div style='background:{_card_bg};{_kr_border}"
+            f"border-radius:11px;padding:9px 13px;margin:4px 0'>"
             f"{tag_html} <b>{base}</b> <span style='color:{scol};"
             f"font-weight:800'>{side}</span> "
             f"<span style='color:#8b93a7;font-size:0.72rem'>· "
@@ -2169,6 +2187,17 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
     # one pointer line here keeps this page lean.
     st.caption("💎 **BEST TRADE ZONE** — the consolidated best-of-the-best "
                "board — now lives in its own section in the left bar.")
+
+    # 🔮 KRONOS BOARD on Paper Trading too (user 2026-07-28: "the data
+    # should also be on paper trading") — the top layer's latest reads,
+    # same shared board as the 🎯 page.
+    st.markdown("#### 🔮 KRONOS BOARD — the top layer's latest reads")
+    st.caption("Foundation-model 24h forecasts on the coins the boards "
+               "track (validated on our entries: its agreements made "
+               "+0.26R/trade while its vetoes lost −0.14R). Cards "
+               "below carry the same read as a color strip — a card "
+               "that **agrees** with 🔮 gets the green edge.")
+    _kronos_board()
 
     # ── ✳️ DECISION DESK — FORWARD PROOF (user 2026-07-08) ──────────────
     # The brain takes every tier's signal itself as a live shadow trade
