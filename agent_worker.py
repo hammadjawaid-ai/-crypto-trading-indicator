@@ -559,6 +559,13 @@ def cycle() -> None:
         print("  true_signal error:", _ts_exc, flush=True)
     for p in _ts_rows:
         store.record_signal("true_signal", p)
+    # 🔬 funnel audit rows — feed the page's living board (every
+    # candidate + which gate it died at), even when no card qualifies.
+    try:
+        for _au in true_signal.LAST_AUDIT:
+            store.record_signal("ts_audit", _au)
+    except Exception:
+        pass
 
     # 🟢 GREEN LIGHT announcements stay (desk reports, rare + informative)
     try:

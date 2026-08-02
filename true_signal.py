@@ -39,20 +39,40 @@ MAX_CARDS = 3
 KR_HORIZON = 24
 
 
+# 🔬 FUNNEL AUDIT — every candidate considered in the last compose(),
+# with each gate's verdict, so the page can show a living board even
+# when nothing fully qualifies ("died at kronos" beats an empty page).
+# Module global by the best_board.LAST_VOTES precedent; the worker
+# stores these rows as stream "ts_audit" for the app.
+LAST_AUDIT: list = []
+MAX_AUDIT = 10
+
+
 def compose(sources: dict, tier_form: dict, regime: str,
             live_fn, ext_fn, kronos_fn) -> list[dict]:
     """sources: {tier_name: [signal dicts]} for the three source tiers.
     tier_form: {tier_name: recent-14d net R} (desk truth).
     live_fn(sym)->px · ext_fn(sym)->(pct24h, pct6h) or None ·
     kronos_fn(sym, side)->{"direction","exp_move_pct",...} or None.
-    Every gate fails CLOSED. Returns at most MAX_CARDS augmented rows.
+    Every gate fails CLOSED. Returns at most MAX_CARDS augmented rows;
+    fills LAST_AUDIT with every candidate's per-gate verdict.
     """
+    global LAST_AUDIT
     regime = (regime or "").upper()
     seen: set = set()
     out = []
+    audit: list = []
+
+    def _note(p, tier_label, gates, detail=""):
+        if len(audit) >= MAX_AUDIT:
+            return
+        audit.append({"symbol": p.get("symbol"), "base": p.get("base"),
+                      "side": (p.get("side") or "").upper(),
+                      "tier_label": tier_label, "gates": gates,
+                      "detail": detail, "ts": time.time()})
+
     for tier, label in SOURCES:
-        if float(tier_form.get(tier, 0.0) or 0.0) <= 0:
-            continue                       # gate 1: source form not hot
+        form_ok = float(tier_form.get(tier, 0.0) or 0.0) > 0
         for p in sources.get(tier) or []:
             sym = p.get("symbol")
             side = (p.get("side") or "").upper()
@@ -60,9 +80,15 @@ def compose(sources: dict, tier_form: dict, regime: str,
             if not sym or side not in ("LONG", "SHORT") or k in seen:
                 continue
             seen.add(k)
-            if regime == "BEAR" and side == "LONG":
-                continue                   # gate 5
-            if regime == "BULL" and side == "SHORT":
+            g = {"source": form_ok, "early": None, "geometry": None,
+                 "kronos": None, "regime": None}
+            if not form_ok:                # gate 1: source form not hot
+                _note(p, label, g, "source tier cold (14d form ≤ 0)")
+                continue
+            g["regime"] = not ((regime == "BEAR" and side == "LONG") or
+                               (regime == "BULL" and side == "SHORT"))
+            if not g["regime"]:            # gate 5
+                _note(p, label, g, f"{side} against {regime}")
                 continue
             try:
                 e = float(p.get("entry") or 0)
@@ -83,7 +109,11 @@ def compose(sources: dict, tier_form: dict, regime: str,
                     else (e - live) / (e - t1))
             dead = (live <= st if is_long else live >= st)
             if dead or prog > ZONE_MAX:
-                continue                   # gate 2a: early zone
+                g["early"] = False         # gate 2a: not early anymore
+                _note(p, label, g,
+                      "stopped" if dead else
+                      f"{prog * 100:.0f}% of move gone (>10%)")
+                continue
             try:
                 ext = ext_fn(sym)
             except Exception:
@@ -92,23 +122,36 @@ def compose(sources: dict, tier_form: dict, regime: str,
                 continue
             c24, c6 = ext
             if abs(c24) >= EXT_24H or abs(c6) >= EXT_6H:
-                continue                   # gate 2b: anti-chase
+                g["early"] = False         # gate 2b: anti-chase
+                _note(p, label, g,
+                      f"extended {c24:+.0f}%/24h {c6:+.0f}%/6h")
+                continue
+            g["early"] = True
             risk = abs(live - st) / live * 100
             if risk <= 0:
                 continue
             rr = (abs(t1 - live) / live * 100) / risk
-            if rr < RR_MIN:
-                continue                   # gate 3: geometry
+            g["geometry"] = rr >= RR_MIN
+            if not g["geometry"]:          # gate 3
+                _note(p, label, g, f"R:R {rr:.2f} < {RR_MIN}")
+                continue
             try:
                 kr = kronos_fn(sym, side)
             except Exception:
                 kr = None
-            if not kr:
-                continue                   # gate 4: no verdict, no card
+            if not kr:                     # gate 4: no verdict, no card
+                g["kronos"] = False
+                _note(p, label, g, "kronos: no fresh forecast")
+                continue
             agree = ((kr.get("direction") == "UP" and is_long) or
                      (kr.get("direction") == "DOWN" and not is_long))
-            if not agree:
-                continue                   # gate 4: the top layer's veto
+            g["kronos"] = agree
+            if not agree:                  # gate 4: the top layer's veto
+                _note(p, label, g,
+                      f"kronos says {kr.get('direction')} "
+                      f"{float(kr.get('exp_move_pct') or 0):+.1f}%")
+                continue
+            _note(p, label, g, f"✓ QUALIFIED · R:R {rr:.2f}")
             row = dict(p)
             row["ts_source"] = label
             row["ts_rr"] = round(rr, 2)
@@ -120,5 +163,6 @@ def compose(sources: dict, tier_form: dict, regime: str,
             row["kr_exp"] = kr.get("exp_move_pct")
             row["ts_born"] = time.time()
             out.append(row)
+    LAST_AUDIT = audit
     out.sort(key=lambda r: -float(r.get("ts_rr") or 0))
     return out[:MAX_CARDS]

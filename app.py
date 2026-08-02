@@ -1110,6 +1110,24 @@ def _render_true_signal(pb_state, live_prices=None):
                "Manual opens only; the desk proves this stream forward "
                "under 🎯 before it ever earns Telegram or live money.")
 
+    # status strip — regime + last brain scan, so the page reads alive
+    try:
+        _lc = _ws_ts.last_cycle() or {}
+        _lc_age = int(max(0, time.time()
+                          - float(_lc.get("ts") or 0)) // 60)
+        st.markdown(
+            f"<div style='display:flex;gap:8px;margin:4px 0 10px'>"
+            f"<span style='background:rgba(56,189,248,0.14);color:"
+            f"#38bdf8;padding:3px 12px;border-radius:14px;font-size:"
+            f"0.76rem;font-weight:800'>regime "
+            f"{_lc.get('regime') or '—'}</span>"
+            f"<span style='background:rgba(255,255,255,0.06);color:"
+            f"#9aa7c7;padding:3px 12px;border-radius:14px;font-size:"
+            f"0.76rem;font-weight:700'>last scan {_lc_age}m ago · "
+            f"24/7</span></div>", unsafe_allow_html=True)
+    except Exception:
+        pass
+
     # 🔮 top-layer health — never silently degrade the construct
     _kr_fresh = False
     try:
@@ -1264,6 +1282,121 @@ def _render_true_signal(pb_state, live_prices=None):
                     st.warning("Not opened — Paper Trader rejected.")
             except Exception as exc:
                 st.error(f"Open failed: {exc}")
+
+    # ── 🔬 THE FUNNEL — the living board: every candidate the system
+    # is considering RIGHT NOW and exactly which gate it died at.
+    # (user 2026-07-28: "I want a proper board" — emptiness alone
+    # isn't one; the funnel always has bodies in it.)
+    st.markdown("#### 🔬 THE FUNNEL — being considered right now")
+    st.caption("Every elite-stream candidate this cycle and its gate "
+               "verdicts, left to right: **source** (tier 14d form) → "
+               "**early** (≤10% + not extended) → **geometry** "
+               "(R:R ≥ 1.5) → **🔮 kronos** (top layer) → **regime**. "
+               "A card is born only when all five turn green — watch "
+               "setups climb toward qualification here.")
+    try:
+        _au_rows = _ws_ts.recent_by_stream("ts_audit", 30)
+    except Exception:
+        _au_rows = []
+    _au_seen, _funnel = set(), []
+    for _a in _au_rows:
+        _k = (_a.get("symbol"), _a.get("side"))
+        if _k in _au_seen:
+            continue
+        _au_seen.add(_k)
+        if time.time() - float(_a.get("ts") or 0) < 2 * 3600:
+            _funnel.append(_a)
+    if not _funnel:
+        st.caption("· The elite streams have no candidates this cycle "
+                   "(quiet tape) — the funnel refills as they fire.")
+    for _a in _funnel[:8]:
+        try:
+            _ax = _json_ts.loads(_a.get("extra") or "{}")
+        except Exception:
+            _ax = {}
+        _ag = _ax.get("gates") or {}
+        _sd = (_a.get("side") or "").upper()
+        _sc2 = "#2ed47a" if _sd == "LONG" else "#ff5c5c"
+        _chips = ""
+        for _gk, _gl in (("source", "source"), ("early", "early"),
+                         ("geometry", "R:R"), ("kronos", "🔮 kronos"),
+                         ("regime", "regime")):
+            _gv = _ag.get(_gk)
+            if _gv is True:
+                _cbg, _cfg, _m = "rgba(46,212,122,0.15)", "#2ed47a", "✓"
+            elif _gv is False:
+                _cbg, _cfg, _m = "rgba(255,92,92,0.15)", "#ff5c5c", "✗"
+            else:
+                _cbg, _cfg, _m = "rgba(139,147,167,0.12)", "#8b93a7", "—"
+            _chips += (f"<span style='background:{_cbg};color:{_cfg};"
+                       f"padding:2px 8px;border-radius:6px;font-size:"
+                       f"0.72rem;font-weight:800;margin-right:4px'>"
+                       f"{_m} {_gl}</span>")
+        _qual = str(_ax.get("detail") or "").startswith("✓")
+        _fbd = ("rgba(255,215,0,0.5)" if _qual
+                else "rgba(255,255,255,0.08)")
+        st.markdown(
+            f"<div style='background:rgba(255,255,255,0.03);border:1px "
+            f"solid {_fbd};border-radius:10px;padding:7px 12px;"
+            f"margin:4px 0'><b>{_a.get('base')}</b> "
+            f"<span style='color:{_sc2};font-weight:800'>{_sd}</span> "
+            f"<span style='color:#8b93a7;font-size:0.72rem'>· "
+            f"{_ax.get('tier_label') or ''}</span><br>"
+            f"<div style='margin:5px 0 2px'>{_chips}</div>"
+            f"<span style='color:#9aa7c7;font-size:0.76rem'>"
+            f"{_ax.get('detail') or ''}</span></div>",
+            unsafe_allow_html=True)
+
+    # ── 🔮 KRONOS BOARD — the top layer's latest reads ──
+    st.markdown("#### 🔮 KRONOS BOARD — latest forecasts")
+    st.caption("The foundation model's freshest 24h reads on the coins "
+               "the boards are tracking (updated by the worker, ~2h "
+               "cache). Green = up, red = down, gray = no conviction.")
+    try:
+        _kb_rows = _ws_ts.recent_by_stream("kronos", 40)
+    except Exception:
+        _kb_rows = []
+    _kb_seen, _kb = set(), []
+    for _k_r in _kb_rows:
+        _s = _k_r.get("symbol")
+        if _s in _kb_seen:
+            continue
+        _kb_seen.add(_s)
+        if time.time() - float(_k_r.get("ts") or 0) < 6 * 3600:
+            _kb.append(_k_r)
+    if not _kb:
+        st.caption("· No fresh forecasts yet — the model warms up on "
+                   "the first worker cycle after deploy (weights "
+                   "download once), then this board fills in.")
+    else:
+        _kb_cols = st.columns(2)
+        for _j, _k_r in enumerate(_kb[:12]):
+            try:
+                _kx = _json_ts.loads(_k_r.get("extra") or "{}")
+            except Exception:
+                _kx = {}
+            _kd = _kx.get("kr_dir")
+            _ke = float(_kx.get("kr_exp") or 0)
+            _khi = float(_kx.get("kr_hi") or 0)
+            _klo = float(_kx.get("kr_lo") or 0)
+            _kage = int(max(0, time.time()
+                            - float(_k_r.get("ts") or 0)) // 60)
+            if _kd == "UP":
+                _kc, _arr = "#2ed47a", "▲"
+            elif _kd == "DOWN":
+                _kc, _arr = "#ff5c5c", "▼"
+            else:
+                _kc, _arr = "#8b93a7", "◆"
+            _kb_cols[_j % 2].markdown(
+                f"<div style='background:rgba(255,255,255,0.03);"
+                f"border:1px solid rgba(255,255,255,0.08);border-left:"
+                f"4px solid {_kc};border-radius:9px;padding:7px 12px;"
+                f"margin:4px 0'><b>{_k_r.get('base') or _k_r.get('symbol')}"
+                f"</b> <span style='color:{_kc};font-weight:900'>"
+                f"{_arr} {_kd or '—'} {_ke:+.1f}%</span> "
+                f"<span style='color:#8b93a7;font-size:0.72rem'>/24h · "
+                f"path {_khi:+.1f}%/{_klo:+.1f}% · {_kage}m ago</span>"
+                f"</div>", unsafe_allow_html=True)
 
     # ── 📂 my open 🎯 trades — manual only, live charts ──
     _lp_map = dict(live_prices or {})
