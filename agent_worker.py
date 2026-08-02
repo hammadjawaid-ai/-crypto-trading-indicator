@@ -185,6 +185,17 @@ def _fmt_ts(p) -> str:
             f"honest record on the Decision Desk._")
 
 
+def _fmt_preburst(p) -> str:
+    return (f"🌋 *PRE-BURST* — {p['base']} {p['side']} (quiet coil + 🔮 "
+            f"{p.get('kr_dir')} {float(p.get('kr_exp') or 0):+.1f}%/24h)\n"
+            f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
+            f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
+            f"_Tight base (range {p.get('coil_rng24')}%/24h, volatility "
+            f"compressed) where the model smells a move BEFORE it prints "
+            f"— the PORTAL construct. UNPROVEN: backtest validating in "
+            f"parallel, desk tier 🌋 proving forward. SIZE SMALL._")
+
+
 def _fmt_apex(p) -> str:
     edges = " · ".join(p.get("edges", []))
     return (f"🏆🔥 *APEX ×{p.get('apex', 0)}* — {p['base']} {p['side']} "
@@ -587,6 +598,39 @@ def cycle() -> None:
     except Exception:
         pass
 
+    # 🌋 PRE-BURST radar (user 2026-08-03, PORTAL case: "predict before
+    # they burst — do whatever it takes"): quiet coils where Kronos
+    # forecasts a big move. Deployed unproven by explicit user call
+    # (IGNITION precedent) — honest label in every buzz, desk tier
+    # proving, backtest_coil_kronos.py recalibrating in parallel.
+    _pb = []
+    if _kr_ok:
+        _pb_budget = [5]      # fresh coil forecasts per cycle
+
+        def _kr_pb(sym):
+            _hit = _KR_CACHE.get(sym)
+            if _hit and _now - _hit["t"] < KR_TTL:
+                return _hit["s"]
+            if _pb_budget[0] <= 0:
+                return None
+            _pb_budget[0] -= 1
+            _kv = kf.forecast(sym, "1h", horizon=24)
+            if _kv:
+                _KR_CACHE[sym] = {"t": _now, "s": _kv}
+            return _kv
+
+        try:
+            import preburst as _pb_mod
+            _pb = _pb_mod.scan(
+                binance_client.get_top_symbols(40)["symbol"].tolist(),
+                _kr_pb, max_checks=30)
+        except Exception as _pb_exc:
+            _pb = []
+            print("  preburst error:", _pb_exc, flush=True)
+        for p in _pb:
+            store.record_signal("preburst", p)
+        _push(list(_pb), "preburst", _fmt_preburst, min_conf=0)
+
     # 🟢 GREEN LIGHT announcements stay (desk reports, rare + informative)
     try:
         _green = {rec["tier"] for rec in shadow_trader.tier_records()
@@ -656,6 +700,7 @@ def cycle() -> None:
                   ("surge", _srg),
                   ("one_trade", [_one] if _one else []),
                   ("true_signal", _ts_rows),
+                  ("preburst", _pb),
                   ("trend_rider", r.get("trend", [])))
         for _tname, _sigs in _tiers:
             for p in _sigs:

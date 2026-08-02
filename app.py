@@ -1153,6 +1153,107 @@ def _kronos_board(limit=12):
             unsafe_allow_html=True)
 
 
+def _preburst_board(pb_state=None):
+    """🌋 PRE-BURST board — shared (🎯 page + Paper Trader). Quiet
+    coils where Kronos forecasts a big move, caught BEFORE the burst
+    (the PORTAL construct). Honest UNPROVEN labeling until the desk +
+    backtest verdicts land. Open buttons only when pb_state is given."""
+    import json as _json_pb
+
+    import worker_store as _ws_pb
+    st.markdown("#### 🌋 PRE-BURST — loaded bases, caught early")
+    st.caption("Quiet coils (tight range, compressed volatility, no "
+               "move yet) where 🔮 Kronos forecasts a ≥2% move in the "
+               "next 24h — the PORTAL-base construct: in **before** the "
+               "burst, not chasing it. **UNPROVEN — deployed by your "
+               "call; the 🌋 desk tier + a parallel backtest are "
+               "building its honest record. Size small.**")
+    try:
+        _rows = _ws_pb.recent_by_stream("preburst", 10)
+    except Exception:
+        _rows = []
+    _seen, _fires = set(), []
+    for _r in _rows:
+        _k = (_r.get("symbol"), _r.get("side"))
+        if _k in _seen:
+            continue
+        _seen.add(_k)
+        if time.time() - float(_r.get("ts") or 0) < 6 * 3600:
+            _fires.append(_r)
+    if not _fires:
+        st.caption("· No loaded bases right now — coils are rare by "
+                   "nature; the radar sweeps every 5 minutes, 24/7.")
+        return
+    for _i, _r in enumerate(_fires[:4]):
+        try:
+            _x = _json_pb.loads(_r.get("extra") or "{}")
+        except Exception:
+            _x = {}
+        _sym = _r.get("symbol") or ""
+        _b = _r.get("base")
+        _sd = (_r.get("side") or "").upper()
+        _e = float(_r.get("entry") or 0)
+        _st_ = float(_r.get("stop") or 0)
+        _t1 = float(_r.get("tp1") or 0)
+        _t2 = float(_r.get("tp2") or 0)
+        _sc = "#2ed47a" if _sd == "LONG" else "#ff5c5c"
+        _kc = "#2ed47a" if _sd == "LONG" else "#ff5c5c"
+        _c1, _c2 = st.columns([5, 1])
+        _c1.markdown(
+            f"<div style='background:rgba(255,140,0,0.07);border:1.5px "
+            f"solid rgba(255,140,0,0.55);border-radius:13px;padding:"
+            f"11px 15px;margin:5px 0'>"
+            f"<span style='background:rgba(255,140,0,0.2);color:#ffb066;"
+            f"padding:2px 10px;border-radius:999px;font-size:0.73rem;"
+            f"font-weight:800'>🌋 PRE-BURST</span> "
+            f"<b style='font-size:1.1rem'>{_b}</b> "
+            f"<span style='color:{_sc};font-weight:800'>{_sd}</span> "
+            f"<span style='color:#8b93a7;font-size:0.72rem'>· "
+            f"{int(max(0, time.time() - float(_r.get('ts') or 0)) // 60)}"
+            f"m ago · coil range {_x.get('coil_rng24')}%/24h · vol pct "
+            f"{_x.get('coil_atr_pct')}</span><br>"
+            f"<span style='color:#e6e9f0;font-size:0.86rem'>entry "
+            f"<b>{px_round.fmt_px(_sym, _e)}</b> · SL "
+            f"<b style='color:#ff5c5c'>{px_round.fmt_px(_sym, _st_)}</b>"
+            f" · TP1 <b style='color:#2ed47a'>"
+            f"{px_round.fmt_px(_sym, _t1)}</b>"
+            f"{(' · TP2 <b style=' + chr(39) + 'color:#2ed47a' + chr(39)
+                + '>' + px_round.fmt_px(_sym, _t2) + '</b>')
+               if _t2 else ''}</span>"
+            f"<div style='display:flex;align-items:center;gap:10px;"
+            f"background:rgba(255,255,255,0.035);border-radius:9px;"
+            f"padding:6px 12px;margin-top:7px;font-size:0.84rem'>"
+            f"🔮 <b style='color:{_kc}'>{_x.get('kr_dir')} "
+            f"{float(_x.get('kr_exp') or 0):+.1f}%/24h</b> "
+            f"<span style='color:#8b93a7;font-size:0.74rem'>the model "
+            f"smells a move at a quiet base — in before the burst"
+            f"</span></div></div>", unsafe_allow_html=True)
+        if pb_state is None:
+            _c2.caption("view")
+        elif any(p.get("symbol") == _sym
+                 for p in (pb_state.get("open") or [])):
+            _c2.caption("✓ open")
+        elif _c2.button("📥 Open", key=f"pb_open_{_sym}_{_i}",
+                        use_container_width=True):
+            try:
+                _alert = {
+                    "symbol": _sym, "base": _b, "side": _sd,
+                    "entry_low": _e, "stop": _st_, "target": _t1,
+                    "target_2": _t2 or None,
+                    "chase_tp2_eligible": bool(_t2),
+                    "confidence": 60, "strength_factor": 0.6,
+                    "_unified_source": "true_signal"}
+                _pos = paper_bot.open_position(pb_state, _alert, _e)
+                paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                if _pos:
+                    st.success(f"Opened {_sd} {_b} (🌋 pre-burst)")
+                    st.rerun()
+                else:
+                    st.warning("Not opened — Paper Trader rejected.")
+            except Exception as exc:
+                st.error(f"Open failed: {exc}")
+
+
 def _render_true_signal(pb_state, live_prices=None):
     """🎯 TRUE SIGNAL — the acting surface (user 2026-07-28 rework).
 
@@ -1650,6 +1751,9 @@ def _render_true_signal(pb_state, live_prices=None):
                     st.warning("Not opened — Paper Trader rejected.")
             except Exception as exc:
                 st.error(f"Open failed: {exc}")
+
+    # ── 🌋 PRE-BURST — loaded bases (user 2026-08-03, PORTAL case) ──
+    _preburst_board(pb_state)
 
     # ── 🔮 KRONOS BOARD — the top layer's latest reads ──
     st.markdown("#### 🔮 KRONOS BOARD — latest forecasts")
@@ -2351,6 +2455,10 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                "that **agrees** with 🔮 gets the green edge.")
     _kronos_board()
 
+    # 🌋 PRE-BURST on Paper Trading too (user 2026-08-03: separate
+    # board on both pages) — display board; opening lives on 🎯.
+    _preburst_board(None)
+
     # ── ✳️ DECISION DESK — FORWARD PROOF (user 2026-07-08) ──────────────
     # The brain takes every tier's signal itself as a live shadow trade
     # (real entry price at signal time, real fees, ladder + 48h time-stop)
@@ -2380,6 +2488,7 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "one_trade": "👑 ONE TRADE",
                    "true_signal": "🎯 TRUE SIGNAL",
                    "top_conviction": "🏆 TOP CONVICTION",
+                   "preburst": "🌋 PRE-BURST",
                    "trend_rider": "🌊 TREND RIDER"}
     # 2026-07-28 cleanup: retired tiers stay in the archive (bench) but
     # never in the active view. LIQ FLUSH retired by its own rule
