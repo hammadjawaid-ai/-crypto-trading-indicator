@@ -1091,62 +1091,100 @@ def _render_true_signal(pb_state, live_prices=None):
     import json as _json_ts
 
     import worker_store as _ws_ts
-    st.markdown(
-        "<div style='display:flex;align-items:center;gap:10px;"
-        "margin-top:14px'>"
-        "<span style='font-size:1.3rem;font-weight:900;background:"
-        "linear-gradient(135deg,#ffd700,#ff9d00);-webkit-background-clip:"
-        "text;-webkit-text-fill-color:transparent;background-clip:text'>"
-        "🎯 TRUE SIGNAL — one card at a time</span></div>",
-        unsafe_allow_html=True)
-    st.caption("**The single acting surface.** A card exists only after "
-               "passing all five gates: hot source tier (14d form "
-               "positive) → early (≤10% of move gone, not extended) → "
-               "geometry (R:R ≥ 1.5 live) → **🔮 Kronos agrees** (the "
-               "foundation-model top layer — validated on our own "
-               "entries: its approvals made +0.26R/trade while its "
-               "vetoes lost −0.14R) → regime aligned. **Empty page = "
-               "no trade today, and that's the system working.** "
-               "Manual opens only; the desk proves this stream forward "
-               "under 🎯 before it ever earns Telegram or live money.")
+    # 🎨 section-scoped design system — glass, gold, glow (matches the
+    # app's premium pass; user 2026-07-28: "visually very appealing")
+    st.markdown("""<style>
+    .tsx-hero{position:relative;overflow:hidden;background:
+      linear-gradient(135deg,rgba(255,215,0,0.13),rgba(255,157,0,0.05)
+      55%,rgba(126,249,255,0.06));border:1px solid rgba(255,215,0,0.4);
+      border-radius:16px;padding:18px 22px;margin:10px 0 14px}
+    .tsx-hero:after{content:'';position:absolute;top:0;left:-60%;
+      width:40%;height:100%;background:linear-gradient(100deg,
+      transparent,rgba(255,215,0,0.15),transparent);
+      animation:tsx-sweep 3.4s ease-in-out infinite}
+    @keyframes tsx-sweep{0%{left:-60%}55%{left:110%}100%{left:110%}}
+    .tsx-title{font-size:1.55rem;font-weight:900;background:
+      linear-gradient(135deg,#ffd700,#ff9d00);-webkit-background-clip:
+      text;-webkit-text-fill-color:transparent;background-clip:text}
+    .tsx-pill{display:inline-block;background:rgba(255,255,255,0.08);
+      color:#bfc9de;padding:3px 12px;border-radius:14px;
+      font-size:0.74rem;font-weight:700;margin:6px 6px 0 0}
+    .tsx-tiles{display:grid;grid-template-columns:repeat(4,1fr);
+      gap:10px;margin:4px 0 14px}
+    .tsx-tile{background:rgba(255,255,255,0.045);border:1px solid
+      rgba(255,255,255,0.10);border-radius:13px;padding:12px 14px;
+      backdrop-filter:blur(8px)}
+    .tsx-tile .l{color:#8b93a7;font-size:0.7rem;font-weight:800;
+      letter-spacing:0.05em;text-transform:uppercase}
+    .tsx-tile .v{font-size:1.35rem;font-weight:900;color:#e6e9f0;
+      margin-top:3px}
+    .tsx-card{position:relative;background:linear-gradient(160deg,
+      rgba(255,215,0,0.11),rgba(255,215,0,0.03));border:2px solid
+      rgba(255,215,0,0.55);border-radius:15px;padding:14px 18px;
+      margin:8px 0;animation:tsx-glow 2.8s ease-in-out infinite}
+    @keyframes tsx-glow{0%,100%{box-shadow:0 0 12px
+      rgba(255,215,0,0.10)}50%{box-shadow:0 0 26px
+      rgba(255,215,0,0.22)}}
+    .tsx-ladder{display:flex;height:32px;border-radius:8px;
+      overflow:hidden;margin:10px 0 4px;font-size:0.72rem;
+      font-weight:800}
+    .tsx-ladder div{display:flex;align-items:center;
+      justify-content:center;white-space:nowrap}
+    .tsx-row{background:rgba(255,255,255,0.035);border:1px solid
+      rgba(255,255,255,0.09);border-radius:11px;padding:8px 13px;
+      margin:5px 0;backdrop-filter:blur(6px)}
+    .tsx-kb{background:rgba(255,255,255,0.04);border:1px solid
+      rgba(255,255,255,0.09);border-radius:11px;padding:9px 13px;
+      margin:4px 0;backdrop-filter:blur(6px)}
+    .tsx-kbar{position:relative;height:7px;background:
+      rgba(255,255,255,0.08);border-radius:4px;margin-top:7px}
+    </style>""", unsafe_allow_html=True)
 
-    # status strip — regime + last brain scan, so the page reads alive
+    # hero banner — title + live status pills in one glass panel
+    _lc = {}
     try:
         _lc = _ws_ts.last_cycle() or {}
-        _lc_age = int(max(0, time.time()
-                          - float(_lc.get("ts") or 0)) // 60)
-        st.markdown(
-            f"<div style='display:flex;gap:8px;margin:4px 0 10px'>"
-            f"<span style='background:rgba(56,189,248,0.14);color:"
-            f"#38bdf8;padding:3px 12px;border-radius:14px;font-size:"
-            f"0.76rem;font-weight:800'>regime "
-            f"{_lc.get('regime') or '—'}</span>"
-            f"<span style='background:rgba(255,255,255,0.06);color:"
-            f"#9aa7c7;padding:3px 12px;border-radius:14px;font-size:"
-            f"0.76rem;font-weight:700'>last scan {_lc_age}m ago · "
-            f"24/7</span></div>", unsafe_allow_html=True)
     except Exception:
         pass
+    _lc_age = int(max(0, time.time() - float(_lc.get("ts") or 0)) // 60)
+    st.markdown(
+        f"<div class='tsx-hero'>"
+        f"<span class='tsx-title'>🎯 TRUE SIGNAL</span> "
+        f"<span style='color:#9aa7c7;font-size:0.9rem;font-weight:600'>"
+        f"— the one surface that speaks</span><br>"
+        f"<span class='tsx-pill'>🧭 regime "
+        f"<b style='color:#38bdf8'>{_lc.get('regime') or '—'}</b></span>"
+        f"<span class='tsx-pill'>⏱ scanned "
+        f"<b style='color:#e6e9f0'>{_lc_age}m ago</b> · 24/7</span>"
+        f"<span class='tsx-pill'>🔮 top layer: kronos "
+        f"<b style='color:#ffd54a'>81.8% agree-bucket (backtest)</b>"
+        f"</span>"
+        f"<span class='tsx-pill'>5 gates · all must pass · "
+        f"<b style='color:#2ed47a'>empty = discipline</b></span>"
+        f"</div>", unsafe_allow_html=True)
 
-    # top metrics row — the desk's vitals at a glance (mockup parity:
-    # the page must read like a trading desk, not an empty section)
-    try:
-        _mt_closed = [t for t in (pb_state.get("closed") or [])
-                      if (t.get("source") or "") == "true_signal"]
-        _mt_open = [p for p in (pb_state.get("open") or [])
-                    if (p.get("source") or "") == "true_signal"]
-        _mt_n = len(_mt_closed)
-        _mt_w = sum(1 for t in _mt_closed
-                    if float(t.get("pnl_usd") or 0) > 0)
-        _mt_net = sum(float(t.get("pnl_usd") or 0) for t in _mt_closed)
-        _mc1, _mc2, _mc3, _mc4 = st.columns(4)
-        _mc1.metric("open 🎯 trades", f"{len(_mt_open)}")
-        _mc2.metric("closed", f"{_mt_n}")
-        _mc3.metric("win rate",
-                    f"{(_mt_w / _mt_n * 100) if _mt_n else 0:.0f}%")
-        _mc4.metric("net P&L", f"${_mt_net:+,.2f}")
-    except Exception:
-        pass
+    # glass stat tiles — the desk's vitals
+    _mt_closed = [t for t in (pb_state.get("closed") or [])
+                  if (t.get("source") or "") == "true_signal"]
+    _mt_open = [p for p in (pb_state.get("open") or [])
+                if (p.get("source") or "") == "true_signal"]
+    _mt_n = len(_mt_closed)
+    _mt_w = sum(1 for t in _mt_closed
+                if float(t.get("pnl_usd") or 0) > 0)
+    _mt_net = sum(float(t.get("pnl_usd") or 0) for t in _mt_closed)
+    _mt_nc = "#2ed47a" if _mt_net >= 0 else "#ff5c5c"
+    st.markdown(
+        f"<div class='tsx-tiles'>"
+        f"<div class='tsx-tile'><div class='l'>📂 open trades</div>"
+        f"<div class='v'>{len(_mt_open)}</div></div>"
+        f"<div class='tsx-tile'><div class='l'>📋 closed</div>"
+        f"<div class='v'>{_mt_n}</div></div>"
+        f"<div class='tsx-tile'><div class='l'>🏆 win rate</div>"
+        f"<div class='v'>{(_mt_w / _mt_n * 100) if _mt_n else 0:.0f}%"
+        f"</div></div>"
+        f"<div class='tsx-tile'><div class='l'>💰 net p&l</div>"
+        f"<div class='v' style='color:{_mt_nc}'>${_mt_net:+,.2f}</div>"
+        f"</div></div>", unsafe_allow_html=True)
 
     # 🔮 top-layer health — never silently degrade the construct
     _kr_fresh = False
@@ -1248,31 +1286,51 @@ def _render_true_signal(pb_state, live_prices=None):
                        "color:#ff5c5c;padding:1px 8px;border-radius:5px;"
                        "font-size:0.72rem;font-weight:800'>⛔ TOO LATE "
                        "now</span>")
+        # proportional price ladder: red risk block, green run to TP1,
+        # faded run to TP2 — widths match the real distances
+        _risk_w = abs(entry - stop)
+        _r1_w = abs(tp1 - entry)
+        _r2_w = abs(tp2 - tp1) if tp2 else 0
+        _tot_w = (_risk_w + _r1_w + _r2_w) or 1.0
+        _ladder = (
+            f"<div class='tsx-ladder'>"
+            f"<div style='flex:{_risk_w / _tot_w * 100:.1f};background:"
+            f"rgba(255,92,92,0.30);color:#ffb3b3'>SL "
+            f"{px_round.fmt_px(_sym, stop)}</div>"
+            f"<div style='flex:2;background:rgba(255,255,255,0.16);"
+            f"color:#e6e9f0'>▮</div>"
+            f"<div style='flex:{_r1_w / _tot_w * 100:.1f};background:"
+            f"rgba(46,212,122,0.30);color:#9ff0c4'>TP1 "
+            f"{px_round.fmt_px(_sym, tp1)}</div>"
+            + (f"<div style='flex:{_r2_w / _tot_w * 100:.1f};"
+               f"background:rgba(46,212,122,0.14);color:#6fd39c'>TP2 "
+               f"{px_round.fmt_px(_sym, tp2)}</div>" if tp2 else "")
+            + "</div>"
+            f"<div style='display:flex;justify-content:space-between;"
+            f"font-size:0.74rem;color:#8b93a7'>"
+            f"<span>risk −{_risk_w / entry * 100 if entry else 0:.1f}%"
+            f"</span><span>entry <b style='color:#e6e9f0'>"
+            f"{px_round.fmt_px(_sym, entry)}</b>"
+            f"{(' · now <b style=' + chr(39) + 'color:#ffd54a'
+                + chr(39) + '>' + px_round.fmt_px(_sym, _live)
+                + '</b>') if _live else ''}</span>"
+            f"<span>+{(_r1_w + _r2_w) / entry * 100 if entry else 0:.1f}"
+            f"% to TP2</span></div>")
         _c1, _c2 = st.columns([5, 1])
         _c1.markdown(
-            f"<div style='background:rgba(255,215,0,0.06);border:2px "
-            f"solid rgba(255,215,0,0.45);border-radius:12px;padding:"
-            f"11px 15px;margin:6px 0'>"
+            f"<div class='tsx-card'>"
             f"<span style='background:linear-gradient(90deg,#ffd700,"
-            f"#ff9d00);color:#1a1200;padding:2px 10px;border-radius:6px;"
-            f"font-size:0.74rem;font-weight:900'>🎯 TRUE SIGNAL</span> "
-            f"<b style='font-size:1.05rem'>{base}</b> "
-            f"<span style='color:{scol};font-weight:800'>{side}</span> "
-            f"<span style='color:#8b93a7;font-size:0.72rem'>· "
+            f"#ff9d00);color:#1a1200;padding:3px 12px;border-radius:7px;"
+            f"font-size:0.76rem;font-weight:900'>🎯 TRUE SIGNAL</span> "
+            f"<b style='font-size:1.25rem;margin-left:4px'>{base}</b> "
+            f"<span style='color:{scol};font-weight:900;font-size:"
+            f"1.05rem'>{side}</span> "
+            f"<span style='color:#8b93a7;font-size:0.74rem'>· "
             f"{int(max(0, time.time() - float(r.get('ts') or 0)) // 60)}"
             f"m ago · 24h {float(_x.get('ts_c24') or 0):+.1f}% · 6h "
-            f"{float(_x.get('ts_c6') or 0):+.1f}%</span>{_status}<br>"
-            f"<div style='margin:6px 0 2px'>{_gates}</div>"
-            f"<span style='color:#e6e9f0;font-size:0.86rem'>entry "
-            f"<b>{px_round.fmt_px(_sym, entry)}</b> · SL "
-            f"<b style='color:#ff5c5c'>{px_round.fmt_px(_sym, stop)}</b>"
-            f" · TP1 <b style='color:#2ed47a'>"
-            f"{px_round.fmt_px(_sym, tp1)}</b>"
-            f"{(' · TP2 <b style=' + chr(39) + 'color:#2ed47a' + chr(39)
-                + '>' + px_round.fmt_px(_sym, tp2) + '</b>') if tp2
-               else ''}"
-            f"{(' · now <b>' + px_round.fmt_px(_sym, _live) + '</b>')
-               if _live else ''}</span>"
+            f"{float(_x.get('ts_c6') or 0):+.1f}%</span>{_status}"
+            f"<div style='margin:8px 0 2px'>{_gates}</div>"
+            f"{_ladder}"
             f"{_kr_line}</div>", unsafe_allow_html=True)
         if _dead:
             _c2.caption("✖ dead")
@@ -1356,13 +1414,12 @@ def _render_true_signal(pb_state, live_prices=None):
         _fbd = ("rgba(255,215,0,0.5)" if _qual
                 else "rgba(255,255,255,0.08)")
         st.markdown(
-            f"<div style='background:rgba(255,255,255,0.03);border:1px "
-            f"solid {_fbd};border-radius:10px;padding:7px 12px;"
-            f"margin:4px 0'><b>{_a.get('base')}</b> "
+            f"<div class='tsx-row' style='border-color:{_fbd}'>"
+            f"<b style='font-size:0.95rem'>{_a.get('base')}</b> "
             f"<span style='color:{_sc2};font-weight:800'>{_sd}</span> "
             f"<span style='color:#8b93a7;font-size:0.72rem'>· "
             f"{_ax.get('tier_label') or ''}</span><br>"
-            f"<div style='margin:5px 0 2px'>{_chips}</div>"
+            f"<div style='margin:6px 0 3px'>{_chips}</div>"
             f"<span style='color:#9aa7c7;font-size:0.76rem'>"
             f"{_ax.get('detail') or ''}</span></div>",
             unsafe_allow_html=True)
@@ -1407,16 +1464,36 @@ def _render_true_signal(pb_state, live_prices=None):
                 _kc, _arr = "#ff5c5c", "▼"
             else:
                 _kc, _arr = "#8b93a7", "◆"
+            # forecast range bar: lo→hi with a marker at the expected
+            # endpoint and a tick at 0%
+            _rng = max(_khi - _klo, 0.1)
+            _zero_p = min(100, max(0, (0 - _klo) / _rng * 100))
+            _exp_p = min(100, max(0, (_ke - _klo) / _rng * 100))
+            _kbar = (
+                f"<div class='tsx-kbar'>"
+                f"<div style='position:absolute;left:{_zero_p:.0f}%;"
+                f"top:-2px;width:2px;height:11px;background:"
+                f"rgba(255,255,255,0.35)'></div>"
+                f"<div style='position:absolute;left:0;width:"
+                f"{_exp_p:.0f}%;height:7px;border-radius:4px;"
+                f"background:linear-gradient(90deg,transparent,{_kc})'>"
+                f"</div>"
+                f"<div style='position:absolute;left:calc({_exp_p:.0f}% "
+                f"- 4px);top:-2px;width:9px;height:11px;border-radius:"
+                f"3px;background:{_kc}'></div></div>")
             _kb_cols[_j % 2].markdown(
-                f"<div style='background:rgba(255,255,255,0.03);"
-                f"border:1px solid rgba(255,255,255,0.08);border-left:"
-                f"4px solid {_kc};border-radius:9px;padding:7px 12px;"
-                f"margin:4px 0'><b>{_k_r.get('base') or _k_r.get('symbol')}"
-                f"</b> <span style='color:{_kc};font-weight:900'>"
-                f"{_arr} {_kd or '—'} {_ke:+.1f}%</span> "
+                f"<div class='tsx-kb' style='border-left:4px solid "
+                f"{_kc}'><b style='font-size:0.95rem'>"
+                f"{_k_r.get('base') or _k_r.get('symbol')}</b> "
+                f"<span style='color:{_kc};font-weight:900;font-size:"
+                f"1.0rem'>{_arr} {_kd or '—'} {_ke:+.1f}%</span> "
                 f"<span style='color:#8b93a7;font-size:0.72rem'>/24h · "
-                f"path {_khi:+.1f}%/{_klo:+.1f}% · {_kage}m ago</span>"
-                f"</div>", unsafe_allow_html=True)
+                f"{_kage}m ago</span>{_kbar}"
+                f"<div style='display:flex;justify-content:"
+                f"space-between;font-size:0.68rem;color:#8b93a7;"
+                f"margin-top:3px'><span>{_klo:+.1f}%</span>"
+                f"<span>path range</span><span>{_khi:+.1f}%</span>"
+                f"</div></div>", unsafe_allow_html=True)
 
     # ── 📂 my open 🎯 trades — manual only, live charts ──
     _lp_map = dict(live_prices or {})
