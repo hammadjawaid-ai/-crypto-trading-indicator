@@ -631,11 +631,21 @@ def cycle() -> None:
             print("  liq_flush error:", _lf_exc, flush=True)
         for p in _lf:
             store.record_signal("liq_flush", p)
+        # 🏆 TOP CONVICTION desk tier (user 2026-07-28: "I clearly can't
+        # see it on the desk") — worker-side mirror of the app's
+        # size-up board: confirmed TAKE_NOW + HOT picks ranked by
+        # score, top 8. (The app board adds page-side injections the
+        # worker can't see; this tracks the core construct honestly.)
+        _topc = sorted(tn_hot,
+                       key=lambda p: -float(p.get("score") or 0))[:8]
+        for p in _topc:
+            store.record_signal("top_conviction", p)
         # 🩸 LIQ FLUSH RETIRED (2026-07-28, its own pre-registered rule:
         # still negative past ~50 closed — final record -22.6R/110).
         # Signals stay recorded above for the archive; the desk stops
         # taking them. Re-add here only if a NEW validation earns it.
-        _tiers = (("best_board", best),
+        _tiers = (("top_conviction", _topc),
+                  ("best_board", best),
                   ("apex", apex), ("takenow_hot", tn_hot),
                   ("elite_early", elite_early),
                   ("fresh", fresh_m), ("early_movers",
