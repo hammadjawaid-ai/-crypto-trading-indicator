@@ -2130,15 +2130,31 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                     _kr_border = ("border:2px solid rgba(46,212,122,"
                                   "0.8);box-shadow:0 0 16px "
                                   "rgba(46,212,122,0.22);")
+                # read age vs card age: a fresh read on an old card is
+                # often a REVERSION call on a spent move, not a verdict
+                # on the card's original entry (user HOME/WLD case)
+                _kr_age_m = int(max(0, time.time()
+                                    - float(_krf.get("ts") or 0)) // 60)
+                _card_age_m = int(max(0, time.time()
+                                      - float(r.get("ts") or 0)) // 60)
+                _stale_note = (
+                    " · ⚠️ read is newer than this card — on a late/"
+                    "stretched card this is a reversion call, not a "
+                    "verdict on its entry"
+                    if (not _agree and _card_age_m - _kr_age_m > 60)
+                    else "")
                 _kr_html = (
                     f"<div style='background:{_kbg};border-left:4px "
                     f"solid {_kc};border-radius:6px;padding:4px 10px;"
                     f"margin-top:6px;font-size:0.85rem;font-weight:800;"
                     f"color:{_kc}'>🔮 KRONOS "
                     f"{'▲' if _krd == 'UP' else '▼'} {_krd} "
-                    f"{_kre:+.1f}%/24h — "
+                    f"{_kre:+.1f}%/24h "
+                    f"<span style='font-weight:600;font-size:0.72rem'>"
+                    f"(read {_kr_age_m}m ago · card {_card_age_m}m ago)"
+                    f"</span> — "
                     f"{'AGREES — validated edge' if _agree else 'CONFLICTS'}"
-                    f" with this card</div>")
+                    f" with this card{_stale_note}</div>")
             elif _krd == "FLAT":
                 _kr_html = (
                     "<div style='background:rgba(139,147,167,0.12);"
