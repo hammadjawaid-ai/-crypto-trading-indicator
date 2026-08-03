@@ -671,9 +671,11 @@ def cycle() -> None:
 
         try:
             import preburst as _pb_mod
+            # top-60 universe (user 2026-08-03 ALLO case: mid-caps were
+            # outside the old top-40 net and never got scanned)
             _pb = _pb_mod.scan(
-                binance_client.get_top_symbols(40)["symbol"].tolist(),
-                _kr_pb, max_checks=30)
+                binance_client.get_top_symbols(60)["symbol"].tolist(),
+                _kr_pb, max_checks=45)
         except Exception as _pb_exc:
             _pb = []
             print("  preburst error:", _pb_exc, flush=True)
