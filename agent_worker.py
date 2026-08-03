@@ -45,6 +45,8 @@ INTERVAL = max(1, int(getattr(config, "WORKER_INTERVAL_MIN", 5))) * 60
 _KR_CACHE: dict = {}
 KR_TTL = 2 * 3600
 KR_MAX_PER_CYCLE = 8
+# 🌋 rotating scan counter — top-100 universe in halves (50/cycle)
+_PB_ROT = [0]
 COOLDOWN = max(1, int(getattr(config, "WORKER_ALERT_COOLDOWN_MIN", 360))) * 60
 MIN_CONV = float(getattr(config, "WORKER_SST1_MIN_CONV", 70))
 LB_MIN = float(getattr(config, "WORKER_LEADERBOARD_MIN_SCORE", 85))
@@ -671,11 +673,17 @@ def cycle() -> None:
 
         try:
             import preburst as _pb_mod
-            # top-60 universe (user 2026-08-03 ALLO case: mid-caps were
-            # outside the old top-40 net and never got scanned)
-            _pb = _pb_mod.scan(
-                binance_client.get_top_symbols(60)["symbol"].tolist(),
-                _kr_pb, max_checks=45)
+            # top-100 universe (user 2026-08-03: "make it 100 with max
+            # efficiency") — rotating halves: 50 coins per 5-min cycle,
+            # full 100 covered every 10 min. Coils live for hours, so
+            # nothing is lost; API load stays flat and the Kronos
+            # budget (5 fresh/cycle) is unchanged.
+            _PB_ROT[0] += 1
+            _pb_syms = binance_client.get_top_symbols(
+                100)["symbol"].tolist()
+            _pb_half = (_pb_syms[:50] if _PB_ROT[0] % 2 == 0
+                        else _pb_syms[50:])
+            _pb = _pb_mod.scan(_pb_half, _kr_pb, max_checks=50)
         except Exception as _pb_exc:
             _pb = []
             print("  preburst error:", _pb_exc, flush=True)
