@@ -52,11 +52,12 @@ def available() -> bool:
     instance struggles with torch memory) — everything downstream
     degrades to '🔮 offline' without code changes."""
     global _import_err
-    # 2026-08-05: default OFF (opt-in) — the model's resident memory
-    # OOM-crashed the Render instance (500 crash-loop). Set
-    # KRONOS_ENABLED=1 only on an instance with ~2GB headroom.
-    if (os.environ.get("KRONOS_ENABLED", "0") or "0").strip() != "1":
-        _import_err = "disabled (KRONOS_ENABLED != 1)"
+    # 2026-08-05: default back ON (user go) — the 500 loop's true cause
+    # was the python-3.14/starlette clash (now pinned in render.yaml +
+    # requirements), not torch memory; instance is Standard/2GB.
+    # KRONOS_ENABLED=0 remains the ops kill switch.
+    if (os.environ.get("KRONOS_ENABLED", "1") or "1").strip() == "0":
+        _import_err = "disabled via KRONOS_ENABLED=0"
         return False
     try:
         import torch                                    # noqa: F401

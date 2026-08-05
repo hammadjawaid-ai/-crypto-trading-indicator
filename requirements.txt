@@ -14,14 +14,13 @@ pybit>=5.7
 flask>=3.0
 gunicorn>=21.2
 
-# 🔮 KRONOS deps REMOVED from the server build 2026-08-05: torch's
-# resident memory OOM-crashed the instance into a 500 loop, and its
-# build size risked failing deploys outright. Kronos still runs
-# locally for research; server-side is opt-in via KRONOS_ENABLED=1.
-# To restore: upgrade the instance to ~2GB and uncomment:
-# --extra-index-url https://download.pytorch.org/whl/cpu
-# torch>=2.0
-# einops>=0.8
-# huggingface_hub>=0.30
-# safetensors>=0.4
-# tqdm>=4.66
+# 🔮 KRONOS restored 2026-08-05 (user go) — the 500 loop's real cause
+# was the python-3.14/starlette clash (now pinned), not torch memory;
+# the instance is Standard (2GB). CPU-only wheels via the extra-index.
+# Kill switch remains: KRONOS_ENABLED=0.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.0
+einops>=0.8
+huggingface_hub>=0.30
+safetensors>=0.4
+tqdm>=4.66
