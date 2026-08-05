@@ -52,8 +52,11 @@ def available() -> bool:
     instance struggles with torch memory) — everything downstream
     degrades to '🔮 offline' without code changes."""
     global _import_err
-    if (os.environ.get("KRONOS_ENABLED", "1") or "1").strip() == "0":
-        _import_err = "disabled via KRONOS_ENABLED=0"
+    # 2026-08-05: default OFF (opt-in) — the model's resident memory
+    # OOM-crashed the Render instance (500 crash-loop). Set
+    # KRONOS_ENABLED=1 only on an instance with ~2GB headroom.
+    if (os.environ.get("KRONOS_ENABLED", "0") or "0").strip() != "1":
+        _import_err = "disabled (KRONOS_ENABLED != 1)"
         return False
     try:
         import torch                                    # noqa: F401
