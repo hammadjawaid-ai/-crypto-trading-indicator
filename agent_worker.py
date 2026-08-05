@@ -187,6 +187,18 @@ def _fmt_ts(p) -> str:
             f"honest record on the Decision Desk._")
 
 
+def _fmt_kr_approved(p) -> str:
+    return (f"🔮✅ *KRONOS APPROVED* — {p['base']} {p['side']} "
+            f"[{p.get('kr_src', '')}]\n"
+            f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
+            f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
+            f"🔮 kronos {p.get('kr_dir')} "
+            f"{float(p.get('kr_exp') or 0):+.1f}%/24h — AGREES\n"
+            f"_The validated agree bucket: 86% win / +0.34R on our "
+            f"entries (n=138 backtest). Live desk tier 🔮 is the "
+            f"binding jury. Stop server-side, always._")
+
+
 def _fmt_prime_board(p) -> str:
     return (f"🥇 *PRIME* — {p['base']} {p['side']} (HIGH "
             f"{p.get('score', 0):.0f} · 30m-confirmed)\n"
@@ -630,23 +642,35 @@ def cycle() -> None:
     _kr_appr = []
     if _kr_ok:
         _ka_seen: set = set()
-        for _kp in (list(apex) + list(elite_early) + list(tn_hot)):
-            _kk = (_kp.get("symbol"), _kp.get("side"))
-            if _kk in _ka_seen or not _kk[0]:
-                continue
-            _ka_seen.add(_kk)
-            _kv2 = _kr_get(_kk[0], _kk[1])
-            if not _kv2:
-                continue
-            if ((_kv2.get("direction") == "UP" and _kk[1] == "LONG")
-                    or (_kv2.get("direction") == "DOWN"
-                        and _kk[1] == "SHORT")):
-                _kp2 = dict(_kp)
-                _kp2["kr_dir"] = _kv2.get("direction")
-                _kp2["kr_exp"] = _kv2.get("exp_move_pct")
-                _kr_appr.append(_kp2)
+        for _ka_src, _ka_pool in (("🏆 APEX", apex),
+                                  ("🌟 EARLY ELITE", elite_early),
+                                  ("🌱 FRESH", fresh_m),
+                                  ("✅🔥 TAKE NOW", tn_hot)):
+            for _kp in _ka_pool:
+                _kk = (_kp.get("symbol"), _kp.get("side"))
+                if _kk in _ka_seen or not _kk[0]:
+                    continue
+                _ka_seen.add(_kk)
+                _kv2 = _kr_get(_kk[0], _kk[1])
+                if not _kv2:
+                    continue
+                if ((_kv2.get("direction") == "UP"
+                     and _kk[1] == "LONG")
+                        or (_kv2.get("direction") == "DOWN"
+                            and _kk[1] == "SHORT")):
+                    _kp2 = dict(_kp)
+                    _kp2["kr_dir"] = _kv2.get("direction")
+                    _kp2["kr_exp"] = _kv2.get("exp_move_pct")
+                    _kp2["kr_src"] = _ka_src
+                    _kr_appr.append(_kp2)
         for p in _kr_appr:
             store.record_signal("kr_approved", p)
+        # 🔮✅ buzz (user 2026-08-05: "kronos with apex / take now /
+        # fresh mover / early elite approved should be on telegram") —
+        # the live face of the validated agree bucket (86%/+0.34R,
+        # n=138 backtest; desk tier kr_approved is the binding jury).
+        _push([p for p in _kr_appr if _in_zone(p)], "krapp",
+              _fmt_kr_approved, min_conf=0)
 
     # 🎯 TRUE SIGNAL (user 2026-07-28: "one solid system, no fuzz") —
     # five gates, Kronos on top with the last word. Desk tier proves it
