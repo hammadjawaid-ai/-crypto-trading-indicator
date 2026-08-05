@@ -41,6 +41,12 @@ import time
 SOURCES = (("elite_early", "🌟 EARLY ELITE"),
            ("ignition", "🚨 IGNITION"),
            ("fast30", "⏱ FAST CONFIRM 30m"))
+# 2026-08-05 (CRCLB gold-card case): tokenized equities are excluded
+# from gold — no validated edges there, session gaps, thin books, and
+# Kronos reads them unreliably (out-of-distribution).
+TOKENIZED = {"CRCLBUSDT", "SPCXBUSDT", "SOXLBUSDT", "SNDKBUSDT",
+             "SNXXBUSDT", "EWYBUSDT", "MUBUSDT", "SOXSUSDT",
+             "SOXLUSDT", "GIGGLEUSDT"}
 ZONE_MAX = 0.10
 EXT_24H = 25.0
 EXT_6H = 18.0
@@ -90,6 +96,12 @@ def compose(sources: dict, tier_form: dict, regime: str,
             if not sym or side not in ("LONG", "SHORT") or k in seen:
                 continue
             seen.add(k)
+            if sym in TOKENIZED:
+                _note(p, label, {"source": True, "early": None,
+                                 "geometry": None, "kronos": None,
+                                 "regime": None},
+                      "tokenized equity — excluded instrument class")
+                continue
             g = {"source": form_ok, "early": None, "geometry": None,
                  "kronos": None, "regime": None}
             if not form_ok:                # gate 1: source form not hot
