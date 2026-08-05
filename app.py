@@ -1199,6 +1199,100 @@ def _kronos_board(limit=12):
             unsafe_allow_html=True)
 
 
+def _prime_board(pb_state=None):
+    """🥇 PRIME — the winners-only board (user 2026-08-05 deploy).
+    Mined from 134 entries/108 days: elite HIGH fire + ATR 40-80 +
+    calm 6h -> 30m confirm -> BANK at TP1. 74.5% win / +0.31R (n=47).
+    Shared renderer: openable on the 🎯 page, display on Paper Trader."""
+    import json as _json_pr
+
+    import worker_store as _ws_pr
+    st.markdown("#### 🥇 PRIME — the winners board")
+    st.caption("**Few trades, the ones that win.** Elite HIGH fire + "
+               "mid-band volatility (ATR 40–80) + calm 6h, entered on "
+               "the 30m confirmation, **banked at TP1** (riding tested "
+               "worse). Mined from 134 entries over 108 days: **74.5% "
+               "win · +0.31R/trade after fees** (n=47). Quiet-ATR, "
+               "already-moving and MAX-tier fires measured negative — "
+               "excluded by construction. Desk tier 🥇 proves it "
+               "forward.")
+    try:
+        _rows = _ws_pr.recent_by_stream("prime", 8)
+    except Exception:
+        _rows = []
+    _seen, _cards = set(), []
+    for _r in _rows:
+        _k = (_r.get("symbol"), _r.get("side"))
+        if _k in _seen:
+            continue
+        _seen.add(_k)
+        if time.time() - float(_r.get("ts") or 0) < 6 * 3600:
+            _cards.append(_r)
+    if not _cards:
+        st.caption("· No PRIME card right now — this board fires "
+                   "roughly every other day by design. When a card "
+                   "appears, it's the measured winning profile.")
+        return
+    for _i, _r in enumerate(_cards[:4]):
+        try:
+            _x = _json_pr.loads(_r.get("extra") or "{}")
+        except Exception:
+            _x = {}
+        _sym = _r.get("symbol") or ""
+        _b = _r.get("base")
+        _sd = (_r.get("side") or "").upper()
+        _e = float(_r.get("entry") or 0)
+        _st_ = float(_r.get("stop") or 0)
+        _t1 = float(_r.get("tp1") or 0)
+        _sc = "#2ed47a" if _sd == "LONG" else "#ff5c5c"
+        _c1, _c2 = st.columns([5, 1])
+        _c1.markdown(
+            f"<div style='background:rgba(255,215,0,0.06);border:1.5px "
+            f"solid rgba(255,215,0,0.6);border-radius:13px;padding:"
+            f"11px 15px;margin:5px 0'>"
+            f"<span style='background:linear-gradient(90deg,#ffd700,"
+            f"#ffb700);color:#1a1200;padding:2px 11px;border-radius:"
+            f"999px;font-size:0.74rem;font-weight:900'>🥇 PRIME</span> "
+            f"<b style='font-size:1.1rem'>{_b}</b> "
+            f"<span style='color:{_sc};font-weight:800'>{_sd}</span> "
+            f"<span style='color:#8b93a7;font-size:0.72rem'>· "
+            f"{int(max(0, time.time() - float(_r.get('ts') or 0)) // 60)}"
+            f"m ago · HIGH {float(_r.get('score') or 0):.0f} · calm 6h "
+            f"{_x.get('c6', 0):+.1f}%</span><br>"
+            f"<span style='color:#e6e9f0;font-size:0.88rem'>entry "
+            f"<b>{px_round.fmt_px(_sym, _e)}</b> · SL "
+            f"<b style='color:#ff5c5c'>{px_round.fmt_px(_sym, _st_)}</b>"
+            f" · TP1 <b style='color:#2ed47a'>"
+            f"{px_round.fmt_px(_sym, _t1)}</b> — <b style='color:"
+            f"#ffd54a'>BANK HERE</b></span></div>",
+            unsafe_allow_html=True)
+        if pb_state is None:
+            _c2.caption("view")
+        elif any(p.get("symbol") == _sym
+                 for p in (pb_state.get("open") or [])):
+            _c2.caption("✓ open")
+        elif _c2.button("📥 Open", key=f"pr_open_{_sym}_{_i}",
+                        use_container_width=True):
+            try:
+                _alert = {
+                    "symbol": _sym, "base": _b, "side": _sd,
+                    "entry_low": _e, "stop": _st_, "target": _t1,
+                    "target_2": None, "chase_tp2_eligible": False,
+                    "confidence": int(float(_r.get("score") or 0)
+                                      or 85),
+                    "strength_factor": 0.7,
+                    "_unified_source": "true_signal"}
+                _pos = paper_bot.open_position(pb_state, _alert, _e)
+                paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                if _pos:
+                    st.success(f"Opened {_sd} {_b} (🥇 PRIME)")
+                    st.rerun()
+                else:
+                    st.warning("Not opened — Paper Trader rejected.")
+            except Exception as exc:
+                st.error(f"Open failed: {exc}")
+
+
 def _preburst_board(pb_state=None):
     """🌋 PRE-BURST board — shared (🎯 page + Paper Trader). Quiet
     coils where Kronos forecasts a big move, caught BEFORE the burst
@@ -1797,6 +1891,9 @@ def _render_true_signal(pb_state, live_prices=None):
                     st.warning("Not opened — Paper Trader rejected.")
             except Exception as exc:
                 st.error(f"Open failed: {exc}")
+
+    # ── 🥇 PRIME — the winners board (user 2026-08-05 deploy) ──
+    _prime_board(pb_state)
 
     # ── 🌋 PRE-BURST — loaded bases (user 2026-08-03, PORTAL case) ──
     _preburst_board(pb_state)
@@ -2517,6 +2614,10 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                "that **agrees** with 🔮 gets the green edge.")
     _kronos_board()
 
+    # 🥇 PRIME on Paper Trading too (user 2026-08-05 deploy) —
+    # display board; opening lives on 🎯.
+    _prime_board(None)
+
     # 🌋 PRE-BURST on Paper Trading too (user 2026-08-03: separate
     # board on both pages) — display board; opening lives on 🎯.
     _preburst_board(None)
@@ -2552,6 +2653,7 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "top_conviction": "🏆 TOP CONVICTION",
                    "preburst": "🌋 PRE-BURST",
                    "kr_approved": "🔮 KRONOS APPROVED",
+                   "prime": "🥇 PRIME (winners board)",
                    "trend_rider": "🌊 TREND RIDER"}
     # 2026-07-28 cleanup: retired tiers stay in the archive (bench) but
     # never in the active view. LIQ FLUSH retired by its own rule

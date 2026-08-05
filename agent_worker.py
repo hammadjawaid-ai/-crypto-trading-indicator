@@ -187,6 +187,18 @@ def _fmt_ts(p) -> str:
             f"honest record on the Decision Desk._")
 
 
+def _fmt_prime_board(p) -> str:
+    return (f"🥇 *PRIME* — {p['base']} {p['side']} (HIGH "
+            f"{p.get('score', 0):.0f} · 30m-confirmed)\n"
+            f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
+            f"TP1 `{p['tp1']:g}` — *BANK AT TP1* (the measured "
+            f"construct; riding tested worse)\n"
+            f"_The winners-only board: elite HIGH fire + mid-band "
+            f"volatility + calm 6h ({p.get('c6', 0):+.1f}%). Mined "
+            f"from 134 entries/108 days: 74.5% win · +0.31R/trade "
+            f"after fees (n=47). Desk tier 🥇 proving forward._")
+
+
 def _fmt_preburst(p) -> str:
     return (f"🌋 *PRE-BURST* — {p['base']} {p['side']} (quiet coil + 🔮 "
             f"{p.get('kr_dir')} {float(p.get('kr_exp') or 0):+.1f}%/24h)\n"
@@ -488,6 +500,31 @@ def cycle() -> None:
         store.record_signal("fast30", p)
     _push([p for p in _f30 if _in_zone(p)], "fast30", _fmt_fast30,
           min_conf=0)
+    # 🥇 PRIME (user 2026-08-05: "deploy the board") — the winners-only
+    # construct mined from 134 entries / 108 days: elite HIGH fire +
+    # ATR 40-80 band + calm 6h -> 30m confirm -> bank at TP1.
+    # Measured 74.5% win / +0.31R after fees (n=47); quiet-ATR,
+    # already-moving and MAX-tier entries measured NEGATIVE and are
+    # excluded by construction. Desk tier proves it forward.
+    _prime = []
+    try:
+        for p in _f30:
+            if (p.get("tier") == "HIGH"
+                    and 40 <= float(p.get("atr_pct") or 0) < 80):
+                try:
+                    _c24p, _c6p = one_trade._extension(p["symbol"])
+                except Exception:
+                    continue
+                if abs(_c6p) < 3.0:
+                    _p2 = dict(p)
+                    _p2["c6"] = round(_c6p, 1)
+                    _prime.append(_p2)
+    except Exception as _pr_exc:
+        _prime = []
+        print("  prime error:", _pr_exc, flush=True)
+    for p in _prime:
+        store.record_signal("prime", p)
+    _push(list(_prime), "prime", _fmt_prime_board, min_conf=0)
     # 📡 SURGE RADAR (user 2026-07-26, LPT case): whole-market fresh-
     # pump ignition — fires only in a pump's first ~2h, refuses
     # extended chases. Unproven: labeled stream + desk tier proving.
@@ -762,6 +799,7 @@ def cycle() -> None:
                   ("true_signal", _ts_rows),
                   ("preburst", _pb),
                   ("kr_approved", _kr_appr),
+                  ("prime", _prime),
                   ("trend_rider", r.get("trend", [])))
         for _tname, _sigs in _tiers:
             for p in _sigs:
