@@ -1,4 +1,8 @@
 streamlit>=1.31
+# starlette cap 2026-08-05: 0.47+ changed GZipResponder's signature
+# (requires thread_minimum_size) and streamlit's gzip middleware
+# 500-crashes on every request with it installed.
+starlette<0.47
 pandas>=2.0
 numpy>=1.24
 requests>=2.31

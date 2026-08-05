@@ -14,6 +14,11 @@ services:
     healthCheckPath: /_stcore/health
     autoDeploy: true
     envVars:
+      # 2026-08-05: pin the runtime — Render's default jumped to
+      # Python 3.14, which pulled a too-new starlette and 500-crashed
+      # every request (GZipResponder signature clash with streamlit).
+      - key: PYTHON_VERSION
+        value: "3.12.7"
       - key: TELEGRAM_BOT_TOKEN
         sync: false          # set in the dashboard (secret)
       - key: TELEGRAM_CHAT_ID
