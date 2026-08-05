@@ -726,7 +726,11 @@ def cycle() -> None:
             print("  preburst error:", _pb_exc, flush=True)
         for p in _pb:
             store.record_signal("preburst", p)
-        _push(list(_pb), "preburst", _fmt_preburst, min_conf=0)
+        # 🌋 buzzes SILENCED (user 2026-08-05: "useless and losing
+        # money") — the SURGE precedent: desk tier keeps proving
+        # silently, boards stay visible, no Telegram. Re-enable by
+        # restoring the _push line ONLY if the desk record earns it.
+        # _push(list(_pb), "preburst", _fmt_preburst, min_conf=0)
 
     # 🟢 GREEN LIGHT announcements stay (desk reports, rare + informative)
     try:
