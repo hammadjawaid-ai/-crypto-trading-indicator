@@ -25,7 +25,12 @@ import binance_client
 RANGE_MAX = 0.06
 MOVE_MAX = 4.0
 ATR_PCT_MAX = 35.0
-EXP_MIN = float(os.environ.get("PREBURST_EXP_MIN", "2.0"))
+# 2026-08-06 upgrade study (.pb_v3.py, 281 triggered breaks/41 coins):
+# |exp|>=3 lifted the break edge +0.073R -> +0.176R at 62.6% win
+# (n=91); the 2-3% band measured +0.037R (mush). Volume confirms and
+# history alignment both tested NEGATIVE — conviction floor is the one
+# lever that survived. Deployed on user's explicit call.
+EXP_MIN = float(os.environ.get("PREBURST_EXP_MIN", "3.0"))
 MAX_FIRES = 4
 
 

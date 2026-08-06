@@ -144,6 +144,17 @@ def _fmt_ignition(p) -> str:
             f"SMALLER. Desk is proving it forward._")
 
 
+def _fmt_trend_rider(p) -> str:
+    return (f"🌊 *TREND RIDER* — {p['base']} {p['side']} "
+            f"(daily 20d breakout +{p.get('score', 0):g}%)\n"
+            f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
+            f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
+            f"_daily-breakout rider — hold {p.get('hold', 'days')}. "
+            f"Validated +0.15-0.32R/trade; desk 14d form was the "
+            f"hottest tier when you re-enabled this buzz (ZBT case). "
+            f"Kronos is COLOR not a gate here._")
+
+
 def _fmt_prime(p) -> str:
     lanes = ", ".join(p.get("early_lanes") or [])
     prog = p.get("_prog")
@@ -482,9 +493,11 @@ def cycle() -> None:
     # fires on top when systems agree. The 85-conf floor now applies
     # only where min_conf isn't overridden; 🎯 conf shown everywhere.
     # In-zone gates stay on the entry-timing-sensitive streams (no
-    # chasing). 🌊 TREND RIDER stays removed (2026-07-13). The lean
-    # proven-only gating stays shelved until the keyword
-    # "Lets deploy The new system".
+    # chasing). 🌊 TREND RIDER entry fires RE-ENABLED 2026-08-06 by
+    # explicit user call (ZBT +51% ripped with no buzz; tier was the
+    # desk's hottest at +35.1R/14d) — entry fires only, the 2026-07-13
+    # removal of health pings stands. The lean proven-only gating
+    # stays shelved until the keyword "Lets deploy The new system".
     # 🚨 IGNITION (user 2026-07-25: "fast and early even if it fails —
     # I need that anyhow"): at-fire ELITE MAX/HIGH + validated approval
     # gate. Earliest buzz in the system; honest ~50-65% odds stated in
@@ -566,6 +579,11 @@ def cycle() -> None:
                 if not p.get("early_lanes")]
     _push([p for p in _em_rest if _in_zone(p)], "emrest",
           _fmt_early_rest, min_conf=0, tier="early_movers")
+    # 🌊 TREND RIDER entry fires (user 2026-08-06, the ZBT case) —
+    # in-zone gated like every timing-sensitive stream; tier-gated on
+    # its own green desk record so it silences itself if form dies.
+    _push([p for p in r.get("trend", []) if _in_zone(p)], "trendr",
+          _fmt_trend_rider, min_conf=0, tier="trend_rider")
 
     # 👑 ONE TRADE (user 2026-07-28): the concierge ritual, permanent —
     # every cycle look at EVERY lane's candidates together and buzz AT
