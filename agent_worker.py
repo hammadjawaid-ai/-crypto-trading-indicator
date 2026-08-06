@@ -567,7 +567,8 @@ def cycle() -> None:
     _prime = []
     try:
         for p in _f30:
-            if p.get("tier") != "HIGH":
+            if (p.get("tier") != "HIGH"
+                    or p.get("symbol") in true_signal.TOKENIZED):
                 continue
             _ap = p.get("atr_pct")
             if _ap is None:
@@ -710,6 +711,8 @@ def cycle() -> None:
                 _kk = (_kp.get("symbol"), _kp.get("side"))
                 if _kk in _ka_seen or not _kk[0]:
                     continue
+                if _kk[0] in true_signal.TOKENIZED:
+                    continue           # house rule: no tokenized
                 _ka_seen.add(_kk)
                 _kv2 = _kr_get(_kk[0], _kk[1])
                 if not _kv2:
@@ -742,6 +745,11 @@ def cycle() -> None:
     _conv = []
     if _kr_ok:
         for _cp in _f30:
+            # house rule (CRCLB case): tokenized instruments are
+            # excluded from every validated construct — the 88.6% cell
+            # was measured on real crypto only.
+            if _cp.get("symbol") in true_signal.TOKENIZED:
+                continue
             if float(_cp.get("score") or 0) < 80:
                 continue
             _cv = _kr_get(_cp.get("symbol"), _cp.get("side"))
