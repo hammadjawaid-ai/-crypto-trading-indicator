@@ -46,7 +46,7 @@ SOURCES = (("elite_early", "🌟 EARLY ELITE"),
 # Kronos reads them unreliably (out-of-distribution).
 TOKENIZED = {"CRCLBUSDT", "SPCXBUSDT", "SOXLBUSDT", "SNDKBUSDT",
              "SNXXBUSDT", "EWYBUSDT", "MUBUSDT", "SOXSUSDT",
-             "SOXLUSDT", "GIGGLEUSDT"}
+             "SOXLUSDT", "GIGGLEUSDT", "SKHYBUSDT"}
 ZONE_MAX = 0.10
 EXT_24H = 25.0
 EXT_6H = 18.0
