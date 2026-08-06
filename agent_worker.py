@@ -531,19 +531,50 @@ def cycle() -> None:
     # Measured 74.5% win / +0.31R after fees (n=47); quiet-ATR,
     # already-moving and MAX-tier entries measured NEGATIVE and are
     # excluded by construction. Desk tier proves it forward.
+    def _atr_pctile(sym):
+        """ATR14 percentile vs its trailing 100 on 1h — the EXACT mined
+        definition (backtest_elite_edge). fast30 picks carry no atr_pct
+        key, so the old `p.get("atr_pct") or 0` read 0 every cycle and
+        PRIME could never fire (user caught it 2026-08-06: "not a
+        single fire since development")."""
+        import numpy as _np
+        import pandas as _pd
+        d = binance_client.get_klines(sym, "1h", limit=150)
+        if d is None or len(d) < 40:
+            return None
+        _h = d["high"].astype(float).to_numpy()
+        _l = d["low"].astype(float).to_numpy()
+        _c = d["close"].astype(float).to_numpy()
+        _tr = _np.maximum(_h[1:] - _l[1:], _np.maximum(
+            abs(_h[1:] - _c[:-1]), abs(_l[1:] - _c[:-1])))
+        _atr = _pd.Series(_np.concatenate([[_tr[0]], _tr])).rolling(
+            14, min_periods=1).mean().to_numpy()
+        _t = len(_atr) - 1
+        return float((_atr[max(0, _t - 100):_t] <= _atr[_t - 1]).mean()
+                     * 100)
+
     _prime = []
     try:
         for p in _f30:
-            if (p.get("tier") == "HIGH"
-                    and 40 <= float(p.get("atr_pct") or 0) < 80):
+            if p.get("tier") != "HIGH":
+                continue
+            _ap = p.get("atr_pct")
+            if _ap is None:
                 try:
-                    _c24p, _c6p = one_trade._extension(p["symbol"])
+                    _ap = _atr_pctile(p["symbol"])
                 except Exception:
-                    continue
-                if abs(_c6p) < 3.0:
-                    _p2 = dict(p)
-                    _p2["c6"] = round(_c6p, 1)
-                    _prime.append(_p2)
+                    _ap = None
+            if _ap is None or not (40 <= float(_ap) < 80):
+                continue
+            try:
+                _c24p, _c6p = one_trade._extension(p["symbol"])
+            except Exception:
+                continue
+            if abs(_c6p) < 3.0:
+                _p2 = dict(p)
+                _p2["atr_pct"] = round(float(_ap))
+                _p2["c6"] = round(_c6p, 1)
+                _prime.append(_p2)
     except Exception as _pr_exc:
         _prime = []
         print("  prime error:", _pr_exc, flush=True)
