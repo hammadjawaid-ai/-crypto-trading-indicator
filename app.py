@@ -2732,8 +2732,10 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
     # 🥇 PRIME first — top billing, its own identity (user 2026-08-05)
     _prime_board(None)
 
-    # 💯 CONVICTION — the high-win-rate board (user 2026-08-06)
-    _conviction_board(None)
+    # 💯 CONVICTION — the high-win-rate board (user 2026-08-06);
+    # openable HERE too ("should be openable not view only so I can
+    # test on the decision desk") — unlike PRIME's display-only copy.
+    _conviction_board(pb_state)
 
     # 🔮 KRONOS BOARD on Paper Trading too (user 2026-07-28: "the data
     # should also be on paper trading") — the top layer's latest reads,
