@@ -1307,6 +1307,115 @@ def _prime_board(pb_state=None):
                 st.error(f"Open failed: {exc}")
 
 
+def _conviction_board(pb_state=None):
+    """💯 CONVICTION — the high-win-rate board (user 2026-08-06: "70-80%
+    win, fewer trades, solid confidence"). The measured 88.6%/+0.38R
+    cell (n=35): CONFIRMED fast30 entry + score>=80 + Kronos strict
+    AGREE, banked 100% at TP1. NOT PRIME∩Kronos (that stack measured
+    33%/-0.51R n=6). Shared renderer like PRIME."""
+    import json as _json_cv
+
+    import worker_store as _ws_cv
+    st.markdown(
+        "<div style='background:linear-gradient(135deg,"
+        "rgba(160,120,255,0.16),rgba(80,200,255,0.06));border:1.5px "
+        "solid rgba(160,120,255,0.55);border-radius:14px;padding:"
+        "12px 18px;margin:14px 0 8px'>"
+        "<span style='font-size:1.25rem;font-weight:900;background:"
+        "linear-gradient(90deg,#b388ff,#40c4ff);-webkit-background-clip:"
+        "text;-webkit-text-fill-color:transparent;background-clip:text'>"
+        "💯 CONVICTION — THE HIGH WIN-RATE BOARD</span> "
+        "<span style='background:rgba(160,120,255,0.15);color:#c5a3ff;"
+        "padding:2px 12px;border-radius:999px;font-size:0.72rem;"
+        "font-weight:800;margin-left:8px'>88.6% win · +0.38R backtest "
+        "· n=35</span></div>", unsafe_allow_html=True)
+    st.caption("**Your 70–80% spec, from the measured cell:** a "
+               "pullback-**confirmed** entry (never at-fire) + score 80+ "
+               "+ 🔮 Kronos independently agreeing — **bank 100% at TP1** "
+               "(the win-rate geometry; further targets trade win rate "
+               "for size). Backtest 88.6% win / +0.38R after fees "
+               "(n=35). Fires rarely by construction. Desk tier 💯 "
+               "builds the live record from day one — trust grows with "
+               "it.")
+    try:
+        _rows = _ws_cv.recent_by_stream("conviction", 8)
+    except Exception:
+        _rows = []
+    _seen, _cards = set(), []
+    for _r in _rows:
+        _k = (_r.get("symbol"), _r.get("side"))
+        if _k in _seen:
+            continue
+        _seen.add(_k)
+        if time.time() - float(_r.get("ts") or 0) < 6 * 3600:
+            _cards.append(_r)
+    if not _cards:
+        st.caption("· No 💯 card right now — the double stamp "
+                   "(confirmed entry + Kronos agree) is rare by design. "
+                   "Telegram buzzes the moment one lands.")
+        return
+    for _i, _r in enumerate(_cards[:4]):
+        try:
+            _x = _json_cv.loads(_r.get("extra") or "{}")
+        except Exception:
+            _x = {}
+        _sym = _r.get("symbol") or ""
+        _b = _r.get("base")
+        _sd = (_r.get("side") or "").upper()
+        _e = float(_r.get("entry") or 0)
+        _st_ = float(_r.get("stop") or 0)
+        _t1 = float(_r.get("tp1") or 0)
+        _sc = "#2ed47a" if _sd == "LONG" else "#ff5c5c"
+        _c1, _c2 = st.columns([5, 1])
+        _c1.markdown(
+            f"<div style='background:rgba(160,120,255,0.06);border:"
+            f"1.5px solid rgba(160,120,255,0.6);border-radius:13px;"
+            f"padding:11px 15px;margin:5px 0'>"
+            f"<span style='background:linear-gradient(90deg,#b388ff,"
+            f"#40c4ff);color:#120a24;padding:2px 11px;border-radius:"
+            f"999px;font-size:0.74rem;font-weight:900'>💯 CONVICTION"
+            f"</span> <b style='font-size:1.1rem'>{_b}</b> "
+            f"<span style='color:{_sc};font-weight:800'>{_sd}</span> "
+            f"<span style='color:#8b93a7;font-size:0.72rem'>· "
+            f"{int(max(0, time.time() - float(_r.get('ts') or 0)) // 60)}"
+            f"m ago · {_r.get('tier') or ''} "
+            f"{float(_r.get('score') or 0):.0f} · 🔮 "
+            f"{_x.get('kr_dir', '?')} "
+            f"{float(_x.get('kr_exp') or 0):+.1f}%</span><br>"
+            f"<span style='color:#e6e9f0;font-size:0.88rem'>entry "
+            f"<b>{px_round.fmt_px(_sym, _e)}</b> · SL "
+            f"<b style='color:#ff5c5c'>{px_round.fmt_px(_sym, _st_)}</b>"
+            f" · TP1 <b style='color:#2ed47a'>"
+            f"{px_round.fmt_px(_sym, _t1)}</b> — <b style='color:"
+            f"#c5a3ff'>BANK 100% HERE</b></span></div>",
+            unsafe_allow_html=True)
+        if pb_state is None:
+            _c2.caption("view")
+        elif any(p.get("symbol") == _sym
+                 for p in (pb_state.get("open") or [])):
+            _c2.caption("✓ open")
+        elif _c2.button("📥 Open", key=f"cv_open_{_sym}_{_i}",
+                        use_container_width=True):
+            try:
+                _alert = {
+                    "symbol": _sym, "base": _b, "side": _sd,
+                    "entry_low": _e, "stop": _st_, "target": _t1,
+                    "target_2": None, "chase_tp2_eligible": False,
+                    "confidence": int(float(_r.get("score") or 0)
+                                      or 85),
+                    "strength_factor": 0.7,
+                    "_unified_source": "true_signal"}
+                _pos = paper_bot.open_position(pb_state, _alert, _e)
+                paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                if _pos:
+                    st.success(f"Opened {_sd} {_b} (💯 CONVICTION)")
+                    st.rerun()
+                else:
+                    st.warning("Not opened — Paper Trader rejected.")
+            except Exception as exc:
+                st.error(f"Open failed: {exc}")
+
+
 def _preburst_board(pb_state=None):
     """🌋 PRE-BURST board — shared (🎯 page + Paper Trader). Quiet
     coils where Kronos forecasts a big move, caught BEFORE the burst
@@ -1675,6 +1784,9 @@ def _render_true_signal(pb_state, live_prices=None):
 
     # ── 🥇 PRIME — top billing (user 2026-08-05: "separate identity")
     _prime_board(pb_state)
+
+    # ── 💯 CONVICTION — the high-win-rate board (user 2026-08-06)
+    _conviction_board(pb_state)
 
     # ── 🔬 THE FUNNEL — the living board: every candidate the system
     # is considering RIGHT NOW and exactly which gate it died at.
@@ -2620,6 +2732,9 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
     # 🥇 PRIME first — top billing, its own identity (user 2026-08-05)
     _prime_board(None)
 
+    # 💯 CONVICTION — the high-win-rate board (user 2026-08-06)
+    _conviction_board(None)
+
     # 🔮 KRONOS BOARD on Paper Trading too (user 2026-07-28: "the data
     # should also be on paper trading") — the top layer's latest reads,
     # same shared board as the 🎯 page.
@@ -2667,6 +2782,7 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "preburst": "🌋 PRE-BURST",
                    "kr_approved": "🔮 KRONOS APPROVED",
                    "prime": "🥇 PRIME (winners board)",
+                   "conviction": "💯 CONVICTION (88.6% cell)",
                    "trend_rider": "🌊 TREND RIDER"}
     # 2026-07-28 cleanup: retired tiers stay in the archive (bench) but
     # never in the active view. LIQ FLUSH retired by its own rule

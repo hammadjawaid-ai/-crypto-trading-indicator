@@ -144,6 +144,17 @@ def _fmt_ignition(p) -> str:
             f"SMALLER. Desk is proving it forward._")
 
 
+def _fmt_conviction(p) -> str:
+    return (f"💯 *CONVICTION* — {p['base']} {p['side']} "
+            f"({p['tier']} {p['score']:.0f} · 🔮 {p.get('kr_dir')} "
+            f"{float(p.get('kr_exp') or 0):+.1f}%)\n"
+            f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
+            f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
+            f"_the 88.6%/+0.38R cell (n=35): CONFIRMED entry + score 80+ "
+            f"+ Kronos agree. BANK 100% AT TP1 — the win-rate geometry. "
+            f"Desk tier `conviction` builds the live record._")
+
+
 def _fmt_trend_rider(p) -> str:
     return (f"🌊 *TREND RIDER* — {p['base']} {p['side']} "
             f"(daily 20d breakout +{p.get('score', 0):g}%)\n"
@@ -651,7 +662,7 @@ def cycle() -> None:
         _kr_seen: set = set()
         for _kp in (list(best) + list(_ign) + list(apex)
                     + list(elite_early) + list(fresh_m) + list(tn_hot)
-                    + list(em_big)):
+                    + list(em_big) + list(_f30)):
             _ks = _kp.get("symbol")
             if not _ks or _ks in _kr_seen:
                 continue
@@ -720,6 +731,34 @@ def cycle() -> None:
         # n=138 backtest; desk tier kr_approved is the binding jury).
         _push([p for p in _kr_appr if _in_zone(p)], "krapp",
               _fmt_kr_approved, min_conf=0)
+
+    # 💯 CONVICTION (user 2026-08-06: "70-80% win rate, fewer trades,
+    # solid confidence") — the measured 88.6%/+0.38R cell (n=35,
+    # krgate study): CONFIRMED entry (fast30 pullback+confirm) +
+    # score>=80 + Kronos strict AGREE, banked at TP1. Deliberately NOT
+    # PRIME∩Kronos: that stack measured 33%/-0.51R (n=6) — agreement
+    # helps confirmed momentum entries, hurts calm-pullback PRIME
+    # entries. Desk tier proves the cell forward from day one.
+    _conv = []
+    if _kr_ok:
+        for _cp in _f30:
+            if float(_cp.get("score") or 0) < 80:
+                continue
+            _cv = _kr_get(_cp.get("symbol"), _cp.get("side"))
+            if not _cv:
+                continue
+            if ((_cv.get("direction") == "UP"
+                 and _cp.get("side") == "LONG")
+                    or (_cv.get("direction") == "DOWN"
+                        and _cp.get("side") == "SHORT")):
+                _cp2 = dict(_cp)
+                _cp2["kr_dir"] = _cv.get("direction")
+                _cp2["kr_exp"] = _cv.get("exp_move_pct")
+                _conv.append(_cp2)
+        for p in _conv:
+            store.record_signal("conviction", p)
+        _push([p for p in _conv if _in_zone(p)], "conv",
+              _fmt_conviction, min_conf=0)
 
     # 🎯 TRUE SIGNAL (user 2026-07-28: "one solid system, no fuzz") —
     # five gates, Kronos on top with the last word. Desk tier proves it
@@ -877,6 +916,7 @@ def cycle() -> None:
                   ("preburst", _pb),
                   ("kr_approved", _kr_appr),
                   ("prime", _prime),
+                  ("conviction", _conv),
                   ("trend_rider", r.get("trend", [])))
         for _tname, _sigs in _tiers:
             for p in _sigs:
