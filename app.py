@@ -1207,7 +1207,21 @@ def _prime_board(pb_state=None):
     import json as _json_pr
 
     import worker_store as _ws_pr
-    st.markdown("#### 🥇 PRIME — the winners board")
+    # distinct identity (user 2026-08-05): gold banner header so PRIME
+    # reads as its own board, never a sub-section
+    st.markdown(
+        "<div style='background:linear-gradient(135deg,"
+        "rgba(255,215,0,0.16),rgba(255,157,0,0.06));border:1.5px solid "
+        "rgba(255,215,0,0.5);border-radius:14px;padding:12px 18px;"
+        "margin:14px 0 8px'>"
+        "<span style='font-size:1.25rem;font-weight:900;background:"
+        "linear-gradient(90deg,#ffd700,#ffb700);-webkit-background-clip:"
+        "text;-webkit-text-fill-color:transparent;background-clip:text'>"
+        "🥇 PRIME — THE WINNERS BOARD</span> "
+        "<span style='background:rgba(255,215,0,0.15);color:#ffd54a;"
+        "padding:2px 12px;border-radius:999px;font-size:0.72rem;"
+        "font-weight:800;margin-left:8px'>73% win · +0.28R · mined "
+        "from 108 days</span></div>", unsafe_allow_html=True)
     st.caption("**Few trades, the ones that win.** Elite HIGH fire + "
                "mid-band volatility (ATR 40–80) + calm 6h, entered on "
                "the 30m confirmation, **banked at TP1** (riding tested "
@@ -1659,6 +1673,9 @@ def _render_true_signal(pb_state, live_prices=None):
             except Exception as exc:
                 st.error(f"Open failed: {exc}")
 
+    # ── 🥇 PRIME — top billing (user 2026-08-05: "separate identity")
+    _prime_board(pb_state)
+
     # ── 🔬 THE FUNNEL — the living board: every candidate the system
     # is considering RIGHT NOW and exactly which gate it died at.
     # (user 2026-07-28: "I want a proper board" — emptiness alone
@@ -1891,9 +1908,6 @@ def _render_true_signal(pb_state, live_prices=None):
                     st.warning("Not opened — Paper Trader rejected.")
             except Exception as exc:
                 st.error(f"Open failed: {exc}")
-
-    # ── 🥇 PRIME — the winners board (user 2026-08-05 deploy) ──
-    _prime_board(pb_state)
 
     # ── 🌋 PRE-BURST — loaded bases (user 2026-08-03, PORTAL case) ──
     _preburst_board(pb_state)
@@ -2603,6 +2617,9 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
     st.caption("💎 **BEST TRADE ZONE** — the consolidated best-of-the-best "
                "board — now lives in its own section in the left bar.")
 
+    # 🥇 PRIME first — top billing, its own identity (user 2026-08-05)
+    _prime_board(None)
+
     # 🔮 KRONOS BOARD on Paper Trading too (user 2026-07-28: "the data
     # should also be on paper trading") — the top layer's latest reads,
     # same shared board as the 🎯 page.
@@ -2613,10 +2630,6 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                "below carry the same read as a color strip — a card "
                "that **agrees** with 🔮 gets the green edge.")
     _kronos_board()
-
-    # 🥇 PRIME on Paper Trading too (user 2026-08-05 deploy) —
-    # display board; opening lives on 🎯.
-    _prime_board(None)
 
     # 🌋 PRE-BURST on Paper Trading too (user 2026-08-03: separate
     # board on both pages) — display board; opening lives on 🎯.
