@@ -81,7 +81,7 @@ WORKER_SCAN_N = int(_secret("WORKER_SCAN_N") or "100")
 # or here when positions change. 2026-08-07: KAITO closed (SL hit);
 # WLD + ONDO flagged on user orders (ONDO is his hold — watch 24/7).
 WORKER_FLIP_WATCH = _secret("WORKER_FLIP_WATCH") or \
-    "WLDUSDT,ONDOUSDT,CTSIUSDT"
+    "WLDUSDT,ONDOUSDT,CTSIUSDT,ERAUSDT"
 WORKER_ALERT_COOLDOWN_MIN = int(_secret("WORKER_ALERT_COOLDOWN_MIN") or "360")
 WORKER_SST1_MIN_CONV = float(_secret("WORKER_SST1_MIN_CONV") or "70")
 WORKER_LEADERBOARD_MIN_SCORE = float(
