@@ -603,11 +603,12 @@ def cycle() -> None:
         print("  surge error:", _srg_exc, flush=True)
     for p in _srg:
         store.record_signal("surge", p)
-    # 📡 buzzes DISABLED pending backtest verdict (user 2026-07-26:
-    # "don't deploy first, test") — desk tier keeps proving silently.
-    # Re-enable by restoring the _push line below once validated.
-    # _push([p for p in _srg if _in_zone(p)], "surge", _fmt_surge,
-    #       min_conf=0)
+    # 📡 buzz RESTORED (user 2026-08-06 "make surge restore as well")
+    # — the 2026-07-26 test-first mute's re-enable condition was met by
+    # the live desk record: 195 closed · 48% win · +22.38R after fees ·
+    # GREEN. The fresh-pump catcher for the ALLO/EPIC mover class.
+    _push([p for p in _srg if _in_zone(p)], "surge", _fmt_surge,
+          min_conf=0, tier="surge")
     _push([p for p in best if _in_zone(p)], "best", _fmt_best,
           tier="best_board")
     _push(apex, "apex", _fmt_apex, min_conf=0, tier="apex")
