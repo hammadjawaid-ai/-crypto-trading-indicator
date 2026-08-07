@@ -43,6 +43,8 @@ INTERVAL = max(1, int(getattr(config, "WORKER_INTERVAL_MIN", 5))) * 60
 # so this persists across cycles. 24h-horizon forecasts move slowly;
 # 2h TTL + a per-cycle cap keeps CPU/RAM bounded on the deploy.
 _KR_CACHE: dict = {}
+# 🔄 flip-watch memory: last seen kronos direction per watched symbol
+_FLIP_PREV: dict = {}
 KR_TTL = 2 * 3600
 KR_MAX_PER_CYCLE = 8
 # 🌋 rotating scan counter — top-100 universe in halves (50/cycle)
@@ -713,6 +715,37 @@ def cycle() -> None:
     def _kr_get(sym, side):
         _hit = _KR_CACHE.get(sym)
         return _hit["s"] if _hit and _now - _hit["t"] < KR_TTL else None
+
+    # 🔄 KRONOS FLIP WATCH (user 2026-08-06: in KAITO against the
+    # veto — "when it flips please notify me"): fresh read EVERY cycle
+    # for watched symbols (bypasses the 2h TTL), buzz on any direction
+    # change. First cycle after a restart only sets the baseline.
+    if _kr_ok:
+        for _fs in [s.strip().upper() for s in
+                    str(getattr(config, "WORKER_FLIP_WATCH", "")
+                        ).split(",") if s.strip()]:
+            try:
+                _fv = kf.forecast(_fs, "1h", horizon=24)
+            except Exception as _fexc:
+                print(f"  flipwatch {_fs}: {_fexc}", flush=True)
+                _fv = None
+            if not _fv:
+                continue
+            _KR_CACHE[_fs] = {"t": _now, "s": _fv}
+            _prev = _FLIP_PREV.get(_fs)
+            _FLIP_PREV[_fs] = _fv["direction"]
+            if _prev and _prev != _fv["direction"]:
+                if store.should_alert(
+                        f"krflip:{_fs}:{_fv['direction']}", 4 * 3600):
+                    ok, _ = tg.send(
+                        f"🔄 *KRONOS FLIP* — "
+                        f"{_fs.replace('USDT', '')} 24h read changed "
+                        f"{_prev} → *{_fv['direction']}* "
+                        f"({_fv['exp_move_pct']:+.1f}% · path "
+                        f"{_fv['path_low_pct']:+.1f}%.."
+                        f"{_fv['path_high_pct']:+.1f}%)\n"
+                        f"_you flagged this position — manage it_")
+                    n_alerts += 1 if ok else 0
 
     # 🔮 KRONOS APPROVED desk tier (user 2026-08-03: "can the 86% be
     # treated separately?") — every elite-stream signal where Kronos
