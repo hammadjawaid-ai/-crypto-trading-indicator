@@ -763,9 +763,23 @@ def cycle() -> None:
                         _a14 = sum(_trk) / len(_trk)
                         _px = float(_ck[-1])
                         if _fd == "UP":
+                            # target tier scales with momentum (user
+                            # 2026-08-07: "1R 2R or 3R based on the
+                            # momentum") — kronos |exp| is the gauge.
+                            # 1R bank is the validated base; runners
+                            # are guidance, unvalidated.
+                            _ex = abs(float(_fv["exp_move_pct"] or 0))
+                            _rr = 3.0 if _ex >= 5 else \
+                                2.0 if _ex >= 3 else 1.0
+                            _rk = _px + _rr * 1.5 * _a14
+                            _run = ("" if _rr == 1.0 else
+                                    f" · runner `{_rk:g}` ({_rr:g}R — "
+                                    f"momentum-scaled)")
                             _lvl = (f"\nentry `{_px:g}` · SL "
                                     f"`{_px - 1.5 * _a14:g}` · TP1 "
-                                    f"`{_px + 1.5 * _a14:g}` (1R bank)")
+                                    f"`{_px + 1.5 * _a14:g}` (bank "
+                                    f"{'100%' if _rr == 1.0 else 'half'}"
+                                    f" at 1R){_run}")
                     except Exception:
                         pass
                     ok, _ = tg.send(
