@@ -77,9 +77,10 @@ WORKER_INTERVAL_MIN = int(_secret("WORKER_INTERVAL_MIN") or "5")
 WORKER_SCAN_N = int(_secret("WORKER_SCAN_N") or "100")
 # 🔄 kronos flip watch — comma list of symbols the user is IN; the
 # worker re-reads these every cycle and buzzes on direction change
-# (user 2026-08-06: took KAITO against the veto, "when it flips
-# please notify me"). Update via env or here when positions change.
-WORKER_FLIP_WATCH = _secret("WORKER_FLIP_WATCH") or "KAITOUSDT"
+# (the KAITO case: buzz led a 5-6% drop by minutes). Update via env
+# or here when positions change. 2026-08-07: KAITO closed (SL hit),
+# WLD flagged on user order.
+WORKER_FLIP_WATCH = _secret("WORKER_FLIP_WATCH") or "WLDUSDT"
 WORKER_ALERT_COOLDOWN_MIN = int(_secret("WORKER_ALERT_COOLDOWN_MIN") or "360")
 WORKER_SST1_MIN_CONV = float(_secret("WORKER_SST1_MIN_CONV") or "70")
 WORKER_LEADERBOARD_MIN_SCORE = float(

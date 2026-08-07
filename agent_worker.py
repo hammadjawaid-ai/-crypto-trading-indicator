@@ -737,14 +737,45 @@ def cycle() -> None:
             if _prev and _prev != _fv["direction"]:
                 if store.should_alert(
                         f"krflip:{_fs}:{_fv['direction']}", 4 * 3600):
+                    # action-oriented buzz (user 2026-08-07: "when to
+                    # take the trade... as soon as the signal says").
+                    # Flip-test data so far: UP-flips on crypto are the
+                    # validated entry (~63%/+0.13R); DOWN-flips are
+                    # exit/protection, NOT short entries (-0.27R).
+                    _fd = _fv["direction"]
+                    _act = ("🟢 signal says *LONG NOW*" if _fd == "UP"
+                            else "🔴 signal says *GET OUT / NO LONGS* "
+                                 "(fresh shorts NOT validated)"
+                            if _fd == "DOWN"
+                            else "⚪ no conviction — stand aside")
+                    _lvl = ""
+                    try:
+                        _dk = binance_client.get_klines(_fs, "1h",
+                                                        limit=30)
+                        _hk = _dk["high"].astype(float).to_numpy()
+                        _lk = _dk["low"].astype(float).to_numpy()
+                        _ck = _dk["close"].astype(float).to_numpy()
+                        _trk = [max(_hk[i] - _lk[i],
+                                    abs(_hk[i] - _ck[i - 1]),
+                                    abs(_lk[i] - _ck[i - 1]))
+                                for i in range(len(_ck) - 14,
+                                               len(_ck))]
+                        _a14 = sum(_trk) / len(_trk)
+                        _px = float(_ck[-1])
+                        if _fd == "UP":
+                            _lvl = (f"\nentry `{_px:g}` · SL "
+                                    f"`{_px - 1.5 * _a14:g}` · TP1 "
+                                    f"`{_px + 1.5 * _a14:g}` (1R bank)")
+                    except Exception:
+                        pass
                     ok, _ = tg.send(
                         f"🔄 *KRONOS FLIP* — "
-                        f"{_fs.replace('USDT', '')} 24h read changed "
-                        f"{_prev} → *{_fv['direction']}* "
+                        f"{_fs.replace('USDT', '')} read changed "
+                        f"{_prev} → *{_fd}* "
                         f"({_fv['exp_move_pct']:+.1f}% · path "
                         f"{_fv['path_low_pct']:+.1f}%.."
                         f"{_fv['path_high_pct']:+.1f}%)\n"
-                        f"_you flagged this position — manage it_")
+                        f"{_act}{_lvl}")
                     n_alerts += 1 if ok else 0
 
     # 🔮 KRONOS APPROVED desk tier (user 2026-08-03: "can the 86% be
