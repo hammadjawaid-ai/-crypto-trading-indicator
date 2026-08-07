@@ -44,9 +44,14 @@ SOURCES = (("elite_early", "🌟 EARLY ELITE"),
 # 2026-08-05 (CRCLB gold-card case): tokenized equities are excluded
 # from gold — no validated edges there, session gaps, thin books, and
 # Kronos reads them unreliably (out-of-distribution).
+# swept top-110 on 2026-08-06 when the scan widened to 100 coins —
+# the tail is full of these (GOOGLB/NVDAB/SPYB...). Re-sweep with
+# .tail_check.py whenever breadth changes; BNB/SHIB are real crypto.
 TOKENIZED = {"CRCLBUSDT", "SPCXBUSDT", "SOXLBUSDT", "SNDKBUSDT",
              "SNXXBUSDT", "EWYBUSDT", "MUBUSDT", "SOXSUSDT",
-             "SOXLUSDT", "GIGGLEUSDT", "SKHYBUSDT", "KORUBUSDT"}
+             "SOXLUSDT", "GIGGLEUSDT", "SKHYBUSDT", "KORUBUSDT",
+             "SPYBUSDT", "AXTIBUSDT", "AAOIBUSDT", "NBISBUSDT",
+             "GOOGLBUSDT", "NVDABUSDT", "FLNCBUSDT"}
 ZONE_MAX = 0.10
 EXT_24H = 25.0
 EXT_6H = 18.0
