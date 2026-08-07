@@ -622,11 +622,13 @@ def cycle() -> None:
                 if not p.get("early_lanes")]
     _push([p for p in _em_rest if _in_zone(p)], "emrest",
           _fmt_early_rest, min_conf=0, tier="early_movers")
-    # 🌊 TREND RIDER entry fires (user 2026-08-06, the ZBT case) —
-    # in-zone gated like every timing-sensitive stream; tier-gated on
-    # its own green desk record so it silences itself if form dies.
-    _push([p for p in r.get("trend", []) if _in_zone(p)], "trendr",
-          _fmt_trend_rider, min_conf=0, tier="trend_rider")
+    # 🌊 TREND RIDER buzz MUTED AGAIN same day (user 2026-08-06 after
+    # the honest 25%-win framing: "not effective for me") — the 3-of-4
+    # loser cadence doesn't fit how he trades, even net-positive.
+    # Board + desk tier keep proving silently; re-enable by restoring
+    # the _push below ONLY on his explicit word.
+    # _push([p for p in r.get("trend", []) if _in_zone(p)], "trendr",
+    #       _fmt_trend_rider, min_conf=0, tier="trend_rider")
 
     # 👑 ONE TRADE (user 2026-07-28): the concierge ritual, permanent —
     # every cycle look at EVERY lane's candidates together and buzz AT
