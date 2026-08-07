@@ -567,7 +567,14 @@ def cycle() -> None:
     _prime = []
     try:
         for p in _f30:
-            if (p.get("tier") != "HIGH"
+            # user 2026-08-06 "make it 80 not 82": floor is score>=80,
+            # any tier except MAX (MAX measured +0.06R vs +0.33R).
+            # .prime80.py check: the widened band added ZERO historical
+            # entries inside the ATR+calm filters, so the validated
+            # cell (75%/+0.33R n=28) is unchanged — live it can only
+            # widen the funnel.
+            if (float(p.get("score") or 0) < 80
+                    or p.get("tier") == "MAX"
                     or p.get("symbol") in true_signal.TOKENIZED):
                 continue
             _ap = p.get("atr_pct")
