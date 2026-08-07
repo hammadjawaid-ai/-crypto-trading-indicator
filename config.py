@@ -72,6 +72,9 @@ TELEGRAM_CHAT_ID = _secret("TELEGRAM_CHAT_ID")
 
 # 24/7 worker cadence + alert bar (overridable via env on the host).
 WORKER_INTERVAL_MIN = int(_secret("WORKER_INTERVAL_MIN") or "5")
+# scan breadth (user 2026-08-06: 100 coins, not 60) — dial back via
+# env if the Render cycle ever overruns the interval.
+WORKER_SCAN_N = int(_secret("WORKER_SCAN_N") or "100")
 WORKER_ALERT_COOLDOWN_MIN = int(_secret("WORKER_ALERT_COOLDOWN_MIN") or "360")
 WORKER_SST1_MIN_CONV = float(_secret("WORKER_SST1_MIN_CONV") or "70")
 WORKER_LEADERBOARD_MIN_SCORE = float(

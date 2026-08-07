@@ -297,7 +297,13 @@ def _fmt_fresh(p) -> str:
 
 def cycle() -> None:
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    r = scan_core.scan_all(scan_n=60, min_conv=MIN_CONV)
+    # scan_n 60 -> 100 (user 2026-08-06: "30 coins is far less, it
+    # should be 100") — every stream downstream (elite, fast30, PRIME,
+    # 💯, ignition, takenow) now hunts the full top-100 by volume.
+    # WORKER_SCAN_N env overrides if the Render cycle ever overruns.
+    r = scan_core.scan_all(
+        scan_n=int(getattr(config, "WORKER_SCAN_N", 100)),
+        min_conv=MIN_CONV)
     sst1, takenow = r["sst1"], r["takenow"]
     apex = r.get("apex", [])
     lb_all = r.get("leaderboard", [])
