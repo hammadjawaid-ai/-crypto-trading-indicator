@@ -41,9 +41,13 @@ import time
 SOURCES = (("elite_early", "🌟 EARLY ELITE"),
            ("ignition", "🚨 IGNITION"),
            ("fast30", "⏱ FAST CONFIRM 30m"))
-# 2026-08-05 (CRCLB gold-card case): tokenized equities are excluded
-# from gold — no validated edges there, session gaps, thin books, and
-# Kronos reads them unreliably (out-of-distribution).
+# 2026-08-06 user order: tokenized stocks/ETFs are ELIGIBLE everywhere
+# ("let them in everywhere") — this reverses the 2026-08-05 CRCLB
+# exclusion. The set below is RETAINED for research-stats hygiene only
+# (backtests keep quoting crypto-validated numbers); live gates no
+# longer enforce it. Honest asterisk stands: edges were validated on
+# crypto; tokenized fires are extrapolation the desk records must
+# prove.
 # swept top-110 on 2026-08-06 when the scan widened to 100 coins —
 # the tail is full of these (GOOGLB/NVDAB/SPYB...). Re-sweep with
 # .tail_check.py whenever breadth changes; BNB/SHIB are real crypto.
@@ -101,12 +105,8 @@ def compose(sources: dict, tier_form: dict, regime: str,
             if not sym or side not in ("LONG", "SHORT") or k in seen:
                 continue
             seen.add(k)
-            if sym in TOKENIZED:
-                _note(p, label, {"source": True, "early": None,
-                                 "geometry": None, "kronos": None,
-                                 "regime": None},
-                      "tokenized equity — excluded instrument class")
-                continue
+            # tokenized gate removed 2026-08-06 (user: "let them in
+            # everywhere") — instrument class no longer blocks gold.
             g = {"source": form_ok, "early": None, "geometry": None,
                  "kronos": None, "regime": None}
             if not form_ok:                # gate 1: source form not hot

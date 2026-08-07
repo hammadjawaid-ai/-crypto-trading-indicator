@@ -580,8 +580,7 @@ def cycle() -> None:
             # cell (75%/+0.33R n=28) is unchanged — live it can only
             # widen the funnel.
             if (float(p.get("score") or 0) < 80
-                    or p.get("tier") == "MAX"
-                    or p.get("symbol") in true_signal.TOKENIZED):
+                    or p.get("tier") == "MAX"):
                 continue
             _ap = p.get("atr_pct")
             if _ap is None:
@@ -595,7 +594,11 @@ def cycle() -> None:
                 _c24p, _c6p = one_trade._extension(p["symbol"])
             except Exception:
                 continue
-            if abs(_c6p) < 3.0:
+            # calm gate 3->4% (user 2026-08-06, .calm_bands.py: <4%
+            # measured 78.8%/+0.42R n=33 vs <3% 75%/+0.33R n=28; the
+            # added 3-4% band went 5-for-5. 4%+ tail stays out —
+            # unmeasured, n=4).
+            if abs(_c6p) < 4.0:
                 _p2 = dict(p)
                 _p2["atr_pct"] = round(float(_ap))
                 _p2["c6"] = round(_c6p, 1)
@@ -727,8 +730,6 @@ def cycle() -> None:
                 _kk = (_kp.get("symbol"), _kp.get("side"))
                 if _kk in _ka_seen or not _kk[0]:
                     continue
-                if _kk[0] in true_signal.TOKENIZED:
-                    continue           # house rule: no tokenized
                 _ka_seen.add(_kk)
                 _kv2 = _kr_get(_kk[0], _kk[1])
                 if not _kv2:
@@ -761,11 +762,9 @@ def cycle() -> None:
     _conv = []
     if _kr_ok:
         for _cp in _f30:
-            # house rule (CRCLB case): tokenized instruments are
-            # excluded from every validated construct — the 88.6% cell
-            # was measured on real crypto only.
-            if _cp.get("symbol") in true_signal.TOKENIZED:
-                continue
+            # tokenized eligible again 2026-08-06 (user: "let them in
+            # everywhere") — note the 88.6% cell was measured on
+            # crypto; tokenized fires are extrapolation on the record.
             if float(_cp.get("score") or 0) < 80:
                 continue
             _cv = _kr_get(_cp.get("symbol"), _cp.get("side"))
