@@ -742,12 +742,19 @@ def cycle() -> None:
                     # Flip-test data so far: UP-flips on crypto are the
                     # validated entry (~63%/+0.13R); DOWN-flips are
                     # exit/protection, NOT short entries (-0.27R).
+                    # 2026-08-07 30-coin/1161-flip verdict: flips as
+                    # ENTRIES measured negative (UP-flips -0.05R) —
+                    # wording is heads-up/protection, never auto-entry.
                     _fd = _fv["direction"]
-                    _act = ("🟢 signal says *LONG NOW*" if _fd == "UP"
-                            else "🔴 signal says *GET OUT / NO LONGS* "
-                                 "(fresh shorts NOT validated)"
+                    _act = ("🟢 read turned UP — *heads-up, not an "
+                            "auto-entry* (flip entries measured "
+                            "~flat; strongest when a 💯/🥇 fire "
+                            "agrees)" if _fd == "UP"
+                            else "🔴 read turned DOWN — *protect the "
+                                 "position / no fresh longs* (fresh "
+                                 "shorts NOT validated)"
                             if _fd == "DOWN"
-                            else "⚪ no conviction — stand aside")
+                            else "⚪ conviction gone — stand aside")
                     _lvl = ""
                     try:
                         _dk = binance_client.get_klines(_fs, "1h",
