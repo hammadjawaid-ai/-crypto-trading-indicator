@@ -2921,21 +2921,35 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                 _all_cl = _ws.shadow_closed_all()
             except Exception:
                 _all_cl = []
-            _ex_tiers = {"early_lane", "apex", "fresh", "early_movers",
-                         "takenow_hot", "elite_early"}
-            _rp = [t for t in _all_cl
-                   if t.get("tier") in _ex_tiers
-                   and t.get("opened_at") and t.get("closed_at")]
-            if len(_rp) < 50:
-                st.caption("Needs ~50+ closed desk trades to replay — "
-                           "check back as the record grows.")
-            else:
+            # 2026-08-07 (user: "if I had real money in I'd be negative
+            # — solution once and for all"): replay per tier SET so the
+            # bleed is attributable. The executor's set went net
+            # negative over the recent window — the high-win playbook
+            # earns its slot record separately, from zero, honestly.
+            _sets = (
+                ("🤖 EXECUTOR SET (live money menu)",
+                 {"early_lane", "apex", "fresh", "early_movers",
+                  "takenow_hot", "elite_early"}),
+                ("💯🥇 HIGH-WIN PLAYBOOK (new)",
+                 {"conviction", "prime", "true_signal"}),
+                ("⏱🔮 CONFIRMED STREAMS",
+                 {"fast30", "kr_approved"}),
+            )
+            for _set_lbl, _set_tiers in _sets:
+                _rp = [t for t in _all_cl
+                       if t.get("tier") in _set_tiers
+                       and t.get("opened_at") and t.get("closed_at")]
+                st.markdown(f"**{_set_lbl}**")
+                if len(_rp) < 30:
+                    st.caption(f"· {len(_rp)} closed — needs ~30+ to "
+                               "replay honestly; record building.")
+                    continue
                 _rp.sort(key=lambda t: float(t["opened_at"]))
                 _span_d = max(1e-9, (max(float(t["closed_at"])
                                          for t in _rp)
                                      - min(float(t["opened_at"])
                                            for t in _rp)) / 86400)
-                for K in (1, 2, 3, 4, 5):
+                for K in (1, 2, 3):
                     _held: list = []
                     _net = 0.0
                     _n_t = 0
@@ -2958,12 +2972,12 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                         f"{_n_t} trades ({_n_t / _span_d:.1f}/day) → "
                         f"net **{_net:+.1f}R** ({_rpd:+.2f}R/day ≈ "
                         f"${_rpd * 12:+.0f}/day at 1% risk on $1,200)")
-                st.caption(f"Replayed {len(_rp)} closed desk trades over "
-                           f"{_span_d:.0f} days under real constraints "
-                           "(one position per coin, first-come). 3 slots "
-                           "= your live executor's setting. This is the "
-                           "honest answer to 'how many trades a day "
-                           "works' — measured, not guessed.")
+            st.caption("Each set replayed chronologically under real "
+                       "constraints (K slots, one position per coin, "
+                       "first-come). A set earns real money ONLY when "
+                       "its OWN constrained replay is green — the "
+                       "executor's set failing here is the honest "
+                       "reason the account felt the bleed.")
 
         try:
             _sh_open_all = _ws.shadow_open_trades()

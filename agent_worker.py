@@ -957,6 +957,21 @@ def cycle() -> None:
             _cv = _kr_get(_cp.get("symbol"), _cp.get("side"))
             if not _cv:
                 continue
+            # 2026-08-07 tightening (.conv_tighten.py on the krgate
+            # rows): agree + |exp|>=1% = 88.0%/+0.40R (n=25) vs +0.38R
+            # any-agree — the floor filters marginal reads (the BABY
+            # -0.8% case) without losing the cell. Plus construct
+            # fidelity: the cell was measured banking TP1 at 1:1 — a
+            # plan whose TP1 pays < ~1R isn't the measured trade.
+            if abs(float(_cv.get("exp_move_pct") or 0)) < 1.0:
+                continue
+            try:
+                _rk = abs(float(_cp["entry"]) - float(_cp["stop"]))
+                _rw = abs(float(_cp["tp1"]) - float(_cp["entry"]))
+                if _rk <= 0 or _rw / _rk < 0.95:
+                    continue
+            except (KeyError, TypeError, ValueError):
+                continue
             if ((_cv.get("direction") == "UP"
                  and _cp.get("side") == "LONG")
                     or (_cv.get("direction") == "DOWN"
