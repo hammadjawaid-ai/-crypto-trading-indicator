@@ -6354,12 +6354,11 @@ st.query_params["tf"] = timeframe
 st.query_params["mode"] = trade_mode_label
 st.query_params["section"] = active_section
 
-# default 60 (was 150 = TOP_N): the page's synchronous scan was the
-# main load-time cost (user 2026-08-07: "takes way too much time").
-# The 24/7 worker still hunts the full breadth in the backend; slide
-# up any time for a wider in-page scan.
+# default stays 150 (user 2026-08-07: "I want 150 on load, no 60") —
+# load-time relief comes from the 270s refresh-vs-cache stagger and
+# the longer per-card TTLs instead.
 top_n = st.sidebar.slider("Coins to track", 10, config.TOP_N,
-                          min(60, config.TOP_N), 5)
+                          config.TOP_N, 5)
 
 alerts_on = st.sidebar.checkbox(
     "🔔 Desktop alerts", value=False,
