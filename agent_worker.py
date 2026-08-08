@@ -231,15 +231,23 @@ def _fmt_kr_approved(p) -> str:
 
 
 def _fmt_prime_board(p) -> str:
-    return (f"🥇 *PRIME* — {p['base']} {p['side']} (HIGH "
-            f"{p.get('score', 0):.0f} · 30m-confirmed)\n"
+    # ⭐ TOP BAND (user 2026-08-07 "set to the best shape/highest
+    # score"): score>=85 inside the funnel went 10-for-10 (+0.77R) in
+    # the mining — FLAGGED, not gated (n=10 too thin to bet the board
+    # on; the 80-floor funnel is the proven 78.8%/+0.42R shape).
+    _top = float(p.get("score") or 0) >= 85
+    _tb = "\n⭐ *TOP BAND* — 10-for-10 in mining, size with confidence" \
+        if _top else ""
+    return (f"🥇 *PRIME* — {p['base']} {p['side']} "
+            f"({p.get('tier', 'HIGH')} {p.get('score', 0):.0f} · "
+            f"30m-confirmed)\n"
             f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
             f"TP1 `{p['tp1']:g}` — *BANK AT TP1* (the measured "
-            f"construct; riding tested worse)\n"
-            f"_The winners-only board: elite HIGH fire + mid-band "
-            f"volatility + calm 6h ({p.get('c6', 0):+.1f}%). Mined "
-            f"from 134 entries/108 days: 74.5% win · +0.31R/trade "
-            f"after fees (n=47). Desk tier 🥇 proving forward._")
+            f"construct; riding tested worse){_tb}\n"
+            f"_The winners-only board: score-80+ fire + mid-band "
+            f"volatility + calm 6h ({p.get('c6', 0):+.1f}%). Measured "
+            f"78.8% win · +0.42R/trade after fees (n=33/108d). Desk "
+            f"tier 🥇 proving forward._")
 
 
 def _fmt_preburst(p) -> str:
