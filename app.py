@@ -838,7 +838,7 @@ PAPER_BOT_FILE = config.state_path(".paper_bot.json")
 import trade_store
 
 
-@st.cache_data(ttl=20, show_spinner=False)
+@st.cache_data(ttl=60, show_spinner=False)
 def _durable_closed_cached(bot, _bust):
     return trade_store.load_closed(bot)
 
@@ -883,7 +883,7 @@ import entry_timing
 import px_round
 
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=180, show_spinner=False)
 def _entry_timing_cached(symbol, side, entry, _bust):
     try:
         return entry_timing.entry_signal(symbol, side, entry)
@@ -6354,7 +6354,12 @@ st.query_params["tf"] = timeframe
 st.query_params["mode"] = trade_mode_label
 st.query_params["section"] = active_section
 
-top_n = st.sidebar.slider("Coins to track", 10, config.TOP_N, config.TOP_N, 5)
+# default 60 (was 150 = TOP_N): the page's synchronous scan was the
+# main load-time cost (user 2026-08-07: "takes way too much time").
+# The 24/7 worker still hunts the full breadth in the backend; slide
+# up any time for a wider in-page scan.
+top_n = st.sidebar.slider("Coins to track", 10, config.TOP_N,
+                          min(60, config.TOP_N), 5)
 
 alerts_on = st.sidebar.checkbox(
     "🔔 Desktop alerts", value=False,
@@ -14915,12 +14920,18 @@ if active_section == "🧪 Paper Trader":
             "<span style='color:#ff3d57;font-size:0.78rem;font-weight:700'>"
             "🔴 LIVE MODE</span>"
             "<span style='color:#aab;font-size:0.78rem'>"
-            "page auto-refreshes every 5 min · new setups + fires "
+            "page auto-refreshes ~4.5 min · new setups + fires "
             "appear naturally · live position P&amp;L updates every "
             "10s</span>"
             "</div>",
             unsafe_allow_html=True)
-        _inject_autorefresh(300)
+        # 270s, deliberately BELOW the 300s market-cache TTL: at 300s
+        # every refresh landed on a just-expired cache and re-scanned
+        # everything (the load-time complaint 2026-08-07). At 270s,
+        # alternate refreshes render warm-cache instantly; a full
+        # re-scan still happens roughly every 9 minutes, and the 24/7
+        # worker keeps the real signal freshness in the backend.
+        _inject_autorefresh(270)
 
 
 # ===========================================================================
