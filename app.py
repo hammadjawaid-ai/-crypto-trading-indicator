@@ -1335,8 +1335,8 @@ def _conviction_board(pb_state=None):
     st.caption("**Your 70–80% spec, from the measured cell:** a "
                "pullback-**confirmed** entry (never at-fire) + score "
                "**82+** + 🔮 Kronos agreeing with **≥1% conviction** — "
-               "bank at TP1; strong reads (≥3%/≥5%) carry a 2R/3R "
-               "runner in the buzz. Backtest 88% win / +0.40R after "
+               "**bank 100% at TP1 — every fire, all strengths** (the "
+               "measured construct). Backtest 88% win / +0.40R after "
                "fees. Fires rarely by construction — less deals, "
                "great ones. Desk tier 💯 builds the live record.")
     try:
