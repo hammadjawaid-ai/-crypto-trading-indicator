@@ -1333,13 +1333,12 @@ def _conviction_board(pb_state=None):
         "font-weight:800;margin-left:8px'>88.6% win · +0.38R backtest "
         "· n=35</span></div>", unsafe_allow_html=True)
     st.caption("**Your 70–80% spec, from the measured cell:** a "
-               "pullback-**confirmed** entry (never at-fire) + score 80+ "
-               "+ 🔮 Kronos independently agreeing — **bank 100% at TP1** "
-               "(the win-rate geometry; further targets trade win rate "
-               "for size). Backtest 88.6% win / +0.38R after fees "
-               "(n=35). Fires rarely by construction. Desk tier 💯 "
-               "builds the live record from day one — trust grows with "
-               "it.")
+               "pullback-**confirmed** entry (never at-fire) + score "
+               "**82+** + 🔮 Kronos agreeing with **≥1% conviction** — "
+               "bank at TP1; strong reads (≥3%/≥5%) carry a 2R/3R "
+               "runner in the buzz. Backtest 88% win / +0.40R after "
+               "fees. Fires rarely by construction — less deals, "
+               "great ones. Desk tier 💯 builds the live record.")
     try:
         _rows = _ws_cv.recent_by_stream("conviction", 8)
     except Exception:

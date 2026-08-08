@@ -154,14 +154,34 @@ def _fmt_ignition(p) -> str:
 
 
 def _fmt_conviction(p) -> str:
+    # R-geometry scales with signal strength (user 2026-08-07:
+    # "geometry of R as per the trade signals and strengths") — kronos
+    # |exp| is the strength gauge, same ladder as the flip watch.
+    # 1R full-bank is the VALIDATED base; runners are guidance.
+    _ex = abs(float(p.get("kr_exp") or 0))
+    try:
+        _rk = abs(float(p["entry"]) - float(p["stop"]))
+        _lng = p.get("side") == "LONG"
+        _r2 = float(p["entry"]) + (2 * _rk if _lng else -2 * _rk)
+        _r3 = float(p["entry"]) + (3 * _rk if _lng else -3 * _rk)
+    except (KeyError, TypeError, ValueError):
+        _rk = 0
+    if _rk and _ex >= 5:
+        _geo = (f"bank half at TP1 · runner `{_r3:g}` (3R — max "
+                f"strength read)")
+    elif _rk and _ex >= 3:
+        _geo = f"bank half at TP1 · runner `{_r2:g}` (2R — strong read)"
+    else:
+        _geo = "BANK 100% AT TP1 — the validated win-rate geometry"
     return (f"💯 *CONVICTION* — {p['base']} {p['side']} "
             f"({p['tier']} {p['score']:.0f} · 🔮 {p.get('kr_dir')} "
             f"{float(p.get('kr_exp') or 0):+.1f}%)\n"
             f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
             f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
-            f"_the 88.6%/+0.38R cell (n=35): CONFIRMED entry + score 80+ "
-            f"+ Kronos agree. BANK 100% AT TP1 — the win-rate geometry. "
-            f"Desk tier `conviction` builds the live record._")
+            f"➡️ {_geo}\n"
+            f"_the 88%/+0.40R cell: CONFIRMED entry + score 82+ + "
+            f"Kronos agree ≥1%. Desk tier `conviction` builds the "
+            f"live record._")
 
 
 def _fmt_trend_rider(p) -> str:
@@ -960,7 +980,9 @@ def cycle() -> None:
             # tokenized eligible again 2026-08-06 (user: "let them in
             # everywhere") — note the 88.6% cell was measured on
             # crypto; tokenized fires are extrapolation on the record.
-            if float(_cp.get("score") or 0) < 80:
+            # 2026-08-07 user: floor 80 -> 82, the old HIGH-tier bar
+            # ("less deals but great ones").
+            if float(_cp.get("score") or 0) < 82:
                 continue
             _cv = _kr_get(_cp.get("symbol"), _cp.get("side"))
             if not _cv:
