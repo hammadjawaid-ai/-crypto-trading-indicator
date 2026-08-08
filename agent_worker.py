@@ -23,6 +23,8 @@ if hasattr(sys.stdout, "buffer"):
 import best_board
 import binance_client
 import config
+import entry_timing
+import experimental_signals as es
 import fast_confirm
 import ignition
 import kronos_forecast as kf
@@ -45,6 +47,11 @@ INTERVAL = max(1, int(getattr(config, "WORKER_INTERVAL_MIN", 5))) * 60
 _KR_CACHE: dict = {}
 # 🔄 flip-watch memory: last seen kronos direction per watched symbol
 _FLIP_PREV: dict = {}
+# last direction we actually BUZZED (debounce: FLAT notices only after
+# a buzzed UP/DOWN — kills the UP→FLAT flicker spam, user 2026-08-07)
+_FLIP_BUZZED: dict = {}
+# 🎯 watchlist sentry: last entry-timing state per watched symbol
+_SENTRY_PREV: dict = {}
 KR_TTL = 2 * 3600
 KR_MAX_PER_CYCLE = 8
 # 🌋 rotating scan counter — top-100 universe in halves (50/cycle)
@@ -720,10 +727,11 @@ def cycle() -> None:
     # veto — "when it flips please notify me"): fresh read EVERY cycle
     # for watched symbols (bypasses the 2h TTL), buzz on any direction
     # change. First cycle after a restart only sets the baseline.
+    _watch_syms = [s.strip().upper() for s in
+                   str(getattr(config, "WORKER_FLIP_WATCH", "")
+                       ).split(",") if s.strip()]
     if _kr_ok:
-        for _fs in [s.strip().upper() for s in
-                    str(getattr(config, "WORKER_FLIP_WATCH", "")
-                        ).split(",") if s.strip()]:
+        for _fs in _watch_syms:
             try:
                 _fv = kf.forecast(_fs, "1h", horizon=24)
             except Exception as _fexc:
@@ -734,7 +742,17 @@ def cycle() -> None:
             _KR_CACHE[_fs] = {"t": _now, "s": _fv}
             _prev = _FLIP_PREV.get(_fs)
             _FLIP_PREV[_fs] = _fv["direction"]
-            if _prev and _prev != _fv["direction"]:
+            # flicker debounce (user 2026-08-07: "it gives UP and then
+            # FLAT in 5-10 minutes — not what I want"): UP/DOWN flips
+            # buzz only with |exp| >= 2% conviction; FLAT notices only
+            # after a buzzed UP/DOWN (conviction-loss on something you
+            # were actually told about).
+            _newd = _fv["direction"]
+            _buzzable = ((_newd in ("UP", "DOWN")
+                          and abs(float(_fv["exp_move_pct"] or 0)) >= 2.0)
+                         or (_newd == "FLAT"
+                             and _FLIP_BUZZED.get(_fs) in ("UP", "DOWN")))
+            if _prev and _prev != _newd and _buzzable:
                 if store.should_alert(
                         f"krflip:{_fs}:{_fv['direction']}", 4 * 3600):
                     # action-oriented buzz (user 2026-08-07: "when to
@@ -798,6 +816,90 @@ def cycle() -> None:
                         f"{_fv['path_high_pct']:+.1f}%)\n"
                         f"{_act}{_lvl}")
                     n_alerts += 1 if ok else 0
+                    if ok:
+                        _FLIP_BUZZED[_fs] = _newd
+
+    # 🎯 WATCHLIST SENTRY (user 2026-08-07: "I need to know EXACTLY
+    # when to take the trade... best entry point... 24/7 readings") —
+    # the VALIDATED entry stack (score + pullback/confirmation timing,
+    # the machinery under the 73-88% cells) runs on every flagged coin
+    # every cycle. Buzzes on escalation to TAKE_NOW — the measured
+    # entry moment — with the full plan; GET_READY sends one heads-up.
+    # Kronos is color. Flip-entries were killed by the 30-coin verdict
+    # (-0.05R); THIS is the honest "enter now" signal.
+    for _ss in _watch_syms:
+        try:
+            _d1s = binance_client.get_klines(_ss, "1h", limit=400)
+            _d4s = binance_client.get_klines(_ss, "4h", limit=200)
+            if _d1s is None or len(_d1s) < 60:
+                continue
+            _rs = es.score_from_data(_ss, _d1s, df_4h=_d4s,
+                                     oi_hist=None, pct_24h=0.0,
+                                     skip_deriv=True)
+            _sd_s = _rs.get("side")
+            _sc_s = float(_rs.get("score") or 0)
+            if _sd_s not in ("LONG", "SHORT") or _sc_s < 60:
+                _SENTRY_PREV[_ss] = "NONE"
+                continue
+            _cls = _d1s["close"].astype(float).tolist()
+            _his = _d1s["high"].astype(float).tolist()
+            _los = _d1s["low"].astype(float).tolist()
+            _epx = float(_cls[-1])
+            _trs = [max(_his[i] - _los[i],
+                        abs(_his[i] - _cls[i - 1]),
+                        abs(_los[i] - _cls[i - 1]))
+                    for i in range(len(_cls) - 14, len(_cls))]
+            _a14 = sum(_trs) / len(_trs)
+            if _a14 <= 0:
+                continue
+            if _sd_s == "LONG":
+                _stp = min(_los[-10:]) - 0.25 * _a14
+                if not (0 < _epx - _stp <= 4 * _a14):
+                    _stp = _epx - 1.5 * _a14
+                _t1s = _epx + (_epx - _stp)
+                _t2s = _epx + 2 * (_epx - _stp)
+            else:
+                _stp = max(_his[-10:]) + 0.25 * _a14
+                if not (0 < _stp - _epx <= 4 * _a14):
+                    _stp = _epx + 1.5 * _a14
+                _t1s = _epx - (_stp - _epx)
+                _t2s = _epx - 2 * (_stp - _epx)
+            _et = entry_timing.entry_signal(_ss, _sd_s, _epx,
+                                            stop=_stp, df=_d1s)
+            _st_s = _et.get("status")
+            _prev_s = _SENTRY_PREV.get(_ss)
+            _SENTRY_PREV[_ss] = _st_s
+            _kv_s = _kr_get(_ss, _sd_s) if _kr_ok else None
+            _krl = (f"🔮 {_kv_s.get('direction')} "
+                    f"{float(_kv_s.get('exp_move_pct') or 0):+.1f}%/24h"
+                    if _kv_s else "🔮 no fresh read")
+            _b_s = _ss.replace("USDT", "")
+            if (_st_s == "TAKE_NOW" and _prev_s != "TAKE_NOW"
+                    and store.should_alert(
+                        f"sentry:{_ss}:{_sd_s}:tn", 4 * 3600)):
+                _hot_s = " · ⚡HOT" if _et.get("hot") else ""
+                ok, _ = tg.send(
+                    f"🎯🔥 *WATCH ENTRY — {_b_s} {_sd_s}* "
+                    f"(score {_sc_s:.0f}{_hot_s})\n"
+                    f"entry `{_epx:g}` · SL `{_stp:g}` · TP1 "
+                    f"`{_t1s:g}` (bank) · TP2 `{_t2s:g}`\n{_krl}\n"
+                    f"_pullback + confirmation candle just completed "
+                    f"on YOUR coin — the validated entry moment. Bank "
+                    f"at TP1; runner to TP2 only if ⚡HOT._")
+                n_alerts += 1 if ok else 0
+            elif (_st_s == "GET_READY"
+                    and _prev_s in (None, "NONE", "WAIT")
+                    and store.should_alert(
+                        f"sentry:{_ss}:{_sd_s}:gr", 8 * 3600)):
+                ok, _ = tg.send(
+                    f"🟡 *GET READY — {_b_s} {_sd_s}* (score "
+                    f"{_sc_s:.0f}) — pulled back, waiting for the "
+                    f"confirmation candle near `{_epx:g}`. {_krl}\n"
+                    f"_the 🎯🔥 buzz fires when it confirms — that's "
+                    f"the entry, not this._")
+                n_alerts += 1 if ok else 0
+        except Exception as _sn_exc:
+            print(f"  sentry {_ss}: {_sn_exc}", flush=True)
 
     # 🔮 KRONOS APPROVED desk tier (user 2026-08-03: "can the 86% be
     # treated separately?") — every elite-stream signal where Kronos
