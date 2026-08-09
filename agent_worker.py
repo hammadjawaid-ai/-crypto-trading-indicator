@@ -1359,9 +1359,12 @@ def cycle() -> None:
             _live)
         demo_account.save(_dz)
         for _po in _dz_opened:
+            _agr = int(_po.get("agree", 1))
             ok, _ = tg.send(
                 f"🎮 *DEMO $1200* — OPENED {_po['base']} "
-                f"{_po['side']} (src `{_po['src']}` · score "
+                f"{_po['side']} "
+                f"({'🤝 ' + str(_agr) + ' SYSTEMS AGREE · ' if _agr > 1 else ''}"
+                f"src `{_po.get('srcs', _po['src'])}` · score "
                 f"{_po['score']:.0f})\n"
                 f"entry `{_po['entry']:g}` · SL `{_po['stop']:g}` · "
                 f"TP1 `{_po['tp1']:g}` · notional "

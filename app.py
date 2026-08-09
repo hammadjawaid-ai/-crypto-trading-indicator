@@ -838,6 +838,27 @@ PAPER_BOT_FILE = config.state_path(".paper_bot.json")
 import trade_store
 
 
+@st.cache_data(ttl=90, show_spinner=False)
+def _tier_records_cached(_bust):
+    """Desk tier stats aggregate over ALL shadow trades — heavy SQLite
+    read recomputed constantly before 2026-08-09; now cached 90s (the
+    worker only updates it once per ~5-min cycle anyway)."""
+    import shadow_trader as _sht_c
+    return _sht_c.tier_records()
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def _shadow_closed_all_cached(_bust):
+    import worker_store as _ws_c
+    return _ws_c.shadow_closed_all()
+
+
+@st.cache_data(ttl=90, show_spinner=False)
+def _shadow_open_cached(_bust):
+    import worker_store as _ws_c
+    return _ws_c.shadow_open_trades()
+
+
 @st.cache_data(ttl=60, show_spinner=False)
 def _durable_closed_cached(bot, _bust):
     return trade_store.load_closed(bot)
@@ -2940,8 +2961,8 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
     # recency-aware green (2026-07-25): badge matches shadow_trader's
     # gate — lifetime AND last-14d must both hold. 14d net shown per row.
     try:
-        import shadow_trader as _sht_app
-        _grn_map = {x["tier"]: x for x in _sht_app.tier_records()}
+        _grn_map = {x["tier"]: x for x in
+                    _tier_records_cached(int(time.time() // 90))}
     except Exception:
         _grn_map = {}
     if _sh_sum:
@@ -3064,7 +3085,8 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                          "have harvested from these same signals",
                          expanded=False):
             try:
-                _all_cl = _ws.shadow_closed_all()
+                _all_cl = _shadow_closed_all_cached(
+                    int(time.time() // 120))
             except Exception:
                 _all_cl = []
             # 2026-08-07 (user: "if I had real money in I'd be negative
@@ -3126,7 +3148,8 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                        "reason the account felt the bleed.")
 
         try:
-            _sh_open_all = _ws.shadow_open_trades()
+            _sh_open_all = _shadow_open_cached(
+                int(time.time() // 90))
         except Exception:
             _sh_open_all = []
         if _sh_open_all:

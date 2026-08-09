@@ -62,16 +62,23 @@ def save(state: dict) -> None:
 
 
 def rank_candidates(pools: dict, tier_form: dict) -> list:
-    """pools: {stream: [signal dicts]} -> ranked candidate list."""
-    out, seen = [], set()
+    """pools: {stream: [signal dicts]} -> ranked candidates.
+
+    CONFLUENCE RULE (user 2026-08-09: "if most of the system agree and
+    the confidence score is highest we take that trade"): the same
+    coin+side appearing in MULTIPLE systems gets +25 rank per extra
+    agreeing system — agreement dominates the slot race. The plan
+    (entry/stop/TPs) comes from the highest-class system that fired it.
+    """
+    agg: dict = {}
     for name, sigs in pools.items():
         w = CLASS_W.get(name, 30)
-        form = float(tier_form.get(name, 0.0) or 0.0)
+        form = max(-10.0, min(float(tier_form.get(name, 0.0) or 0.0),
+                              10.0))
         for p in sigs or []:
             sym = p.get("symbol")
             side = (p.get("side") or "").upper()
-            k = (sym, side)
-            if not sym or side not in ("LONG", "SHORT") or k in seen:
+            if not sym or side not in ("LONG", "SHORT"):
                 continue
             try:
                 e = float(p.get("entry") or 0)
@@ -81,16 +88,33 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
                 continue
             if min(e, st, t1) <= 0 or e == st or t1 == e:
                 continue
-            seen.add(k)
             sc = float(p.get("score") or 60)
             t2 = p.get("tp2")
-            out.append({"symbol": sym,
-                        "base": p.get("base") or sym.replace("USDT", ""),
-                        "side": side, "entry": e, "stop": st,
-                        "tp1": t1,
-                        "tp2": float(t2) if t2 else None,
-                        "src": name, "score": sc,
-                        "rank": w + sc / 2 + max(-10.0, min(form, 10.0))})
+            base_rank = w + sc / 2 + form
+            k = (sym, side)
+            cur = agg.get(k)
+            if cur is None:
+                agg[k] = {"symbol": sym,
+                          "base": p.get("base")
+                          or sym.replace("USDT", ""),
+                          "side": side, "entry": e, "stop": st,
+                          "tp1": t1,
+                          "tp2": float(t2) if t2 else None,
+                          "src": name, "score": sc, "w": w,
+                          "srcs": {name}, "rank": base_rank}
+            else:
+                cur["srcs"].add(name)
+                cur["rank"] = max(cur["rank"], base_rank)
+                cur["score"] = max(cur["score"], sc)
+                if w > cur["w"]:        # higher-class plan wins
+                    cur.update({"entry": e, "stop": st, "tp1": t1,
+                                "tp2": float(t2) if t2 else None,
+                                "src": name, "w": w})
+    out = list(agg.values())
+    for c in out:
+        c["agree"] = len(c["srcs"])
+        c["rank"] += 25 * (c["agree"] - 1)
+        c["srcs"] = ",".join(sorted(c["srcs"]))
     out.sort(key=lambda x: -x["rank"])
     return out
 
@@ -130,6 +154,8 @@ def try_open(state: dict, cands: list, live_fn) -> list:
                "tp1": c["tp1"], "tp2": c["tp2"],
                "qty": notional / live, "notional": notional,
                "src": c["src"], "score": c["score"],
+               "agree": c.get("agree", 1),
+               "srcs": c.get("srcs", c["src"]),
                "opened_at": time.time(), "fees": fee_in,
                "tp1_banked": 0.0, "be_set": False}
         state["balance"] -= fee_in

@@ -227,7 +227,11 @@ LARGE_TRADE_QUANTILE = 0.97    # trades above this size quantile flagged "large"
 # the cache expired every reload and the scanner re-fetched ~150
 # coins every time. 5-min cache + 5-min refresh = at-most one cold
 # scan per refresh cycle (page render hits warm cache most of the time).
-MARKET_CACHE_TTL = 300        # seconds (klines / tickers)
+# 300 -> 600 (2026-08-09, user: paper page too slow): the cold
+# 150-coin scan now happens half as often; the 270s page refresh
+# lands on a warm cache for ~2 of 3 refreshes. Real-time signal duty
+# lives with the 24/7 worker — page data at most ~10 min stale.
+MARKET_CACHE_TTL = 600        # seconds (klines / tickers)
 NEWS_CACHE_TTL = 600          # seconds (news + sentiment)
 
 # --- Indicator parameters --------------------------------------------------
