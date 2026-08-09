@@ -27,10 +27,17 @@ FEE = 0.00055                  # Bybit taker, per side
 TIME_STOP_H = 48
 ZONE_MAX = 0.25                # skip if >25% of entry->TP1 gone
 STOP_MAX_PCT = 0.25            # skip stops wider than 25%
-# construct-class weights — the quality ladder the user asked for
-CLASS_W = {"conviction": 100, "prime": 92, "true_signal": 86,
-           "kr_approved": 72, "moonshot": 66, "elite_early": 58,
-           "apex": 52, "fresh": 46, "takenow_hot": 40}
+# construct-class weights — the user's chosen seven (2026-08-09:
+# "early elite, kronos approved, surge, ignition, fresh movers, top
+# conviction and moonshot — worth trying"; PRIME/others dropped from
+# the demo on his call). Weighted by each tier's live desk record.
+CLASS_W = {"elite_early": 95,      # +50.8R/215 lifetime
+           "top_conviction": 90,   # 55% win · +17.3R/56
+           "kr_approved": 85,      # GREEN jury: 60% win · +5.5R/30
+           "ignition": 75,         # +37.1R/317
+           "surge": 70,            # 48% win · +22.4R/195
+           "fresh": 65,            # validated 74%/1.5R at birth
+           "moonshot": 60}         # new — worth trying, unproven
 
 
 def load() -> dict:

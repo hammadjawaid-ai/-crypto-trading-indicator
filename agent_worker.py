@@ -1338,19 +1338,21 @@ def cycle() -> None:
     # move so the user watches it trade.
     try:
         _dz = demo_account.load()
+        # user's seven (2026-08-09): early elite, kronos approved,
+        # surge, ignition, fresh movers, top conviction, moonshot.
+        # PRIME dropped from the demo on his call (desk record flat).
         _dz_form = {}
-        for _dt in ("conviction", "prime", "true_signal",
-                    "kr_approved", "moonshot", "elite_early", "apex",
-                    "fresh", "takenow_hot"):
+        for _dt in ("elite_early", "top_conviction", "kr_approved",
+                    "ignition", "surge", "fresh", "moonshot"):
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_dt)["net_r"]
             except Exception:
                 _dz_form[_dt] = 0.0
-        _dz_pools = {"conviction": _conv, "prime": _prime,
-                     "true_signal": _ts_rows, "kr_approved": _kr_appr,
-                     "moonshot": _moon_fires,
-                     "elite_early": elite_early, "apex": apex,
-                     "fresh": fresh_m, "takenow_hot": tn_rest}
+        _dz_pools = {"elite_early": elite_early,
+                     "top_conviction": _topc,
+                     "kr_approved": _kr_appr,
+                     "ignition": _ign, "surge": _srg,
+                     "fresh": fresh_m, "moonshot": _moon_fires}
         _dz_events = demo_account.manage(_dz, _live)
         _dz_opened = demo_account.try_open(
             _dz, demo_account.rank_candidates(_dz_pools, _dz_form),
