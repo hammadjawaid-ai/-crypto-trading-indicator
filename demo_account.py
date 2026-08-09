@@ -19,6 +19,9 @@ import os
 import time
 
 STATE_FILE = os.environ.get("DEMO_STATE", ".demo_account.json")
+# generation marker — bump to force a clean $1,200 restart (user
+# 2026-08-09: "reset and restore to 1200, start fresh from now").
+GEN = 2
 START_BAL = 1200.0
 RISK_PCT = 2.0
 # 3 -> 5 (user 2026-08-09): a CEILING, not a quota — the MIN_RANK
@@ -53,11 +56,12 @@ def load() -> dict:
     try:
         with open(STATE_FILE, encoding="utf-8") as f:
             s = json.load(f)
-        if isinstance(s, dict) and "balance" in s:
+        if isinstance(s, dict) and "balance" in s \
+                and s.get("gen") == GEN:
             return s
     except Exception:
         pass
-    return {"balance": START_BAL, "start": START_BAL,
+    return {"gen": GEN, "balance": START_BAL, "start": START_BAL,
             "started_at": time.time(), "open": [], "closed": [],
             "equity_hist": []}
 
@@ -122,7 +126,15 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
     out = list(agg.values())
     for c in out:
         c["agree"] = len(c["srcs"])
-        c["rank"] += 25 * (c["agree"] - 1)
+        bonus = 25 * (c["agree"] - 1)
+        # priority ladder (user 2026-08-09): EARLY ELITE + KRONOS
+        # APPROVED agreeing = TOP priority; KRONOS APPROVED + any
+        # other desk tier = HIGH priority; rest by score/confidence.
+        if "kr_approved" in c["srcs"] and "elite_early" in c["srcs"]:
+            bonus += 80
+        elif "kr_approved" in c["srcs"] and c["agree"] >= 2:
+            bonus += 50
+        c["rank"] += bonus
         c["srcs"] = ",".join(sorted(c["srcs"]))
     out.sort(key=lambda x: -x["rank"])
     return out
