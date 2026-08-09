@@ -6465,6 +6465,7 @@ if _qp_mode not in ("Futures", "Spot"):
 # The section code stays below but is unreachable.
 SECTIONS = [
     "🎯 True Signal",
+    "🎮 Demo $1,200",
     "💎 Best Trade Zone",
     "🔍 Market Scanner", "🔮 Forecast", "🚀 Breakout Radar",
     "🤖 Ask the Oracle", "🪙 Coin Analysis", "📰 News & Sentiment",
@@ -6691,6 +6692,133 @@ if active_section == "🎯 True Signal":
         _render_true_signal(_ts_state, dict(prices or {}))
     except Exception as _exc_ts:
         st.error(f"True Signal failed to render: {_exc_ts}")
+
+# ===========================================================================
+# 🎮 Demo $1,200 — the one-week live-fire test (user 2026-08-09): the
+# worker auto-trades a simulated real account; this page is its cockpit.
+# ===========================================================================
+if active_section == "🎮 Demo $1,200":
+    import demo_account as _da
+
+    _dz = _da.load()
+    _bal = float(_dz.get("balance") or 0)
+    _openp = _dz.get("open") or []
+    _closedp = _dz.get("closed") or []
+    _unreal = 0.0
+    _live_px = {}
+    for _p in _openp:
+        try:
+            _lp = live_price(_p["symbol"]) or 0
+        except Exception:
+            _lp = 0
+        _live_px[_p["symbol"]] = _lp
+        if _lp:
+            _unreal += _p["qty"] * (_lp - _p["entry"]) * \
+                (1 if _p["side"] == "LONG" else -1)
+    _eq = _bal + _unreal
+    _pnl = _eq - float(_dz.get("start") or 1200)
+    _days = max(0.0, (time.time()
+                      - float(_dz.get("started_at") or time.time()))
+                / 86400)
+    _wins = sum(1 for t in _closedp if float(t.get("pnl") or 0) > 0)
+    _wr = _wins / len(_closedp) * 100 if _closedp else 0.0
+    st.markdown(
+        "<div style='background:linear-gradient(135deg,"
+        "rgba(64,196,255,0.16),rgba(179,136,255,0.08));border:1.5px "
+        "solid rgba(64,196,255,0.5);border-radius:16px;padding:"
+        "16px 22px;margin:6px 0 12px'>"
+        "<span style='font-size:1.5rem;font-weight:900;background:"
+        "linear-gradient(90deg,#40c4ff,#b388ff);-webkit-background-"
+        "clip:text;-webkit-text-fill-color:transparent;background-"
+        "clip:text'>🎮 DEMO $1,200 — THE ONE-WEEK TEST</span><br>"
+        "<span style='color:#9aa7c7;font-size:0.82rem'>The 24/7 brain "
+        "trades this like a REAL account: 3 slots · 2% risk · taker "
+        "fees · one position per coin · bank half at TP1 → breakeven "
+        "→ TP2/48h. It picks only the highest-quality fires "
+        "(💯 → 🥇 → 🎯 → 🔮✅ → 🚀 → elite, weighted by live desk "
+        "form). Simulated — zero real orders. Day "
+        f"{_days:.1f} of 7.</span></div>", unsafe_allow_html=True)
+    _t1c, _t2c, _t3c, _t4c = st.columns(4)
+    _t1c.metric("💼 Equity", f"${_eq:,.2f}",
+                f"{_pnl:+,.2f} ({_pnl / 12:.1f}%)" if _pnl else None)
+    _t2c.metric("💵 Realized balance", f"${_bal:,.2f}")
+    _t3c.metric("🏆 Win rate",
+                f"{_wr:.0f}%" if _closedp else "—",
+                f"{_wins}/{len(_closedp)} closed")
+    _t4c.metric("📂 Slots", f"{len(_openp)}/3")
+    # week-target meter ($1,500 - $1,800)
+    _prog = max(0.0, min(1.0, (_eq - 1200) / 300))
+    st.markdown(
+        f"<div style='margin:4px 0 10px'>"
+        f"<span style='color:#9aa7c7;font-size:0.78rem'>WEEK TARGET "
+        f"$1,500—$1,800 · honest note: that is +25—50% in a week, far "
+        f"above any measured stream — the real result below is the "
+        f"data that matters</span>"
+        f"<div style='background:rgba(255,255,255,0.06);border-radius:"
+        f"999px;height:14px;margin-top:4px'>"
+        f"<div style='width:{_prog * 100:.1f}%;height:14px;"
+        f"border-radius:999px;background:linear-gradient(90deg,"
+        f"#40c4ff,#2ed47a)'></div></div></div>",
+        unsafe_allow_html=True)
+    # equity curve
+    _hist = _dz.get("equity_hist") or []
+    if len(_hist) >= 2:
+        import pandas as _dz_pd
+        _hdf = _dz_pd.DataFrame(_hist, columns=["ts", "equity"])
+        _hdf["time"] = _dz_pd.to_datetime(_hdf["ts"], unit="s")
+        st.line_chart(_hdf.set_index("time")["equity"],
+                      height=220)
+    else:
+        st.caption("📈 Equity curve appears after the first worker "
+                   "cycles record snapshots (every ~5 min).")
+    # open positions
+    st.markdown("#### 📂 Open positions")
+    if not _openp:
+        st.caption("· No open slots filled — the desk only takes the "
+                   "highest-quality in-zone fires. Buzzes land on "
+                   "Telegram the moment it acts.")
+    for _p in _openp:
+        _lp = _live_px.get(_p["symbol"]) or 0
+        _upnl = (_p["qty"] * (_lp - _p["entry"])
+                 * (1 if _p["side"] == "LONG" else -1)) if _lp else 0
+        _col = "#2ed47a" if _upnl >= 0 else "#ff5c5c"
+        _age_h = (time.time() - float(_p["opened_at"])) / 3600
+        st.markdown(
+            f"<div style='background:rgba(64,196,255,0.05);border:"
+            f"1.5px solid rgba(64,196,255,0.4);border-radius:12px;"
+            f"padding:10px 15px;margin:5px 0'>"
+            f"<b style='font-size:1.05rem'>{_p['base']}</b> "
+            f"<span style='color:{'#2ed47a' if _p['side'] == 'LONG' else '#ff5c5c'};"
+            f"font-weight:800'>{_p['side']}</span> "
+            f"<span style='color:#8b93a7;font-size:0.72rem'>· src "
+            f"{_p.get('src')} · {_age_h:.1f}h · notional "
+            f"${_p.get('notional', 0):,.0f}"
+            f"{' · 💰 TP1 banked, stop @ BE' if _p.get('be_set') else ''}"
+            f"</span><br>"
+            f"<span style='color:#e6e9f0;font-size:0.85rem'>entry "
+            f"{px_round.fmt_px(_p['symbol'], _p['entry'])} · live "
+            f"{px_round.fmt_px(_p['symbol'], _lp) if _lp else '?'} · "
+            f"SL {px_round.fmt_px(_p['symbol'], _p['stop'])} · TP1 "
+            f"{px_round.fmt_px(_p['symbol'], _p['tp1'])} · "
+            f"<b style='color:{_col}'>{_upnl:+,.2f}$</b></span></div>",
+            unsafe_allow_html=True)
+    # closed trades
+    st.markdown("#### 📋 Closed trades")
+    if not _closedp:
+        st.caption("· None closed yet — the week's ledger builds here.")
+    else:
+        import pandas as _dz_pd2
+        _cdf = _dz_pd2.DataFrame(_closedp[::-1])
+        _cdf["when"] = _dz_pd2.to_datetime(
+            _cdf["closed_at"], unit="s").dt.strftime("%m-%d %H:%M")
+        st.dataframe(
+            _cdf[["when", "base", "side", "src", "reason", "entry",
+                  "exit", "pnl"]],
+            use_container_width=True, hide_index=True)
+        _net = sum(float(t.get("pnl") or 0) for t in _closedp)
+        st.caption(f"**Net realized: {_net:+,.2f}$** across "
+                   f"{len(_closedp)} closes · fees included in every "
+                   f"number.")
 
 # ===========================================================================
 # 💎 Best Trade Zone — ONE consolidated best-of-the-best dashboard

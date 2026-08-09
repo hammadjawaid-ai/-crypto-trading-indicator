@@ -24,6 +24,7 @@ import best_board
 import binance_client
 import coinalyze_client as cz
 import config
+import demo_account
 import entry_timing
 import experimental_signals as es
 import fast_confirm
@@ -1327,6 +1328,56 @@ def cycle() -> None:
     # 🌊 TREND HEALTH pings (🔴 exit / 🟡 caution) REMOVED entirely per
     # user 2026-07-13 ("I don't want the trend rider notification") —
     # the desk shadow record keeps building silently on the app.
+
+    # 🎮 DEMO ZONE — the $1,200 one-week live-fire test (user
+    # 2026-08-09): the worker auto-picks the HIGHEST-QUALITY signals
+    # (💯>🥇>🎯>🔮✅>🚀>elite, boosted by live 14d form + score) under
+    # REAL-account constraints: 3 slots, one per coin, 2% risk off the
+    # current balance, taker fees both sides, TP1 half-bank + BE,
+    # TP2/48h exits. Simulated only — no real orders; buzzes every
+    # move so the user watches it trade.
+    try:
+        _dz = demo_account.load()
+        _dz_form = {}
+        for _dt in ("conviction", "prime", "true_signal",
+                    "kr_approved", "moonshot", "elite_early", "apex",
+                    "fresh", "takenow_hot"):
+            try:
+                _dz_form[_dt] = store.shadow_recent_net(_dt)["net_r"]
+            except Exception:
+                _dz_form[_dt] = 0.0
+        _dz_pools = {"conviction": _conv, "prime": _prime,
+                     "true_signal": _ts_rows, "kr_approved": _kr_appr,
+                     "moonshot": _moon_fires,
+                     "elite_early": elite_early, "apex": apex,
+                     "fresh": fresh_m, "takenow_hot": tn_rest}
+        _dz_events = demo_account.manage(_dz, _live)
+        _dz_opened = demo_account.try_open(
+            _dz, demo_account.rank_candidates(_dz_pools, _dz_form),
+            _live)
+        demo_account.save(_dz)
+        for _po in _dz_opened:
+            ok, _ = tg.send(
+                f"🎮 *DEMO $1200* — OPENED {_po['base']} "
+                f"{_po['side']} (src `{_po['src']}` · score "
+                f"{_po['score']:.0f})\n"
+                f"entry `{_po['entry']:g}` · SL `{_po['stop']:g}` · "
+                f"TP1 `{_po['tp1']:g}` · notional "
+                f"${_po['notional']:,.0f}\n"
+                f"balance `${_dz['balance']:,.2f}`")
+            n_alerts += 1 if ok else 0
+        for _ev, _rec in _dz_events:
+            _tag = ("💰 TP1 half-banked" if _ev == "tp1"
+                    else "CLOSED")
+            ok, _ = tg.send(
+                f"🎮 *DEMO $1200* — {_tag} {_rec['base']} "
+                f"{_rec['side']} ({_rec['reason']}) → "
+                f"{'+' if _rec['pnl'] >= 0 else ''}"
+                f"${_rec['pnl']:,.2f}\n"
+                f"balance `${_dz['balance']:,.2f}`")
+            n_alerts += 1 if ok else 0
+    except Exception as _dz_exc:
+        print("  demo error:", _dz_exc, flush=True)
 
     # 📊🌅 DAILY MORNING REPORT — desk status + the 4-5 best qualifying
     # setups of the morning (user 2026-07-08). Default 04:00 UTC = 09:00
