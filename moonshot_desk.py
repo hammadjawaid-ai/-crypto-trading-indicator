@@ -34,6 +34,13 @@ import time
 # 60 -> 100 (user 2026-08-09: "should be for all") — full match with
 # the worker's hunting universe.
 UNIVERSE_N = 100
+# 2026-08-09 validation (backtest_moonshot, 298 fires/100 coins): the
+# fuel+base+trigger core measured +0.14R/61.5% banking 1R on the
+# TOP-30 by volume but ~flat-to-negative on the 31-100 tail, and the
+# 3xATR trail gave back money at both scales (-0.11R full universe).
+# FIRES therefore restrict to the top-30; the 100-coin boil WATCH
+# stays (heat has no backtest — it proves forward on the desk).
+FIRE_UNIVERSE_N = 30
 EXT_MAX = 12.0          # |24h| beyond this = already flying, too late
 HEAT_RANK_JUMP = 150    # alt_rank improvement vs ~6h ago
 HEAT_INTER_X = 2.0      # interactions_24h vs ~12h-ago baseline
@@ -164,6 +171,7 @@ def scan(symbols: list, soc_hist: dict, pos_cache: dict,
     Deep chart work only for coins showing HEAT or FUEL (CPU guard).
     """
     fires, watch = [], []
+    fire_ok = set(symbols[:FIRE_UNIVERSE_N])
     deep = 0
     for sym in symbols:
         hot, hot_d = heat_check(sym, soc_hist.get(sym) or [])
@@ -191,7 +199,7 @@ def scan(symbols: list, soc_hist: dict, pos_cache: dict,
                             "votes": sum((hot, fueled,
                                           ch["base_ok"]))})
                 votes = sum((hot, fueled, ch["base_ok"]))
-                if ch["trigger"] and votes >= 2:
+                if ch["trigger"] and votes >= 2 and sym in fire_ok:
                     kr = None
                     if kr_get is not None:
                         try:

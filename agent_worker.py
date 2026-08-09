@@ -169,13 +169,13 @@ def _fmt_moonshot(p) -> str:
             f"(votes {p.get('votes', 0)}/3 · break on "
             f"x{p.get('vx', 0):g} vol)\n"
             f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · TP1 "
-            f"`{p['tp1']:g}` (bank HALF) · runner `{p['tp2']:g}`+ "
-            f"(3xATR trail — let the big one run)\n"
+            f"`{p['tp1']:g}` — *BANK 100% AT 1R* (trail measured "
+            f"worse) · `{p['tp2']:g}` = optional runner, unvalidated\n"
             f"🔥 {p.get('heat_d', '—')}\n⛽ {p.get('fuel_d', '—')}\n"
             f"{_kr}\n"
-            f"_the big-move desk: social heat + positioning fuel + "
-            f"base + CONFIRMED break. UNPROVEN — desk tier 🚀 is "
-            f"proving it forward from day one. Size small._")
+            f"_validated core (top-30 fires only): 61.5% · +0.14R "
+            f"banking 1R (n=96); coiled bases 78%. Heat layer proves "
+            f"forward on desk tier 🚀. Size small._")
 
 
 def _fmt_conviction(p) -> str:
