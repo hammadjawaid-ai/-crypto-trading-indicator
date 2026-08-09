@@ -31,13 +31,15 @@ from __future__ import annotations
 
 import time
 
-UNIVERSE_N = 60
+# 60 -> 100 (user 2026-08-09: "should be for all") — full match with
+# the worker's hunting universe.
+UNIVERSE_N = 100
 EXT_MAX = 12.0          # |24h| beyond this = already flying, too late
 HEAT_RANK_JUMP = 150    # alt_rank improvement vs ~6h ago
 HEAT_INTER_X = 2.0      # interactions_24h vs ~12h-ago baseline
 FUEL_OI_PCT = 5.0       # OI build over 24h
 BREAK_VOL_X = 1.5
-MAX_DEEP = 8            # deep-chart candidates per cycle (CPU guard)
+MAX_DEEP = 12           # deep-chart candidates per cycle (CPU guard)
 MAX_FIRES = 3
 
 
@@ -131,7 +133,10 @@ def analyze_chart(d1) -> dict | None:
     rng72 = (max(h[-72:]) - min(l[-72:])) / px * 100 / 3
     coiled = rng72 > 0 and rng24 / rng72 < 1.2
     base_ok = abs(chg24) < EXT_MAX and (pos_r >= 50 or coiled)
-    # TRIGGER: current bar broke the prior 12h high on volume
+    # TRIGGER: current bar broke the prior 12h high on volume.
+    # hi12 doubles as the PRE-ANNOUNCED fire level (user 2026-08-09:
+    # "predict early and first" — the board shows WHERE it fires
+    # before it happens).
     hi12 = max(h[-13:-1])
     vma = sum(v[-21:-1]) / 20
     vx = v[-1] / vma if vma > 0 else 0.0
@@ -144,7 +149,8 @@ def analyze_chart(d1) -> dict | None:
     return {"px": px, "chg24": round(chg24, 1),
             "pos_r": round(pos_r), "coiled": coiled,
             "base_ok": base_ok, "trigger": trig,
-            "vx": round(vx, 1),
+            "vx": round(vx, 1), "trig_px": hi12,
+            "extended": abs(chg24) >= EXT_MAX,
             "entry": px, "stop": stop, "tp1": px + risk,
             "tp2": px + 3 * risk, "atr": a14}
 
@@ -179,7 +185,11 @@ def scan(symbols: list, soc_hist: dict, pos_cache: dict,
                             "coiled": ch["coiled"],
                             "base_ok": ch["base_ok"],
                             "trigger": ch["trigger"],
-                            "vx": ch["vx"]})
+                            "vx": ch["vx"],
+                            "trig_px": ch["trig_px"],
+                            "extended": ch["extended"],
+                            "votes": sum((hot, fueled,
+                                          ch["base_ok"]))})
                 votes = sum((hot, fueled, ch["base_ok"]))
                 if ch["trigger"] and votes >= 2:
                     kr = None
@@ -203,4 +213,8 @@ def scan(symbols: list, soc_hist: dict, pos_cache: dict,
         watch.append(row)
         if len(fires) >= MAX_FIRES:
             break
+    # early-first ordering (user 2026-08-09): fresh loaded springs at
+    # the top, already-ran coins at the bottom labeled as such
+    watch.sort(key=lambda r: (bool(r.get("extended")),
+                              -int(r.get("votes") or 0)))
     return fires, watch[:12]

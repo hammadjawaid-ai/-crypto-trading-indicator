@@ -1570,11 +1570,23 @@ def _moonshot_board(pb_state=None):
             _chips.append(f"⛽ {_x.get('fuel_d', '')}")
         if _x.get("base_ok"):
             _chips.append("🏗 base ready")
+        # the early-first view (user 2026-08-09: "predict early and
+        # first"): pre-announce the exact fire level; label the
+        # already-ran coins so they never read as candidates
+        if _x.get("extended"):
+            _chips.append("<b style='color:#ff8a70'>⛔ already ran — "
+                          "no chase, watching for a re-base</b>")
+        elif _x.get("trig_px") and int(_x.get("votes") or 0) >= 2:
+            _chips.append(f"<b style='color:#2ed47a'>⏳ FIRES on a "
+                          f"volume break of "
+                          f"{px_round.fmt_px(_r.get('symbol'), float(_x['trig_px']))}"
+                          f"</b>")
         _rows_w.append(f"<b>{_r.get('base')}</b> "
                        f"<span style='color:#9aa7c7;font-size:0.75rem'>"
                        f"{' · '.join(_chips)}</span>")
     if _rows_w:
-        st.markdown("**🌡 BOIL WATCH — heating up right now:**<br>"
+        st.markdown("**🌡 BOIL WATCH — loaded springs first, "
+                    "already-ran last:**<br>"
                     + "<br>".join(_rows_w[:10]),
                     unsafe_allow_html=True)
 
