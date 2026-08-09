@@ -22,6 +22,7 @@ if hasattr(sys.stdout, "buffer"):
 
 import best_board
 import binance_client
+import coinalyze_client as cz
 import config
 import entry_timing
 import experimental_signals as es
@@ -31,6 +32,7 @@ import kronos_forecast as kf
 import liq_flush
 import live_executor
 import lunarcrush
+import moonshot_desk
 import one_trade
 import polymarket_events
 import true_signal
@@ -52,6 +54,11 @@ _FLIP_PREV: dict = {}
 _FLIP_BUZZED: dict = {}
 # 🎯 watchlist sentry: last entry-timing state per watched symbol
 _SENTRY_PREV: dict = {}
+# 🚀 moonshot desk memory: social snapshots per coin (ts, alt_rank,
+# interactions), positioning cache on rotation, rotation pointer
+_MOON_SOC: dict = {}
+_MOON_POS: dict = {}
+_MOON_ROT = [0]
 KR_TTL = 2 * 3600
 KR_MAX_PER_CYCLE = 8
 # 🌋 rotating scan counter — top-100 universe in halves (50/cycle)
@@ -151,6 +158,23 @@ def _fmt_ignition(p) -> str:
             f"_AT-FIRE — 1-2h earlier than confirmation, by your call "
             f"('fast even if it fails'). Honest odds ~50-65%. SIZE "
             f"SMALLER. Desk is proving it forward._")
+
+
+def _fmt_moonshot(p) -> str:
+    _kr = (f"🔮 {p.get('kr_dir')} "
+           f"{float(p.get('kr_exp') or 0):+.1f}% (color)"
+           if p.get("kr_dir") else "🔮 no read")
+    return (f"🚀 *MOONSHOT* — {p['base']} LONG "
+            f"(votes {p.get('votes', 0)}/3 · break on "
+            f"x{p.get('vx', 0):g} vol)\n"
+            f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · TP1 "
+            f"`{p['tp1']:g}` (bank HALF) · runner `{p['tp2']:g}`+ "
+            f"(3xATR trail — let the big one run)\n"
+            f"🔥 {p.get('heat_d', '—')}\n⛽ {p.get('fuel_d', '—')}\n"
+            f"{_kr}\n"
+            f"_the big-move desk: social heat + positioning fuel + "
+            f"base + CONFIRMED break. UNPROVEN — desk tier 🚀 is "
+            f"proving it forward from day one. Size small._")
 
 
 def _fmt_conviction(p) -> str:
@@ -915,6 +939,64 @@ def cycle() -> None:
         except Exception as _sn_exc:
             print(f"  sentry {_ss}: {_sn_exc}", flush=True)
 
+    # 🚀 MOONSHOT DESK (user 2026-08-09 "bestest build") — the
+    # SEPARATE big-move desk: 🔥 social heat (LunarCrush, one call
+    # covers the universe) + ⛽ positioning fuel (Coinalyze, 12-coin
+    # rotation ≈ full universe every 25 min) + 🏗 base + ⏱ confirmed
+    # break, fused per coin over the top-60. UNPROVEN: its own desk
+    # tier proves forward; the live executor NEVER reads it. Watch
+    # snapshots are stored so every future BMT-class runner becomes
+    # measurable precursor data.
+    _moon_fires, _moon_watch = [], []
+    try:
+        _mu = binance_client.get_top_symbols(
+            moonshot_desk.UNIVERSE_N)["symbol"].tolist()
+        _now_m = time.time()
+        _soc = moonshot_desk.map_social(lunarcrush.coin_list())
+        for _ms in _mu:
+            _sv = _soc.get(_ms)
+            if _sv:
+                _MOON_SOC.setdefault(_ms, []).append(
+                    (_now_m, _sv.get("alt_rank"), _sv.get("inter")))
+                if len(_MOON_SOC[_ms]) > 320:
+                    _MOON_SOC[_ms] = _MOON_SOC[_ms][-320:]
+        _rot0 = _MOON_ROT[0] % max(1, len(_mu))
+        _MOON_ROT[0] = (_rot0 + 12) % max(1, len(_mu))
+        for _ms in _mu[_rot0:_rot0 + 12]:
+            try:
+                _mkt = cz.resolve_perp(_ms)
+                if not _mkt:
+                    continue
+                _oi = cz.oi_history(_mkt, "1hour", days=2)
+                _lsr = cz.long_short_history(_mkt, "1hour", days=2)
+                _fu = (cz.current_funding([_mkt]) or {}).get(_mkt)
+                _d_oi = _d_ls = None
+                if _oi is not None and len(_oi) >= 25 and \
+                        len(_oi.columns):
+                    _c0 = _oi.columns[0]
+                    if float(_oi[_c0].iloc[-25]) > 0:
+                        _d_oi = (float(_oi[_c0].iloc[-1])
+                                 / float(_oi[_c0].iloc[-25]) - 1) * 100
+                if _lsr is not None and len(_lsr) >= 25 and \
+                        len(_lsr.columns):
+                    _c1 = _lsr.columns[0]
+                    _d_ls = float(_lsr[_c1].iloc[-1]) - \
+                        float(_lsr[_c1].iloc[-25])
+                _MOON_POS[_ms] = {"d_oi": _d_oi, "d_ls": _d_ls,
+                                  "fund": _fu, "t": _now_m}
+            except Exception:
+                continue
+        _moon_fires, _moon_watch = moonshot_desk.scan(
+            _mu, _MOON_SOC, _MOON_POS, binance_client.get_klines,
+            _kr_get if _kr_ok else None)
+    except Exception as _mn_exc:
+        print("  moonshot error:", _mn_exc, flush=True)
+    for p in _moon_fires:
+        store.record_signal("moonshot", p)
+    for p in _moon_watch:
+        store.record_signal("moon_watch", p)
+    _push(list(_moon_fires), "moon", _fmt_moonshot, min_conf=0)
+
     # 🔮 KRONOS APPROVED desk tier (user 2026-08-03: "can the 86% be
     # treated separately?") — every elite-stream signal where Kronos
     # agrees, REGARDLESS of the other 🎯 gates. The live forward
@@ -1158,6 +1240,7 @@ def cycle() -> None:
                   ("kr_approved", _kr_appr),
                   ("prime", _prime),
                   ("conviction", _conv),
+                  ("moonshot", _moon_fires),
                   ("trend_rider", r.get("trend", [])))
         for _tname, _sigs in _tiers:
             for p in _sigs:

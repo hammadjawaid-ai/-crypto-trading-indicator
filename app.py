@@ -1418,6 +1418,146 @@ def _conviction_board(pb_state=None):
                 st.error(f"Open failed: {exc}")
 
 
+def _moonshot_board(pb_state=None):
+    """🚀 MOONSHOT DESK — the user's separate big-move dashboard
+    (2026-08-09 "bestest build"): social heat + positioning fuel +
+    base + confirmed break on a 60-coin universe, 24/7 in the worker.
+    UNPROVEN — desk tier 🚀 proves forward; honest labels throughout."""
+    import json as _json_mn
+
+    import worker_store as _ws_mn
+    st.markdown(
+        "<div style='background:linear-gradient(135deg,"
+        "rgba(255,94,58,0.18),rgba(255,42,104,0.07));border:1.5px "
+        "solid rgba(255,94,58,0.55);border-radius:14px;padding:"
+        "12px 18px;margin:14px 0 8px'>"
+        "<span style='font-size:1.3rem;font-weight:900;background:"
+        "linear-gradient(90deg,#ff5e3a,#ff2a68);-webkit-background-"
+        "clip:text;-webkit-text-fill-color:transparent;background-"
+        "clip:text'>🚀 MOONSHOT DESK — THE BIG-MOVE HUNTER</span> "
+        "<span style='background:rgba(255,94,58,0.15);color:#ff8a70;"
+        "padding:2px 12px;border-radius:999px;font-size:0.72rem;"
+        "font-weight:800;margin-left:8px'>4 analyst layers · 60 coins "
+        "· 24/7 · UNPROVEN, proving on the desk</span></div>",
+        unsafe_allow_html=True)
+    st.caption("**The separate desk hunting the BMT-class move before "
+               "it goes:** 🔥 social heat (LunarCrush velocity) + ⛽ "
+               "positioning fuel (OI build / crowd-squeeze, the "
+               "measured runner archetype) + 🏗 base (not extended, "
+               "loaded spring) + ⏱ a **confirmed break** — the only "
+               "entry style that measured positive. Fires buzz 🚀 with "
+               "the full plan: tight stop, bank half at 1R, runner on "
+               "a 3×ATR trail. **Every fire is shadow-taken by desk "
+               "tier 🚀 from day one — its record is the judge.**")
+    try:
+        _fr = _ws_mn.recent_by_stream("moonshot", 6)
+    except Exception:
+        _fr = []
+    _seen_m, _cards_m = set(), []
+    for _r in _fr:
+        _k = (_r.get("symbol"), _r.get("side"))
+        if _k in _seen_m:
+            continue
+        _seen_m.add(_k)
+        if time.time() - float(_r.get("ts") or 0) < 6 * 3600:
+            _cards_m.append(_r)
+    for _i, _r in enumerate(_cards_m[:3]):
+        try:
+            _x = _json_mn.loads(_r.get("extra") or "{}")
+        except Exception:
+            _x = {}
+        _sym = _r.get("symbol") or ""
+        _b = _r.get("base")
+        _e = float(_r.get("entry") or 0)
+        _st_ = float(_r.get("stop") or 0)
+        _t1 = float(_r.get("tp1") or 0)
+        _t2 = float(_r.get("tp2") or 0)
+        _c1m, _c2m = st.columns([5, 1])
+        _c1m.markdown(
+            f"<div style='background:rgba(255,94,58,0.06);border:"
+            f"1.5px solid rgba(255,94,58,0.6);border-radius:13px;"
+            f"padding:11px 15px;margin:5px 0'>"
+            f"<span style='background:linear-gradient(90deg,#ff5e3a,"
+            f"#ff2a68);color:#fff;padding:2px 11px;border-radius:999px;"
+            f"font-size:0.74rem;font-weight:900'>🚀 MOONSHOT</span> "
+            f"<b style='font-size:1.1rem'>{_b}</b> "
+            f"<span style='color:#2ed47a;font-weight:800'>LONG</span> "
+            f"<span style='color:#8b93a7;font-size:0.72rem'>· "
+            f"{int(max(0, time.time() - float(_r.get('ts') or 0)) // 60)}"
+            f"m ago · votes {_x.get('votes', '?')}/3 · break "
+            f"x{_x.get('vx', '?')} vol</span><br>"
+            f"<span style='color:#ffb59f;font-size:0.78rem'>🔥 "
+            f"{_x.get('heat_d', '—')} · ⛽ {_x.get('fuel_d', '—')}"
+            f"</span><br>"
+            f"<span style='color:#e6e9f0;font-size:0.88rem'>entry "
+            f"<b>{px_round.fmt_px(_sym, _e)}</b> · SL "
+            f"<b style='color:#ff5c5c'>{px_round.fmt_px(_sym, _st_)}</b>"
+            f" · TP1 <b style='color:#2ed47a'>"
+            f"{px_round.fmt_px(_sym, _t1)}</b> (bank half) · runner "
+            f"<b style='color:#ffd54a'>{px_round.fmt_px(_sym, _t2)}+"
+            f"</b> 3×ATR trail</span></div>",
+            unsafe_allow_html=True)
+        if pb_state is None:
+            _c2m.caption("view")
+        elif any(p.get("symbol") == _sym
+                 for p in (pb_state.get("open") or [])):
+            _c2m.caption("✓ open")
+        elif _c2m.button("📥 Open", key=f"mn_open_{_sym}_{_i}",
+                         use_container_width=True):
+            try:
+                _alert = {
+                    "symbol": _sym, "base": _b, "side": "LONG",
+                    "entry_low": _e, "stop": _st_, "target": _t1,
+                    "target_2": _t2, "chase_tp2_eligible": True,
+                    "confidence": int(float(_r.get("score") or 0)
+                                      or 80),
+                    "strength_factor": 0.7,
+                    "_unified_source": "true_signal"}
+                _pos = paper_bot.open_position(pb_state, _alert, _e)
+                paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                if _pos:
+                    st.success(f"Opened LONG {_b} (🚀 MOONSHOT)")
+                    st.rerun()
+                else:
+                    st.warning("Not opened — Paper Trader rejected.")
+            except Exception as exc:
+                st.error(f"Open failed: {exc}")
+    if not _cards_m:
+        st.caption("· No 🚀 fire right now — the desk needs heat/fuel "
+                   "AND a confirmed break to speak. The boil-watch "
+                   "below shows what it's tracking.")
+    # 🌡 BOIL WATCH — coins showing heat or fuel right now
+    try:
+        _wr = _ws_mn.recent_by_stream("moon_watch", 14)
+    except Exception:
+        _wr = []
+    _rows_w, _seen_w = [], set()
+    for _r in _wr:
+        _sy = _r.get("symbol")
+        if _sy in _seen_w or time.time() - float(_r.get("ts") or 0) \
+                > 45 * 60:
+            continue
+        _seen_w.add(_sy)
+        try:
+            _x = _json_mn.loads(_r.get("extra") or "{}")
+        except Exception:
+            _x = {}
+        _chips = []
+        if _x.get("heat"):
+            _chips.append(f"🔥 {_x.get('heat_d', '')}")
+        if _x.get("fuel"):
+            _chips.append(f"⛽ {_x.get('fuel_d', '')}")
+        if _x.get("base_ok"):
+            _chips.append("🏗 base ready")
+        _rows_w.append(f"<b>{_r.get('base')}</b> "
+                       f"<span style='color:#9aa7c7;font-size:0.75rem'>"
+                       f"{' · '.join(_chips)}</span>")
+    if _rows_w:
+        st.markdown("**🌡 BOIL WATCH — heating up right now:**<br>"
+                    + "<br>".join(_rows_w[:10]),
+                    unsafe_allow_html=True)
+
+
 def _preburst_board(pb_state=None):
     """🌋 PRE-BURST board — shared (🎯 page + Paper Trader). Quiet
     coils where Kronos forecasts a big move, caught BEFORE the burst
@@ -2731,7 +2871,11 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
     st.caption("💎 **BEST TRADE ZONE** — the consolidated best-of-the-best "
                "board — now lives in its own section in the left bar.")
 
-    # 🥇 PRIME first — top billing, its own identity (user 2026-08-05)
+    # 🚀 MOONSHOT DESK — the user's separate big-move dashboard
+    # (2026-08-09), top billing on Paper Trading, openable.
+    _moonshot_board(pb_state)
+
+    # 🥇 PRIME — top billing, its own identity (user 2026-08-05)
     _prime_board(None)
 
     # 💯 CONVICTION — the high-win-rate board (user 2026-08-06);
@@ -2787,6 +2931,7 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "kr_approved": "🔮 KRONOS APPROVED",
                    "prime": "🥇 PRIME (winners board)",
                    "conviction": "💯 CONVICTION (88.6% cell)",
+                   "moonshot": "🚀 MOONSHOT (big-move desk)",
                    "trend_rider": "🌊 TREND RIDER"}
     # 2026-07-28 cleanup: retired tiers stay in the archive (bench) but
     # never in the active view. LIQ FLUSH retired by its own rule
