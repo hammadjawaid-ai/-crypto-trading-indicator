@@ -3156,7 +3156,16 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
             with st.expander(
                     f"📂 open shadow positions ({len(_sh_open_all)}) — "
                     f"what the brain is holding right now", expanded=False):
-                for t in _sh_open_all:
+                # display cap (user 2026-08-09): first 50 render fast;
+                # "show all" reveals the rest. DISPLAY ONLY — the brain
+                # tracks and manages every position regardless.
+                _sh_show = _sh_open_all
+                if len(_sh_open_all) > 50:
+                    if not st.toggle(
+                            f"Show all {len(_sh_open_all)} (first 50 "
+                            f"shown for speed)", key="sh_open_all_tgl"):
+                        _sh_show = _sh_open_all[:50]
+                for t in _sh_show:
                     _lad = ("TP1 locked·trailing" if t.get("tp1_hit")
                             else ("BE set" if t.get("be_set")
                                   else "initial stop"))
@@ -3173,7 +3182,14 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
         if _sh_recent:
             with st.expander("📜 recent shadow trades (the receipts)",
                              expanded=False):
-                for t in _sh_recent:
+                # same display cap — records themselves are untouched
+                _sh_r_show = _sh_recent
+                if len(_sh_recent) > 50:
+                    if not st.toggle(
+                            f"Show all {len(_sh_recent)} (first 50 "
+                            f"shown for speed)", key="sh_rec_all_tgl"):
+                        _sh_r_show = _sh_recent[:50]
+                for t in _sh_r_show:
                     _pr = float(t.get("pnl_r") or 0)
                     _pc = "#2ed47a" if _pr > 0 else "#ff5c5c"
                     st.markdown(
@@ -6523,11 +6539,12 @@ st.query_params["tf"] = timeframe
 st.query_params["mode"] = trade_mode_label
 st.query_params["section"] = active_section
 
-# default stays 150 (user 2026-08-07: "I want 150 on load, no 60") —
-# load-time relief comes from the 270s refresh-vs-cache stagger and
-# the longer per-card TTLs instead.
+# default 100 (user 2026-08-09: "make it 100 match") — the page's
+# universe now EXACTLY matches the 24/7 worker's WORKER_SCAN_N=100,
+# so the screen shows precisely what the engine hunts. Slider still
+# goes to 150 for the wide view.
 top_n = st.sidebar.slider("Coins to track", 10, config.TOP_N,
-                          config.TOP_N, 5)
+                          min(100, config.TOP_N), 5)
 
 alerts_on = st.sidebar.checkbox(
     "🔔 Desktop alerts", value=False,
