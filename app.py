@@ -6755,7 +6755,8 @@ if active_section == "🎮 Demo $1,200":
         "clip:text;-webkit-text-fill-color:transparent;background-"
         "clip:text'>🎮 DEMO $1,200 — THE ONE-WEEK TEST</span><br>"
         "<span style='color:#9aa7c7;font-size:0.82rem'>The 24/7 brain "
-        "trades this like a REAL account: 3 slots · 2% risk · taker "
+        "trades this like a REAL account: 5 slots max (quality-gated — "
+        "an empty slot beats a weak trade) · 2% risk · taker "
         "fees · one position per coin · bank half at TP1 → breakeven "
         "→ TP2/48h. It picks only the highest-quality fires "
         "(💯 → 🥇 → 🎯 → 🔮✅ → 🚀 → elite, weighted by live desk "
@@ -6768,7 +6769,7 @@ if active_section == "🎮 Demo $1,200":
     _t3c.metric("🏆 Win rate",
                 f"{_wr:.0f}%" if _closedp else "—",
                 f"{_wins}/{len(_closedp)} closed")
-    _t4c.metric("📂 Slots", f"{len(_openp)}/3")
+    _t4c.metric("📂 Slots", f"{len(_openp)}/5")
     # week-target meter ($1,500 - $1,800)
     _prog = max(0.0, min(1.0, (_eq - 1200) / 300))
     st.markdown(

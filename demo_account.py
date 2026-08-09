@@ -21,7 +21,12 @@ import time
 STATE_FILE = os.environ.get("DEMO_STATE", ".demo_account.json")
 START_BAL = 1200.0
 RISK_PCT = 2.0
-MAX_SLOTS = 3
+# 3 -> 5 (user 2026-08-09): a CEILING, not a quota — the MIN_RANK
+# floor still gates every slot, so 4-5 only fill on genuinely
+# qualified (often confluence) days. Full load = 10% of account at
+# risk; the demo's own record decides what the real-money version
+# should use.
+MAX_SLOTS = 5
 LEV_CAP = 3.0                  # notional <= balance * 3
 FEE = 0.00055                  # Bybit taker, per side
 TIME_STOP_H = 48
