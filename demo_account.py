@@ -27,6 +27,10 @@ FEE = 0.00055                  # Bybit taker, per side
 TIME_STOP_H = 48
 ZONE_MAX = 0.25                # skip if >25% of entry->TP1 gone
 STOP_MAX_PCT = 0.25            # skip stops wider than 25%
+# quality floor (my call, user granted latitude 2026-08-09): an empty
+# slot is better than a mediocre trade. Rank ~100 needs either a
+# top-record system, a strong score, or multi-system agreement.
+MIN_RANK = 100.0
 # construct-class weights — the user's chosen seven (2026-08-09:
 # "early elite, kronos approved, surge, ignition, fresh movers, top
 # conviction and moonshot — worth trying"; PRIME/others dropped from
@@ -128,6 +132,8 @@ def try_open(state: dict, cands: list, live_fn) -> list:
     for c in cands:
         if len(state["open"]) >= MAX_SLOTS:
             break
+        if c.get("rank", 0) < MIN_RANK:
+            break               # ranked list — nothing below the bar
         if c["symbol"] in held:
             continue
         try:
