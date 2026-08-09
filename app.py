@@ -1963,6 +1963,10 @@ def _render_true_signal(pb_state, live_prices=None):
     # ── 💯 CONVICTION — the high-win-rate board (user 2026-08-06)
     _conviction_board(pb_state)
 
+    # ── 🚀 MOONSHOT — openable here too (user 2026-08-09: "openable
+    # trades on it with tp sl and everything just like other boards")
+    _moonshot_board(pb_state)
+
     # ── 🔬 THE FUNNEL — the living board: every candidate the system
     # is considering RIGHT NOW and exactly which gate it died at.
     # (user 2026-07-28: "I want a proper board" — emptiness alone
