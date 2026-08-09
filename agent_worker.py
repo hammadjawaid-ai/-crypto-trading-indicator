@@ -305,24 +305,37 @@ def _fmt_apex(p) -> str:
 
 
 def _kr_note(p) -> str:
-    """🔮 verdict line for alert messages, from the worker's forecast
-    cache (user 2026-08-03: 'kronos should run on early elite too' —
-    the best-minting stream shows the top layer's read in the buzz)."""
+    """🔮 verdict line for alert messages (user 2026-08-03 + 2026-08-09
+    'it should show kronos agreed or not' — the line is now on EVERY
+    buzz): cached read when fresh, ONE direct forecast at buzz time
+    otherwise (buzzes are rare; ~2.3s is fine), FLAT and no-read
+    states spelled out instead of silently omitted."""
     try:
         _hit = _KR_CACHE.get(p.get("symbol"))
-        if not _hit or time.time() - _hit["t"] > KR_TTL:
-            return ""
-        s = _hit["s"]
+        s = _hit["s"] if _hit and time.time() - _hit["t"] <= KR_TTL \
+            else None
+        if s is None:
+            try:
+                if kf.available():
+                    s = kf.forecast(p.get("symbol"), "1h", horizon=24)
+                    if s:
+                        _KR_CACHE[p["symbol"]] = {"t": time.time(),
+                                                  "s": s}
+            except Exception:
+                s = None
+        if not s:
+            return "\n🔮 kronos: no read available"
         d = s.get("direction")
-        if d not in ("UP", "DOWN"):
-            return ""
+        _e = float(s.get("exp_move_pct") or 0)
+        if d == "FLAT":
+            return (f"\n🔮 kronos FLAT {_e:+.1f}%/24h — no conviction "
+                    f"either way")
         agree = ((d == "UP" and p.get("side") == "LONG")
                  or (d == "DOWN" and p.get("side") == "SHORT"))
-        return (f"\n🔮 kronos {d} "
-                f"{float(s.get('exp_move_pct') or 0):+.1f}%/24h — "
-                f"{'AGREES (validated +0.34R edge)' if agree else 'CONFLICTS — caution'}")
+        return (f"\n🔮 kronos {d} {_e:+.1f}%/24h — "
+                f"{'✅ AGREES (validated +0.34R edge)' if agree else '⚠️ CONFLICTS — caution'}")
     except Exception:
-        return ""
+        return "\n🔮 kronos: no read available"
 
 
 def _fmt_elite_early(p) -> str:
