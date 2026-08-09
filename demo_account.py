@@ -159,6 +159,7 @@ def try_open(state: dict, cands: list, live_fn) -> list:
                "side": c["side"], "entry": live, "stop": c["stop"],
                "tp1": c["tp1"], "tp2": c["tp2"],
                "qty": notional / live, "notional": notional,
+               "risk0": abs(live - c["stop"]),
                "src": c["src"], "score": c["score"],
                "agree": c.get("agree", 1),
                "srcs": c.get("srcs", c["src"]),
@@ -185,8 +186,12 @@ def _close_qty(state, p, qty, px, reason) -> dict:
     return rec
 
 
-def manage(state: dict, live_fn) -> list:
-    """TP1 half-bank + BE, TP2/stop/time-stop closes. Returns events."""
+def manage(state: dict, live_fn, kr_get=None) -> list:
+    """TP1 half-bank + BE, TP2/stop/time-stop closes, plus the SMART
+    EXIT (user 2026-08-09): if the trade is in profit but the model's
+    read has flipped hard against it (|exp| >= 2%), bank what's there
+    instead of riding the reversal back — the KAITO protection applied
+    to the demo's own book. Returns events."""
     events = []
     keep = []
     for p in state["open"]:
@@ -204,6 +209,31 @@ def manage(state: dict, live_fn) -> list:
         hit_tp2 = (t2 is not None
                    and (live >= t2 if lng else live <= t2))
         expired = time.time() - p["opened_at"] > TIME_STOP_H * 3600
+        # 🛡 SMART EXIT — in profit + read flipped against us
+        if not hit_stop and not hit_tp2 and kr_get is not None:
+            _r0 = float(p.get("risk0") or 0) or \
+                abs(p["entry"] - p["stop"]) or p["entry"] * 0.02
+            _pr = (live - p["entry"]) * (1 if lng else -1) / _r0
+            if _pr >= 0.3:
+                try:
+                    _kv = kr_get(p["symbol"], p["side"])
+                except Exception:
+                    _kv = None
+                if _kv:
+                    _against = ((_kv.get("direction") == "DOWN" and lng)
+                                or (_kv.get("direction") == "UP"
+                                    and not lng))
+                    _ex = abs(float(_kv.get("exp_move_pct") or 0))
+                    if _against and _ex >= 2.0:
+                        rec = _close_qty(
+                            state, p, p["qty"], live,
+                            f"smart exit — read flipped "
+                            f"{_kv.get('direction')} "
+                            f"{float(_kv.get('exp_move_pct') or 0):+.1f}%"
+                            f" at +{_pr:.1f}R")
+                        state["closed"].append(rec)
+                        events.append(("close", rec))
+                        continue
         if hit_stop:
             px = p["stop"]
             rec = _close_qty(state, p, p["qty"], px,

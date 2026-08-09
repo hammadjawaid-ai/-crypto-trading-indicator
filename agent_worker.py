@@ -1353,7 +1353,22 @@ def cycle() -> None:
                      "kr_approved": _kr_appr,
                      "ignition": _ign, "surge": _srg,
                      "fresh": fresh_m, "moonshot": _moon_fires}
-        _dz_events = demo_account.manage(_dz, _live)
+        def _dz_kr(sym, side):
+            """Cached kronos read; force-fetch for the demo's few open
+            positions so the smart exit always has a fresh view."""
+            _h = _KR_CACHE.get(sym)
+            if _h and _now - _h["t"] < KR_TTL:
+                return _h["s"]
+            if not _kr_ok:
+                return None
+            try:
+                _v = kf.forecast(sym, "1h", horizon=24)
+                if _v:
+                    _KR_CACHE[sym] = {"t": _now, "s": _v}
+                return _v
+            except Exception:
+                return None
+        _dz_events = demo_account.manage(_dz, _live, _dz_kr)
         _dz_opened = demo_account.try_open(
             _dz, demo_account.rank_candidates(_dz_pools, _dz_form),
             _live)

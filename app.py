@@ -6825,6 +6825,14 @@ if active_section == "🎮 Demo $1,200":
             f"{px_round.fmt_px(_p['symbol'], _p['tp1'])} · "
             f"<b style='color:{_col}'>{_upnl:+,.2f}$</b></span></div>",
             unsafe_allow_html=True)
+        # 📈 live chart with the trade's levels (user: "make it like
+        # graphs") — same renderer the 💎 zone uses
+        try:
+            _bz_position_chart(_p["symbol"], _p["side"],
+                               _p["entry"], _p["stop"], _p["tp1"],
+                               _lp or _p["entry"])
+        except Exception:
+            pass
     # closed trades
     st.markdown("#### 📋 Closed trades")
     if not _closedp:
@@ -6842,6 +6850,16 @@ if active_section == "🎮 Demo $1,200":
         st.caption(f"**Net realized: {_net:+,.2f}$** across "
                    f"{len(_closedp)} closes · fees included in every "
                    f"number.")
+        # 📊 daily P&L bars
+        try:
+            _cdf["day"] = _dz_pd2.to_datetime(
+                _cdf["closed_at"], unit="s").dt.strftime("%m-%d")
+            _day_pnl = _cdf.groupby("day")["pnl"].sum()
+            if len(_day_pnl) >= 1:
+                st.markdown("**📊 Daily P&L**")
+                st.bar_chart(_day_pnl, height=160)
+        except Exception:
+            pass
 
 # ===========================================================================
 # 💎 Best Trade Zone — ONE consolidated best-of-the-best dashboard
