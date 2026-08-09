@@ -1396,7 +1396,8 @@ def cycle() -> None:
                 f"{_po['score']:.0f})\n"
                 f"entry `{_po['entry']:g}` · SL `{_po['stop']:g}` · "
                 f"TP1 `{_po['tp1']:g}` · notional "
-                f"${_po['notional']:,.0f}\n"
+                f"${_po['notional']:,.0f} (~{_po.get('lev', '?')}x "
+                f"the account)\n"
                 f"balance `${_dz['balance']:,.2f}`")
             n_alerts += 1 if ok else 0
         for _ev, _rec in _dz_events:

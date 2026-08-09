@@ -18,7 +18,17 @@ import json
 import os
 import time
 
-STATE_FILE = os.environ.get("DEMO_STATE", ".demo_account.json")
+import config
+
+# 2026-08-10 THE RESET BUG, fixed: this file used to sit on the
+# container's EPHEMERAL disk, so every deploy wiped the ledger (user:
+# "it should NEVER reset from any source until I hard-reset myself").
+# Now on the persistent disk via config.state_path (STATE_DIR=/var/data
+# on Render) — the same location that keeps the desk's records alive
+# across deploys. The ONLY reset path left is bumping GEN below, which
+# happens exclusively on the user's explicit order.
+STATE_FILE = os.environ.get("DEMO_STATE") or \
+    str(config.state_path(".demo_account.json"))
 # generation marker — bump to force a clean $1,200 restart (user
 # 2026-08-09: "reset and restore to 1200, start fresh from now").
 GEN = 2
@@ -176,6 +186,7 @@ def try_open(state: dict, cands: list, live_fn) -> list:
                "side": c["side"], "entry": live, "stop": c["stop"],
                "tp1": c["tp1"], "tp2": c["tp2"],
                "qty": notional / live, "notional": notional,
+               "lev": round(notional / max(1.0, state["balance"]), 1),
                "risk0": abs(live - c["stop"]),
                "src": c["src"], "score": c["score"],
                "agree": c.get("agree", 1),
