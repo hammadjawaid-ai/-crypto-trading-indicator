@@ -29,9 +29,9 @@ import config
 # happens exclusively on the user's explicit order.
 STATE_FILE = os.environ.get("DEMO_STATE") or \
     str(config.state_path(".demo_account.json"))
-# generation marker — bump to force a clean $1,200 restart (user
-# 2026-08-09: "reset and restore to 1200, start fresh from now").
-GEN = 2
+# generation marker — bump ONLY on the user's explicit hard-reset
+# order. GEN 3 = 2026-08-10 ("reset again, Monday to Monday").
+GEN = 3
 START_BAL = 1200.0
 RISK_PCT = 2.0
 # 3 -> 5 (user 2026-08-09): a CEILING, not a quota — the MIN_RANK
@@ -53,13 +53,14 @@ MIN_RANK = 100.0
 # "early elite, kronos approved, surge, ignition, fresh movers, top
 # conviction and moonshot — worth trying"; PRIME/others dropped from
 # the demo on his call). Weighted by each tier's live desk record.
+# IGNITION dropped 2026-08-10 on user call ("we should skip
+# ignition" — at-fire entries, the weakest construct class).
 CLASS_W = {"elite_early": 95,      # +50.8R/215 lifetime
            "top_conviction": 90,   # 55% win · +17.3R/56
            "kr_approved": 85,      # GREEN jury: 60% win · +5.5R/30
-           "ignition": 75,         # +37.1R/317
            "surge": 70,            # 48% win · +22.4R/195
            "fresh": 65,            # validated 74%/1.5R at birth
-           "moonshot": 60}         # new — worth trying, unproven
+           "moonshot": 60}         # validated core: 61.5%/+0.14R top-30
 
 
 def load() -> dict:

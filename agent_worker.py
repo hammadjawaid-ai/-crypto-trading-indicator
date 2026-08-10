@@ -1354,9 +1354,10 @@ def cycle() -> None:
         # user's seven (2026-08-09): early elite, kronos approved,
         # surge, ignition, fresh movers, top conviction, moonshot.
         # PRIME dropped from the demo on his call (desk record flat).
+        # ignition dropped 2026-08-10 (user: "skip ignition")
         _dz_form = {}
         for _dt in ("elite_early", "top_conviction", "kr_approved",
-                    "ignition", "surge", "fresh", "moonshot"):
+                    "surge", "fresh", "moonshot"):
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_dt)["net_r"]
             except Exception:
@@ -1364,7 +1365,7 @@ def cycle() -> None:
         _dz_pools = {"elite_early": elite_early,
                      "top_conviction": _topc,
                      "kr_approved": _kr_appr,
-                     "ignition": _ign, "surge": _srg,
+                     "surge": _srg,
                      "fresh": fresh_m, "moonshot": _moon_fires}
         def _dz_kr(sym, side):
             """Cached kronos read; force-fetch for the demo's few open
