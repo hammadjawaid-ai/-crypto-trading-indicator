@@ -804,7 +804,14 @@ def cycle() -> None:
                           and abs(float(_fv["exp_move_pct"] or 0)) >= 2.0)
                          or (_newd == "FLAT"
                              and _FLIP_BUZZED.get(_fs) in ("UP", "DOWN")))
-            if _prev and _prev != _newd and _buzzable:
+            # 🔇 flip-change buzzes MUTED 2026-08-10 (user: "skip the
+            # updates from the 18 coins — only tell me the entry
+            # points"). Reads keep refreshing (the sentry, demo smart
+            # exit and 💯 gates all consume the cache); only the
+            # 🎯🔥 WATCH ENTRY buzz speaks now. Re-enable by removing
+            # the False guard below on his word — note this also
+            # silences the 🔴 protection buzz (the KAITO service).
+            if False and _prev and _prev != _newd and _buzzable:
                 if store.should_alert(
                         f"krflip:{_fs}:{_fv['direction']}", 4 * 3600):
                     # action-oriented buzz (user 2026-08-07: "when to
@@ -931,25 +938,17 @@ def cycle() -> None:
                         f"sentry:{_ss}:{_sd_s}:tn", 4 * 3600)):
                 _hot_s = " · ⚡HOT" if _et.get("hot") else ""
                 ok, _ = tg.send(
-                    f"🎯🔥 *WATCH ENTRY — {_b_s} {_sd_s}* "
-                    f"(score {_sc_s:.0f}{_hot_s})\n"
+                    f"🎯🔥 *ENTRY — {_b_s} {_sd_s}* · confidence "
+                    f"{_sc_s:.0f}/100{_hot_s}\n"
                     f"entry `{_epx:g}` · SL `{_stp:g}` · TP1 "
                     f"`{_t1s:g}` (bank) · TP2 `{_t2s:g}`\n{_krl}\n"
                     f"_pullback + confirmation candle just completed "
-                    f"on YOUR coin — the validated entry moment. Bank "
+                    f"— the validated entry moment on your coin. Bank "
                     f"at TP1; runner to TP2 only if ⚡HOT._")
                 n_alerts += 1 if ok else 0
-            elif (_st_s == "GET_READY"
-                    and _prev_s in (None, "NONE", "WAIT")
-                    and store.should_alert(
-                        f"sentry:{_ss}:{_sd_s}:gr", 8 * 3600)):
-                ok, _ = tg.send(
-                    f"🟡 *GET READY — {_b_s} {_sd_s}* (score "
-                    f"{_sc_s:.0f}) — pulled back, waiting for the "
-                    f"confirmation candle near `{_epx:g}`. {_krl}\n"
-                    f"_the 🎯🔥 buzz fires when it confirms — that's "
-                    f"the entry, not this._")
-                n_alerts += 1 if ok else 0
+            # 🔇 GET_READY pre-alerts MUTED 2026-08-10 (user: entry
+            # points ONLY). State machine keeps tracking so the
+            # 🎯🔥 escalation still fires at the right moment.
         except Exception as _sn_exc:
             print(f"  sentry {_ss}: {_sn_exc}", flush=True)
 
