@@ -1356,14 +1356,18 @@ def cycle() -> None:
         # ignition dropped 2026-08-10 (user: "skip ignition")
         _dz_form = {}
         for _dt in ("elite_early", "top_conviction", "kr_approved",
-                    "surge", "fresh", "moonshot"):
+                    "trend_rider", "surge", "fresh", "moonshot"):
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_dt)["net_r"]
             except Exception:
                 _dz_form[_dt] = 0.0
+        # 🌊 trend_rider added 2026-08-11 (user: "let trend rider in
+        # the demo") — the desk's biggest earner; capped at 2 slots,
+        # 21d hold, exempt from the kronos smart exit.
         _dz_pools = {"elite_early": elite_early,
                      "top_conviction": _topc,
                      "kr_approved": _kr_appr,
+                     "trend_rider": r.get("trend", []),
                      "surge": _srg,
                      "fresh": fresh_m, "moonshot": _moon_fires}
         def _dz_kr(sym, side):

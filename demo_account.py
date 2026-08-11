@@ -43,6 +43,18 @@ MAX_SLOTS = 5
 LEV_CAP = 3.0                  # notional <= balance * 3
 FEE = 0.00055                  # Bybit taker, per side
 TIME_STOP_H = 48
+# per-source hold limits — 🌊 TREND RIDER is a days-to-weeks construct
+# (its +81.6R desk record comes from letting winners RUN); a 48h cut
+# would destroy the exact edge we're letting in. 21d matches the desk's
+# own trend-rider standard (the 2026-07 48h-cut bug taught this).
+TIME_STOP_BY_SRC = {"trend_rider": 504}
+# slot discipline: the rider holds for days, so cap it at 2 of 5 slots
+# — it can't clog the book and starve the fast constructs.
+MAX_PER_SRC = {"trend_rider": 2}
+# sources the kronos smart-exit must NOT touch: kronos is a 24h model,
+# the rider is a multi-day trend — validated as color-not-gate there
+# (the ZBT case: veto wrong, coin ran +51%).
+SMART_EXIT_SKIP = {"trend_rider"}
 ZONE_MAX = 0.25                # skip if >25% of entry->TP1 gone
 STOP_MAX_PCT = 0.25            # skip stops wider than 25%
 # quality floor (my call, user granted latitude 2026-08-09): an empty
@@ -57,9 +69,14 @@ MIN_RANK = 100.0
 # ignition" — at-fire entries, the weakest construct class).
 CLASS_W = {"elite_early": 95,      # +50.8R/215 lifetime
            "top_conviction": 90,   # 55% win · +17.3R/56
-           "kr_approved": 85,      # GREEN jury: 60% win · +5.5R/30
-           "surge": 70,            # 48% win · +22.4R/195
-           "fresh": 65,            # validated 74%/1.5R at birth
+           "kr_approved": 85,      # GREEN jury: 59% win · +10.7R/51
+           "trend_rider": 80,      # 2026-08-11 user call: the desk's
+                                   # biggest earner (+81.6R/244,
+                                   # +73.1R last 14d) at 27% win —
+                                   # few wins, huge ones. Capped at 2
+                                   # slots, long hold, no smart exit.
+           "surge": 70,            # 43% win · +5.5R/292
+           "fresh": 65,            # 40% win · +17.8R/192
            "moonshot": 60}         # validated core: 61.5%/+0.14R top-30
 
 
@@ -157,6 +174,9 @@ def try_open(state: dict, cands: list, live_fn) -> list:
     balance, entry fee paid immediately."""
     opened = []
     held = {p["symbol"] for p in state["open"]}
+    src_n: dict = {}
+    for p in state["open"]:
+        src_n[p.get("src")] = src_n.get(p.get("src"), 0) + 1
     for c in cands:
         if len(state["open"]) >= MAX_SLOTS:
             break
@@ -164,6 +184,9 @@ def try_open(state: dict, cands: list, live_fn) -> list:
             break               # ranked list — nothing below the bar
         if c["symbol"] in held:
             continue
+        _cap = MAX_PER_SRC.get(c["src"])
+        if _cap is not None and src_n.get(c["src"], 0) >= _cap:
+            continue            # per-source slot cap (rider = 2 of 5)
         try:
             live = float(live_fn(c["symbol"]) or 0)
         except Exception:
@@ -197,6 +220,7 @@ def try_open(state: dict, cands: list, live_fn) -> list:
         state["balance"] -= fee_in
         state["open"].append(pos)
         held.add(c["symbol"])
+        src_n[c["src"]] = src_n.get(c["src"], 0) + 1
         opened.append(pos)
     return opened
 
@@ -237,9 +261,11 @@ def manage(state: dict, live_fn, kr_get=None) -> list:
         t2 = p.get("tp2")
         hit_tp2 = (t2 is not None
                    and (live >= t2 if lng else live <= t2))
-        expired = time.time() - p["opened_at"] > TIME_STOP_H * 3600
+        _tsh = TIME_STOP_BY_SRC.get(p.get("src"), TIME_STOP_H)
+        expired = time.time() - p["opened_at"] > _tsh * 3600
         # 🛡 SMART EXIT — in profit + read flipped against us
-        if not hit_stop and not hit_tp2 and kr_get is not None:
+        if not hit_stop and not hit_tp2 and kr_get is not None \
+                and p.get("src") not in SMART_EXIT_SKIP:
             _r0 = float(p.get("risk0") or 0) or \
                 abs(p["entry"] - p["stop"]) or p["entry"] * 0.02
             _pr = (live - p["entry"]) * (1 if lng else -1) / _r0
