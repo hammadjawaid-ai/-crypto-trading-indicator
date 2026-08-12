@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -1066,21 +1067,49 @@ def _bz_position_chart(symbol, side, entry, stop, target, cur_price):
         return
     if kdf is None or kdf.empty:
         return
+    # 🩹 2026-08-11 (demo page "SyntaxError: Unexpected end of input"):
+    # thin books and tokenized tickers (SPCXB/VELODROME/OPEN) return
+    # candle series with holes; NaN/Inf serialize into the chart payload
+    # as bare NaN — invalid JSON, so the browser fails to parse it and
+    # Streamlit shows a JS syntax error instead of the chart. Sanitize
+    # to finite floats and bail out cleanly when nothing usable is left.
+    try:
+        _cs = pd.to_numeric(kdf["close"], errors="coerce")
+        _cs = _cs.replace([np.inf, -np.inf], np.nan).dropna()
+        if _cs.empty:
+            return
+        _xs = list(_cs.index)
+        _ys = [float(v) for v in _cs.to_numpy()]
+        _levels = []
+        for _lv, _lc, _nm in ((entry, "#6e8bff", "Entry"),
+                              (stop, "#ff5c5c", "Stop"),
+                              (target, "#2ed47a", "Target")):
+            try:
+                _lvf = float(_lv)
+            except (TypeError, ValueError):
+                continue
+            if _lvf == _lvf and abs(_lvf) != float("inf"):
+                _levels.append((_lvf, _lc, f"{_nm} {fmt_price(_lvf)}"))
+        try:
+            _now = float(cur_price)
+            if _now != _now or abs(_now) == float("inf") or _now <= 0:
+                _now = _ys[-1]
+        except (TypeError, ValueError):
+            _now = _ys[-1]
+    except Exception:
+        return
     line_color = "#2ed47a" if side == "LONG" else "#ff5c5c"
     fig = go.Figure()
     fig.add_trace(go.Scatter(
-        x=kdf.index, y=kdf["close"], mode="lines",
+        x=_xs, y=_ys, mode="lines",
         line=dict(color=line_color, width=2),
         showlegend=False, name="Price"))
     fig.add_trace(go.Scatter(
-        x=[kdf.index[-1]], y=[cur_price], mode="markers",
+        x=[_xs[-1]], y=[_now], mode="markers",
         marker=dict(color="#fff", size=9,
                     line=dict(color=line_color, width=2)),
         showlegend=False, name="Now"))
-    for level, lcol, name in (
-            (entry,  "#6e8bff", f"Entry {fmt_price(entry)}"),
-            (stop,   "#ff5c5c", f"Stop {fmt_price(stop)}"),
-            (target, "#2ed47a", f"Target {fmt_price(target)}")):
+    for level, lcol, name in _levels:      # pre-sanitised finite floats
         fig.add_hline(
             y=level, line_color=lcol,
             line_dash="dot" if name.startswith("Entry") else "dash",
@@ -6860,12 +6889,29 @@ if active_section == "🎮 Demo $1,200":
             f"{px_round.fmt_px(_p['symbol'], _p['tp1'])} · "
             f"<b style='color:{_col}'>{_upnl:+,.2f}$</b></span></div>",
             unsafe_allow_html=True)
-        # 📈 live chart with the trade's levels (user: "make it like
-        # graphs") — same renderer the 💎 zone uses
+        # 📈 live chart with the trade's levels. 2026-08-11: switched
+        # off the plotly renderer here — it threw "SyntaxError:
+        # Unexpected end of input" (client-side JS bundle failing to
+        # parse) under every demo position. This uses Streamlit's
+        # NATIVE chart (Arrow/Vega — no plotly JS at all), so the
+        # graph renders regardless. Price + entry/stop/TP1 as lines.
         try:
-            _bz_position_chart(_p["symbol"], _p["side"],
-                               _p["entry"], _p["stop"], _p["tp1"],
-                               _lp or _p["entry"])
+            _kd = load_klines(_p["symbol"], "1h").tail(72)
+            _cs = pd.to_numeric(_kd["close"], errors="coerce")
+            _cs = _cs.replace([np.inf, -np.inf], np.nan).dropna()
+            if not _cs.empty:
+                _cdf = pd.DataFrame({
+                    "price": _cs.astype(float),
+                    "entry": float(_p["entry"]),
+                    "stop": float(_p["stop"]),
+                    "TP1": float(_p["tp1"])})
+                try:
+                    st.line_chart(
+                        _cdf, height=190,
+                        color=["#40c4ff", "#6e8bff", "#ff5c5c",
+                               "#2ed47a"])
+                except Exception:
+                    st.line_chart(_cdf, height=190)
         except Exception:
             pass
     # closed trades
