@@ -1592,9 +1592,10 @@ def _sentry_board(pb_state=None):
         "card appears only when that coin completes the *validated* "
         "entry sequence — pullback **plus** a confirmation candle — "
         "the same mechanic under the desk's best win-rate cells. "
-        "Every fire is also shadow-taken as desk tier 🎯 SENTRY "
-        "(7-day hold), so this board and its live record grow "
-        "together. ⚡HOT marks elevated volatility, where confirmed "
+        "Every fire is also shadow-taken as desk tier 🎯 SENTRY — "
+        "**no clock cut: it exits on the ladder (breakeven at +1R → "
+        "TP1 lock → trail) or the stop, never on a timer** — so this "
+        "board and its live record grow together. ⚡HOT marks elevated volatility, where confirmed "
         "entries historically run further.",
         "🎯 SENTRY", "18 coins · entry-only · proving on the desk",
         ("#40c4ff", "#2ed47a", "#062033"), pb_state,
