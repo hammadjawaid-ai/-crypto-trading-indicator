@@ -1468,6 +1468,167 @@ def _conviction_board(pb_state=None):
                 st.error(f"Open failed: {exc}")
 
 
+def _stream_board(stream, title, subtitle, badge, chip, colors,
+                  pb_state=None, key_prefix="sb", tp2=False,
+                  bank_note="BANK AT TP1", extra_line=None,
+                  empty_note="· Nothing firing right now."):
+    """Generic openable board for one worker stream (user 2026-08-11:
+    "add an openable board for what we're testing on the desk, and one
+    for kronos approved"). Same card anatomy as 💯/🥇 — hero, cards
+    with entry/SL/TP + 📥 Open into the Paper Trader.
+
+    colors = (accent_a, accent_b, text_on_accent).
+    """
+    import json as _json_sb
+
+    import worker_store as _ws_sb
+    _ca, _cb, _ct = colors
+    st.markdown(
+        f"<div style='background:linear-gradient(135deg,"
+        f"{_ca}29,{_cb}12);border:1.5px solid {_ca}8c;border-radius:"
+        f"14px;padding:12px 18px;margin:14px 0 8px'>"
+        f"<span style='font-size:1.25rem;font-weight:900;background:"
+        f"linear-gradient(90deg,{_ca},{_cb});-webkit-background-clip:"
+        f"text;-webkit-text-fill-color:transparent;background-clip:"
+        f"text'>{title}</span> "
+        f"<span style='background:{_ca}26;color:{_ca};padding:2px 12px;"
+        f"border-radius:999px;font-size:0.72rem;font-weight:800;"
+        f"margin-left:8px'>{chip}</span></div>",
+        unsafe_allow_html=True)
+    st.caption(subtitle)
+    try:
+        _rows = _ws_sb.recent_by_stream(stream, 10)
+    except Exception:
+        _rows = []
+    _seen, _cards = set(), []
+    for _r in _rows:
+        _k = (_r.get("symbol"), _r.get("side"))
+        if _k in _seen:
+            continue
+        _seen.add(_k)
+        if time.time() - float(_r.get("ts") or 0) < 6 * 3600:
+            _cards.append(_r)
+    if not _cards:
+        st.caption(empty_note)
+        return
+    for _i, _r in enumerate(_cards[:4]):
+        try:
+            _x = _json_sb.loads(_r.get("extra") or "{}")
+        except Exception:
+            _x = {}
+        _sym = _r.get("symbol") or ""
+        _b = _r.get("base") or _sym.replace("USDT", "")
+        _sd = (_r.get("side") or "").upper()
+        _e = float(_r.get("entry") or 0)
+        _st_ = float(_r.get("stop") or 0)
+        _t1 = float(_r.get("tp1") or 0)
+        _t2 = float(_r.get("tp2") or 0) or None
+        _sc = "#2ed47a" if _sd == "LONG" else "#ff5c5c"
+        _c1, _c2 = st.columns([5, 1])
+        _xtra = ""
+        if extra_line:
+            try:
+                _xtra = extra_line(_r, _x)
+            except Exception:
+                _xtra = ""
+        _c1.markdown(
+            f"<div style='background:{_ca}0f;border:1.5px solid "
+            f"{_ca}99;border-radius:13px;padding:11px 15px;margin:"
+            f"5px 0'>"
+            f"<span style='background:linear-gradient(90deg,{_ca},"
+            f"{_cb});color:{_ct};padding:2px 11px;border-radius:999px;"
+            f"font-size:0.74rem;font-weight:900'>{badge}</span> "
+            f"<b style='font-size:1.1rem'>{_b}</b> "
+            f"<span style='color:{_sc};font-weight:800'>{_sd}</span> "
+            f"<span style='color:#8b93a7;font-size:0.72rem'>· "
+            f"{int(max(0, time.time() - float(_r.get('ts') or 0)) // 60)}"
+            f"m ago · {_r.get('tier') or ''} "
+            f"{float(_r.get('score') or 0):.0f}{_xtra}</span><br>"
+            f"<span style='color:#e6e9f0;font-size:0.88rem'>entry "
+            f"<b>{px_round.fmt_px(_sym, _e)}</b> · SL "
+            f"<b style='color:#ff5c5c'>{px_round.fmt_px(_sym, _st_)}"
+            f"</b> · TP1 <b style='color:#2ed47a'>"
+            f"{px_round.fmt_px(_sym, _t1)}</b>"
+            + (f" · TP2 <b style='color:#2ed47a'>"
+               f"{px_round.fmt_px(_sym, _t2)}</b>"
+               if (tp2 and _t2) else "")
+            + f" — <b style='color:{_ca}'>{bank_note}</b>"
+            f"</span></div>", unsafe_allow_html=True)
+        if pb_state is None:
+            _c2.caption("view")
+        elif any(p.get("symbol") == _sym
+                 for p in (pb_state.get("open") or [])):
+            _c2.caption("✓ open")
+        elif _c2.button("📥 Open", key=f"{key_prefix}_{_sym}_{_i}",
+                        use_container_width=True):
+            try:
+                _alert = {
+                    "symbol": _sym, "base": _b, "side": _sd,
+                    "entry_low": _e, "stop": _st_, "target": _t1,
+                    "target_2": _t2 if tp2 else None,
+                    "chase_tp2_eligible": bool(tp2 and _t2),
+                    "confidence": int(float(_r.get("score") or 0)
+                                      or 85),
+                    "strength_factor": 0.7,
+                    "_unified_source": "true_signal"}
+                _pos = paper_bot.open_position(pb_state, _alert, _e)
+                paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                if _pos:
+                    st.success(f"Opened {_sd} {_b} ({badge})")
+                    st.rerun()
+                else:
+                    st.warning("Not opened — Paper Trader rejected.")
+            except Exception as exc:
+                st.error(f"Open failed: {exc}")
+
+
+def _sentry_board(pb_state=None):
+    """🎯 SENTRY — the 18-coin watch, now a desk-proving tier (user
+    2026-08-11: "add an openable board for what we're testing on the
+    decision desk so I understand it better")."""
+    _stream_board(
+        "sentry", "🎯 SENTRY — YOUR 18-COIN WATCH",
+        "**The coins you flagged, watched every 5 minutes, 24/7.** A "
+        "card appears only when that coin completes the *validated* "
+        "entry sequence — pullback **plus** a confirmation candle — "
+        "the same mechanic under the desk's best win-rate cells. "
+        "Every fire is also shadow-taken as desk tier 🎯 SENTRY "
+        "(7-day hold), so this board and its live record grow "
+        "together. ⚡HOT marks elevated volatility, where confirmed "
+        "entries historically run further.",
+        "🎯 SENTRY", "18 coins · entry-only · proving on the desk",
+        ("#40c4ff", "#2ed47a", "#062033"), pb_state,
+        key_prefix="sn", tp2=True,
+        bank_note="bank at TP1 · runner only if ⚡HOT",
+        extra_line=lambda r, x: (" · ⚡HOT" if x.get("hot") else ""),
+        empty_note="· No sentry entry right now — it speaks only at "
+                   "the confirmed moment on your 18 coins, which is "
+                   "rare by design. Telegram carries the same buzz.")
+
+
+def _kr_approved_board(pb_state=None):
+    """🔮✅ KRONOS APPROVED — best live win rate on the desk (59%,
+    +10.7R over 51 closed). User 2026-08-11: own openable board."""
+    _stream_board(
+        "kr_approved", "🔮✅ KRONOS APPROVED — THE JURY'S BOARD",
+        "**The desk's best live win rate: 59% · +10.7R after fees "
+        "across 51 closed.** Every elite-stream fire that 🔮 Kronos "
+        "independently agrees with — the construct that was measured "
+        "at 86%/+0.34R in backtest and has *held green* through its "
+        "binding 30-trade checkpoint and beyond. Bank at TP1; the "
+        "agreement is the edge, not the target.",
+        "🔮✅ APPROVED", "59% win · +10.7R live · 51 closed",
+        ("#ffd54a", "#2ed47a", "#1a1200"), pb_state,
+        key_prefix="ka", tp2=True, bank_note="BANK AT TP1",
+        extra_line=lambda r, x: (
+            f" · 🔮 {x.get('kr_dir', '?')} "
+            f"{float(x.get('kr_exp') or 0):+.1f}%"
+            f"{' · ' + str(x.get('kr_src')) if x.get('kr_src') else ''}"),
+        empty_note="· No approved card right now — Kronos agrees with "
+                   "roughly a quarter of elite fires, so this board is "
+                   "quiet by construction.")
+
+
 def _moonshot_board(pb_state=None):
     """🚀 MOONSHOT DESK — the user's separate big-move dashboard
     (2026-08-09 "bestest build"): social heat + positioning fuel +
@@ -2937,16 +3098,21 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
     st.caption("💎 **BEST TRADE ZONE** — the consolidated best-of-the-best "
                "board — now lives in its own section in the left bar.")
 
-    # 🚀 MOONSHOT DESK — the user's separate big-move dashboard
-    # (2026-08-09), top billing on Paper Trading, openable.
-    _moonshot_board(pb_state)
+    # 2026-08-11 board reshuffle (user call): 🚀 MOONSHOT and 🥇 PRIME
+    # are OFF this page until their own desk records turn green
+    # (moonshot 9 closed/−0.65R; prime 33 closed/33% win/−7.45R vs a
+    # 78.8% backtest). Both still live on the 🎯 page and keep their
+    # desk tiers + buzzes. In their place: the two boards worth
+    # watching right now — 🔮✅ KRONOS APPROVED (best live win rate on
+    # the desk) and 🎯 SENTRY (the 18-coin watch we just put on the
+    # desk to be proven).
+    _kr_approved_board(pb_state)
 
-    # 🥇 PRIME — top billing, its own identity (user 2026-08-05)
-    _prime_board(None)
+    _sentry_board(pb_state)
 
     # 💯 CONVICTION — the high-win-rate board (user 2026-08-06);
     # openable HERE too ("should be openable not view only so I can
-    # test on the decision desk") — unlike PRIME's display-only copy.
+    # test on the decision desk").
     _conviction_board(pb_state)
 
     # 🔮 KRONOS BOARD on Paper Trading too (user 2026-07-28: "the data
