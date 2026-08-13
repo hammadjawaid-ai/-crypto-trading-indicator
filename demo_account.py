@@ -76,8 +76,12 @@ CLASS_W = {"elite_early": 95,      # +50.8R/215 lifetime
                                    # few wins, huge ones. Capped at 2
                                    # slots, long hold, no smart exit.
            "surge": 70,            # 43% win · +5.5R/292
-           "fresh": 65,            # 40% win · +17.8R/192
-           "moonshot": 60}         # validated core: 61.5%/+0.14R top-30
+           "fresh": 65}            # 40% win · +17.8R/192
+# 2026-08-11 user call: 🚀 MOONSHOT removed from the demo menu (desk
+# record 9 closed / −0.65R, and those closes pre-date the top-30
+# validation restrictions — it hasn't earned a money seat yet). 🥇
+# PRIME was already out (2026-08-09). Both keep proving on the desk;
+# they return only when their OWN live record turns green.
 
 
 def load() -> dict:

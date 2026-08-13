@@ -1356,7 +1356,7 @@ def cycle() -> None:
         # ignition dropped 2026-08-10 (user: "skip ignition")
         _dz_form = {}
         for _dt in ("elite_early", "top_conviction", "kr_approved",
-                    "trend_rider", "surge", "fresh", "moonshot"):
+                    "trend_rider", "surge", "fresh"):
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_dt)["net_r"]
             except Exception:
@@ -1364,12 +1364,15 @@ def cycle() -> None:
         # 🌊 trend_rider added 2026-08-11 (user: "let trend rider in
         # the demo") — the desk's biggest earner; capped at 2 slots,
         # 21d hold, exempt from the kronos smart exit.
+        # 2026-08-11: moonshot removed from the demo pool (user call —
+        # unproven desk record). It keeps firing its own board, buzzes
+        # and desk tier; it just doesn't spend the demo's money.
         _dz_pools = {"elite_early": elite_early,
                      "top_conviction": _topc,
                      "kr_approved": _kr_appr,
                      "trend_rider": r.get("trend", []),
                      "surge": _srg,
-                     "fresh": fresh_m, "moonshot": _moon_fires}
+                     "fresh": fresh_m}
         def _dz_kr(sym, side):
             """Cached kronos read; force-fetch for the demo's few open
             positions so the smart exit always has a fresh view."""
