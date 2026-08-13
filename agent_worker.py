@@ -60,6 +60,11 @@ _SENTRY_PREV: dict = {}
 _MOON_SOC: dict = {}
 _MOON_POS: dict = {}
 _MOON_ROT = [0]
+# 🌋 armed coils waiting for their break — {sym: {"p": plan, "t": ts}}.
+# A coil is NOT a trade until price crosses the trigger (2026-08-11
+# fix); unbroken setups expire after PB_ARM_H hours.
+_PB_ARMED: dict = {}
+PB_ARM_H = 24.0
 KR_TTL = 2 * 3600
 KR_MAX_PER_CYCLE = 8
 # 🌋 rotating scan counter — top-100 universe in halves (50/cycle)
@@ -1181,10 +1186,48 @@ def cycle() -> None:
                 100)["symbol"].tolist()
             _pb_half = (_pb_syms[:50] if _PB_ROT[0] % 2 == 0
                         else _pb_syms[50:])
-            _pb = _pb_mod.scan(_pb_half, _kr_pb, max_checks=50)
+            _pb_found = _pb_mod.scan(_pb_half, _kr_pb, max_checks=50)
         except Exception as _pb_exc:
-            _pb = []
+            _pb_found = []
             print("  preburst error:", _pb_exc, flush=True)
+
+        # 🌋 THE BREAK GATE (2026-08-11 — the fix that explains the
+        # tier's -11.4R). preburst.py emits a STOP-ENTRY plan: entry
+        # is the coil EDGE, price is still inside the range. But the
+        # desk opens every signal AT LIVE PRICE, so recording at coil
+        # time made the desk take the COIL-CLOSE entry — the construct
+        # measured at -0.21R — while the module's own comment says
+        # "enter ON BREAK only" (+0.122R/61%, n=59). The board said
+        # one thing, the record measured another.
+        # Now: a fresh coil is ARMED (stream pb_armed, board-only, no
+        # trade). Only when price actually crosses the trigger in
+        # Kronos's direction do we record "preburst" — so the desk
+        # opens at ~the trigger and finally measures the construct we
+        # validated. Unbroken coils expire after PB_ARM_H hours.
+        _pb = []
+        for _p in _pb_found:
+            _k = _p["symbol"]
+            if _k not in _PB_ARMED:
+                _PB_ARMED[_k] = {"p": _p, "t": _now}
+                store.record_signal("pb_armed", _p)
+        for _k in list(_PB_ARMED):
+            _a = _PB_ARMED[_k]
+            if _now - _a["t"] > PB_ARM_H * 3600:
+                del _PB_ARMED[_k]
+                continue
+            _ap = _a["p"]
+            try:
+                _apx = float(binance_client.get_ticker_price(_k) or 0)
+            except Exception:
+                continue
+            if _apx <= 0:
+                continue
+            _trg = float(_ap["trigger"])
+            _broke = (_apx >= _trg if _ap["side"] == "LONG"
+                      else _apx <= _trg)
+            if _broke:
+                del _PB_ARMED[_k]
+                _pb.append(_ap)
         for p in _pb:
             store.record_signal("preburst", p)
         # 🌋 buzzes SILENCED (user 2026-08-05: "useless and losing

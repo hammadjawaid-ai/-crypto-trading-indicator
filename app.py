@@ -1790,13 +1790,49 @@ def _preburst_board(pb_state=None):
     import json as _json_pb
 
     import worker_store as _ws_pb
-    st.markdown("#### 🌋 PRE-BURST — loaded bases, caught early")
+    st.markdown("#### 🌋 PRE-BURST — armed coils, fired on the break")
     st.caption("Quiet coils (tight range, compressed volatility, no "
-               "move yet) where 🔮 Kronos forecasts a ≥2% move in the "
-               "next 24h — the PORTAL-base construct: in **before** the "
-               "burst, not chasing it. **UNPROVEN — deployed by your "
-               "call; the 🌋 desk tier + a parallel backtest are "
-               "building its honest record. Size small.**")
+               "move yet) where 🔮 Kronos forecasts a **≥3%** move in "
+               "the next 24h. **Fixed 2026-08-11: a coil is now ARMED, "
+               "not traded — the fire happens only when price actually "
+               "crosses the trigger.** That is the one pre-burst "
+               "construct that ever measured positive (+0.12R / 61% "
+               "win, n=59); entering at the coil close instead measured "
+               "−0.21R, which is exactly what the old wiring was doing "
+               "and why this tier's record reads −11.4R. From here the "
+               "desk finally measures the construct we validated.")
+    # 🔒 ARMED — loaded coils waiting for their trigger
+    try:
+        _arm_rows = _ws_pb.recent_by_stream("pb_armed", 12)
+    except Exception:
+        _arm_rows = []
+    _aseen, _armed = set(), []
+    for _r in _arm_rows:
+        _k = (_r.get("symbol"), _r.get("side"))
+        if _k in _aseen:
+            continue
+        _aseen.add(_k)
+        if time.time() - float(_r.get("ts") or 0) < 24 * 3600:
+            _armed.append(_r)
+    if _armed:
+        _lines = []
+        for _r in _armed[:6]:
+            try:
+                _x = _json_pb.loads(_r.get("extra") or "{}")
+            except Exception:
+                _x = {}
+            _lines.append(
+                f"<b>{_r.get('base')}</b> "
+                f"<span style='color:"
+                f"{'#2ed47a' if _r.get('side') == 'LONG' else '#ff5c5c'}"
+                f";font-weight:700'>{_r.get('side')}</span> "
+                f"<span style='color:#9aa7c7;font-size:0.75rem'>— fires "
+                f"on a break of <b>"
+                f"{px_round.fmt_px(_r.get('symbol'), _r.get('entry'))}"
+                f"</b> · 🔮 {_x.get('kr_dir', '?')} "
+                f"{float(_x.get('kr_exp') or 0):+.1f}%/24h</span>")
+        st.markdown("**🔒 ARMED — loaded, waiting for the break:**<br>"
+                    + "<br>".join(_lines), unsafe_allow_html=True)
     try:
         _rows = _ws_pb.recent_by_stream("preburst", 10)
     except Exception:
@@ -1810,9 +1846,12 @@ def _preburst_board(pb_state=None):
         if time.time() - float(_r.get("ts") or 0) < 6 * 3600:
             _fires.append(_r)
     if not _fires:
-        st.caption("· No loaded bases right now — coils are rare by "
-                   "nature; the radar sweeps every 5 minutes, 24/7.")
+        st.caption("· No coil has BROKEN yet — armed setups above are "
+                   "the watch list; a card appears here only when one "
+                   "crosses its trigger. The radar sweeps every 5 "
+                   "minutes, 24/7.")
         return
+    st.markdown("**🔥 FIRED — broke the trigger:**")
     for _i, _r in enumerate(_fires[:4]):
         try:
             _x = _json_pb.loads(_r.get("extra") or "{}")
