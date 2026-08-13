@@ -284,15 +284,41 @@ def manage(state: dict, live_fn, kr_get=None) -> list:
                                     and not lng))
                     _ex = abs(float(_kv.get("exp_move_pct") or 0))
                     if _against and _ex >= 2.0:
-                        rec = _close_qty(
-                            state, p, p["qty"], live,
-                            f"smart exit — read flipped "
-                            f"{_kv.get('direction')} "
-                            f"{float(_kv.get('exp_move_pct') or 0):+.1f}%"
-                            f" at +{_pr:.1f}R")
-                        state["closed"].append(rec)
-                        events.append(("close", rec))
-                        continue
+                        # 🛡 RISK-OFF, not exit (user 2026-08-11,
+                        # "option 1"): a flip no longer closes a
+                        # working trade — it removes the risk and
+                        # lets the move keep paying.
+                        #   before TP1 → stop to SCRATCH (entry plus
+                        #     the round-trip fee, so a stop-out here
+                        #     truly costs nothing — a plain breakeven
+                        #     stop still loses the fees)
+                        #   after TP1  → tighten from BE to lock HALF
+                        #     the runner's open gain
+                        # Stops only ever move in the safe direction.
+                        _cush = p["entry"] * 2 * FEE
+                        _cand = (p["entry"] + (live - p["entry"]) * 0.5
+                                 if p.get("be_set")
+                                 else p["entry"] + (_cush if lng
+                                                    else -_cush))
+                        _new = (max(p["stop"], _cand) if lng
+                                else min(p["stop"], _cand))
+                        _moved = abs(_new - p["stop"]) > p["entry"] * 1e-6
+                        p["stop"] = _new
+                        if _moved and not p.get("flip_guard"):
+                            p["flip_guard"] = True
+                            events.append(("guard", {
+                                "base": p["base"], "side": p["side"],
+                                "symbol": p["symbol"], "pnl": 0.0,
+                                "stop": _new,
+                                "reason": (
+                                    f"read flipped "
+                                    f"{_kv.get('direction')} "
+                                    f"{float(_kv.get('exp_move_pct') or 0):+.1f}%"
+                                    f" at +{_pr:.1f}R — risk off, "
+                                    + ("locked half the runner"
+                                       if p.get("be_set")
+                                       else "stop to scratch")
+                                    + ", trade still running")}))
         if hit_stop:
             px = p["stop"]
             rec = _close_qty(state, p, p["qty"], px,

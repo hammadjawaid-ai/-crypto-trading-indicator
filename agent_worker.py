@@ -1422,6 +1422,16 @@ def cycle() -> None:
                 f"balance `${_dz['balance']:,.2f}`")
             n_alerts += 1 if ok else 0
         for _ev, _rec in _dz_events:
+            if _ev == "guard":
+                # 🛡 risk-off, position still open — no P&L line
+                ok, _ = tg.send(
+                    f"🎮🛡 *DEMO $1200* — RISK OFF "
+                    f"{_rec['base']} {_rec['side']}\n"
+                    f"{_rec['reason']}\nstop now "
+                    f"`{_rec['stop']:g}` · balance "
+                    f"`${_dz['balance']:,.2f}`")
+                n_alerts += 1 if ok else 0
+                continue
             _tag = ("💰 TP1 half-banked" if _ev == "tp1"
                     else "CLOSED")
             ok, _ = tg.send(
