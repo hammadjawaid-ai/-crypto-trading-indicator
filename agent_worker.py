@@ -67,6 +67,10 @@ _PB_ARMED: dict = {}
 PB_ARM_H = 24.0
 KR_TTL = 2 * 3600
 KR_MAX_PER_CYCLE = 8
+# extra on-demand forecasts per cycle, spent ONLY on in-zone
+# approval candidates that the budgeted capture loop missed — so a
+# 🔮✅ agreement reaches Telegram at fire time, not a cycle later.
+KR_APPROVE_EXTRA = 6
 # 🌋 rotating scan counter — top-100 universe in halves (50/cycle)
 _PB_ROT = [0]
 COOLDOWN = max(1, int(getattr(config, "WORKER_ALERT_COOLDOWN_MIN", 360))) * 60
@@ -606,8 +610,13 @@ def cycle() -> None:
         print("  fast30 error:", _f30_exc, flush=True)
     for p in _f30:
         store.record_signal("fast30", p)
-    _push([p for p in _f30 if _in_zone(p)], "fast30", _fmt_fast30,
-          min_conf=0)
+    # ⏱ fast30 buzz PAUSED 2026-08-11 (user: "for 30m confirm pause it
+    # for now"). Everything downstream is untouched — fast30 still
+    # feeds 💯 CONVICTION and 🥇 PRIME, still records its desk tier,
+    # still shows on the boards. Only the Telegram stream is quiet.
+    # Restore by uncommenting on his word.
+    # _push([p for p in _f30 if _in_zone(p)], "fast30", _fmt_fast30,
+    #       min_conf=0)
     # 🥇 PRIME (user 2026-08-05: "deploy the board") — the winners-only
     # construct mined from 134 entries / 108 days: elite HIGH fire +
     # ATR 40-80 band + calm 6h -> 30m confirm -> bank at TP1.
@@ -1036,16 +1045,40 @@ def cycle() -> None:
     _kr_appr = []
     if _kr_ok:
         _ka_seen: set = set()
+        _ka_extra = [0]          # on-demand forecast budget this cycle
+        # ⚡ EARLY MOVERS + 🚀 EARLY-LANE added 2026-08-11 (user:
+        # "fresh movers, take now, apex, early movers with kronos
+        # agreement should land on telegram immediately").
         for _ka_src, _ka_pool in (("🏆 APEX", apex),
                                   ("🌟 EARLY ELITE", elite_early),
                                   ("🌱 FRESH", fresh_m),
-                                  ("✅🔥 TAKE NOW", tn_hot)):
+                                  ("✅🔥 TAKE NOW", tn_hot),
+                                  ("🚀 EARLY-LANE", em_big),
+                                  ("⚡ EARLY MOVERS", _em_rest)):
             for _kp in _ka_pool:
                 _kk = (_kp.get("symbol"), _kp.get("side"))
                 if _kk in _ka_seen or not _kk[0]:
                     continue
                 _ka_seen.add(_kk)
                 _kv2 = _kr_get(_kk[0], _kk[1])
+                if not _kv2:
+                    # 2026-08-11: don't silently skip a candidate just
+                    # because the budgeted capture loop hadn't reached
+                    # it — fetch a read on demand (in-zone candidates
+                    # only, small extra budget) so an agreeing setup
+                    # actually reaches Telegram instead of being lost
+                    # to cache timing. ~2.3s each; capped per cycle.
+                    if _ka_extra[0] >= KR_APPROVE_EXTRA or \
+                            not _in_zone(_kp):
+                        continue
+                    _ka_extra[0] += 1
+                    try:
+                        _kv2 = kf.forecast(_kk[0], "1h", horizon=24)
+                    except Exception:
+                        _kv2 = None
+                    if _kv2:
+                        _KR_CACHE[_kk[0]] = {"t": time.time(),
+                                             "s": _kv2}
                 if not _kv2:
                     continue
                 if ((_kv2.get("direction") == "UP"
