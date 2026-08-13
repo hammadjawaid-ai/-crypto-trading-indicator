@@ -2998,6 +2998,8 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "prime": "🥇 PRIME (winners board)",
                    "conviction": "💯 CONVICTION (88.6% cell)",
                    "moonshot": "🚀 MOONSHOT (big-move desk)",
+                   "sentry": "🎯 SENTRY (your 18-coin watch)",
+                   "owl_preburst": "🦉 OWL PRE-BURST (multi-TF)",
                    "trend_rider": "🌊 TREND RIDER"}
     # 2026-07-28 cleanup: retired tiers stay in the archive (bench) but
     # never in the active view. LIQ FLUSH retired by its own rule

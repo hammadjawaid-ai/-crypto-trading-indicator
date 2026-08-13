@@ -886,6 +886,7 @@ def cycle() -> None:
     # entry moment — with the full plan; GET_READY sends one heads-up.
     # Kronos is color. Flip-entries were killed by the 30-coin verdict
     # (-0.05R); THIS is the honest "enter now" signal.
+    _sentry_fires: list = []
     for _ss in _watch_syms:
         try:
             _d1s = binance_client.get_klines(_ss, "1h", limit=400)
@@ -933,6 +934,18 @@ def cycle() -> None:
                     f"{float(_kv_s.get('exp_move_pct') or 0):+.1f}%/24h"
                     if _kv_s else "🔮 no fresh read")
             _b_s = _ss.replace("USDT", "")
+            # 🧪 desk proof (user 2026-08-11: "I want that on the
+            # decision desk to be tested as well") — every sentry
+            # ENTRY becomes a shadow trade so the 18-coin watch builds
+            # its own honest live record, 7-day hold on the desk.
+            if _st_s == "TAKE_NOW" and _prev_s != "TAKE_NOW":
+                _sig_s = {"symbol": _ss, "base": _b_s, "side": _sd_s,
+                          "tier": _rs.get("tier") or "SENTRY",
+                          "score": _sc_s, "entry": _epx,
+                          "stop": _stp, "tp1": _t1s, "tp2": _t2s,
+                          "hot": bool(_et.get("hot"))}
+                store.record_signal("sentry", _sig_s)
+                _sentry_fires.append(_sig_s)
             if (_st_s == "TAKE_NOW" and _prev_s != "TAKE_NOW"
                     and store.should_alert(
                         f"sentry:{_ss}:{_sd_s}:tn", 4 * 3600)):
@@ -1254,6 +1267,7 @@ def cycle() -> None:
                   ("prime", _prime),
                   ("conviction", _conv),
                   ("moonshot", _moon_fires),
+                  ("sentry", _sentry_fires),
                   ("trend_rider", r.get("trend", [])))
         for _tname, _sigs in _tiers:
             for p in _sigs:

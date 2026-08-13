@@ -32,7 +32,15 @@ MAX_HOLD_H = 48.0            # time-stop: the "how long to hold" policy
 # 🌊 trend_rider is a DAYS-TO-WEEKS strategy (validated ~7-10d avg hold,
 # trail-decided) — the uniform 48h cut was force-closing its rides early
 # and mismeasuring the tier (found 2026-07-13: LDO cut at 48h as "TIME").
-MAX_HOLD_H_BY_TIER = {"trend_rider": 21 * 24.0}
+MAX_HOLD_H_BY_TIER = {"trend_rider": 21 * 24.0,
+                      # 2026-08-11 (user: "why are we limiting trades
+                      # to 48h?") — constructs that need room to
+                      # develop get it. The 18-coin sentry and the
+                      # multi-TF pre-burst hunt multi-day moves; a 48h
+                      # cut would mismeasure them exactly the way it
+                      # mismeasured trend_rider in 2026-07.
+                      "sentry": 7 * 24.0,
+                      "owl_preburst": 7 * 24.0}
 TRAIL_R = 1.2                # post-TP1 trail distance in initial-risk units
 GREEN_MIN_TRADES = 20        # a tier needs this many closed trades...
 GREEN_MIN_NET_R = 2.0        # ...and this much net R after fees to go GREEN
