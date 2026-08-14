@@ -116,18 +116,59 @@ def get_top_symbols(n: int = config.TOP_N) -> pd.DataFrame:
     return df.reset_index(drop=True)
 
 
+# ⚡ 2026-08-15 PAGE-SPEED FIX (user: "keep everything as it is but
+# make the page load faster"): a short in-process TTL cache on the two
+# hottest endpoints. One Paper Trader render used to fire 50-150
+# UNCACHED network calls (~0.2-0.4s each, serial) because every card
+# helper re-downloads the same 120 bars — timing chip, edges chip and
+# approval chip each fetched the same symbol separately. This
+# collapses the repeats into one fetch. TTLs sit far below the
+# worker's 5-min cycle, so signal freshness is untouched: klines 120s
+# (a partial 1h bar barely moves in 2 min), live ticker 15s. Cached
+# frames are returned as copies so a caller mutating its DataFrame
+# can never pollute the cache.
+_KL_TTL = 120.0
+_PX_TTL = 15.0
+_KL_CACHE: dict = {}
+_PX_CACHE: dict = {}
+
+
+def _cache_get(cache: dict, key, ttl: float):
+    hit = cache.get(key)
+    if hit is not None and (time.time() - hit[0]) <= ttl:
+        return hit[1]
+    return None
+
+
+def _cache_put(cache: dict, key, val, cap: int = 800) -> None:
+    if len(cache) > cap:
+        now = time.time()
+        for k in [k for k, v in list(cache.items())
+                  if now - v[0] > _KL_TTL]:
+            cache.pop(k, None)
+        if len(cache) > cap:
+            cache.clear()
+    cache[key] = (time.time(), val)
+
+
 def get_ticker_price(symbol: str) -> float | None:
-    """Latest spot price for one symbol — the cheapest live-price endpoint.
+    """Latest spot price for one symbol — the cheapest live-price endpoint,
+    cached 15s (see the page-speed note above).
 
     Used by the Paper Trader to refresh open-position prices every few
     seconds without paying for a 100-row klines fetch. Returns None if the
     symbol has no public price.
     """
+    hit = _cache_get(_PX_CACHE, symbol, _PX_TTL)
+    if hit is not None:
+        return hit
     try:
         data = _get("/api/v3/ticker/price", {"symbol": symbol})
-        return float(data["price"])
+        px = float(data["price"])
     except (BinanceError, KeyError, TypeError, ValueError):
         return None
+    _cache_put(_PX_CACHE, symbol, px)
+    return px
 
 
 _BYBIT_TF = {
@@ -191,6 +232,24 @@ def _bybit_klines(symbol: str, interval: str, limit: int) -> pd.DataFrame:
 
 def get_klines(symbol: str, interval: str,
                limit: int = config.KLINE_LIMIT) -> pd.DataFrame:
+    """Cached OHLCV candles (120s TTL — see the page-speed note above).
+    Returns a COPY of the cached frame so callers can mutate freely.
+    Same shape and semantics as the uncached fetch below."""
+    key = (symbol, interval, int(limit))
+    hit = _cache_get(_KL_CACHE, key, _KL_TTL)
+    if hit is not None:
+        return hit.copy()
+    df = _get_klines_uncached(symbol, interval, limit)
+    try:
+        if df is not None and len(df):
+            _cache_put(_KL_CACHE, key, df.copy())
+    except Exception:
+        pass
+    return df
+
+
+def _get_klines_uncached(symbol: str, interval: str,
+                         limit: int = config.KLINE_LIMIT) -> pd.DataFrame:
     """Return OHLCV candles for a symbol/interval as a DataFrame.
 
     Tries Binance first; falls back to Bybit's public v5 endpoint if

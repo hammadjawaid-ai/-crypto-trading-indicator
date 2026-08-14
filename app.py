@@ -11483,10 +11483,12 @@ if active_section == "🧪 Paper Trader":
         #      get INJECTED here, so they flow through the SAME quality
         #      gate + multi-TF gate + hero logic — "analyze with the
         #      systems and move to TOP CONVICTION if eligible".
+        # 2026-08-15 page-speed: per-render importlib.reload removed —
+        # it re-executed the whole signal module on EVERY rerun (a
+        # Streamlit Cloud stale-module workaround; pure cost on
+        # Render). Data path unchanged.
         try:
-            import importlib as _il_elite
             import experimental_signals as _elite_mod
-            _il_elite.reload(_elite_mod)
         except Exception:
             _elite_mod = None
         _elite_scan_fn = (
@@ -11494,7 +11496,11 @@ if active_section == "🧪 Paper Trader":
              or getattr(_elite_mod, "scan_experimental", None))
             if _elite_mod is not None else None)
 
-        @st.cache_data(ttl=120, show_spinner=False)
+        # ttl 120 -> 300 (2026-08-15 page-speed): the 2-min cache made
+        # nearly every page open re-run this multi-minute scan; 300s
+        # matches _pt_load_unified and the worker's own 5-min cadence.
+        # Universe stays 150 — nothing about the boards changes.
+        @st.cache_data(ttl=300, show_spinner=False)
         def _load_elite_picks_cached(_v: int = 7):
             if _elite_scan_fn is None:
                 return []
@@ -14026,15 +14032,11 @@ if active_section == "🧪 Paper Trader":
                             st.error(f"Open failed: {_exc}")
         st.divider()
 
-        # Defensive import: Streamlit Cloud can keep an old module
-        # cached in memory after a redeploy. importlib.reload forces
-        # the latest .py off disk; getattr with fallback to the
-        # backward-compat alias ensures we never crash on a stale
-        # module that's missing scan_unified.
+        # 2026-08-15 page-speed: per-render importlib.reload removed
+        # here too (same Streamlit Cloud artifact — on Render it cost
+        # every single load). Plain import + getattr fallback.
         try:
-            import importlib
             import experimental_signals as _exp_sig
-            importlib.reload(_exp_sig)
         except Exception:
             _exp_sig = None
 
