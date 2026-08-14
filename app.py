@@ -958,20 +958,15 @@ def _lane_approval_cached(symbol, side, _bust):
     8-month deep window (423 MAX/HIGH entries): approved fires win 65.5%,
     unapproved only 48.5% — a +17pt gate. Approval = velocity-burst >= 78
     same-side OR 6-bar ROC in the top 40% of its last 100 bars.
-    Returns True/False, or None when data is unavailable (show nothing)."""
+    Returns True/False, or None when data is unavailable (show nothing).
+
+    2026-08-14: the logic moved to velocity_burst.lane_approved so this
+    chip and the demo's money gate run the SAME code — the 💎 ELITE
+    CONVICTION board now trades on this verdict."""
     try:
-        import numpy as _np
         import velocity_burst as _vb_a
         df = binance_client.get_klines(symbol, "1h", limit=120)
-        c = df["close"].to_numpy()
-        roc6 = _np.abs(c / _np.roll(c, 6) - 1.0)
-        roc6[:6] = 0.0
-        ref = roc6[-100:-1]
-        roc_hot = len(ref) > 0 and float(
-            (ref < roc6[-1]).mean() * 100) >= 60
-        bs, bside, _ = _vb_a.lane_velocity_burst(df)
-        vb_ok = bs >= 78 and (bside or "").upper() == (side or "").upper()
-        return bool(roc_hot or vb_ok)
+        return _vb_a.lane_approved(df, side)
     except Exception:
         return None
 

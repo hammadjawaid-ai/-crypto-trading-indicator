@@ -41,6 +41,7 @@ import scan_core
 import shadow_trader
 import surge_radar
 import telegram_notify as tg
+import velocity_burst as _vb_w
 import worker_store as store
 
 INTERVAL = max(1, int(getattr(config, "WORKER_INTERVAL_MIN", 5))) * 60
@@ -1459,12 +1460,31 @@ def cycle() -> None:
         # and desk tier; it just doesn't spend the demo's money.
         # 💎 ELITE CONVICTION joins the money 2026-08-14 (user order:
         # "elite conviction should now be a part of demo trading as
-        # well and on top priority like kronos approved"). MAX/HIGH
-        # only — the exact filter behind his ACE/2Z winners; STRONG
-        # stays a watch tier and reaches the demo through 💯 top
-        # conviction when it escalates.
-        _dz_elite = [p for p in (r.get("elite") or [])
-                     if (p.get("tier") or "").upper() in ("MAX", "HIGH")]
+        # well and on top priority"). MAX/HIGH **and carrying the
+        # 🚀 APPROVED chip** — the exact card the ACE/2Z winners came
+        # off. That chip is the validated gate: approved MAX/HIGH win
+        # 65.5%, unapproved only 48.5% (423 entries, 8-month deep
+        # window), so an UNAPPROVED elite card is a coin flip and gets
+        # no money. Same velocity_burst.lane_approved code the card's
+        # chip runs, so the board never disagrees with the ledger.
+        # No slot cap (user 2026-08-14: "no cap on elite conviction,
+        # let it take the slots if it has approved on it").
+        # STRONG stays a watch tier and reaches the demo only when it
+        # escalates into 💯 top conviction.
+        _dz_elite = []
+        for _ec in (r.get("elite") or []):
+            if (_ec.get("tier") or "").upper() not in ("MAX", "HIGH"):
+                continue
+            try:
+                _ec_df = binance_client.get_klines(
+                    _ec["symbol"], "1h", limit=120)
+                _ec_ok = _vb_w.lane_approved(_ec_df, _ec.get("side"))
+            except Exception:
+                _ec_ok = None
+            if _ec_ok:          # None (no data) also means no money
+                _ec2 = dict(_ec)
+                _ec2["lane_approved"] = True
+                _dz_elite.append(_ec2)
         _dz_pools = {"elite_conv": _dz_elite,
                      "elite_early": elite_early,
                      "top_conviction": _topc,
