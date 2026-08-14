@@ -172,18 +172,26 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
         # priority ladder (user 2026-08-09): EARLY ELITE + KRONOS
         # APPROVED agreeing = TOP priority; KRONOS APPROVED + any
         # other desk tier = HIGH priority; rest by score/confidence.
-        # 2026-08-14: 💎 ELITE CONVICTION joins early elite at the top
-        # of the ladder — "elite conviction with high and max with
-        # approved one is the best I have right now". That exact pair
-        # (ACE, 2Z) now outranks every other combination on the desk.
+        # 2026-08-14 deploy order: 💎 ELITE CONVICTION (already
+        # approved-badge-only at the pool gate) WINS ALL — "kronos
+        # approved or unapproved ... elite conviction wins all with no
+        # cap on 5 slots". Implemented as a hard class sort, not just
+        # points: any candidate carrying elite_conv sorts ABOVE every
+        # candidate that doesn't, no matter what confluence the rival
+        # stacked. Kronos agreement still orders elite-conv cards among
+        # THEMSELVES (the +80 pair bonus + confluence +25s), so
+        # 💎×🔮✅ stays the best of the best.
+        if "elite_conv" in c["srcs"]:
+            bonus += 80
         if "kr_approved" in c["srcs"] and (
                 "elite_early" in c["srcs"] or "elite_conv" in c["srcs"]):
             bonus += 80
         elif "kr_approved" in c["srcs"] and c["agree"] >= 2:
             bonus += 50
         c["rank"] += bonus
+        c["top"] = 1 if "elite_conv" in c["srcs"] else 0
         c["srcs"] = ",".join(sorted(c["srcs"]))
-    out.sort(key=lambda x: -x["rank"])
+    out.sort(key=lambda x: (-x.get("top", 0), -x["rank"]))
     return out
 
 
