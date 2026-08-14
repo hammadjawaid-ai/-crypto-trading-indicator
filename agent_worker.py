@@ -1445,8 +1445,8 @@ def cycle() -> None:
         # PRIME dropped from the demo on his call (desk record flat).
         # ignition dropped 2026-08-10 (user: "skip ignition")
         _dz_form = {}
-        for _dt in ("elite_early", "top_conviction", "kr_approved",
-                    "trend_rider", "surge", "fresh"):
+        for _dt in ("elite_conv", "elite_early", "top_conviction",
+                    "kr_approved", "trend_rider", "surge", "fresh"):
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_dt)["net_r"]
             except Exception:
@@ -1457,7 +1457,16 @@ def cycle() -> None:
         # 2026-08-11: moonshot removed from the demo pool (user call —
         # unproven desk record). It keeps firing its own board, buzzes
         # and desk tier; it just doesn't spend the demo's money.
-        _dz_pools = {"elite_early": elite_early,
+        # 💎 ELITE CONVICTION joins the money 2026-08-14 (user order:
+        # "elite conviction should now be a part of demo trading as
+        # well and on top priority like kronos approved"). MAX/HIGH
+        # only — the exact filter behind his ACE/2Z winners; STRONG
+        # stays a watch tier and reaches the demo through 💯 top
+        # conviction when it escalates.
+        _dz_elite = [p for p in (r.get("elite") or [])
+                     if (p.get("tier") or "").upper() in ("MAX", "HIGH")]
+        _dz_pools = {"elite_conv": _dz_elite,
+                     "elite_early": elite_early,
                      "top_conviction": _topc,
                      "kr_approved": _kr_appr,
                      "trend_rider": r.get("trend", []),
@@ -1498,16 +1507,6 @@ def cycle() -> None:
                 f"balance `${_dz['balance']:,.2f}`")
             n_alerts += 1 if ok else 0
         for _ev, _rec in _dz_events:
-            if _ev == "guard":
-                # 🛡 risk-off, position still open — no P&L line
-                ok, _ = tg.send(
-                    f"🎮🛡 *DEMO $1200* — RISK OFF "
-                    f"{_rec['base']} {_rec['side']}\n"
-                    f"{_rec['reason']}\nstop now "
-                    f"`{_rec['stop']:g}` · balance "
-                    f"`${_dz['balance']:,.2f}`")
-                n_alerts += 1 if ok else 0
-                continue
             _tag = ("💰 TP1 half-banked" if _ev == "tp1"
                     else "CLOSED")
             ok, _ = tg.send(

@@ -67,7 +67,17 @@ MIN_RANK = 100.0
 # the demo on his call). Weighted by each tier's live desk record.
 # IGNITION dropped 2026-08-10 on user call ("we should skip
 # ignition" — at-fire entries, the weakest construct class).
-CLASS_W = {"elite_early": 95,      # +50.8R/215 lifetime
+CLASS_W = {"elite_conv": 95,       # 💎 ELITE CONVICTION, MAX/HIGH only
+                                   # (user 2026-08-14: "elite
+                                   # conviction should now be a part of
+                                   # demo trading and on top priority"
+                                   # — his ACE/2Z winners came off this
+                                   # board, "top notch"). Tied with
+                                   # early elite at the top of the
+                                   # class ladder; the approval
+                                   # agreement bonus below lifts the
+                                   # 🔮✅ ones above everything.
+           "elite_early": 95,      # +50.8R/215 lifetime
            "top_conviction": 90,   # 55% win · +17.3R/56
            "kr_approved": 85,      # GREEN jury: 59% win · +10.7R/51
            "trend_rider": 80,      # 2026-08-11 user call: the desk's
@@ -162,7 +172,12 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
         # priority ladder (user 2026-08-09): EARLY ELITE + KRONOS
         # APPROVED agreeing = TOP priority; KRONOS APPROVED + any
         # other desk tier = HIGH priority; rest by score/confidence.
-        if "kr_approved" in c["srcs"] and "elite_early" in c["srcs"]:
+        # 2026-08-14: 💎 ELITE CONVICTION joins early elite at the top
+        # of the ladder — "elite conviction with high and max with
+        # approved one is the best I have right now". That exact pair
+        # (ACE, 2Z) now outranks every other combination on the desk.
+        if "kr_approved" in c["srcs"] and (
+                "elite_early" in c["srcs"] or "elite_conv" in c["srcs"]):
             bonus += 80
         elif "kr_approved" in c["srcs"] and c["agree"] >= 2:
             bonus += 50
@@ -284,41 +299,24 @@ def manage(state: dict, live_fn, kr_get=None) -> list:
                                     and not lng))
                     _ex = abs(float(_kv.get("exp_move_pct") or 0))
                     if _against and _ex >= 2.0:
-                        # 🛡 RISK-OFF, not exit (user 2026-08-11,
-                        # "option 1"): a flip no longer closes a
-                        # working trade — it removes the risk and
-                        # lets the move keep paying.
-                        #   before TP1 → stop to SCRATCH (entry plus
-                        #     the round-trip fee, so a stop-out here
-                        #     truly costs nothing — a plain breakeven
-                        #     stop still loses the fees)
-                        #   after TP1  → tighten from BE to lock HALF
-                        #     the runner's open gain
-                        # Stops only ever move in the safe direction.
-                        _cush = p["entry"] * 2 * FEE
-                        _cand = (p["entry"] + (live - p["entry"]) * 0.5
-                                 if p.get("be_set")
-                                 else p["entry"] + (_cush if lng
-                                                    else -_cush))
-                        _new = (max(p["stop"], _cand) if lng
-                                else min(p["stop"], _cand))
-                        _moved = abs(_new - p["stop"]) > p["entry"] * 1e-6
-                        p["stop"] = _new
-                        if _moved and not p.get("flip_guard"):
-                            p["flip_guard"] = True
-                            events.append(("guard", {
-                                "base": p["base"], "side": p["side"],
-                                "symbol": p["symbol"], "pnl": 0.0,
-                                "stop": _new,
-                                "reason": (
-                                    f"read flipped "
-                                    f"{_kv.get('direction')} "
-                                    f"{float(_kv.get('exp_move_pct') or 0):+.1f}%"
-                                    f" at +{_pr:.1f}R — risk off, "
-                                    + ("locked half the runner"
-                                       if p.get("be_set")
-                                       else "stop to scratch")
-                                    + ", trade still running")}))
+                        # 2026-08-14 REVERTED to the original hard
+                        # exit on the user's order ("smart exit should
+                        # act as it was before so we gain more"). The
+                        # 08-13 RISK-OFF variant (stop to scratch /
+                        # lock half) let flipped trades ride back to
+                        # the tightened stop instead of banking the
+                        # profit that was already on the table. A read
+                        # flipping against a WORKING trade closes it
+                        # and takes the money.
+                        rec = _close_qty(
+                            state, p, p["qty"], live,
+                            f"smart exit — read flipped "
+                            f"{_kv.get('direction')} "
+                            f"{float(_kv.get('exp_move_pct') or 0):+.1f}%"
+                            f" at +{_pr:.1f}R")
+                        state["closed"].append(rec)
+                        events.append(("close", rec))
+                        continue
         if hit_stop:
             px = p["stop"]
             rec = _close_qty(state, p, p["qty"], px,
