@@ -31,7 +31,12 @@ STATE_FILE = os.environ.get("DEMO_STATE") or \
     str(config.state_path(".demo_account.json"))
 # generation marker — bump ONLY on the user's explicit hard-reset
 # order. GEN 3 = 2026-08-10 ("reset again, Monday to Monday").
-GEN = 3
+# GEN 4 = 2026-08-15 ("reset demo trading lets start fresh again now
+# based on the changes") — fresh week on the new ladder: 💎 elite
+# conviction (approved-only) wins all, 🔮✅ kronos approved right
+# behind, B-stocks out of the universe, and the strength-aware
+# smart exit with the TP2 trail below.
+GEN = 4
 START_BAL = 1200.0
 RISK_PCT = 2.0
 # 3 -> 5 (user 2026-08-09): a CEILING, not a quota — the MIN_RANK
@@ -55,6 +60,28 @@ MAX_PER_SRC = {"trend_rider": 2}
 # the rider is a multi-day trend — validated as color-not-gate there
 # (the ZBT case: veto wrong, coin ran +51%).
 SMART_EXIT_SKIP = {"trend_rider"}
+# 🧠 STRENGTH-AWARE SMART EXIT + TRAIL (user 2026-08-15: "smart exit
+# should have a trailing method... loosen a bit if the signal
+# strength is good... let them ride to tp and trail to tp2 if they
+# are good enough — use the brain"). The brain's strength read = the
+# signal's own quality at entry: top-class source (💎 elite_conv /
+# 🔮✅ kr_approved), multi-system agreement, or a big score.
+STRONG_SRC = {"elite_conv", "kr_approved"}
+STRONG_SCORE = 85.0            # score >= this counts as strong
+STRONG_AGREE = 2               # >= this many agreeing systems counts
+TRAIL_LOCK = 0.5               # after TP1: stop locks this share of
+                               # the PEAK open gain (ratchet, rides
+                               # toward TP2 instead of flat BE)
+TRAIL_LOCK_FLIP = 0.75         # kronos flips against a STRONG runner
+                               # after TP1: tighten the lock, keep
+                               # riding (weak signals still bank)
+
+
+def _is_strong(p) -> bool:
+    """The brain's verdict on this position's signal strength."""
+    return (p.get("src") in STRONG_SRC
+            or int(p.get("agree") or 1) >= STRONG_AGREE
+            or float(p.get("score") or 0) >= STRONG_SCORE)
 ZONE_MAX = 0.25                # skip if >25% of entry->TP1 gone
 STOP_MAX_PCT = 0.25            # skip stops wider than 25%
 # quality floor (my call, user granted latitude 2026-08-09): an empty
@@ -243,7 +270,7 @@ def try_open(state: dict, cands: list, live_fn) -> list:
                "agree": c.get("agree", 1),
                "srcs": c.get("srcs", c["src"]),
                "opened_at": time.time(), "fees": fee_in,
-               "tp1_banked": 0.0, "be_set": False}
+               "tp1_banked": 0.0, "be_set": False, "peak": live}
         state["balance"] -= fee_in
         state["open"].append(pos)
         held.add(c["symbol"])
@@ -267,11 +294,13 @@ def _close_qty(state, p, qty, px, reason) -> dict:
 
 
 def manage(state: dict, live_fn, kr_get=None) -> list:
-    """TP1 half-bank + BE, TP2/stop/time-stop closes, plus the SMART
-    EXIT (user 2026-08-09): if the trade is in profit but the model's
-    read has flipped hard against it (|exp| >= 2%), bank what's there
-    instead of riding the reversal back — the KAITO protection applied
-    to the demo's own book. Returns events."""
+    """TP1 half-bank + BE, then a TRAIL toward TP2 (stop ratchets to
+    lock TRAIL_LOCK of the peak open gain — user 2026-08-15), TP2/
+    stop/time-stop closes, plus the STRENGTH-AWARE SMART EXIT: a hard
+    kronos flip against a weak signal banks the trade (validated); a
+    strong signal (💎/🔮✅ source, 2+ agreeing systems, or score>=85)
+    gets room instead — scratch-stop before TP1, tighter trail after.
+    Returns events: (close|tp1|guard, rec)."""
     events = []
     keep = []
     for p in state["open"]:
@@ -283,6 +312,21 @@ def manage(state: dict, live_fn, kr_get=None) -> list:
             keep.append(p)
             continue
         lng = p["side"] == "LONG"
+        # 📈 peak tracking — the best favorable price this position has
+        # printed; the trail ratchets off THIS, never off a dip.
+        _pk = float(p.get("peak") or p["entry"])
+        _pk = max(_pk, live) if lng else min(_pk, live)
+        p["peak"] = _pk
+        # 🧵 TRAIL TO TP2 (user 2026-08-15): once TP1 banked, the rest
+        # doesn't sit at flat breakeven — the stop locks TRAIL_LOCK of
+        # the PEAK open gain and only ever moves the safe way, riding
+        # toward TP2. Strong signals that get flipped against tighten
+        # to TRAIL_LOCK_FLIP instead of closing (below).
+        if p.get("be_set") and p["qty"] > 0:
+            _lk = float(p.get("trail_lock") or TRAIL_LOCK)
+            _cand = p["entry"] + (_pk - p["entry"]) * _lk
+            p["stop"] = (max(p["stop"], _cand) if lng
+                         else min(p["stop"], _cand))
         hit_stop = live <= p["stop"] if lng else live >= p["stop"]
         hit_tp1 = live >= p["tp1"] if lng else live <= p["tp1"]
         t2 = p.get("tp2")
@@ -290,7 +334,14 @@ def manage(state: dict, live_fn, kr_get=None) -> list:
                    and (live >= t2 if lng else live <= t2))
         _tsh = TIME_STOP_BY_SRC.get(p.get("src"), TIME_STOP_H)
         expired = time.time() - p["opened_at"] > _tsh * 3600
-        # 🛡 SMART EXIT — in profit + read flipped against us
+        # 🛡 SMART EXIT — in profit + read flipped against us.
+        # 2026-08-15 STRENGTH-AWARE (user: "loosen a bit if the signal
+        # strength is good to gain more"): the brain checks the
+        # signal's own quality —
+        #   WEAK signal  → hard close, bank the money (validated)
+        #   STRONG, before TP1 → stop to SCRATCH, ride to TP1
+        #   STRONG, after TP1  → trail tightens to 75% of the peak
+        #     gain, rest keeps riding toward TP2
         if not hit_stop and not hit_tp2 and kr_get is not None \
                 and p.get("src") not in SMART_EXIT_SKIP:
             _r0 = float(p.get("risk0") or 0) or \
@@ -306,16 +357,7 @@ def manage(state: dict, live_fn, kr_get=None) -> list:
                                 or (_kv.get("direction") == "UP"
                                     and not lng))
                     _ex = abs(float(_kv.get("exp_move_pct") or 0))
-                    if _against and _ex >= 2.0:
-                        # 2026-08-14 REVERTED to the original hard
-                        # exit on the user's order ("smart exit should
-                        # act as it was before so we gain more"). The
-                        # 08-13 RISK-OFF variant (stop to scratch /
-                        # lock half) let flipped trades ride back to
-                        # the tightened stop instead of banking the
-                        # profit that was already on the table. A read
-                        # flipping against a WORKING trade closes it
-                        # and takes the money.
+                    if _against and _ex >= 2.0 and not _is_strong(p):
                         rec = _close_qty(
                             state, p, p["qty"], live,
                             f"smart exit — read flipped "
@@ -325,6 +367,39 @@ def manage(state: dict, live_fn, kr_get=None) -> list:
                         state["closed"].append(rec)
                         events.append(("close", rec))
                         continue
+                    if _against and _ex >= 2.0 and _is_strong(p):
+                        if p.get("be_set"):
+                            _new_lk = TRAIL_LOCK_FLIP
+                            _tag = (f"trail tightened to "
+                                    f"{int(_new_lk*100)}% of the "
+                                    f"peak gain, riding to TP2")
+                            p["trail_lock"] = max(
+                                float(p.get("trail_lock")
+                                      or TRAIL_LOCK), _new_lk)
+                            _cand = p["entry"] + \
+                                (_pk - p["entry"]) * p["trail_lock"]
+                            p["stop"] = (max(p["stop"], _cand) if lng
+                                         else min(p["stop"], _cand))
+                        else:
+                            _cush = p["entry"] * 2 * FEE
+                            _cand = p["entry"] + (_cush if lng
+                                                  else -_cush)
+                            p["stop"] = (max(p["stop"], _cand) if lng
+                                         else min(p["stop"], _cand))
+                            _tag = ("stop to scratch, riding to TP1 "
+                                    "— strong signal earns the room")
+                        if not p.get("flip_guard"):
+                            p["flip_guard"] = True
+                            events.append(("guard", {
+                                "base": p["base"], "side": p["side"],
+                                "symbol": p["symbol"],
+                                "stop": p["stop"],
+                                "reason": (
+                                    f"read flipped "
+                                    f"{_kv.get('direction')} "
+                                    f"{float(_kv.get('exp_move_pct') or 0):+.1f}%"
+                                    f" at +{_pr:.1f}R — STRONG signal "
+                                    f"({p.get('src')}), {_tag}")}))
         if hit_stop:
             px = p["stop"]
             rec = _close_qty(state, p, p["qty"], px,

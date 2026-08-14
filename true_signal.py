@@ -28,6 +28,8 @@ from __future__ import annotations
 
 import time
 
+import config
+
 # 2026-07-28 user call: TAKE NOW HOT removed as a source — "it sends
 # in very late". EARLY ELITE (its best subset, earlier) + IGNITION
 # (at-fire, earliest) remain. Reversible with evidence: the funnel
@@ -51,11 +53,11 @@ SOURCES = (("elite_early", "🌟 EARLY ELITE"),
 # swept top-110 on 2026-08-06 when the scan widened to 100 coins —
 # the tail is full of these (GOOGLB/NVDAB/SPYB...). Re-sweep with
 # .tail_check.py whenever breadth changes; BNB/SHIB are real crypto.
-TOKENIZED = {"CRCLBUSDT", "SPCXBUSDT", "SOXLBUSDT", "SNDKBUSDT",
-             "SNXXBUSDT", "EWYBUSDT", "MUBUSDT", "SOXSUSDT",
-             "SOXLUSDT", "GIGGLEUSDT", "SKHYBUSDT", "KORUBUSDT",
-             "SPYBUSDT", "AXTIBUSDT", "AAOIBUSDT", "NBISBUSDT",
-             "GOOGLBUSDT", "NVDABUSDT", "FLNCBUSDT"}
+# 2026-08-15: the set moved to config.TOKENIZED_STOCKS and the
+# universe filter (binance_client._is_tradeable) now enforces it —
+# user reversed the 08-06 ruling ("remove B stocks from the board as
+# they lost money"). This alias stays for the research scripts.
+TOKENIZED = config.TOKENIZED_STOCKS
 ZONE_MAX = 0.10
 EXT_24H = 25.0
 EXT_6H = 18.0

@@ -1555,6 +1555,17 @@ def cycle() -> None:
                 f"balance `${_dz['balance']:,.2f}`")
             n_alerts += 1 if ok else 0
         for _ev, _rec in _dz_events:
+            if _ev == "guard":
+                # 🧠🛡 strength-aware guard — position still open, the
+                # brain gave a STRONG signal room instead of banking
+                ok, _ = tg.send(
+                    f"🎮🧠 *DEMO $1200* — RIDING THROUGH THE FLIP "
+                    f"{_rec['base']} {_rec['side']}\n"
+                    f"{_rec['reason']}\nstop now "
+                    f"`{_rec['stop']:g}` · balance "
+                    f"`${_dz['balance']:,.2f}`")
+                n_alerts += 1 if ok else 0
+                continue
             _tag = ("💰 TP1 half-banked" if _ev == "tp1"
                     else "CLOSED")
             ok, _ = tg.send(

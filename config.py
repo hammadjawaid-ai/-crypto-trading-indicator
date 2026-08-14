@@ -186,6 +186,22 @@ KLINE_LIMIT = 300             # candles fetched per symbol/timeframe
 # Symbols to exclude: leveraged tokens and stablecoin-vs-stablecoin pairs that
 # have no meaningful price action.
 EXCLUDE_SUBSTRINGS = ("UP", "DOWN", "BULL", "BEAR")
+# 🏦 Tokenized stocks/ETFs — REMOVED from the universe (user 2026-08-15:
+# "remove B stocks from the board as they lost money"; reverses the
+# 2026-08-06 "let them in everywhere"). Exact symbols, NOT a B-suffix
+# rule — ARB/BNB/SHIB are real crypto. Gold trackers (PAXG/XAUT) stay
+# live per the standing RWA ruling. Re-sweep with .tail_check.py
+# whenever scan breadth changes.
+TOKENIZED_STOCKS = {"CRCLBUSDT", "SPCXBUSDT", "SOXLBUSDT", "SNDKBUSDT",
+                    "SNXXBUSDT", "EWYBUSDT", "MUBUSDT", "SOXSUSDT",
+                    "SOXLUSDT", "GIGGLEUSDT", "SKHYBUSDT", "KORUBUSDT",
+                    "SPYBUSDT", "AXTIBUSDT", "AAOIBUSDT", "NBISBUSDT",
+                    "GOOGLBUSDT", "NVDABUSDT", "FLNCBUSDT", "MSTRBUSDT",
+                    "QQQBUSDT", "INTCBUSDT", "DRAMBUSDT", "ROBOBUSDT",
+                    "TSLABUSDT", "AAPLBUSDT", "MSFTBUSDT", "AMZNBUSDT",
+                    "METABUSDT", "NFLXBUSDT", "AMDBUSDT", "COINBUSDT",
+                    "HOODBUSDT", "PLTRBUSDT", "ORCLBUSDT", "IBITBUSDT",
+                    "AMATBUSDT"}
 EXCLUDE_BASES = ("USDC", "FDUSD", "TUSD", "BUSD", "DAI", "USDP", "EUR", "GBP",
                  "USD1", "USDE", "USDD", "AEUR", "XUSD", "EURI", "RLUSD",
                  "USDG", "GUSD", "PYUSD",
