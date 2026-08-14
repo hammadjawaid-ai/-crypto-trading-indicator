@@ -2581,6 +2581,7 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
         elite_rows = _ws.recent_by_stream("elite", 24)
         best_rows = _ws.recent_by_stream("best", 12)
         ign_rows = _ws.recent_by_stream("ignition", 8)
+        igs_rows = _ws.recent_by_stream("ignition_strong", 8)
     except Exception:
         return
 
@@ -2599,6 +2600,7 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
     trend_rows = _recent_rows(trend_rows, 24)   # daily signals live longer
     best_rows = _recent_rows(best_rows, 8)
     ign_rows = _recent_rows(ign_rows, 3)   # at-fire decays fast
+    igs_rows = _recent_rows(igs_rows, 3)   # same decay for STRONG at-fire
 
     if not best_zone_only:
         st.markdown(
@@ -2948,6 +2950,46 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                        "these decay fast by design; when one appears "
                        "(and buzzes 🚨 on Telegram), the clock is "
                        "already running.")
+
+        # ── ⚡🚨 STRONG IGNITION — the PIXEL catcher (user 2026-08-14:
+        # "catch them as early as possible... it should be in radius").
+        # STRONG-tier at-fire + HARD velocity burst >=85 same side —
+        # the ONE cell of the 40-coin at-fire radius study green in
+        # both history halves (55.2% / +0.236R, n=62; plain STRONG
+        # at-fire and even 🚀-approved STRONG measured as noise).
+        st.markdown("#### ⚡🚨 STRONG IGNITION — the igniting-coin "
+                    "radar")
+        st.caption("**The PIXEL catcher** — a STRONG-tier fire taken "
+                   "the moment a HARD velocity burst (≥85, same side) "
+                   "is driving it. Validated 55% · +0.24R, green in "
+                   "both history halves (n=62) — the burst is what "
+                   "separates a coin that already moved from a coin "
+                   "that's igniting. Rare by design (a few/week). "
+                   "**Size small** — the ⚡🚨 desk tier is proving it "
+                   "forward; no demo money until its record is green.")
+        _igs_u = _dedup(igs_rows)
+        if _igs_u:
+            for _i, r in enumerate(_igs_u[:4]):
+                try:
+                    _bst = _json_bm.loads(r.get("extra") or "{}").get(
+                        "burst")
+                except Exception:
+                    _bst = None
+                _tag = ("<span style='background:rgba(255,213,74,0.18);"
+                        "color:#ffd54a;padding:1px 8px;border-radius:5px;"
+                        "font-size:0.72rem;font-weight:800'>⚡🚨 STRONG · "
+                        "at-fire</span> "
+                        "<span style='background:rgba(179,136,255,0.18);"
+                        "color:#b388ff;padding:1px 7px;border-radius:5px;"
+                        "font-size:0.7rem;font-weight:800'>burst "
+                        f"{_bst if _bst is not None else '85+'}</span>")
+                _open_card(r, f"brain_igs_{r.get('symbol')}_{_i}", _tag,
+                           accent="#ffd54a", src="best_zone")
+        else:
+            st.caption("· No STRONG ignition in the last 3h — this is "
+                       "the rarest stream on the desk (~a few fires a "
+                       "week across the top-100). When one appears it "
+                       "also buzzes ⚡🚨 on Telegram.")
 
         # ── 📂 my open 💎 trades — MANUAL only (user 2026-07-13: nothing
         # opens by itself on this page). You hit 📥 Open on a card above;
