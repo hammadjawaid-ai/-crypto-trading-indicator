@@ -90,19 +90,28 @@ def entry_signal(symbol: str, side: str, entry: float,
         return {"status": status, "reason": reason, "px": cur,
                 "hot": bool(hot), "atr_pct": round(atr_pct, 1)}
 
+    # 🛡 WEAK-ENTRY BLOCK (2026-08-14, backtest_twopath, 100 coins /
+    # 5,371 score-fires / 8 months): a confirmation that closes AT OR
+    # BELOW the plan entry is adverse selection — the "discount" means
+    # momentum died (that bucket: 20.4% win, -0.319R, n=243). Requiring
+    # the confirm to RECLAIM the entry price turned every consumer
+    # board positive in BOTH history halves: TAKE NOW HOT -0.025R ->
+    # +0.054R (73.3% win) · FRESH -0.007R -> +0.071R (74.0%) · APEX
+    # -0.049R -> +0.042R (69.6%) · EARLY MOVERS +0.006R -> +0.024R
+    # (74.6%). It cuts ~25% of fires — the losing ones.
     if side == "LONG":
         pulled = float(np.min(l[-win:])) <= entry
         struct = c[-1] > ema20[-1]              # right side of the EMA20
         green = c[-1] > o[-1] or c[-1] > c[-2]  # some bullish turn showing
         conf = (c[-1] > o[-1] and c[-1] > c[-2] and c[-1] > ema20[-1]
-                and vol_ok)
+                and vol_ok and c[-1] > entry)
         extended = (cur > entry * 1.02) and not pulled
     else:
         pulled = float(np.max(h[-win:])) >= entry
         struct = c[-1] < ema20[-1]
         green = c[-1] < o[-1] or c[-1] < c[-2]
         conf = (c[-1] < o[-1] and c[-1] < c[-2] and c[-1] < ema20[-1]
-                and vol_ok)
+                and vol_ok and c[-1] < entry)
         extended = (cur < entry * 0.98) and not pulled
 
     # ARMING = pulled back, holding the right side of the EMA20, and a turn
