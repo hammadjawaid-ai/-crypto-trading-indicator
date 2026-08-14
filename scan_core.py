@@ -27,48 +27,6 @@ import trend_rider as _tr
 import config
 
 
-def _publish_scan(scan: list, scan_n: int) -> None:
-    """📤 Publish the raw unified scan to the shared disk for the UI.
-
-    2026-08-15 PAGE-SPEED FIX: launch.py runs Streamlit as a
-    SUBPROCESS, so the app can't see the worker's memory — and the
-    Paper Trader page was re-running its OWN 150-coin scan_unified
-    behind a 2-min cache (minutes of cold-load time) to recompute the
-    exact scan the brain finishes every 5 minutes. Now the worker
-    drops the raw picks here (atomic write, numpy-safe) and the page
-    reads the file in milliseconds, falling back to its own scan only
-    when this is stale (worker down / local dev)."""
-    import json
-    import os
-    import time
-
-    def _safe(o):
-        try:
-            import numpy as np
-            if isinstance(o, np.integer):
-                return int(o)
-            if isinstance(o, np.floating):
-                return float(o)
-            if isinstance(o, np.bool_):
-                return bool(o)
-            if isinstance(o, np.ndarray):
-                return o.tolist()
-        except Exception:
-            pass
-        return str(o)
-
-    try:
-        dst = str(config.state_path(".last_scan.json"))
-        tmp = dst + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump({"ts": time.time(), "scan_n": int(scan_n),
-                       "min_score": 70.0, "max_picks": 40,
-                       "picks": scan}, f, default=_safe)
-        os.replace(tmp, dst)
-    except Exception:
-        pass
-
-
 def tp2_rides(cands: list, max_checks: int = 10) -> list:
     """🎯 TP2 continuation tracker — for recent best-signals whose TP1 has
     been HIT since the signal, check if momentum is STILL intact (close on
@@ -157,7 +115,6 @@ def scan_all(scan_n: int = 60, min_conv: float = 70.0) -> dict:
     """
     scan = es.scan_unified(scan_n=scan_n, interval="1h",
                            min_score=70.0, max_picks=40) or []
-    _publish_scan(scan, scan_n)
     elite = {p.get("symbol"): p for p in scan}
     srs = {p.get("symbol") for p in scan
            if float(p.get("score") or 0) >= 88

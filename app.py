@@ -3774,25 +3774,6 @@ MOOD_COLORS = {"Bullish": "#34c759", "Bearish": "#ff6b5b", "Neutral": "#8e8e93"}
 
 
 # --- Cached data services --------------------------------------------------
-def _worker_scan_file(max_age: float = 720.0, min_n: int = 100):
-    """⚡ 2026-08-15 PAGE-SPEED FIX: read the 24/7 worker's freshly
-    published unified scan off the shared disk (scan_core._publish_scan
-    writes it every ~5-min cycle) instead of re-running a multi-minute
-    150-coin scan inside the page. Returns the picks list, or None when
-    the file is stale/missing (worker down, local dev) — callers then
-    fall back to scanning exactly as before. Milliseconds vs minutes."""
-    try:
-        with open(str(config.state_path(".last_scan.json")),
-                  encoding="utf-8") as f:
-            ob = json.load(f)
-        if (time.time() - float(ob.get("ts") or 0) <= max_age
-                and int(ob.get("scan_n") or 0) >= min_n):
-            return ob.get("picks") or []
-    except Exception:
-        pass
-    return None
-
-
 @st.cache_data(ttl=config.MARKET_CACHE_TTL, show_spinner=False)
 def load_top_symbols(n: int) -> pd.DataFrame:
     return binance_client.get_top_symbols(n)
@@ -11502,12 +11483,10 @@ if active_section == "🧪 Paper Trader":
         #      get INJECTED here, so they flow through the SAME quality
         #      gate + multi-TF gate + hero logic — "analyze with the
         #      systems and move to TOP CONVICTION if eligible".
-        # 2026-08-15: the per-render importlib.reload here (a Streamlit
-        # Cloud stale-module workaround) is gone — on Render it was
-        # pure per-load cost. Plain import; the worker-scan file is
-        # the fast path anyway.
         try:
+            import importlib as _il_elite
             import experimental_signals as _elite_mod
+            _il_elite.reload(_elite_mod)
         except Exception:
             _elite_mod = None
         _elite_scan_fn = (
@@ -11515,20 +11494,12 @@ if active_section == "🧪 Paper Trader":
              or getattr(_elite_mod, "scan_experimental", None))
             if _elite_mod is not None else None)
 
-        @st.cache_data(ttl=300, show_spinner=False)
-        def _load_elite_picks_cached(_v: int = 8):
-            # ⚡ fast path: the 24/7 worker's own 100-coin scan, read
-            # off the shared disk (fresh every ~5 min). The page only
-            # scans for itself when that file is stale — and then at
-            # the user-approved 100-coin match (2026-08-09 "make it
-            # 100 match"), not the old 150.
-            _pk = _worker_scan_file()
-            if _pk is not None:
-                return _pk
+        @st.cache_data(ttl=120, show_spinner=False)
+        def _load_elite_picks_cached(_v: int = 7):
             if _elite_scan_fn is None:
                 return []
             try:
-                return _elite_scan_fn(scan_n=100, interval="1h",
+                return _elite_scan_fn(scan_n=150, interval="1h",
                                       min_score=70.0, max_picks=40)
             except Exception:
                 return []
@@ -13905,14 +13876,9 @@ if active_section == "🧪 Paper Trader":
 
                 @st.cache_data(ttl=180, show_spinner=False)
                 def _best_trades_now(_bust):
-                    # ⚡ 2026-08-15: worker's published scan first
-                    # (100-coin superset of the old 60), own scan
-                    # only when the file is stale.
-                    _scan = _worker_scan_file()
-                    if _scan is None:
-                        _scan = _es_bt.scan_unified(
-                            scan_n=60, interval="1h", min_score=70.0,
-                            max_picks=40) or []
+                    _scan = _es_bt.scan_unified(
+                        scan_n=60, interval="1h", min_score=70.0,
+                        max_picks=40) or []
                     _elite = {p.get("symbol"): p for p in _scan}
                     try:
                         _cv = compute_convergence_picks("1h", scan_n=50) or []
@@ -14060,11 +14026,15 @@ if active_section == "🧪 Paper Trader":
                             st.error(f"Open failed: {_exc}")
         st.divider()
 
-        # 2026-08-15: per-render importlib.reload removed (page-speed
-        # fix) — it was a Streamlit Cloud artifact; on Render it cost
-        # every single load. Plain import + getattr fallback.
+        # Defensive import: Streamlit Cloud can keep an old module
+        # cached in memory after a redeploy. importlib.reload forces
+        # the latest .py off disk; getattr with fallback to the
+        # backward-compat alias ensures we never crash on a stale
+        # module that's missing scan_unified.
         try:
+            import importlib
             import experimental_signals as _exp_sig
+            importlib.reload(_exp_sig)
         except Exception:
             _exp_sig = None
 
@@ -14076,16 +14046,15 @@ if active_section == "🧪 Paper Trader":
                           or getattr(_exp_sig, 'scan_experimental', None))
 
         if _u_scan_fn is not None:
+            # Reuse the same cached data that the TOP CONVICTION block
+            # above already loaded (`_load_elite_picks_cached`). Avoids
+            # double-scanning the universe. Cache TTL lowered to 5 min
+            # at the source so both sections stay fresh.
             @st.cache_data(ttl=300, show_spinner=False)
-            def _pt_load_unified(_v: int = 7):
-                # ⚡ fast path (2026-08-15): the worker's published
-                # 100-coin scan off the shared disk; own scan only
-                # when stale. Matches _load_elite_picks_cached.
-                _pk = _worker_scan_file()
-                if _pk is not None:
-                    return _pk
+            def _pt_load_unified(_v: int = 6):
+                # Match _load_elite_picks_cached: 150 coins / 40 picks
                 return _u_scan_fn(
-                    scan_n=100, interval="1h",
+                    scan_n=150, interval="1h",
                     min_score=70.0, max_picks=40)
 
             # Premium header — gold→pink→cyan gradient matching
@@ -17037,13 +17006,9 @@ plus funding rate every 8 hours on open positions.
 
             @st.cache_data(ttl=180, show_spinner=False)
             def _sst1_live_picks(_bust):
-                # ⚡ 2026-08-15: worker's published scan first (see
-                # _worker_scan_file), own scan only when stale.
-                _scan = _worker_scan_file()
-                if _scan is None:
-                    _scan = _es_lt.scan_unified(
-                        scan_n=60, interval="1h", min_score=70.0,
-                        max_picks=40) or []
+                _scan = _es_lt.scan_unified(
+                    scan_n=60, interval="1h", min_score=70.0,
+                    max_picks=40) or []
                 _elite = {p.get("symbol"): p for p in _scan}
                 try:
                     _cv = compute_convergence_picks("1h", scan_n=50) or []
