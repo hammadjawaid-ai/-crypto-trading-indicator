@@ -171,6 +171,17 @@ def _fmt_ignition(p) -> str:
             f"SMALLER. Desk is proving it forward._")
 
 
+def _fmt_ign_strong(p) -> str:
+    return (f"⚡🚨 *STRONG IGNITION* — {p['base']} {p['side']} "
+            f"(STRONG {p['score']:.0f} · burst {p.get('burst', 0)})\n"
+            f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
+            f"TP1 `{p['tp1']:g}`{_tp2(p)}{_kr_note(p)}\n"
+            f"_the PIXEL catcher — STRONG at-fire + HARD burst ≥85 "
+            f"same side (validated 55% · +0.24R, green both halves, "
+            f"n=62). Rare by design. SIZE SMALL — desk is proving it "
+            f"forward, no demo money yet._")
+
+
 def _fmt_moonshot(p) -> str:
     _kr = (f"🔮 {p.get('kr_dir')} "
            f"{float(p.get('kr_exp') or 0):+.1f}% (color)"
@@ -600,6 +611,22 @@ def cycle() -> None:
         store.record_signal("ignition", p)
     _push([p for p in _ign if _in_zone(p)], "ignition", _fmt_ignition,
           min_conf=0)
+    # ⚡🚨 STRONG IGNITION (user 2026-08-14, the PIXEL case): STRONG
+    # at-fire + hard burst>=85 same side — the one cell of the at-fire
+    # radius study green in both halves (55.2%/+0.236R, n=62; plain
+    # STRONG at-fire and even 🚀-approved STRONG are noise). Buzz +
+    # desk proving tier; NO demo money until the live record is green.
+    # No greens gate — like IGNITION, wanted while unproven (the whole
+    # point is the early look).
+    try:
+        _igs = ignition.scan_strong(r.get("strong", []))
+    except Exception as _igs_exc:
+        _igs = []
+        print("  ign_strong error:", _igs_exc, flush=True)
+    for p in _igs:
+        store.record_signal("ignition_strong", p)
+    _push([p for p in _igs if _in_zone(p)], "ignstrong",
+          _fmt_ign_strong, min_conf=0)
     # ⏱ FAST CONFIRM 30m (user 2026-07-25: "remove 1h, 30 min confirm").
     # The proven tiers + executor STAY on 1h (his own tests measured 30m
     # as the loser twice this week); this is the sanctioned early outlet
@@ -1335,6 +1362,7 @@ def cycle() -> None:
                                        r.get("early_strong", [])),
                   ("early_lane", em_big),
                   ("ignition", _ign),
+                  ("ignition_strong", _igs),
                   ("fast30", _f30),
                   ("surge", _srg),
                   ("one_trade", [_one] if _one else []),

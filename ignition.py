@@ -59,3 +59,41 @@ def scan(elite_watch: list) -> list[dict]:
         q["ignition"] = True
         out.append(q)
     return out[:6]
+
+
+def scan_strong(strong_watch: list) -> list[dict]:
+    """⚡🚨 STRONG IGNITION — the PIXEL-shape catcher (2026-08-14).
+
+    STRONG-tier fires taken AT FIRE, gated by a HARD velocity burst:
+    >=85 on the SAME side. The 40-coin at-fire radius study
+    (backtest_atfire_strong, 2,761 fires): plain STRONG at-fire is
+    noise (43.2%/+0.058R) and even the 🚀 approval gate barely helps
+    (+0.052R) — but STRONG + burst>=85 ran 55.2% win / +0.236R, GREEN
+    in both history halves (older +0.400 / recent +0.093, n=62). The
+    burst IS the signal: it separates "coin that already moved" from
+    "coin that is igniting". Rare by construction (~a few fires/week
+    on the top-100). Buzz + desk proving tier only — NO demo money
+    until the live record is green.
+    """
+    out: list[dict] = []
+    for p in strong_watch or []:
+        if (p.get("tier") or "").upper() != "STRONG":
+            continue
+        side = (p.get("side") or "").upper()
+        sym = p.get("symbol")
+        if not sym or side not in ("LONG", "SHORT"):
+            continue
+        if not (p.get("entry") and p.get("stop") and p.get("tp1")):
+            continue
+        try:
+            df = binance_client.get_klines(sym, "1h", limit=120)
+            bs, bside, _ = _vb.lane_velocity_burst(df)
+        except Exception:
+            continue
+        if not (bs >= 85 and (bside or "").upper() == side):
+            continue                  # no hard burst = the 43% noise
+        q = dict(p)
+        q["ignition"] = True
+        q["burst"] = round(float(bs))
+        out.append(q)
+    return out[:4]

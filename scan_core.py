@@ -401,6 +401,40 @@ def scan_all(scan_n: int = 60, min_conv: float = 70.0) -> dict:
         reverse=True)
     elite_watch = elite_watch[:12]
 
+    # --- Stream 5b: STRONG watch — the ⚡🚨 STRONG IGNITION feed.
+    # The PIXEL case (2026-08-14): STRONG 95 fired at +1.2% off the
+    # low, 47h before +17%, but STRONG picks mostly fall off the
+    # elite_watch top-12 when MAX/HIGH cards are plentiful — the
+    # radius gap. Full STRONG (score>=80) list, own cap.
+    strong_watch: list[dict] = [
+        p for p in elite_watch if p["tier"] == "STRONG"]
+    _sw_seen = {(p["symbol"], p["side"]) for p in strong_watch}
+    for p in scan:
+        if (p.get("tier") or "").upper() != "STRONG":
+            continue
+        side = (p.get("side") or "").upper()
+        if side not in ("LONG", "SHORT"):
+            continue
+        if float(p.get("score") or 0) < 80:
+            continue
+        if (p.get("symbol"), side) in _sw_seen:
+            continue
+        pl = _plan(p)
+        strong_watch.append({
+            "symbol": p.get("symbol"),
+            "base": p.get("base") or (p.get("symbol") or "").replace(
+                "USDT", ""),
+            "side": side,
+            "tier": "STRONG",
+            "score": float(p.get("score") or 0),
+            "entry": float(pl.get("entry") or 0),
+            "stop": float(pl.get("stop") or 0),
+            "tp1": float(pl.get("tp1") or 0),
+            "tp2": float(pl.get("tp2") or 0),
+        })
+    strong_watch.sort(key=lambda x: x["score"], reverse=True)
+    strong_watch = strong_watch[:12]
+
     # ── 🎯 SST1 v2 — RE-GROUND conviction on VALIDATED edge count. The old
     # conviction was compressed (93% in 70-79) and did NOT sort winners
     # (backtest_sst1cal). The edge-count conviction DOES (backtest_sst1v2,
@@ -452,7 +486,7 @@ def scan_all(scan_n: int = 60, min_conv: float = 70.0) -> dict:
                     p["stop"] = float(new_stop)
 
     for _stream in (sst1, takenow, leaderboard, apex, early_strong,
-                    elite_watch):
+                    elite_watch, strong_watch):
         try:
             _restop(_stream)
         except Exception:
@@ -471,5 +505,5 @@ def scan_all(scan_n: int = 60, min_conv: float = 70.0) -> dict:
         trend = []
 
     return {"sst1": sst1, "takenow": takenow, "leaderboard": leaderboard,
-            "apex": apex, "elite": elite_watch,
+            "apex": apex, "elite": elite_watch, "strong": strong_watch,
             "early_strong": early_strong, "trend": trend, "regime": regime}
