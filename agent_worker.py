@@ -1576,7 +1576,8 @@ def cycle() -> None:
         # ignition dropped 2026-08-10 (user: "skip ignition")
         _dz_form = {}
         for _dt in ("elite_conv", "elite_early", "top_conviction",
-                    "kr_approved", "takenow_hot"):
+                    "kr_approved", "takenow_hot", "conviction",
+                    "best_board", "fresh"):
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_dt)["net_r"]
             except Exception:
@@ -1614,13 +1615,35 @@ def cycle() -> None:
                 _ec2 = dict(_ec)
                 _ec2["lane_approved"] = True
                 _dz_elite.append(_ec2)
-        # GEN 5 pools (user order 6): exactly the named five — rider,
-        # surge and fresh are out of the money.
+        # GEN 5 pools (user order 6): exactly the named five — rider
+        # and surge are out of the money.
+        # 🔀 CONDITIONAL SEATS added same day (user: "💎 BEST ZONE /
+        # 💯 conviction / FRESH — standalone but if kronos agree or
+        # our different models agree then it should take those
+        # trades"): each candidate is stamped kr_agree from the
+        # CACHED kronos read (no extra forecast budget; no read =
+        # not agree); 💯 carries it by construction — its own gate IS
+        # kronos agreement. demo_account drops conditional-only
+        # candidates without a kr agreement or a second model.
+        def _dz_kr_agree(p):
+            _h = _KR_CACHE.get(p.get("symbol"))
+            if not _h or _now - _h["t"] > KR_TTL:
+                return False
+            _d = (_h["s"] or {}).get("direction")
+            return ((_d == "UP" and p.get("side") == "LONG")
+                    or (_d == "DOWN" and p.get("side") == "SHORT"))
+
         _dz_pools = {"elite_conv": _dz_elite,
                      "elite_early": elite_early,
                      "top_conviction": _topc,
                      "kr_approved": _kr_appr,
-                     "takenow_hot": tn_hot}
+                     "takenow_hot": tn_hot,
+                     "conviction": [dict(p, kr_agree=True)
+                                    for p in _conv],
+                     "best_board": [dict(p, kr_agree=_dz_kr_agree(p))
+                                    for p in best],
+                     "fresh": [dict(p, kr_agree=_dz_kr_agree(p))
+                               for p in fresh_m]}
         def _dz_kr(sym, side):
             """Cached kronos read; force-fetch for the demo's few open
             positions so the smart exit always has a fresh view."""

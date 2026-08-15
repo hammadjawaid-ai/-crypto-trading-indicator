@@ -103,10 +103,23 @@ CLASS_W = {"elite_conv": 95,       # 💎 the ACE/2Z board, approved-only,
                                    # wins all via the hard class sort
            "elite_early": 95,      # +50.8R/215 lifetime
            "top_conviction": 90,   # 55% win · +17.3R/56
+           "conviction": 88,       # 💯 fast30+82+kr-agree (conditional)
            "kr_approved": 85,      # GREEN jury: 59% win · +10.7R/51
-           "takenow_hot": 75}      # ✅🔥 named by the user for GEN 5;
+           "best_board": 80,       # 💎 BEST ZONE (conditional)
+           "takenow_hot": 75,      # ✅🔥 named by the user for GEN 5;
                                    # weak-entry block now guards its
                                    # fires (73.3%/+0.054R validated)
+           "fresh": 65}            # 🌱 (conditional)
+# 🔀 CONDITIONAL SEATS (user 2026-08-15: "it should be standalone but
+# if kronos agree or our different models agree then it should take
+# those trade — its either this or that"): 💎 BEST ZONE, 💯
+# CONVICTION and 🌱 FRESH don't spend money on their own name. A
+# candidate whose ONLY sources are conditional streams trades only
+# when (a) 🔮 kronos agrees with it (kr_agree stamped by the worker
+# from the cached read; 💯 carries it by construction — its gate IS
+# kronos agreement), or (b) at least one OTHER model fired the same
+# coin+side (agree >= 2). Either/or, exactly as ordered.
+CONDITIONAL_SRC = {"best_board", "conviction", "fresh"}
 # 2026-08-11 user call: 🚀 MOONSHOT removed from the demo menu (desk
 # record 9 closed / −0.65R, and those closes pre-date the top-30
 # validation restrictions — it hasn't earned a money seat yet). 🥇
@@ -176,16 +189,25 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
                           "tp1": t1,
                           "tp2": float(t2) if t2 else None,
                           "src": name, "score": sc, "w": w,
-                          "srcs": {name}, "rank": base_rank}
+                          "srcs": {name}, "rank": base_rank,
+                          "kr_ok": bool(p.get("kr_agree"))}
             else:
                 cur["srcs"].add(name)
                 cur["rank"] = max(cur["rank"], base_rank)
                 cur["score"] = max(cur["score"], sc)
+                cur["kr_ok"] = cur.get("kr_ok") \
+                    or bool(p.get("kr_agree"))
                 if w > cur["w"]:        # higher-class plan wins
                     cur.update({"entry": e, "stop": st, "tp1": t1,
                                 "tp2": float(t2) if t2 else None,
                                 "src": name, "w": w})
     out = list(agg.values())
+    # 🔀 the either/or gate: conditional-only candidates trade ONLY
+    # with a kronos agreement or a second agreeing model.
+    out = [c for c in out
+           if not (c["srcs"] <= CONDITIONAL_SRC
+                   and len(c["srcs"]) < 2
+                   and not c.get("kr_ok"))]
     for c in out:
         c["agree"] = len(c["srcs"])
         bonus = 25 * (c["agree"] - 1)
