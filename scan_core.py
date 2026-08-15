@@ -27,6 +27,48 @@ import trend_rider as _tr
 import config
 
 
+def _publish_scan(scan: list, scan_n: int) -> None:
+    """📤 Publish the raw unified scan to the shared disk for the UI.
+
+    2026-08-15, re-applied after the 502 diagnosis: the brain and the
+    Streamlit page are separate PROCESSES on one 2GB box. When a page
+    load ran its own 150-coin scan while the brain was mid-cycle, the
+    box saturated, Render's health check timed out and the service
+    restarted — the recurring 502, followed by ice-cold reloads. The
+    worker drops its finished picks here every cycle (atomic write,
+    numpy-safe); the page reads them in milliseconds instead of
+    burning the CPU the health check needs."""
+    import json
+    import os
+    import time
+
+    def _safe(o):
+        try:
+            import numpy as np
+            if isinstance(o, np.integer):
+                return int(o)
+            if isinstance(o, np.floating):
+                return float(o)
+            if isinstance(o, np.bool_):
+                return bool(o)
+            if isinstance(o, np.ndarray):
+                return o.tolist()
+        except Exception:
+            pass
+        return str(o)
+
+    try:
+        dst = str(config.state_path(".last_scan.json"))
+        tmp = dst + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump({"ts": time.time(), "scan_n": int(scan_n),
+                       "min_score": 70.0, "max_picks": 40,
+                       "picks": scan}, f, default=_safe)
+        os.replace(tmp, dst)
+    except Exception:
+        pass
+
+
 def tp2_rides(cands: list, max_checks: int = 10) -> list:
     """🎯 TP2 continuation tracker — for recent best-signals whose TP1 has
     been HIT since the signal, check if momentum is STILL intact (close on
@@ -115,6 +157,7 @@ def scan_all(scan_n: int = 60, min_conv: float = 70.0) -> dict:
     """
     scan = es.scan_unified(scan_n=scan_n, interval="1h",
                            min_score=70.0, max_picks=40) or []
+    _publish_scan(scan, scan_n)
     elite = {p.get("symbol"): p for p in scan}
     srs = {p.get("symbol") for p in scan
            if float(p.get("score") or 0) >= 88

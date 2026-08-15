@@ -24,7 +24,11 @@ import traceback
 def _brain() -> None:
     # Let Streamlit bind the port first so the service passes its health
     # check quickly; the brain's first scan is heavy (~30-60s).
-    time.sleep(15)
+    # 15 -> 45s (2026-08-15, 502 fix): give Streamlit room to fully
+    # warm before the first heavy scan competes for the box — the
+    # health check timing out under combined load was restarting the
+    # service (the recurring 502).
+    time.sleep(45)
     import agent_worker
     try:
         import telegram_notify as tg

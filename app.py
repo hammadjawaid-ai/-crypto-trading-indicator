@@ -3774,6 +3774,31 @@ MOOD_COLORS = {"Bullish": "#34c759", "Bearish": "#ff6b5b", "Neutral": "#8e8e93"}
 
 
 # --- Cached data services --------------------------------------------------
+def _worker_scan_file(max_age: float = 720.0, min_n: int = 100):
+    """⚡ Read the 24/7 worker's freshly published unified scan off the
+    shared disk (scan_core._publish_scan, every ~5-min cycle) instead
+    of re-running a multi-minute scan inside the page. Re-applied
+    2026-08-15 after the 502 diagnosis: the double-scan CPU burn was
+    tripping Render's health check and RESTARTING the service — the
+    recurring 502. Hardened: the payload must be a fresh, full-
+    universe list of dicts with symbols, or we return None and the
+    caller falls back to its own scan exactly as before."""
+    try:
+        with open(str(config.state_path(".last_scan.json")),
+                  encoding="utf-8") as f:
+            ob = json.load(f)
+        if (time.time() - float(ob.get("ts") or 0) <= max_age
+                and int(ob.get("scan_n") or 0) >= min_n):
+            picks = ob.get("picks")
+            if (isinstance(picks, list)
+                    and all(isinstance(p, dict) and p.get("symbol")
+                            for p in picks)):
+                return picks
+    except Exception:
+        pass
+    return None
+
+
 @st.cache_data(ttl=config.MARKET_CACHE_TTL, show_spinner=False)
 def load_top_symbols(n: int) -> pd.DataFrame:
     return binance_client.get_top_symbols(n)
@@ -11499,9 +11524,15 @@ if active_section == "🧪 Paper Trader":
         # ttl 120 -> 300 (2026-08-15 page-speed): the 2-min cache made
         # nearly every page open re-run this multi-minute scan; 300s
         # matches _pt_load_unified and the worker's own 5-min cadence.
-        # Universe stays 150 — nothing about the boards changes.
         @st.cache_data(ttl=300, show_spinner=False)
-        def _load_elite_picks_cached(_v: int = 7):
+        def _load_elite_picks_cached(_v: int = 9):
+            # ⚡ 502 fix: the worker's published scan first — the page
+            # re-scanning while the brain cycled was saturating the
+            # box and restarting the service. Own scan only when the
+            # file is stale (worker down / local dev).
+            _pk = _worker_scan_file()
+            if _pk is not None:
+                return _pk
             if _elite_scan_fn is None:
                 return []
             try:
@@ -13882,9 +13913,13 @@ if active_section == "🧪 Paper Trader":
 
                 @st.cache_data(ttl=180, show_spinner=False)
                 def _best_trades_now(_bust):
-                    _scan = _es_bt.scan_unified(
-                        scan_n=60, interval="1h", min_score=70.0,
-                        max_picks=40) or []
+                    # ⚡ 502 fix: worker's published scan first (a
+                    # 100-coin superset of the old 60-coin scan).
+                    _scan = _worker_scan_file()
+                    if _scan is None:
+                        _scan = _es_bt.scan_unified(
+                            scan_n=60, interval="1h", min_score=70.0,
+                            max_picks=40) or []
                     _elite = {p.get("symbol"): p for p in _scan}
                     try:
                         _cv = compute_convergence_picks("1h", scan_n=50) or []
@@ -14048,13 +14083,13 @@ if active_section == "🧪 Paper Trader":
                           or getattr(_exp_sig, 'scan_experimental', None))
 
         if _u_scan_fn is not None:
-            # Reuse the same cached data that the TOP CONVICTION block
-            # above already loaded (`_load_elite_picks_cached`). Avoids
-            # double-scanning the universe. Cache TTL lowered to 5 min
-            # at the source so both sections stay fresh.
             @st.cache_data(ttl=300, show_spinner=False)
-            def _pt_load_unified(_v: int = 6):
-                # Match _load_elite_picks_cached: 150 coins / 40 picks
+            def _pt_load_unified(_v: int = 8):
+                # ⚡ 502 fix: worker's published scan first (see
+                # _worker_scan_file); own scan only when stale.
+                _pk = _worker_scan_file()
+                if _pk is not None:
+                    return _pk
                 return _u_scan_fn(
                     scan_n=150, interval="1h",
                     min_score=70.0, max_picks=40)
@@ -17008,9 +17043,12 @@ plus funding rate every 8 hours on open positions.
 
             @st.cache_data(ttl=180, show_spinner=False)
             def _sst1_live_picks(_bust):
-                _scan = _es_lt.scan_unified(
-                    scan_n=60, interval="1h", min_score=70.0,
-                    max_picks=40) or []
+                # ⚡ 502 fix: worker's published scan first.
+                _scan = _worker_scan_file()
+                if _scan is None:
+                    _scan = _es_lt.scan_unified(
+                        scan_n=60, interval="1h", min_score=70.0,
+                        max_picks=40) or []
                 _elite = {p.get("symbol"): p for p in _scan}
                 try:
                     _cv = compute_convergence_picks("1h", scan_n=50) or []
