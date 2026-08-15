@@ -827,17 +827,22 @@ def cycle() -> None:
     _push([p for p in best if _in_zone(p)], "best", _fmt_best,
           tier="best_board")
     _push(apex, "apex", _fmt_apex, min_conf=0, tier="apex")
-    _push(elite_early, "elite_early", _fmt_elite_early, min_conf=0,
-          tier="elite_early")
+    # 2026-08-15 user order: 🌟 EARLY ELITE buzzes ALWAYS — no greens
+    # gate. Kronos disagreeing is fine ("if kronos dont agree thats
+    # ok"): the 🔮 line on every buzz already spells out all three
+    # states — AGREES / CONFLICTS / FLAT (no conviction either way).
+    _push(elite_early, "elite_early", _fmt_elite_early, min_conf=0)
     _push(fresh_m, "fresh", _fmt_fresh, min_conf=0, tier="fresh")
-    _push(tn_rest, "takenow", _fmt_takenow, min_conf=0,
-          tier="takenow_hot")
+    # 2026-08-15 user order: ✅🔥 TAKE NOW, 🚀 EARLY-LANE and ⚡ EARLY
+    # MOVERS move to the ALWAYS list ("its green on decision desk
+    # bro") — greens gates off.
+    _push(tn_rest, "takenow", _fmt_takenow, min_conf=0)
     _push([p for p in em_big if _in_zone(p)], "em", _fmt_prime,
-          min_conf=0, tier="early_lane")
+          min_conf=0)
     _em_rest = [p for p in r.get("early_strong", [])
                 if not p.get("early_lanes")]
     _push([p for p in _em_rest if _in_zone(p)], "emrest",
-          _fmt_early_rest, min_conf=0, tier="early_movers")
+          _fmt_early_rest, min_conf=0)
     # 🌊 TREND RIDER buzz MUTED AGAIN same day (user 2026-08-06 after
     # the honest 25%-win framing: "not effective for me") — the 3-of-4
     # loser cadence doesn't fit how he trades, even net-positive.
@@ -865,7 +870,10 @@ def cycle() -> None:
         print("  one_trade error:", _one_exc, flush=True)
     if _one is not None:
         store.record_signal("one_trade", _one)
-        _push([_one], "one", _fmt_one, min_conf=0)
+        # 2026-08-15 user order: 👑 ONE TRADE is losing on the desk —
+        # buzz removed behind the greens gate. The selector keeps
+        # recording so the record can still earn its voice back.
+        _push([_one], "one", _fmt_one, min_conf=0, tier="one_trade")
 
     # 🔮 KRONOS capture (user 2026-07-28, validated same day: agree
     # +0.259R vs veto -0.143R on our own entries, n=81). Forecast the
