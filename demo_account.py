@@ -36,7 +36,13 @@ STATE_FILE = os.environ.get("DEMO_STATE") or \
 # conviction (approved-only) wins all, 🔮✅ kronos approved right
 # behind, B-stocks out of the universe, and the strength-aware
 # smart exit with the TP2 trail below.
-GEN = 4
+# GEN 5 = 2026-08-15 later the same day (user order 6: "restart demo
+# and remove trend rider from it it sucks") — 🌊 TREND RIDER out of
+# the money, and the pool trimmed to exactly the named five: 💎 elite
+# conviction (approved) · 🏆 top conviction · 🌟 early elite · 🔮✅
+# kronos approved · ✅🔥 take now hot. Surge and fresh lose their
+# money seats too (not on the user's list).
+GEN = 5
 START_BAL = 1200.0
 RISK_PCT = 2.0
 # 3 -> 5 (user 2026-08-09): a CEILING, not a quota — the MIN_RANK
@@ -48,18 +54,12 @@ MAX_SLOTS = 5
 LEV_CAP = 3.0                  # notional <= balance * 3
 FEE = 0.00055                  # Bybit taker, per side
 TIME_STOP_H = 48
-# per-source hold limits — 🌊 TREND RIDER is a days-to-weeks construct
-# (its +81.6R desk record comes from letting winners RUN); a 48h cut
-# would destroy the exact edge we're letting in. 21d matches the desk's
-# own trend-rider standard (the 2026-07 48h-cut bug taught this).
-TIME_STOP_BY_SRC = {"trend_rider": 504}
-# slot discipline: the rider holds for days, so cap it at 2 of 5 slots
-# — it can't clog the book and starve the fast constructs.
-MAX_PER_SRC = {"trend_rider": 2}
-# sources the kronos smart-exit must NOT touch: kronos is a 24h model,
-# the rider is a multi-day trend — validated as color-not-gate there
-# (the ZBT case: veto wrong, coin ran +51%).
-SMART_EXIT_SKIP = {"trend_rider"}
+# GEN 5 (user order 6): 🌊 TREND RIDER is OUT of the demo — its
+# per-source hold/slot/smart-exit carve-outs go with it. The dicts
+# stay so a future re-add is one line each.
+TIME_STOP_BY_SRC: dict = {}
+MAX_PER_SRC: dict = {}
+SMART_EXIT_SKIP: set = set()
 # 🧠 STRENGTH-AWARE SMART EXIT + TRAIL (user 2026-08-15: "smart exit
 # should have a trailing method... loosen a bit if the signal
 # strength is good... let them ride to tp and trail to tp2 if they
@@ -94,26 +94,19 @@ MIN_RANK = 100.0
 # the demo on his call). Weighted by each tier's live desk record.
 # IGNITION dropped 2026-08-10 on user call ("we should skip
 # ignition" — at-fire entries, the weakest construct class).
-CLASS_W = {"elite_conv": 95,       # 💎 ELITE CONVICTION, MAX/HIGH only
-                                   # (user 2026-08-14: "elite
-                                   # conviction should now be a part of
-                                   # demo trading and on top priority"
-                                   # — his ACE/2Z winners came off this
-                                   # board, "top notch"). Tied with
-                                   # early elite at the top of the
-                                   # class ladder; the approval
-                                   # agreement bonus below lifts the
-                                   # 🔮✅ ones above everything.
+# GEN 5 pool (user order 6, 2026-08-15: "we already told you what we
+# want to have — top conviction, early elite, kronos approved and
+# take now hot" + elite conviction on top by standing order). 🌊
+# TREND RIDER removed ("it sucks" — 3-of-4 losers didn't fit);
+# surge and fresh lose their seats too (not on the named list).
+CLASS_W = {"elite_conv": 95,       # 💎 the ACE/2Z board, approved-only,
+                                   # wins all via the hard class sort
            "elite_early": 95,      # +50.8R/215 lifetime
            "top_conviction": 90,   # 55% win · +17.3R/56
            "kr_approved": 85,      # GREEN jury: 59% win · +10.7R/51
-           "trend_rider": 80,      # 2026-08-11 user call: the desk's
-                                   # biggest earner (+81.6R/244,
-                                   # +73.1R last 14d) at 27% win —
-                                   # few wins, huge ones. Capped at 2
-                                   # slots, long hold, no smart exit.
-           "surge": 70,            # 43% win · +5.5R/292
-           "fresh": 65}            # 40% win · +17.8R/192
+           "takenow_hot": 75}      # ✅🔥 named by the user for GEN 5;
+                                   # weak-entry block now guards its
+                                   # fires (73.3%/+0.054R validated)
 # 2026-08-11 user call: 🚀 MOONSHOT removed from the demo menu (desk
 # record 9 closed / −0.65R, and those closes pre-date the top-30
 # validation restrictions — it hasn't earned a money seat yet). 🥇

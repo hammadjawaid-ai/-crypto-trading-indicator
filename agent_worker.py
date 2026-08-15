@@ -699,8 +699,12 @@ def cycle() -> None:
         print("  ignition error:", _ign_exc, flush=True)
     for p in _ign:
         store.record_signal("ignition", p)
+    # 2026-08-15 user order 7: IGNITION buzz muted until its desk
+    # record turns GREEN (record was on a losing spree; this reverses
+    # the 07-25 while-unproven exemption on his own call). The tier=
+    # gate auto-unmutes the day the record goes green.
     _push([p for p in _ign if _in_zone(p)], "ignition", _fmt_ignition,
-          min_conf=0)
+          min_conf=0, tier="ignition")
     # ⚡🚨 STRONG IGNITION (user 2026-08-14, the PIXEL case): STRONG
     # at-fire + hard burst>=85 same side — the one cell of the at-fire
     # radius study green in both halves (55.2%/+0.236R, n=62; plain
@@ -801,7 +805,9 @@ def cycle() -> None:
         print("  prime error:", _pr_exc, flush=True)
     for p in _prime:
         store.record_signal("prime", p)
-    _push(list(_prime), "prime", _fmt_prime_board, min_conf=0)
+    # 2026-08-15 user order 7: PRIME buzz muted until GREEN.
+    _push(list(_prime), "prime", _fmt_prime_board, min_conf=0,
+          tier="prime")
     # 📡 SURGE RADAR (user 2026-07-26, LPT case): whole-market fresh-
     # pump ignition — fires only in a pump's first ~2h, refuses
     # extended chases. Unproven: labeled stream + desk tier proving.
@@ -1153,7 +1159,9 @@ def cycle() -> None:
         store.record_signal("moonshot", p)
     for p in _moon_watch:
         store.record_signal("moon_watch", p)
-    _push(list(_moon_fires), "moon", _fmt_moonshot, min_conf=0)
+    # 2026-08-15 user order 7: MOONSHOT buzz muted until GREEN.
+    _push(list(_moon_fires), "moon", _fmt_moonshot, min_conf=0,
+          tier="moonshot")
 
     # 🔮 KRONOS APPROVED desk tier (user 2026-08-03: "can the 86% be
     # treated separately?") — every elite-stream signal where Kronos
@@ -1295,7 +1303,10 @@ def cycle() -> None:
     # is already the strictest construct in the system (5 gates + 🔮),
     # fires rarely, and every message carries the honest odds. The desk
     # tier keeps scoring it in parallel.
-    _push(_ts_rows, "ts", _fmt_ts, min_conf=0)
+    # 2026-08-15 user order 7: TRUE SIGNAL buzz muted until GREEN
+    # (reverses the always-buzz note above — the losing record loses
+    # its voice; the tier= gate restores it the day it earns green).
+    _push(_ts_rows, "ts", _fmt_ts, min_conf=0, tier="true_signal")
     # 🔬 funnel audit rows — feed the page's living board (every
     # candidate + which gate it died at), even when no card qualifies.
     try:
@@ -1565,7 +1576,7 @@ def cycle() -> None:
         # ignition dropped 2026-08-10 (user: "skip ignition")
         _dz_form = {}
         for _dt in ("elite_conv", "elite_early", "top_conviction",
-                    "kr_approved", "trend_rider", "surge", "fresh"):
+                    "kr_approved", "takenow_hot"):
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_dt)["net_r"]
             except Exception:
@@ -1603,13 +1614,13 @@ def cycle() -> None:
                 _ec2 = dict(_ec)
                 _ec2["lane_approved"] = True
                 _dz_elite.append(_ec2)
+        # GEN 5 pools (user order 6): exactly the named five — rider,
+        # surge and fresh are out of the money.
         _dz_pools = {"elite_conv": _dz_elite,
                      "elite_early": elite_early,
                      "top_conviction": _topc,
                      "kr_approved": _kr_appr,
-                     "trend_rider": r.get("trend", []),
-                     "surge": _srg,
-                     "fresh": fresh_m}
+                     "takenow_hot": tn_hot}
         def _dz_kr(sym, side):
             """Cached kronos read; force-fetch for the demo's few open
             positions so the smart exit always has a fresh view."""
