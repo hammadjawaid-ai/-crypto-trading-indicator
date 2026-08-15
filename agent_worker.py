@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import io
 import sys
+import threading
 import time
 import traceback
 from datetime import datetime, timezone
@@ -169,6 +170,95 @@ def _fmt_ignition(p) -> str:
             f"_AT-FIRE — 1-2h earlier than confirmation, by your call "
             f"('fast even if it fails'). Honest odds ~50-65%. SIZE "
             f"SMALLER. Desk is proving it forward._")
+
+
+# 💥 TRIGGER WATCH (user 2026-08-15, the BMT case: "just before it is
+# about to pump hard... it gives me a buzz on telegram but this has to
+# be before it fires hard"): a dedicated 60-second watch loop over the
+# strongest armed setups — every 💎 approved ELITE CONVICTION card and
+# every ⚡ STRONG watch coil — with a trigger at the 24-bar high (low
+# for shorts), THE one construct that ever measured positive across
+# six pre-burst studies (+0.10-0.12R break entry). The buzz lands the
+# MINUTE the trigger breaks, not up to 5 minutes later when the next
+# worker cycle happens to look. Honest boundary, measured six ways:
+# predicting the pump BEFORE any price confirmation is a losing game
+# (coil -0.21R, 15m thrust -0.15R, flips -0.05R, OWL -0.23R, flow
+# -0.20R, at-fire unverified ~23%) — the break IS the earliest moment
+# that pays, so that is the moment this watches, at 60s resolution.
+_TRIG_ARMED: dict = {}
+_TRIG_LOCK = threading.Lock()
+_TRIG_STARTED = False
+TRIG_POLL_S = 60
+TRIG_ARM_H = 24.0
+
+
+def _trigger_pass(a: dict, px: float) -> bool:
+    """True when live price has broken the armed trigger."""
+    if px <= 0:
+        return False
+    return (px >= a["trigger"] if a["side"] == "LONG"
+            else px <= a["trigger"])
+
+
+def _fmt_trigger(a: dict, px: float, vk: float) -> str:
+    _t2 = (f" · TP2 `{a['tp2']:g}`" if a.get("tp2") else "")
+    _age = (time.time() - float(a.get("armed_at") or time.time())) / 3600
+    return (f"💥 *{a['src']} TRIGGER* — {a['base']} {a['side']} "
+            f"breaking `{a['trigger']:g}` NOW\n"
+            f"live `{px:g}` · 15m vol {vk:.1f}x · score "
+            f"{float(a.get('score') or 0):.0f} · armed {_age:.1f}h ago\n"
+            f"entry `{a['entry']:g}` · SL `{a['stop']:g}` · "
+            f"TP1 `{a['tp1']:g}`{_t2}\n"
+            f"_the ignition moment, caught on the 60s watch — the "
+            f"validated break construct. This is as early as the data "
+            f"lets an honest signal be._")
+
+
+def _trigger_watch() -> None:
+    """60s daemon: watch armed setups, buzz the second one breaks."""
+    while True:
+        time.sleep(TRIG_POLL_S)
+        try:
+            _now = time.time()
+            with _TRIG_LOCK:
+                items = list(_TRIG_ARMED.items())
+            for k, a in items:
+                if _now - float(a.get("armed_at") or 0) \
+                        > TRIG_ARM_H * 3600:
+                    with _TRIG_LOCK:
+                        _TRIG_ARMED.pop(k, None)
+                    continue
+                try:
+                    px = float(binance_client.get_ticker_price(
+                        a["symbol"]) or 0)
+                except Exception:
+                    continue
+                if not _trigger_pass(a, px):
+                    continue
+                # volume kick on the forming 15m bar — fetched only
+                # on an actual break (rare), never in the hot loop
+                vk = 0.0
+                try:
+                    d15 = binance_client.get_klines(a["symbol"], "15m",
+                                                    limit=40)
+                    v15 = d15["volume"].to_numpy()
+                    vk = float(v15[-1] / max(1e-9, v15[-21:-1].mean()))
+                except Exception:
+                    pass
+                with _TRIG_LOCK:
+                    _TRIG_ARMED.pop(k, None)
+                try:
+                    if store.should_alert(
+                            f"trig:{a['symbol']}:{a['side']}",
+                            6 * 3600):
+                        tg.send(_fmt_trigger(a, px, vk))
+                        store.record_signal("trigger_fire", a)
+                        print(f"[trigger] 💥 {a['base']} {a['side']} "
+                              f"@ {px:g}", flush=True)
+                except Exception as exc:
+                    print("[trigger] buzz error:", exc, flush=True)
+        except Exception as exc:
+            print("[trigger] loop error:", exc, flush=True)
 
 
 def _fmt_ign_strong(p) -> str:
@@ -1577,6 +1667,61 @@ def cycle() -> None:
             n_alerts += 1 if ok else 0
     except Exception as _dz_exc:
         print("  demo error:", _dz_exc, flush=True)
+
+    # 💥 arm the trigger watch (user 2026-08-15): every 💎 approved
+    # elite conviction card + every ⚡ STRONG watch coil not already
+    # burst-firing gets a trigger at its 24-bar high/low; the 60s
+    # thread below buzzes the moment one breaks.
+    try:
+        _arm_pool = [("💎 ELITE CONV", _p)
+                     for _p in (locals().get("_dz_elite") or [])]
+        _ig_keys = {(q.get("symbol"), (q.get("side") or "").upper())
+                    for q in _igs}
+        for _p in (r.get("strong") or []):
+            _k2 = (_p.get("symbol"), (_p.get("side") or "").upper())
+            if _k2 not in _ig_keys:
+                _arm_pool.append(("⚡ STRONG", _p))
+        _now_arm = time.time()
+        _armed_n = 0
+        with _TRIG_LOCK:
+            for _lbl, _p in _arm_pool[:16]:
+                _sd2 = (_p.get("side") or "").upper()
+                _sy2 = _p.get("symbol")
+                if not _sy2 or _sd2 not in ("LONG", "SHORT") \
+                        or not (_p.get("entry") and _p.get("stop")
+                                and _p.get("tp1")):
+                    continue
+                try:
+                    _dfa = binance_client.get_klines(_sy2, "1h",
+                                                     limit=30)
+                    _trg = (float(_dfa["high"].tail(24).max())
+                            if _sd2 == "LONG"
+                            else float(_dfa["low"].tail(24).min()))
+                except Exception:
+                    continue
+                _kk2 = (_sy2, _sd2)
+                _old = _TRIG_ARMED.get(_kk2) or {}
+                _TRIG_ARMED[_kk2] = {
+                    "symbol": _sy2,
+                    "base": _p.get("base") or _sy2.replace("USDT", ""),
+                    "side": _sd2, "trigger": _trg,
+                    "entry": float(_p.get("entry") or 0),
+                    "stop": float(_p.get("stop") or 0),
+                    "tp1": float(_p.get("tp1") or 0),
+                    "tp2": float(_p.get("tp2") or 0) or None,
+                    "score": float(_p.get("score") or 0),
+                    "src": _lbl,
+                    "armed_at": _old.get("armed_at", _now_arm)}
+                _armed_n += 1
+        if _armed_n:
+            print(f"  💥 trigger watch armed: {_armed_n}", flush=True)
+    except Exception as _tw_exc:
+        print("  trigger-arm error:", _tw_exc, flush=True)
+    global _TRIG_STARTED
+    if not _TRIG_STARTED:
+        _TRIG_STARTED = True
+        threading.Thread(target=_trigger_watch, daemon=True).start()
+        print("  💥 trigger watch thread started (60s)", flush=True)
 
     # 📊🌅 DAILY MORNING REPORT — desk status + the 4-5 best qualifying
     # setups of the morning (user 2026-07-08). Default 04:00 UTC = 09:00

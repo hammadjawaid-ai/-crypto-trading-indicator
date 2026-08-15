@@ -1492,18 +1492,26 @@ def _stream_board(stream, title, subtitle, badge, chip, colors,
         unsafe_allow_html=True)
     st.caption(subtitle)
     try:
-        _rows = _ws_sb.recent_by_stream(stream, 10)
+        _rows = _ws_sb.recent_by_stream(stream, 16)
     except Exception:
         _rows = []
-    _seen, _cards = set(), []
+    _seen, _cards, _aged = set(), [], []
     for _r in _rows:
         _k = (_r.get("symbol"), _r.get("side"))
         if _k in _seen:
             continue
         _seen.add(_k)
-        if time.time() - float(_r.get("ts") or 0) < 6 * 3600:
+        _age_s = time.time() - float(_r.get("ts") or 0)
+        if _age_s < 6 * 3600:
             _cards.append(_r)
-    if not _cards:
+        elif _age_s < 24 * 3600:
+            # 2026-08-15 (user, the ENSO case: "i took a trade, now it
+            # is disappeared on the board and I am confused") — fires
+            # no longer vanish at 6h. 6-24h old ones stay listed
+            # compactly WITH their live status, so a trade taken this
+            # morning still shows where it stands tonight.
+            _aged.append(_r)
+    if not _cards and not _aged:
         st.caption(empty_note)
         return
     for _i, _r in enumerate(_cards[:4]):
@@ -1575,6 +1583,48 @@ def _stream_board(stream, title, subtitle, badge, chip, colors,
                     st.warning("Not opened — Paper Trader rejected.")
             except Exception as exc:
                 st.error(f"Open failed: {exc}")
+    if _aged:
+        _lines = []
+        for _r in _aged[:6]:
+            _sym = _r.get("symbol") or ""
+            _sd = (_r.get("side") or "").upper()
+            _e = float(_r.get("entry") or 0)
+            _st_ = float(_r.get("stop") or 0)
+            _t1 = float(_r.get("tp1") or 0)
+            _t2 = float(_r.get("tp2") or 0)
+            _lv = 0.0
+            try:
+                _lv = float(binance_client.get_ticker_price(_sym) or 0)
+            except Exception:
+                pass
+            _stt = "?"
+            if _lv > 0 and _e > 0 and _t1 != _e:
+                _lng = _sd == "LONG"
+                if (_lv <= _st_ if _lng else _lv >= _st_):
+                    _stt = "🔴 stopped"
+                elif _t2 and (_lv >= _t2 if _lng else _lv <= _t2):
+                    _stt = "🏆 past TP2"
+                elif (_lv >= _t1 if _lng else _lv <= _t1):
+                    _stt = "💰 past TP1"
+                else:
+                    _f = ((_lv - _e) / (_t1 - _e) if _lng
+                          else (_e - _lv) / (_e - _t1))
+                    _stt = (f"🟢 in zone ({_f*100:.0f}%)" if _f <= 0.25
+                            else f"🟡 en route ({_f*100:.0f}%)")
+            _h = max(0, time.time() - float(_r.get("ts") or 0)) / 3600
+            _lines.append(
+                f"<span style='color:#e6e9f0'><b>{_r.get('base')}</b> "
+                f"{_sd}</span> <span style='color:#8b93a7'>fired "
+                f"{_h:.0f}h ago · entry {px_round.fmt_px(_sym, _e)} · "
+                f"live {px_round.fmt_px(_sym, _lv) if _lv else '?'} → "
+                f"</span><b style='color:{_ca}'>{_stt}</b>")
+        st.markdown(
+            f"<div style='background:{_ca}08;border:1px dashed {_ca}55;"
+            f"border-radius:10px;padding:8px 14px;margin:4px 0;"
+            f"font-size:0.8rem'>📌 <b style='color:{_ca}'>earlier "
+            f"fires (6–24h) — your taken trades live here</b><br>"
+            + "<br>".join(_lines) + "</div>",
+            unsafe_allow_html=True)
 
 
 def _sentry_board(pb_state=None):
