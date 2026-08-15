@@ -82,10 +82,11 @@ WORKER_SCAN_N = int(_secret("WORKER_SCAN_N") or "100")
 # WLD + ONDO flagged on user orders (ONDO is his hold — watch 24/7).
 # 2026-08-07 user's 18-coin watch list — all validated live on the
 # feed (.watch18_check.py) before deploy.
+# WLFI + LINK added 2026-08-15 on user order — 20-coin sentry watch.
 WORKER_FLIP_WATCH = _secret("WORKER_FLIP_WATCH") or (
     "ONDOUSDT,WLDUSDT,INJUSDT,ZECUSDT,SUIUSDT,SYNUSDT,CTSIUSDT,"
     "DODOUSDT,REUSDT,RIFUSDT,TAOUSDT,VIRTUALUSDT,SENTUSDT,"
-    "GIGGLEUSDT,SOLUSDT,ETHUSDT,BTCUSDT,AVAXUSDT")
+    "GIGGLEUSDT,SOLUSDT,ETHUSDT,BTCUSDT,AVAXUSDT,WLFIUSDT,LINKUSDT")
 WORKER_ALERT_COOLDOWN_MIN = int(_secret("WORKER_ALERT_COOLDOWN_MIN") or "360")
 WORKER_SST1_MIN_CONV = float(_secret("WORKER_SST1_MIN_CONV") or "70")
 WORKER_LEADERBOARD_MIN_SCORE = float(
