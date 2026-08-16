@@ -214,19 +214,35 @@ def _fmt_trigger(a: dict, px: float, vk: float) -> str:
             f"lets an honest signal be._")
 
 
-def _fmt_armed(a: dict) -> str:
-    """🔒 arm-time heads-up (user 2026-08-15: armed and notified at
-    the same time). Informational — the action buzz stays the 💥."""
+# 🔶 the middle ground (user 2026-08-15: "armed heads-up AND buzz
+# will create confusion — find a middle ground, a little before"):
+# arming stays SILENT; the one early warning fires when price is
+# PRESSING the trigger (within NEAR_PCT), minutes-not-days before
+# the break — the smell-the-move moment. Then 💥 on the break.
+TRIG_NEAR_PCT = 0.004          # within 0.4% of the trigger = near
+
+
+def _trigger_near(a: dict, px: float) -> bool:
+    """True when live price is pressing the trigger but not through."""
+    if px <= 0:
+        return False
+    t = a["trigger"]
+    if a["side"] == "LONG":
+        return t * (1 - TRIG_NEAR_PCT) <= px < t
+    return t < px <= t * (1 + TRIG_NEAR_PCT)
+
+
+def _fmt_near(a: dict, px: float) -> str:
     _t2 = (f" · TP2 `{a['tp2']:g}`" if a.get("tp2") else "")
-    return (f"🔒 *{a['src']} ARMED* — {a['base']} {a['side']}\n"
-            f"trigger `{a['trigger']:g}` · score "
+    _d = abs(px / a["trigger"] - 1) * 100
+    return (f"🔶 *{a['src']} NEAR TRIGGER* — {a['base']} {a['side']}\n"
+            f"live `{px:g}` pressing the trigger `{a['trigger']:g}` "
+            f"({_d:.2f}% away) · score "
             f"{float(a.get('score') or 0):.0f}\n"
             f"plan: entry `{a['entry']:g}` · SL `{a['stop']:g}` · "
             f"TP1 `{a['tp1']:g}`{_t2}\n"
-            f"_loaded, NOT fired — set your alert at the trigger; "
-            f"the 💥 buzz lands the minute it breaks (60s watch). "
-            f"Entering before the break measured negative in every "
-            f"study — the break IS the entry._")
+            f"_the smell-the-move moment — get ready. The 💥 fires "
+            f"the minute it breaks. One warning per setup._")
 
 
 def _trigger_watch() -> None:
@@ -249,6 +265,19 @@ def _trigger_watch() -> None:
                 except Exception:
                     continue
                 if not _trigger_pass(a, px):
+                    # 🔶 pressing the trigger? one warning, a little
+                    # before — then silence until the break itself.
+                    if not a.get("near_sent") and _trigger_near(a, px):
+                        with _TRIG_LOCK:
+                            a["near_sent"] = True
+                        try:
+                            if store.should_alert(
+                                    f"trignear:{a['symbol']}:"
+                                    f"{a['side']}", 6 * 3600):
+                                tg.send(_fmt_near(a, px))
+                        except Exception as exc:
+                            print("[trigger] near-buzz error:", exc,
+                                  flush=True)
                     continue
                 # volume kick on the forming 15m bar — fetched only
                 # on an actual break (rare), never in the hot loop
@@ -471,6 +500,22 @@ def _fmt_elite_early(p) -> str:
             f"TP1 `{p['tp1']:g}`{_tp2(p)}{_kr_note(p)}\n"
             f"_ELITE MAX/HIGH + 2+ lanes + TAKE NOW 🔥 HOT — early "
             f"high-conviction entry_")
+
+
+def _fmt_elite_conv(p) -> str:
+    """💎 every MAX/HIGH elite conviction fire (user 2026-08-15:
+    "approved or unapproved, high and max should be notified")."""
+    _ap = ("🚀 approved" if p.get("appr")
+           else "⚠️ UNAPPROVED — historically a coin flip (48.5%)"
+           if p.get("appr") is False else "approval unknown")
+    return (f"💎 *ELITE CONVICTION* — {p['base']} {p['side']} "
+            f"({p['tier']} {p['score']:.0f} · {_ap})\n"
+            f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
+            f"TP1 `{p['tp1']:g}`{_tp2(p)}{_kr_note(p)}\n"
+            f"_the board that caught ACE, 2Z and PORTAL — MAX/HIGH "
+            f"the moment it fires. Approved fires win 65.5% vs 48.5% "
+            f"unapproved: the chip is the tell. Approved ones also "
+            f"arm the 💥 60s trigger watch._")
 
 
 def _fmt_fresh(p) -> str:
@@ -847,6 +892,27 @@ def cycle() -> None:
     # ok"): the 🔮 line on every buzz already spells out all three
     # states — AGREES / CONFLICTS / FLAT (no conviction either way).
     _push(elite_early, "elite_early", _fmt_elite_early, min_conf=0)
+    # 💎 ELITE CONVICTION fires — EVERY MAX/HIGH, approved or not
+    # (user 2026-08-15, the PORTAL lesson: HIGH 87 fired 47h before a
+    # +50% move and no buzz existed for it). The approval verdict and
+    # kronos line ride on each message; approved ones also feed the
+    # demo pool and the 💥 trigger arms below. 6h per-coin cooldown.
+    _ec_mh = []
+    for _ec in (r.get("elite") or []):
+        if (_ec.get("tier") or "").upper() not in ("MAX", "HIGH"):
+            continue
+        try:
+            _ec_df = binance_client.get_klines(_ec["symbol"], "1h",
+                                               limit=120)
+            _ec_ok = _vb_w.lane_approved(_ec_df, _ec.get("side"))
+        except Exception:
+            _ec_ok = None
+        _ec2 = dict(_ec)
+        _ec2["appr"] = _ec_ok
+        _ec_mh.append(_ec2)
+    for p in _ec_mh:
+        store.record_signal("elite_conv", p)
+    _push(list(_ec_mh), "eliteconv", _fmt_elite_conv, min_conf=0)
     _push(fresh_m, "fresh", _fmt_fresh, min_conf=0, tier="fresh")
     # 2026-08-15 user order: ✅🔥 TAKE NOW, 🚀 EARLY-LANE and ⚡ EARLY
     # MOVERS move to the ALWAYS list ("its green on decision desk
@@ -1611,33 +1677,13 @@ def cycle() -> None:
         # 2026-08-11: moonshot removed from the demo pool (user call —
         # unproven desk record). It keeps firing its own board, buzzes
         # and desk tier; it just doesn't spend the demo's money.
-        # 💎 ELITE CONVICTION joins the money 2026-08-14 (user order:
-        # "elite conviction should now be a part of demo trading as
-        # well and on top priority"). MAX/HIGH **and carrying the
-        # 🚀 APPROVED chip** — the exact card the ACE/2Z winners came
-        # off. That chip is the validated gate: approved MAX/HIGH win
-        # 65.5%, unapproved only 48.5% (423 entries, 8-month deep
-        # window), so an UNAPPROVED elite card is a coin flip and gets
-        # no money. Same velocity_burst.lane_approved code the card's
-        # chip runs, so the board never disagrees with the ledger.
-        # No slot cap (user 2026-08-14: "no cap on elite conviction,
-        # let it take the slots if it has approved on it").
-        # STRONG stays a watch tier and reaches the demo only when it
-        # escalates into 💯 top conviction.
-        _dz_elite = []
-        for _ec in (r.get("elite") or []):
-            if (_ec.get("tier") or "").upper() not in ("MAX", "HIGH"):
-                continue
-            try:
-                _ec_df = binance_client.get_klines(
-                    _ec["symbol"], "1h", limit=120)
-                _ec_ok = _vb_w.lane_approved(_ec_df, _ec.get("side"))
-            except Exception:
-                _ec_ok = None
-            if _ec_ok:          # None (no data) also means no money
-                _ec2 = dict(_ec)
-                _ec2["lane_approved"] = True
-                _dz_elite.append(_ec2)
+        # 💎 ELITE CONVICTION money pool = the APPROVED subset of the
+        # _ec_mh list computed once in the buzz section above (every
+        # MAX/HIGH now buzzes; only 🚀 approved ones spend — approved
+        # win 65.5% vs 48.5%, the unapproved coin-flips get no money).
+        # No slot cap (user 2026-08-14). None (no data) = no money.
+        _dz_elite = [dict(p, lane_approved=True) for p in _ec_mh
+                     if p.get("appr")]
         # GEN 5 pools (user order 6): exactly the named five — rider
         # and surge are out of the money.
         # 🔀 CONDITIONAL SEATS added same day (user: "💎 BEST ZONE /
@@ -1769,25 +1815,18 @@ def cycle() -> None:
                     "tp2": float(_p.get("tp2") or 0) or None,
                     "score": float(_p.get("score") or 0),
                     "src": _lbl,
-                    "armed_at": _old.get("armed_at", _now_arm)}
+                    "armed_at": _old.get("armed_at", _now_arm),
+                    # arming is SILENT (user 2026-08-15 middle-ground
+                    # call) — the 🔶 near-trigger warning in the 60s
+                    # watch is the one early buzz; preserve its
+                    # one-shot flag across cycle re-arms.
+                    "near_sent": _old.get("near_sent", False)}
                 _armed_n += 1
                 if not _old:
-                    _new_arms.append(_TRIG_ARMED[_kk2])
-        # 🔒 arm-time heads-up (user 2026-08-15: "armed and notified
-        # at the same time") — NEW arms only, 6h cooldown per coin;
-        # the 💥 stays the action signal.
-        for _na in _new_arms:
-            try:
-                if store.should_alert(
-                        f"trigarm:{_na['symbol']}:{_na['side']}",
-                        6 * 3600):
-                    ok, _ = tg.send(_fmt_armed(_na))
-                    n_alerts += 1 if ok else 0
-            except Exception as _ta_exc:
-                print("  arm-buzz error:", _ta_exc, flush=True)
+                    _new_arms.append(_kk2)
         if _armed_n:
             print(f"  💥 trigger watch armed: {_armed_n} "
-                  f"(+{len(_new_arms)} new)", flush=True)
+                  f"(+{len(_new_arms)} new, silent)", flush=True)
     except Exception as _tw_exc:
         print("  trigger-arm error:", _tw_exc, flush=True)
     global _TRIG_STARTED
