@@ -238,7 +238,9 @@ def _trigger_near(a: dict, px: float) -> bool:
 # time"): an armed 💎 card that moves MOM_PCT in its direction from
 # the fire price re-notifies immediately — the wake-up call between
 # the fire buzz and the trigger break. One per armed setup.
-TRIG_MOM_PCT = 0.015           # +1.5% from the fire = momentum
+TRIG_MOM_PCT = 0.01            # +1% from the fire = momentum
+                               # (1.5 -> 1.0 same day, user order:
+                               # "even +1% from its fire price")
 
 
 def _trigger_momentum(a: dict, px: float) -> bool:
