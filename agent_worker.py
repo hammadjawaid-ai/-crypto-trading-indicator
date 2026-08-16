@@ -506,8 +506,8 @@ def _fmt_elite_conv(p) -> str:
     """💎 every MAX/HIGH elite conviction fire (user 2026-08-15:
     "approved or unapproved, high and max should be notified")."""
     _ap = ("🚀 approved" if p.get("appr")
-           else "⚠️ UNAPPROVED — historically a coin flip (48.5%)"
-           if p.get("appr") is False else "approval unknown")
+           else "⚠️ unapproved BUT 🔮 KRONOS AGREES — the rescue rule"
+           if p.get("kr_rescue") else "approval unknown")
     return (f"💎 *ELITE CONVICTION* — {p['base']} {p['side']} "
             f"({p['tier']} {p['score']:.0f} · {_ap})\n"
             f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
@@ -910,9 +910,9 @@ def cycle() -> None:
         _ec2 = dict(_ec)
         _ec2["appr"] = _ec_ok
         _ec_mh.append(_ec2)
-    for p in _ec_mh:
-        store.record_signal("elite_conv", p)
-    _push(list(_ec_mh), "eliteconv", _fmt_elite_conv, min_conf=0)
+    # NOTE: the buzz for these happens in the kronos section below
+    # (the 2026-08-15 rescue rule needs the reads): approved → buzz;
+    # unapproved → buzz only if kronos agrees; else silent.
     _push(fresh_m, "fresh", _fmt_fresh, min_conf=0, tier="fresh")
     # 2026-08-15 user order: ✅🔥 TAKE NOW, 🚀 EARLY-LANE and ⚡ EARLY
     # MOVERS move to the ALWAYS list ("its green on decision desk
@@ -1307,12 +1307,53 @@ def cycle() -> None:
                     _kr_appr.append(_kp2)
         for p in _kr_appr:
             store.record_signal("kr_approved", p)
+        # 💎 ELITE CONVICTION buzz rule (user 2026-08-15 refinement,
+        # the PORTAL lesson): approved MAX/HIGH → always buzz;
+        # UNAPPROVED MAX/HIGH → buzz ONLY when 🔮 kronos agrees (the
+        # rescue — "unapproved skippable, but kronos agrees on high
+        # and max should be notified"); unapproved with no agreement
+        # stays SILENT (the 48.5% coin-flip junk). On-demand reads
+        # capped at 2/cycle for the unapproved candidates.
+        _ec_buzz = []
+        _ec_extra = [0]
+        for _pe in _ec_mh:
+            if _pe.get("appr"):
+                _ec_buzz.append(_pe)
+                continue
+            _kv3 = _kr_get(_pe["symbol"], _pe["side"])
+            if not _kv3 and _ec_extra[0] < 2:
+                _ec_extra[0] += 1
+                try:
+                    _kv3 = kf.forecast(_pe["symbol"], "1h",
+                                       horizon=24)
+                    if _kv3:
+                        _KR_CACHE[_pe["symbol"]] = {
+                            "t": time.time(), "s": _kv3}
+                except Exception:
+                    _kv3 = None
+            if _kv3 and ((_kv3.get("direction") == "UP"
+                          and _pe["side"] == "LONG")
+                         or (_kv3.get("direction") == "DOWN"
+                             and _pe["side"] == "SHORT")):
+                _ec_buzz.append(dict(_pe, kr_rescue=True))
+        for _pe in _ec_buzz:
+            store.record_signal("elite_conv", _pe)
+        _push(list(_ec_buzz), "eliteconv", _fmt_elite_conv,
+              min_conf=0)
         # 🔮✅ buzz (user 2026-08-05: "kronos with apex / take now /
         # fresh mover / early elite approved should be on telegram") —
         # the live face of the validated agree bucket (86%/+0.34R,
         # n=138 backtest; desk tier kr_approved is the binding jury).
         _push([p for p in _kr_appr if _in_zone(p)], "krapp",
               _fmt_kr_approved, min_conf=0)
+
+    if not _kr_ok:
+        # kronos down → the rescue can't be judged; buzz the approved
+        # elite conviction fires so the stream never goes fully dark.
+        _ec_buzz = [p for p in _ec_mh if p.get("appr")]
+        for _pe in _ec_buzz:
+            store.record_signal("elite_conv", _pe)
+        _push(list(_ec_buzz), "eliteconv", _fmt_elite_conv, min_conf=0)
 
     # 💯 CONVICTION (user 2026-08-06: "70-80% win rate, fewer trades,
     # solid confidence") — the measured 88.6%/+0.38R cell (n=35,
