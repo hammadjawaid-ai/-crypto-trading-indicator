@@ -232,6 +232,38 @@ def _trigger_near(a: dict, px: float) -> bool:
     return t < px <= t * (1 + TRIG_NEAR_PCT)
 
 
+# 💎🌀 momentum re-fire (user 2026-08-16: "elite conviction max or
+# high — if it notifies and the movement is soon, it refires again as
+# soon as we see the momentum, even a little bit, no matter the
+# time"): an armed 💎 card that moves MOM_PCT in its direction from
+# the fire price re-notifies immediately — the wake-up call between
+# the fire buzz and the trigger break. One per armed setup.
+TRIG_MOM_PCT = 0.015           # +1.5% from the fire = momentum
+
+
+def _trigger_momentum(a: dict, px: float) -> bool:
+    if px <= 0 or not a.get("entry"):
+        return False
+    if a["side"] == "LONG":
+        return px >= a["entry"] * (1 + TRIG_MOM_PCT)
+    return px <= a["entry"] * (1 - TRIG_MOM_PCT)
+
+
+def _fmt_momentum(a: dict, px: float) -> str:
+    _t2 = (f" · TP2 `{a['tp2']:g}`" if a.get("tp2") else "")
+    _mv = abs(px / a["entry"] - 1) * 100
+    return (f"💎🌀 *ELITE CONV MOMENTUM* — {a['base']} {a['side']} "
+            f"waking up\n"
+            f"live `{px:g}` — {_mv:+.1f}% from the fire · score "
+            f"{float(a.get('score') or 0):.0f} · trigger "
+            f"`{a['trigger']:g}` still ahead\n"
+            f"plan: entry `{a['entry']:g}` · SL `{a['stop']:g}` · "
+            f"TP1 `{a['tp1']:g}`{_t2}\n"
+            f"_the notified card is MOVING — momentum showing before "
+            f"the trigger. 🔶 pressing and 💥 break follow if it "
+            f"keeps going._")
+
+
 def _fmt_near(a: dict, px: float) -> str:
     _t2 = (f" · TP2 `{a['tp2']:g}`" if a.get("tp2") else "")
     _d = abs(px / a["trigger"] - 1) * 100
@@ -265,6 +297,22 @@ def _trigger_watch() -> None:
                 except Exception:
                     continue
                 if not _trigger_pass(a, px):
+                    # 💎🌀 the notified elite card is MOVING (user
+                    # 2026-08-16: refire on momentum, even a little,
+                    # no matter the time) — one wake-up per setup.
+                    if (str(a.get("src", "")).startswith("💎")
+                            and not a.get("mom_sent")
+                            and _trigger_momentum(a, px)):
+                        with _TRIG_LOCK:
+                            a["mom_sent"] = True
+                        try:
+                            if store.should_alert(
+                                    f"trigmom:{a['symbol']}:"
+                                    f"{a['side']}", 2 * 3600):
+                                tg.send(_fmt_momentum(a, px))
+                        except Exception as exc:
+                            print("[trigger] mom-buzz error:", exc,
+                                  flush=True)
                     # 🔶 pressing the trigger? one warning, a little
                     # before — then silence until the break itself.
                     if not a.get("near_sent") and _trigger_near(a, px):
@@ -1931,9 +1979,10 @@ def cycle() -> None:
                     "armed_at": _old.get("armed_at", _now_arm),
                     # arming is SILENT (user 2026-08-15 middle-ground
                     # call) — the 🔶 near-trigger warning in the 60s
-                    # watch is the one early buzz; preserve its
-                    # one-shot flag across cycle re-arms.
-                    "near_sent": _old.get("near_sent", False)}
+                    # watch is the one early buzz; preserve the
+                    # one-shot flags across cycle re-arms.
+                    "near_sent": _old.get("near_sent", False),
+                    "mom_sent": _old.get("mom_sent", False)}
                 _armed_n += 1
                 if not _old:
                     _new_arms.append(_kk2)
