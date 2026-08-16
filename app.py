@@ -3289,6 +3289,7 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "preburst": "🌋 PRE-BURST",
                    "kr_approved": "🔮 KRONOS APPROVED",
                    "ignition_strong": "⚡🚨 STRONG IGNITION",
+                   "kr_strong": "⚡🔮 KR-STRONG (proving)",
                    "prime": "🥇 PRIME (winners board)",
                    "conviction": "💯 CONVICTION (88.6% cell)",
                    "moonshot": "🚀 MOONSHOT (big-move desk)",

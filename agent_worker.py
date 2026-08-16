@@ -1258,6 +1258,7 @@ def cycle() -> None:
     # record of the backtest's agree bucket (86%/+0.34R, n=36) at its
     # natural breadth. Desk-only: no buzz, no votes.
     _kr_appr = []
+    _kr_strong = []      # ⚡🔮 silent proving tier (fills under _kr_ok)
     if _kr_ok:
         _ka_seen: set = set()
         _ka_extra = [0]          # on-demand forecast budget this cycle
@@ -1340,6 +1341,27 @@ def cycle() -> None:
             store.record_signal("elite_conv", _pe)
         _push(list(_ec_buzz), "eliteconv", _fmt_elite_conv,
               min_conf=0)
+        # ⚡🔮 KR-STRONG proving tier (user 2026-08-15: "testing
+        # strong elite convictions with kronos") — SILENT: no buzz,
+        # no board card yet. Cache-only reads, zero extra forecast
+        # budget. The shadow desk tier builds the live record in
+        # parallel with the backtest_krstrong verdict; a board and
+        # telegram voice ship ONLY if both come back green, as a
+        # SEPARATE stream. Nothing existing is touched.
+        for _sp in (r.get("strong") or []):
+            _sv = _kr_get(_sp.get("symbol"), _sp.get("side"))
+            if not _sv:
+                continue
+            if ((_sv.get("direction") == "UP"
+                 and _sp.get("side") == "LONG")
+                    or (_sv.get("direction") == "DOWN"
+                        and _sp.get("side") == "SHORT")):
+                _sp2 = dict(_sp)
+                _sp2["kr_dir"] = _sv.get("direction")
+                _sp2["kr_exp"] = _sv.get("exp_move_pct")
+                _kr_strong.append(_sp2)
+        for _sp2 in _kr_strong:
+            store.record_signal("kr_strong", _sp2)
         # 🔮✅ buzz (user 2026-08-05: "kronos with apex / take now /
         # fresh mover / early elite approved should be on telegram") —
         # the live face of the validated agree bucket (86%/+0.34R,
@@ -1600,6 +1622,7 @@ def cycle() -> None:
                   ("true_signal", _ts_rows),
                   ("preburst", _pb),
                   ("kr_approved", _kr_appr),
+                  ("kr_strong", _kr_strong),
                   ("prime", _prime),
                   ("conviction", _conv),
                   ("moonshot", _moon_fires),
