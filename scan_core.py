@@ -477,21 +477,14 @@ def scan_all(scan_n: int = 60, min_conv: float = 70.0) -> dict:
         })
     strong_watch.sort(key=lambda x: x["score"], reverse=True)
     strong_watch = strong_watch[:12]
-    # 🎯 TP1 x1.25 on the STRONG stream (user 2026-08-15: "strong
-    # triggers should have wider TP... they can make big moves").
-    # Activates the SHELVED validated option from backtest_tp (573
-    # entries): wider TP1 on premium tiers earned ~30% more per trade
-    # at a 2-3pt win-rate cost — held back then under the old
-    # win-rate-first rule, now ordered on. Feeds ⚡🚨 STRONG IGNITION
-    # and the 💥 trigger-watch ⚡ arms; both are record-proving
-    # streams, so the desk measures the widened construct honestly.
-    for _sw in strong_watch:
-        try:
-            _e0, _t0 = float(_sw["entry"]), float(_sw["tp1"])
-            if _e0 > 0 and _t0 > 0 and _t0 != _e0:
-                _sw["tp1"] = _e0 + (_t0 - _e0) * 1.25
-        except Exception:
-            pass
+    # 🎯 TP1 x1.25 on the STRONG stream — SHIPPED 2026-08-15 on user
+    # order, REVERTED the same night by the ride-exit study's direct
+    # measurement ON THIS EXACT POPULATION (backtest_ride_exit, 3,159
+    # at-fire entries): STRONG+burst>=85 plan TP1 +0.217R/54% vs
+    # x1.25 +0.152R — worse in BOTH halves (older 0.205 vs 0.218,
+    # recent 0.107 vs 0.216). The old backtest_tp x1.25 validation
+    # was on CONFIRM-entry premium tiers and does not transfer to
+    # at-fire STRONG. Plan TP1 stands as the measured optimum here.
 
     # ── 🎯 SST1 v2 — RE-GROUND conviction on VALIDATED edge count. The old
     # conviction was compressed (93% in 70-79) and did NOT sort winners
