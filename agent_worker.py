@@ -345,12 +345,18 @@ def _trigger_watch() -> None:
                     if store.should_alert(
                             f"trig:{a['symbol']}:{a['side']}",
                             6 * 3600):
-                        tg.send(_fmt_trigger(a, px, vk))
+                        # 💥 TELEGRAM SEND REMOVED 2026-08-16 (user:
+                        # the 💎 fire → 💎🌀 momentum → 🔶 near ladder
+                        # supersedes it; verified safe — the desk
+                        # proving tiers below are independent of the
+                        # buzz, and every remaining message carries
+                        # the trigger level for exchange alerts).
+                        # Break detection + archive continue.
                         store.record_signal("trigger_fire", a)
                         print(f"[trigger] 💥 {a['base']} {a['side']} "
-                              f"@ {px:g}", flush=True)
+                              f"@ {px:g} (silent)", flush=True)
                 except Exception as exc:
-                    print("[trigger] buzz error:", exc, flush=True)
+                    print("[trigger] record error:", exc, flush=True)
                 # 🧪 desk proof (user 2026-08-16: "strong early
                 # trigger is something i am not really convinced —
                 # test on decision desk separately, and with kronos
