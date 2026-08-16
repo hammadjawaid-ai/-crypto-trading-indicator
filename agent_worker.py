@@ -301,6 +301,42 @@ def _trigger_watch() -> None:
                               f"@ {px:g}", flush=True)
                 except Exception as exc:
                     print("[trigger] buzz error:", exc, flush=True)
+                # 🧪 desk proof (user 2026-08-16: "strong early
+                # trigger is something i am not really convinced —
+                # test on decision desk separately, and with kronos
+                # both"): every ⚡ STRONG trigger fire is shadow-taken
+                # at the BREAK price under tier trig_strong; the
+                # subset where the cached kronos read agrees at fire
+                # time doubles into trig_strong_kr. Records only —
+                # no money, no extra buzz; the two ledgers decide.
+                if str(a.get("src", "")).startswith("⚡"):
+                    try:
+                        _sig_t = {"symbol": a["symbol"],
+                                  "base": a["base"],
+                                  "side": a["side"], "tier": "STRONG",
+                                  "score": a.get("score"),
+                                  "entry": px, "stop": a["stop"],
+                                  "tp1": a["tp1"],
+                                  "tp2": a.get("tp2")}
+                        store.record_signal("trig_strong", _sig_t)
+                        shadow_trader.open_from_signal(
+                            "trig_strong", _sig_t, px)
+                        _h2 = _KR_CACHE.get(a["symbol"])
+                        _s2 = (_h2["s"] if _h2 and
+                               time.time() - _h2["t"] <= KR_TTL
+                               else None)
+                        if _s2 and (
+                                (_s2.get("direction") == "UP"
+                                 and a["side"] == "LONG")
+                                or (_s2.get("direction") == "DOWN"
+                                    and a["side"] == "SHORT")):
+                            store.record_signal("trig_strong_kr",
+                                                _sig_t)
+                            shadow_trader.open_from_signal(
+                                "trig_strong_kr", _sig_t, px)
+                    except Exception as exc:
+                        print("[trigger] desk-proof error:", exc,
+                              flush=True)
         except Exception as exc:
             print("[trigger] loop error:", exc, flush=True)
 
