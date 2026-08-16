@@ -214,6 +214,21 @@ def _fmt_trigger(a: dict, px: float, vk: float) -> str:
             f"lets an honest signal be._")
 
 
+def _fmt_armed(a: dict) -> str:
+    """🔒 arm-time heads-up (user 2026-08-15: armed and notified at
+    the same time). Informational — the action buzz stays the 💥."""
+    _t2 = (f" · TP2 `{a['tp2']:g}`" if a.get("tp2") else "")
+    return (f"🔒 *{a['src']} ARMED* — {a['base']} {a['side']}\n"
+            f"trigger `{a['trigger']:g}` · score "
+            f"{float(a.get('score') or 0):.0f}\n"
+            f"plan: entry `{a['entry']:g}` · SL `{a['stop']:g}` · "
+            f"TP1 `{a['tp1']:g}`{_t2}\n"
+            f"_loaded, NOT fired — set your alert at the trigger; "
+            f"the 💥 buzz lands the minute it breaks (60s watch). "
+            f"Entering before the break measured negative in every "
+            f"study — the break IS the entry._")
+
+
 def _trigger_watch() -> None:
     """60s daemon: watch armed setups, buzz the second one breaks."""
     while True:
@@ -1725,6 +1740,7 @@ def cycle() -> None:
                 _arm_pool.append(("⚡ STRONG", _p))
         _now_arm = time.time()
         _armed_n = 0
+        _new_arms = []
         with _TRIG_LOCK:
             for _lbl, _p in _arm_pool[:16]:
                 _sd2 = (_p.get("side") or "").upper()
@@ -1755,8 +1771,23 @@ def cycle() -> None:
                     "src": _lbl,
                     "armed_at": _old.get("armed_at", _now_arm)}
                 _armed_n += 1
+                if not _old:
+                    _new_arms.append(_TRIG_ARMED[_kk2])
+        # 🔒 arm-time heads-up (user 2026-08-15: "armed and notified
+        # at the same time") — NEW arms only, 6h cooldown per coin;
+        # the 💥 stays the action signal.
+        for _na in _new_arms:
+            try:
+                if store.should_alert(
+                        f"trigarm:{_na['symbol']}:{_na['side']}",
+                        6 * 3600):
+                    ok, _ = tg.send(_fmt_armed(_na))
+                    n_alerts += 1 if ok else 0
+            except Exception as _ta_exc:
+                print("  arm-buzz error:", _ta_exc, flush=True)
         if _armed_n:
-            print(f"  💥 trigger watch armed: {_armed_n}", flush=True)
+            print(f"  💥 trigger watch armed: {_armed_n} "
+                  f"(+{len(_new_arms)} new)", flush=True)
     except Exception as _tw_exc:
         print("  trigger-arm error:", _tw_exc, flush=True)
     global _TRIG_STARTED
