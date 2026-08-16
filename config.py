@@ -82,6 +82,34 @@ WORKER_SCAN_N = int(_secret("WORKER_SCAN_N") or "100")
 # WLD + ONDO flagged on user orders (ONDO is his hold — watch 24/7).
 # 2026-08-07 user's 18-coin watch list — all validated live on the
 # feed (.watch18_check.py) before deploy.
+# 🎯 SENTRY per-coin grades (2026-08-15 deep-dive: ~4 months of
+# history per coin, measured with the DEPLOYED entry rule — TAKE_NOW
+# + weak-entry block; .watch18_check over the twopath rows). The
+# grade travels on every sentry ENTRY buzz and board card so the
+# measured accuracy is in hand at decision time (user order).
+# Re-run the study whenever the entry rule changes.
+SENTRY_GRADES = {
+    "BTCUSDT": ("🟢", "76% win · +0.27R"),
+    "ZECUSDT": ("🟢", "77% win · +0.12R"),
+    "CTSIUSDT": ("🟢", "78% win · +0.11R"),
+    "TAOUSDT": ("🟢", "69% win · +0.11R"),
+    "ETHUSDT": ("🟢", "78% win · +0.08R"),
+    "RIFUSDT": ("🟢", "77% win · +0.06R"),
+    "SENTUSDT": ("🟢", "71% win · +0.05R"),
+    "WLDUSDT": ("🟢", "76% win · +0.04R"),
+    "INJUSDT": ("🟢", "72% win · +0.02R"),
+    "SUIUSDT": ("🟢", "70% win · +0.02R"),
+    "SOLUSDT": ("🟡", "65% win · -0.01R"),
+    "WLFIUSDT": ("🟡", "69% win · +0.02R"),
+    "REUSDT": ("🔴", "72% win · -0.02R"),
+    "VIRTUALUSDT": ("🔴", "70% win · -0.04R"),
+    "ONDOUSDT": ("🔴", "66% win · -0.05R"),
+    "AVAXUSDT": ("🔴", "67% win · -0.06R"),
+    "SYNUSDT": ("🔴", "64% win · -0.07R"),
+    "LINKUSDT": ("🔴", "58% win · -0.12R"),
+    "GIGGLEUSDT": ("🔴", "46% win · -0.28R"),
+    "DODOUSDT": ("⚪", "no qualifying fires in 4mo"),
+}
 # WLFI + LINK added 2026-08-15 on user order — 20-coin sentry watch.
 WORKER_FLIP_WATCH = _secret("WORKER_FLIP_WATCH") or (
     "ONDOUSDT,WLDUSDT,INJUSDT,ZECUSDT,SUIUSDT,SYNUSDT,CTSIUSDT,"

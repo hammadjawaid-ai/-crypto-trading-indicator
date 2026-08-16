@@ -1177,11 +1177,24 @@ def cycle() -> None:
                     and store.should_alert(
                         f"sentry:{_ss}:{_sd_s}:tn", 4 * 3600)):
                 _hot_s = " · ⚡HOT" if _et.get("hot") else ""
+                # 📇 coin grade (user 2026-08-15: the deep-dive table
+                # travels with every alert) — this exact signal's
+                # measured 4-month record ON THIS COIN.
+                _gr = getattr(config, "SENTRY_GRADES", {}).get(_ss)
+                _grl = ""
+                if _gr:
+                    _hint = (" — history says SIZE DOWN or skip"
+                             if _gr[0] == "🔴"
+                             else " — unmeasured, treat as new"
+                             if _gr[0] == "⚪" else "")
+                    _grl = (f"\n{_gr[0]} this coin's record on this "
+                            f"signal: {_gr[1]}{_hint}")
                 ok, _ = tg.send(
                     f"🎯🔥 *ENTRY — {_b_s} {_sd_s}* · confidence "
                     f"{_sc_s:.0f}/100{_hot_s}\n"
                     f"entry `{_epx:g}` · SL `{_stp:g}` · TP1 "
-                    f"`{_t1s:g}` (bank) · TP2 `{_t2s:g}`\n{_krl}\n"
+                    f"`{_t1s:g}` (bank) · TP2 `{_t2s:g}`\n{_krl}"
+                    f"{_grl}\n"
                     f"_pullback + confirmation candle just completed "
                     f"— the validated entry moment on your coin. Bank "
                     f"at TP1; runner to TP2 only if ⚡HOT._")

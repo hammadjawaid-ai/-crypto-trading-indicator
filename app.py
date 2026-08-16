@@ -1631,8 +1631,18 @@ def _sentry_board(pb_state=None):
     """🎯 SENTRY — the 18-coin watch, now a desk-proving tier (user
     2026-08-11: "add an openable board for what we're testing on the
     decision desk so I understand it better")."""
+    def _sn_extra(r, x):
+        # 📇 the 2026-08-15 deep-dive grade rides on every card (user
+        # order): this coin's own 4-month record on this exact signal.
+        _g = getattr(config, "SENTRY_GRADES", {}).get(
+            r.get("symbol") or "")
+        _line = " · ⚡HOT" if x.get("hot") else ""
+        if _g:
+            _line += f" · {_g[0]} {_g[1]}"
+        return _line
+
     _stream_board(
-        "sentry", "🎯 SENTRY — YOUR 18-COIN WATCH",
+        "sentry", "🎯 SENTRY — YOUR 20-COIN WATCH",
         "**The coins you flagged, watched every 5 minutes, 24/7.** A "
         "card appears only when that coin completes the *validated* "
         "entry sequence — pullback **plus** a confirmation candle — "
@@ -1640,15 +1650,19 @@ def _sentry_board(pb_state=None):
         "Every fire is also shadow-taken as desk tier 🎯 SENTRY — "
         "**no clock cut: it exits on the ladder (breakeven at +1R → "
         "TP1 lock → trail) or the stop, never on a timer** — so this "
-        "board and its live record grow together. ⚡HOT marks elevated volatility, where confirmed "
-        "entries historically run further.",
-        "🎯 SENTRY", "18 coins · entry-only · proving on the desk",
+        "board and its live record grow together. ⚡HOT marks elevated "
+        "volatility, where confirmed entries historically run "
+        "further. Each card carries its coin's **deep-dive grade** "
+        "(🟢 solid · 🟡 mixed · 🔴 weak — size down · ⚪ no read): "
+        "the measured 4-month record of this exact signal on that "
+        "exact coin.",
+        "🎯 SENTRY", "20 coins · entry-only · graded · proving",
         ("#40c4ff", "#2ed47a", "#062033"), pb_state,
         key_prefix="sn", tp2=True,
         bank_note="bank at TP1 · runner only if ⚡HOT",
-        extra_line=lambda r, x: (" · ⚡HOT" if x.get("hot") else ""),
+        extra_line=_sn_extra,
         empty_note="· No sentry entry right now — it speaks only at "
-                   "the confirmed moment on your 18 coins, which is "
+                   "the confirmed moment on your 20 coins, which is "
                    "rare by design. Telegram carries the same buzz.")
 
 
