@@ -109,12 +109,18 @@ SENTRY_GRADES = {
     "LINKUSDT": ("🔴", "58% win · -0.12R"),
     "GIGGLEUSDT": ("🔴", "46% win · -0.28R"),
     "DODOUSDT": ("⚪", "no qualifying fires in 4mo"),
+    # ETHFI added 2026-08-16 (user: it was supposed to be on the
+    # list; +7-8% move missed with no buzz) — graded from the same
+    # deep-dive rows as the rest.
+    "ETHFIUSDT": ("🟡", "65% win · +0.01R"),
 }
-# WLFI + LINK added 2026-08-15 on user order — 20-coin sentry watch.
+# WLFI + LINK added 2026-08-15; ETHFI added 2026-08-16 (user orders)
+# — 21-coin sentry watch.
 WORKER_FLIP_WATCH = _secret("WORKER_FLIP_WATCH") or (
     "ONDOUSDT,WLDUSDT,INJUSDT,ZECUSDT,SUIUSDT,SYNUSDT,CTSIUSDT,"
     "DODOUSDT,REUSDT,RIFUSDT,TAOUSDT,VIRTUALUSDT,SENTUSDT,"
-    "GIGGLEUSDT,SOLUSDT,ETHUSDT,BTCUSDT,AVAXUSDT,WLFIUSDT,LINKUSDT")
+    "GIGGLEUSDT,SOLUSDT,ETHUSDT,BTCUSDT,AVAXUSDT,WLFIUSDT,LINKUSDT,"
+    "ETHFIUSDT")
 WORKER_ALERT_COOLDOWN_MIN = int(_secret("WORKER_ALERT_COOLDOWN_MIN") or "360")
 WORKER_SST1_MIN_CONV = float(_secret("WORKER_SST1_MIN_CONV") or "70")
 WORKER_LEADERBOARD_MIN_SCORE = float(
