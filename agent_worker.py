@@ -202,6 +202,13 @@ TRIG_ARM_H = 24.0
 # backtest_secondleg validates the construct + pattern cells.
 _SECOND_LEG: dict = {}
 SECOND_LEG_DAYS = 7.0
+# 💎🔄 RE-QUALIFICATION (user 2026-08-19, after ALICE/BANK hit
+# TP1): when a coin we already traded goes quiet and then
+# qualifies MAX/HIGH AGAIN, that is a NEW setup and must be
+# notified — approved OR unapproved — so he knows when to get
+# back in. A gap of this many hours since the card last fired
+# is what separates a fresh setup from a card still running.
+RE_GAP_H = 6.0
 
 
 def _trigger_pass(a: dict, px: float) -> bool:
@@ -641,7 +648,18 @@ def _fmt_elite_conv(p) -> str:
     "approved or unapproved, high and max should be notified")."""
     _ap = ("🚀 approved" if p.get("appr")
            else "⚠️ unapproved BUT 🔮 KRONOS AGREES — the rescue rule"
-           if p.get("kr_rescue") else "approval unknown")
+           if p.get("kr_rescue")
+           else "⚠️ unapproved — size accordingly"
+           if p.get("requal") else "approval unknown")
+    if p.get("requal"):
+        return (f"💎🔄 *ELITE CONVICTION — RE-QUALIFIED* — {p['base']} "
+                f"{p['side']} ({p['tier']} {p['score']:.0f} · {_ap})\n"
+                f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
+                f"TP1 `{p['tp1']:g}`{_tp2(p)}{_kr_note(p)}\n"
+                f"_a coin you already traded is back: it went quiet, "
+                f"now it qualifies MAX/HIGH again — a NEW setup, new "
+                f"plan, new stop. Fires approved or unapproved by "
+                f"your order; the chip above says which._")
     return (f"💎 *ELITE CONVICTION* — {p['base']} {p['side']} "
             f"({p['tier']} {p['score']:.0f} · {_ap})\n"
             f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
@@ -1057,6 +1075,13 @@ def cycle() -> None:
     for _p in _ec_mh:
         _sd9 = (_p.get("side") or "").upper()
         if _sd9 in ("LONG", "SHORT"):
+            # 💎🔄 was this coin quiet for RE_GAP_H+ and is now back?
+            # That is a NEW setup on a coin already traded — it buzzes
+            # regardless of the approval chip (user order).
+            _prev9 = _SECOND_LEG.get(_p["symbol"]) or {}
+            if _prev9 and (_now - float(_prev9.get("winner_at") or 0)
+                           >= RE_GAP_H * 3600):
+                _p["requal"] = True
             _SECOND_LEG[_p["symbol"]] = {
                 "side": _sd9,
                 "base": _p.get("base")
@@ -1482,6 +1507,13 @@ def cycle() -> None:
         _ec_extra = [0]
         for _pe in _ec_mh:
             if _pe.get("appr"):
+                _ec_buzz.append(_pe)
+                continue
+            # 💎🔄 RE-QUALIFIED (user 2026-08-19): a coin that already
+            # ran, went quiet, and now qualifies MAX/HIGH again is a
+            # NEW setup — it buzzes approved OR unapproved so he knows
+            # when to get back in. The message says which it is.
+            if _pe.get("requal"):
                 _ec_buzz.append(_pe)
                 continue
             _kv3 = _kr_get(_pe["symbol"], _pe["side"])
