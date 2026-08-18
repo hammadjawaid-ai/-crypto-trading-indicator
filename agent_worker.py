@@ -190,6 +190,18 @@ _TRIG_LOCK = threading.Lock()
 _TRIG_STARTED = False
 TRIG_POLL_S = 60
 TRIG_ARM_H = 24.0
+# 🔥 SECOND-LEG memory (user 2026-08-17, the ACE case: elite winner
+# re-ignited days after its card expired and nothing was watching —
+# "we make sure we dont miss out anything here again"): every elite
+# MAX/HIGH fire is remembered for SECOND_LEG_DAYS after the card
+# dies. Remembered coins stay armed on the 60s watch at their
+# consolidation high (low for shorts) — the moment a second leg
+# breaks out, the 🔶/💥 ladder speaks even though the composite
+# reads NEUTRAL (its anti-chase suppression blinds it to second
+# legs by design). Desk tier second_leg builds the live record;
+# backtest_secondleg validates the construct + pattern cells.
+_SECOND_LEG: dict = {}
+SECOND_LEG_DAYS = 7.0
 
 
 def _trigger_pass(a: dict, px: float) -> bool:
@@ -372,6 +384,25 @@ def _trigger_watch() -> None:
                 # subset where the cached kronos read agrees at fire
                 # time doubles into trig_strong_kr. Records only —
                 # no money, no extra buzz; the two ledgers decide.
+                # 🔥 second-leg fires build their own desk record
+                # (validating construct — buzz already went out via
+                # the ladder; the ledger decides its future).
+                if str(a.get("src", "")).startswith("🔥"):
+                    try:
+                        _sig_sl = {"symbol": a["symbol"],
+                                   "base": a["base"],
+                                   "side": a["side"],
+                                   "tier": "2NDLEG",
+                                   "score": a.get("score"),
+                                   "entry": px, "stop": a["stop"],
+                                   "tp1": a["tp1"],
+                                   "tp2": a.get("tp2")}
+                        store.record_signal("second_leg", _sig_sl)
+                        shadow_trader.open_from_signal(
+                            "second_leg", _sig_sl, px)
+                    except Exception as exc:
+                        print("[trigger] 2ndleg-proof error:", exc,
+                              flush=True)
                 if str(a.get("src", "")).startswith("⚡"):
                     try:
                         _sig_t = {"symbol": a["symbol"],
@@ -1021,6 +1052,17 @@ def cycle() -> None:
     # NOTE: the buzz for these happens in the kronos section below
     # (the 2026-08-15 rescue rule needs the reads): approved → buzz;
     # unapproved → buzz only if kronos agrees; else silent.
+    # 🔥 remember every elite MAX/HIGH fire for the second-leg watch —
+    # the window extends while the card keeps firing.
+    for _p in _ec_mh:
+        _sd9 = (_p.get("side") or "").upper()
+        if _sd9 in ("LONG", "SHORT"):
+            _SECOND_LEG[_p["symbol"]] = {
+                "side": _sd9,
+                "base": _p.get("base")
+                or _p["symbol"].replace("USDT", ""),
+                "score": float(_p.get("score") or 0),
+                "winner_at": _now}
     _push(fresh_m, "fresh", _fmt_fresh, min_conf=0, tier="fresh")
     # 2026-08-15 user order: ✅🔥 TAKE NOW, 🚀 EARLY-LANE and ⚡ EARLY
     # MOVERS move to the ALWAYS list ("its green on decision desk
@@ -2010,9 +2052,63 @@ def cycle() -> None:
                 _armed_n += 1
                 if not _old:
                     _new_arms.append(_kk2)
-        if _armed_n:
+        # 🔥 SECOND-LEG arms (user 2026-08-17, the ACE case): recent
+        # elite winners whose cards expired stay armed at their
+        # consolidation high/low for SECOND_LEG_DAYS — the composite's
+        # anti-chase suppression can't blind the watch to a re-
+        # ignition anymore. ATR plan built at the level; live cards
+        # keep priority (skip if already armed).
+        _sl_cut = _now_arm - SECOND_LEG_DAYS * 86400
+        _sl_n = 0
+        with _TRIG_LOCK:
+            for _sy3 in list(_SECOND_LEG):
+                _sl = _SECOND_LEG[_sy3]
+                if _sl["winner_at"] < _sl_cut:
+                    _SECOND_LEG.pop(_sy3, None)
+                    continue
+                _k3 = (_sy3, _sl["side"])
+                if _k3 in _TRIG_ARMED or _sl_n >= 12:
+                    continue
+                try:
+                    _df3 = binance_client.get_klines(_sy3, "1h",
+                                                     limit=40)
+                    _h3 = _df3["high"].astype(float)
+                    _l3 = _df3["low"].astype(float)
+                    _c3 = _df3["close"].astype(float)
+                    _tr3 = (_h3 - _l3).tail(14)
+                    _atr3 = float(_tr3.mean())
+                    _hi3 = float(_h3.tail(24).max())
+                    _lo3 = float(_l3.tail(24).min())
+                except Exception:
+                    continue
+                if _atr3 <= 0:
+                    continue
+                if _sl["side"] == "LONG":
+                    _trg3 = _hi3
+                    _stp3 = _trg3 - 1.5 * _atr3
+                    _t13 = _trg3 + 1.5 * _atr3
+                    _t23 = _trg3 + 3.0 * _atr3
+                else:
+                    _trg3 = _lo3
+                    _stp3 = _trg3 + 1.5 * _atr3
+                    _t13 = _trg3 - 1.5 * _atr3
+                    _t23 = _trg3 - 3.0 * _atr3
+                _old3 = _TRIG_ARMED.get(_k3) or {}
+                _TRIG_ARMED[_k3] = {
+                    "symbol": _sy3, "base": _sl["base"],
+                    "side": _sl["side"], "trigger": _trg3,
+                    "entry": _trg3, "stop": _stp3,
+                    "tp1": _t13, "tp2": _t23,
+                    "score": _sl.get("score", 0),
+                    "src": "🔥 2ND LEG",
+                    "armed_at": _old3.get("armed_at", _now_arm),
+                    "near_sent": _old3.get("near_sent", False),
+                    "mom_sent": _old3.get("mom_sent", False)}
+                _sl_n += 1
+        if _armed_n or _sl_n:
             print(f"  💥 trigger watch armed: {_armed_n} "
-                  f"(+{len(_new_arms)} new, silent)", flush=True)
+                  f"(+{len(_new_arms)} new, silent) · 🔥 second-leg "
+                  f"arms: {_sl_n}", flush=True)
     except Exception as _tw_exc:
         print("  trigger-arm error:", _tw_exc, flush=True)
     global _TRIG_STARTED

@@ -3305,6 +3305,7 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "ignition_strong": "⚡🚨 STRONG IGNITION",
                    "kr_strong": "⚡🔮 KR-STRONG (proving)",
                    "trig_strong": "💥⚡ STRONG TRIGGER (proving)",
+                   "second_leg": "🔥 2ND LEG (proving)",
                    "trig_strong_kr": "💥⚡🔮 STRONG TRIG × KR (proving)",
                    "prime": "🥇 PRIME (winners board)",
                    "conviction": "💯 CONVICTION (88.6% cell)",
