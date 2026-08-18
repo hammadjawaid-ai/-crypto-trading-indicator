@@ -113,7 +113,23 @@ def get_top_symbols(n: int = config.TOP_N) -> pd.DataFrame:
     df = pd.DataFrame(rows)
     if df.empty:
         raise BinanceError("No USDT pairs returned by Binance ticker endpoint.")
-    df = df.sort_values("quoteVolume", ascending=False).head(n)
+    full = df.sort_values("quoteVolume", ascending=False)
+    df = full.head(n)
+    # 🏦 2026-08-17 (user: "move to 100 coins... but add b stock
+    # coins as well, so roughly 20 coins"): tokenized stocks/ETFs are
+    # APPENDED after the top-n regardless of their volume rank, so the
+    # worker's universe = top-100 crypto + every live B-stock (~119).
+    # Appended at the END on purpose: research harnesses that slice
+    # [:N] keep a pure volume-ranked universe, while scan_unified
+    # (which iterates every returned row) picks them up.
+    try:
+        _tok = getattr(config, "TOKENIZED_STOCKS", set())
+        extra = full[full["symbol"].isin(_tok)
+                     & ~full["symbol"].isin(df["symbol"])]
+        if len(extra):
+            df = pd.concat([df, extra])
+    except Exception:
+        pass
     return df.reset_index(drop=True)
 
 

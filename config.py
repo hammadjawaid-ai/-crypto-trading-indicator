@@ -72,13 +72,13 @@ TELEGRAM_CHAT_ID = _secret("TELEGRAM_CHAT_ID")
 
 # 24/7 worker cadence + alert bar (overridable via env on the host).
 WORKER_INTERVAL_MIN = int(_secret("WORKER_INTERVAL_MIN") or "5")
-# scan breadth (user 2026-08-06: 100; 2026-08-17: 150 — "increase
-# the coin numbers"). 200 was declined for now: +100% scan cost on
-# the 2GB box risks cycle overruns and the 502 again; revisit after
-# watching 150's cycle times. Dial back via env if cycles overrun.
-# Honest asterisk: validated edges were measured on the top-40/100 —
-# ranks 101-150 are extrapolation the desk records must prove.
-WORKER_SCAN_N = int(_secret("WORKER_SCAN_N") or "150")
+# scan breadth: 100 (user 2026-08-17, hours after trying 150: "move
+# to 100 coins that we had earlier i think it was better" — the data
+# agreed: every winner lived inside the top-100 and every tail
+# measurement ran thinner). B-stocks ride ALONGSIDE the 100 via the
+# get_top_symbols append (~119 total). Ranks 101-150 are being
+# validated OOS before any re-expansion decision.
+WORKER_SCAN_N = int(_secret("WORKER_SCAN_N") or "100")
 # 🔄 kronos flip watch — comma list of symbols the user is IN; the
 # worker re-reads these every cycle and buzzes on direction change
 # (the KAITO case: buzz led a 5-6% drop by minutes). Update via env
