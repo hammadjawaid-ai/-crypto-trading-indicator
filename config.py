@@ -119,15 +119,15 @@ SENTRY_GRADES = {
     "ETHFIUSDT": ("🟡", "65% win · +0.01R"),
 }
 # 🏦 B-stock gates (user 2026-08-17, two separate switches):
-# BSTOCK_BUZZ — telegram voice. Turned ON the same day on user order
-#   ("trigger the notification on for b stocks with the same method
-#   as elite conviction"): B-stock fires buzz through every stream
-#   they qualify for — the 💎 ladder, arms, triggers, all of it —
-#   exactly like crypto.
-# BSTOCK_VALIDATED — the MONEY gate. Still False: no demo seat until
-#   the cohort validation comes back green ("give them real size
-#   when validated"). Flip on green; the demo unlocks automatically.
-BSTOCK_BUZZ = True
+# BSTOCK_BUZZ — telegram voice. Briefly ON 2026-08-17, muted again
+#   the same day on user order ("mute the bstocks from telegram and
+#   paper trading until proven, like we have previously"). While
+#   False: in the universe, on the boards, desk records accruing —
+#   silent phone. Flip on validation.
+# BSTOCK_VALIDATED — the MONEY gate. False: no demo seat until the
+#   cohort validation comes back green ("give them real size when
+#   validated"). Flip on green; the demo unlocks automatically.
+BSTOCK_BUZZ = False
 BSTOCK_VALIDATED = False
 # WLFI + LINK added 2026-08-15; ETHFI added 2026-08-16 (user orders)
 # — 21-coin sentry watch.
