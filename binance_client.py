@@ -70,14 +70,15 @@ def _get(path: str, params: dict | None = None,
 def _is_tradeable(symbol: str, base: str) -> bool:
     """Filter out leveraged tokens and stablecoin-vs-stablecoin pairs.
 
-    2026-08-15 (user: "remove B stocks from the board as they lost
-    money"): tokenized stocks/ETFs are out of the universe at the
-    source — every scan, board, buzz and the demo inherit this."""
+    Tokenized stocks/ETFs: removed 2026-08-15 (lost money), RESTORED
+    2026-08-17 on user order ("rebring them — I want b-stock fires
+    and notifications"). config.TOKENIZED_STOCKS stays defined for
+    research stats; the universe no longer enforces it. Honest
+    asterisk stands: every validated edge was measured on crypto —
+    tokenized fires are extrapolation the desk records must prove."""
     if any(tok in symbol for tok in config.EXCLUDE_SUBSTRINGS):
         return False
     if base in config.EXCLUDE_BASES:
-        return False
-    if symbol in getattr(config, "TOKENIZED_STOCKS", ()):
         return False
     return True
 
