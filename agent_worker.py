@@ -292,11 +292,15 @@ def _fmt_near(a: dict, px: float) -> str:
 
 
 def _bstock_quiet(sym) -> bool:
-    """🏦 True while a tokenized symbol must stay off the phone
-    (user 2026-08-17: validate first, then fires come to the phone).
-    Desk records and arms continue regardless."""
-    return (sym in getattr(config, "TOKENIZED_STOCKS", ())
-            and not getattr(config, "BSTOCK_VALIDATED", False))
+    """🏦 True while a tokenized symbol must stay off the phone.
+    2026-08-17 later the same day: the user turned the buzz ON
+    (BSTOCK_BUZZ) — B-stocks now notify like crypto through every
+    stream. The MONEY gate (BSTOCK_VALIDATED, demo seats) stays
+    separate and closed until the cohort validates."""
+    if getattr(config, "BSTOCK_BUZZ", False) \
+            or getattr(config, "BSTOCK_VALIDATED", False):
+        return False
+    return sym in getattr(config, "TOKENIZED_STOCKS", ())
 
 
 def _trigger_watch() -> None:
@@ -791,14 +795,10 @@ def cycle() -> None:
             if (tier is not None and _greens_alert is not None
                     and tier not in _greens_alert):
                 continue          # tier's live record not green — silent
-            # 🏦 B-stock buzz gate (user 2026-08-17: validate first,
-            # THEN fires come to the phone) — boards + desk records
-            # keep accruing; the phone stays quiet until the cohort
-            # validation flips config.BSTOCK_VALIDATED.
-            if (p.get("symbol") in getattr(config, "TOKENIZED_STOCKS",
-                                           ())
-                    and not getattr(config, "BSTOCK_VALIDATED",
-                                    False)):
+            # 🏦 B-stock buzz gate — one shared rule (_bstock_quiet):
+            # buzzes ON since 2026-08-17 (BSTOCK_BUZZ); money stays
+            # gated separately in demo_account until validation.
+            if _bstock_quiet(p.get("symbol")):
                 continue
             # 🎯 confidence floor (user 2026-07-14): buzz only stacked
             # max-confidence setups; everything else stays board-only.
