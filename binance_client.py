@@ -114,22 +114,22 @@ def get_top_symbols(n: int = config.TOP_N) -> pd.DataFrame:
     if df.empty:
         raise BinanceError("No USDT pairs returned by Binance ticker endpoint.")
     full = df.sort_values("quoteVolume", ascending=False)
-    df = full.head(n)
-    # 🏦 2026-08-17 (user: "move to 100 coins... but add b stock
-    # coins as well, so roughly 20 coins"): tokenized stocks/ETFs are
-    # APPENDED after the top-n regardless of their volume rank, so the
-    # worker's universe = top-100 crypto + every live B-stock (~119).
-    # Appended at the END on purpose: research harnesses that slice
-    # [:N] keep a pure volume-ranked universe, while scan_unified
-    # (which iterates every returned row) picks them up.
+    # 🏦 2026-08-17 (user: "100 coins + 20 b stock coins makes it
+    # 120"): the top-n is pure CRYPTO — tokenized stocks/ETFs never
+    # take a crypto slot — and every live B-stock is APPENDED after
+    # it, so the worker's universe = top-100 crypto + the whole
+    # B-stock block. Appended at the END on purpose: research
+    # harnesses that slice [:N] keep a pure crypto universe, while
+    # scan_unified (which iterates every returned row) covers both.
     try:
         _tok = getattr(config, "TOKENIZED_STOCKS", set())
-        extra = full[full["symbol"].isin(_tok)
-                     & ~full["symbol"].isin(df["symbol"])]
+        crypto = full[~full["symbol"].isin(_tok)]
+        df = crypto.head(n)
+        extra = full[full["symbol"].isin(_tok)]
         if len(extra):
             df = pd.concat([df, extra])
     except Exception:
-        pass
+        df = full.head(n)
     return df.reset_index(drop=True)
 
 
