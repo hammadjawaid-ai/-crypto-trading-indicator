@@ -222,10 +222,22 @@ def _trigger_pass(a: dict, px: float) -> bool:
 def _fmt_trigger(a: dict, px: float, vk: float) -> str:
     _t2 = (f" · TP2 `{a['tp2']:g}`" if a.get("tp2") else "")
     _age = (time.time() - float(a.get("armed_at") or time.time())) / 3600
+    # 🔥 burst grade (validated 2026-08-18, backtest_secondleg, 346
+    # breaks): a break carrying burst>=85 ran 64.7%/+0.288R vs
+    # 55.4%/+0.107R without — nearly 3x the expectancy, and the most
+    # stable cell measured all week (older +0.296 / recent +0.280).
+    # Burst is also the only gate that transferred to STRONG at-fire,
+    # so it earns a headline verdict on every break message.
+    _bs = float(a.get("burst") or 0)
+    _grade = (f"\n🔥 BURST {_bs:.0f} — the A-grade break (validated "
+              f"64.7% · +0.288R)" if _bs >= 85
+              else f"\n· burst {_bs:.0f} — no hard burst behind this "
+                   f"break (baseline 55.4% · +0.107R)")
     return (f"💥 *{a['src']} TRIGGER* — {a['base']} {a['side']} "
             f"breaking `{a['trigger']:g}` NOW\n"
             f"live `{px:g}` · 15m vol {vk:.1f}x · score "
-            f"{float(a.get('score') or 0):.0f} · armed {_age:.1f}h ago\n"
+            f"{float(a.get('score') or 0):.0f} · armed {_age:.1f}h ago"
+            f"{_grade}\n"
             f"entry `{a['entry']:g}` · SL `{a['stop']:g}` · "
             f"TP1 `{a['tp1']:g}`{_t2}\n"
             f"_the ignition moment, caught on the 60s watch — the "
@@ -374,6 +386,19 @@ def _trigger_watch() -> None:
                     vk = float(v15[-1] / max(1e-9, v15[-21:-1].mean()))
                 except Exception:
                     pass
+                # 🔥 burst AT the break — the A-grade tell (2026-08-18
+                # validation: >=85 nearly triples expectancy). Same
+                # rare path as the volume fetch, so it costs nothing
+                # in the hot loop.
+                try:
+                    _dfb = binance_client.get_klines(a["symbol"], "1h",
+                                                     limit=120)
+                    _bsv, _bsd, _ = _vb_w.lane_velocity_burst(_dfb)
+                    a["burst"] = (float(_bsv)
+                                  if (_bsd or "").upper() == a["side"]
+                                  else 0.0)
+                except Exception:
+                    a["burst"] = 0.0
                 with _TRIG_LOCK:
                     _TRIG_ARMED.pop(k, None)
                 try:
