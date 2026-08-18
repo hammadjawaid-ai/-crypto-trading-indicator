@@ -279,6 +279,14 @@ def _fmt_near(a: dict, px: float) -> str:
             f"the minute it breaks. One warning per setup._")
 
 
+def _bstock_quiet(sym) -> bool:
+    """🏦 True while a tokenized symbol must stay off the phone
+    (user 2026-08-17: validate first, then fires come to the phone).
+    Desk records and arms continue regardless."""
+    return (sym in getattr(config, "TOKENIZED_STOCKS", ())
+            and not getattr(config, "BSTOCK_VALIDATED", False))
+
+
 def _trigger_watch() -> None:
     """60s daemon: watch armed setups, buzz the second one breaks."""
     while True:
@@ -310,7 +318,9 @@ def _trigger_watch() -> None:
                         try:
                             if store.should_alert(
                                     f"trigmom:{a['symbol']}:"
-                                    f"{a['side']}", 2 * 3600):
+                                    f"{a['side']}", 2 * 3600) \
+                                    and not _bstock_quiet(
+                                        a["symbol"]):
                                 tg.send(_fmt_momentum(a, px))
                         except Exception as exc:
                             print("[trigger] mom-buzz error:", exc,
@@ -323,7 +333,9 @@ def _trigger_watch() -> None:
                         try:
                             if store.should_alert(
                                     f"trignear:{a['symbol']}:"
-                                    f"{a['side']}", 6 * 3600):
+                                    f"{a['side']}", 6 * 3600) \
+                                    and not _bstock_quiet(
+                                        a["symbol"]):
                                 tg.send(_fmt_near(a, px))
                         except Exception as exc:
                             print("[trigger] near-buzz error:", exc,
@@ -345,7 +357,8 @@ def _trigger_watch() -> None:
                     if store.should_alert(
                             f"trig:{a['symbol']}:{a['side']}",
                             6 * 3600):
-                        tg.send(_fmt_trigger(a, px, vk))
+                        if not _bstock_quiet(a["symbol"]):
+                            tg.send(_fmt_trigger(a, px, vk))
                         store.record_signal("trigger_fire", a)
                         print(f"[trigger] 💥 {a['base']} {a['side']} "
                               f"@ {px:g}", flush=True)
@@ -747,6 +760,15 @@ def cycle() -> None:
             if (tier is not None and _greens_alert is not None
                     and tier not in _greens_alert):
                 continue          # tier's live record not green — silent
+            # 🏦 B-stock buzz gate (user 2026-08-17: validate first,
+            # THEN fires come to the phone) — boards + desk records
+            # keep accruing; the phone stays quiet until the cohort
+            # validation flips config.BSTOCK_VALIDATED.
+            if (p.get("symbol") in getattr(config, "TOKENIZED_STOCKS",
+                                           ())
+                    and not getattr(config, "BSTOCK_VALIDATED",
+                                    False)):
+                continue
             # 🎯 confidence floor (user 2026-07-14): buzz only stacked
             # max-confidence setups; everything else stays board-only.
             # min_conf overrides the floor per stream (user 2026-07-18:

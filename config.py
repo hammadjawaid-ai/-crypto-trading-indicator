@@ -118,6 +118,16 @@ SENTRY_GRADES = {
     # deep-dive rows as the rest.
     "ETHFIUSDT": ("🟡", "65% win · +0.01R"),
 }
+# 🏦 B-stock validation gate (user 2026-08-17: "validate the edges,
+# THEN fires come to the phone; give them real size when validated").
+# While False: tokenized symbols stay in the universe and on the
+# boards, their desk records accrue, but they get NO telegram buzzes
+# and NO demo money. Flip to True ONLY when their cohort validation
+# (backtest + desk records) comes back green — everything unlocks
+# automatically, no other change needed. GIGGLE is exempt from the
+# buzz mute via the sentry (the user's named watchlist speaks
+# regardless — it's graded 🔴 on every message anyway).
+BSTOCK_VALIDATED = False
 # WLFI + LINK added 2026-08-15; ETHFI added 2026-08-16 (user orders)
 # — 21-coin sentry watch.
 WORKER_FLIP_WATCH = _secret("WORKER_FLIP_WATCH") or (

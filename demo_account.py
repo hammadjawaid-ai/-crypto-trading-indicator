@@ -168,6 +168,12 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
             side = (p.get("side") or "").upper()
             if not sym or side not in ("LONG", "SHORT"):
                 continue
+            # 🏦 B-stock money gate (user 2026-08-17: "give them real
+            # size when validated") — tokenized symbols get NO demo
+            # money until their cohort validation flips the flag.
+            if sym in getattr(config, "TOKENIZED_STOCKS", ()) \
+                    and not getattr(config, "BSTOCK_VALIDATED", False):
+                continue
             try:
                 e = float(p.get("entry") or 0)
                 st = float(p.get("stop") or 0)
