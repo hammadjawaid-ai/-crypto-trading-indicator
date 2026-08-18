@@ -114,23 +114,20 @@ def get_top_symbols(n: int = config.TOP_N) -> pd.DataFrame:
     if df.empty:
         raise BinanceError("No USDT pairs returned by Binance ticker endpoint.")
     full = df.sort_values("quoteVolume", ascending=False)
-    # 🏦 2026-08-17 (user: "100 coins + 20 b stock coins makes it
-    # 120"): the top-n is pure CRYPTO — tokenized stocks/ETFs never
-    # take a crypto slot — and every live B-stock is APPENDED after
-    # it, so the worker's universe = top-100 crypto + the whole
-    # B-stock block. Appended at the END on purpose: research
-    # harnesses that slice [:N] keep a pure crypto universe, while
-    # scan_unified (which iterates every returned row) covers both.
+    # 🏦 CRYPTO-ONLY UNIVERSE (user 2026-08-17, final word: "focus
+    # should be only on crypto — its memory and brain should only
+    # focus on crypto"). Tokenized stocks/ETFs are dropped at the
+    # source: no scan cost, no kronos budget, no board slot, no
+    # buzz, no demo seat, nothing in the brain's memory. This is
+    # stronger than the earlier mute — they don't exist upstream.
+    # Re-admit by removing this filter (config.TOKENIZED_STOCKS is
+    # the list) only if their edge is ever validated.
     try:
         _tok = getattr(config, "TOKENIZED_STOCKS", set())
-        crypto = full[~full["symbol"].isin(_tok)]
-        df = crypto.head(n)
-        extra = full[full["symbol"].isin(_tok)]
-        if len(extra):
-            df = pd.concat([df, extra])
+        full = full[~full["symbol"].isin(_tok)]
     except Exception:
-        df = full.head(n)
-    return df.reset_index(drop=True)
+        pass
+    return full.head(n).reset_index(drop=True)
 
 
 # ⚡ 2026-08-15 PAGE-SPEED FIX (user: "keep everything as it is but
