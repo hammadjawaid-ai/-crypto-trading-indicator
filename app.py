@@ -7162,8 +7162,10 @@ if active_section == "🎮 Demo $1,500":
         "re-qualified elite) on TOP priority with at least 4 of the "
         "6 seats · 💎 ELITE CONVICTION capped at 2 seats MAX, and "
         "only its cream (🚀 approved + MAX grade / 90+ score — no "
-        "bleh trades). Nothing else spends a cent. 6 slots · one "
-        "position per coin · WILD sizing: each slot margins "
+        "bleh trades). Nothing else spends a cent. 6 slots — up to "
+        "8 on a good day, the overflow seats reserved for HOT "
+        "top-stream fires (🔥 burst ≥85 or 2+ systems agreeing) · "
+        "one position per coin · WILD sizing: each slot margins "
         "balance÷6 and levers 5x (elite) / 7x (trigger "
         "and re-run) / 10x (🔥 burst ≥85, the validated A-grade) — "
         "swings of $50-200 per trade, losses included. Taker fees "
@@ -7182,7 +7184,8 @@ if active_section == "🎮 Demo $1,500":
     _t3c.metric("🏆 Win rate",
                 f"{_wr:.0f}%" if _closedp else "—",
                 f"{_wins}/{len(_closedp)} closed")
-    _t4c.metric("📂 Slots", f"{len(_openp)}/6")
+    _t4c.metric("📂 Slots", f"{len(_openp)}/6",
+                "+2 hot-day seats" if len(_openp) > 6 else None)
     # 10-day target meter ($1,500 -> $2,500)
     _prog = max(0.0, min(1.0, (_eq - 1500) / 1000))
     st.markdown(

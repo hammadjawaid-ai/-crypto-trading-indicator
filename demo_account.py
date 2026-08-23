@@ -1,7 +1,8 @@
 """🎮 DEMO ZONE — GEN 6: the $1,500 WILD run (user 2026-08-23).
 
 A simulated REAL account run by the 24/7 worker. GEN 6 rules, all on
-the user's explicit order: $1,500 start, 6 slots, one per coin, Bybit
+the user's explicit order: $1,500 start, 6 slots (up to 8 on a good
+day — overflow only for hot top-stream fires), one per coin, Bybit
 taker fees both sides, 48h time-stop. The pool is EXACTLY three
 streams — 💥⚡ STRONG TRIGGER breaks and 🔄 RE-RUNs (second-leg breaks
 + re-qualified elite) own at least 4 of the 6 seats; 💎 elite
@@ -62,6 +63,14 @@ START_BAL = 1500.0
 # quota — the MIN_RANK floor still gates every slot. Elite's 2-seat
 # cap below guarantees the top streams always keep >= 4 seats.
 MAX_SLOTS = 6
+# 🔥 GOOD-DAY OVERFLOW (user 2026-08-23: "on a good day the slots
+# can take up to 8 slots instead of 6"): seats 7-8 open ONLY for
+# top-stream fires (strong trigger / re-run) that are genuinely hot
+# — A-grade burst >=85 or 2+ systems agreeing. Elite never overflows
+# (its 2-seat cap stands). Sizing stays balance/6 per slot; at 8
+# full slots the account runs ~8-13x effective — cross-margin
+# physics on Bybit handles that fine at these leverages.
+MAX_SLOTS_HOT = 8
 # GEN 6 WILD SIZING (user 2026-08-23: "more leverage 5x to 10x...
 # 50-200 dollars per trade... notions as per 1500 in the bank
 # accordingly"): per-slot margin = balance / MAX_SLOTS, leverage
@@ -266,8 +275,14 @@ def try_open(state: dict, cands: list, live_fn) -> list:
     for p in state["open"]:
         src_n[p.get("src")] = src_n.get(p.get("src"), 0) + 1
     for c in cands:
-        if len(state["open"]) >= MAX_SLOTS:
+        if len(state["open"]) >= MAX_SLOTS_HOT:
             break
+        if len(state["open"]) >= MAX_SLOTS and not (
+                c.get("top")
+                and (float(c.get("burst") or 0) >= 85
+                     or int(c.get("agree") or 1) >= 2)):
+            continue            # 🔥 overflow seats 7-8: hot
+                                # top-stream fires only
         if c.get("rank", 0) < MIN_RANK:
             continue            # two-key sort (top, rank) — a low
                                 # top-stream rank must not gate the
