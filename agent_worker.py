@@ -1987,12 +1987,16 @@ def cycle() -> None:
         # 2026-08-23: "max or approved and calculated trades that
         # have the best outcomes not some that are bleh") — 🚀
         # approved (65.5% vs 48.5%, the proven gate) AND top grade:
-        # MAX tier or a 90+ score. Approved HIGH in the 80s keeps
-        # its buzz and its board; it just doesn't spend demo money.
+        # MAX tier, a 90+ score, or (user follow-up the same day)
+        # 2+ lanes agreeing with a score of 85+. Approved HIGH in
+        # the low 80s with no lane agreement keeps its buzz and its
+        # board; it just doesn't spend demo money.
         _dz_elite = [dict(p, lane_approved=True) for p in _ec_mh
                      if p.get("appr")
                      and ((p.get("tier") or "").upper() == "MAX"
-                          or float(p.get("score") or 0) >= 90)]
+                          or float(p.get("score") or 0) >= 90
+                          or (int(p.get("lanes") or 0) >= 2
+                              and float(p.get("score") or 0) >= 85))]
         # 💎🔄 RE-QUALIFIED cards are re-runs by definition (user
         # 2026-08-19: a coin already traded that qualifies again is a
         # NEW setup, approved or unapproved) — they take the TOP seat.

@@ -434,6 +434,9 @@ def scan_all(scan_n: int = 60, min_conv: float = 70.0) -> dict:
             "side": side,
             "tier": tier,
             "score": float(p.get("score") or 0),
+            # descriptive only — the GEN 6 demo's 2-lane elite seat
+            # rule reads this; board behavior is unchanged
+            "lanes": len(p.get("active_lanes") or []),
             "entry": float(pl.get("entry") or 0),
             "stop": float(pl.get("stop") or 0),
             "tp1": float(pl.get("tp1") or 0),
