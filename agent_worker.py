@@ -1849,6 +1849,46 @@ def cycle() -> None:
                        key=lambda p: -float(p.get("score") or 0))[:8]
         for p in _topc:
             store.record_signal("top_conviction", p)
+        # 💎🏆 ELITE × TOP CONVICTION AGREE (user 2026-08-23,
+        # screenshot order — the GALA case): an elite conviction card
+        # that ALSO earns a seat on the confirmed size-up board is the
+        # double stamp — buzz it with the full confirmed plan and
+        # every chip. Notification only; both boards unchanged.
+        _ec_by_key = {(p.get("symbol"), (p.get("side") or "").upper()):
+                      p for p in _ec_mh}
+        for _tc in _topc:
+            _ep9 = _ec_by_key.get(
+                (_tc.get("symbol"), (_tc.get("side") or "").upper()))
+            if not _ep9 or _bstock_quiet(_tc["symbol"]):
+                continue
+            try:
+                if not store.should_alert(
+                        f"elitetop:{_tc['symbol']}:{_tc['side']}",
+                        6 * 3600):
+                    continue
+                _ap9 = ("🚀 approved" if _ep9.get("appr")
+                        else "approval unknown"
+                        if _ep9.get("appr") is None
+                        else "unapproved — size accordingly")
+                _t29 = (f" · TP2 `{float(_tc['tp2']):g}`"
+                        if _tc.get("tp2") else "")
+                ok, _ = tg.send(
+                    f"💎🏆 *ELITE × TOP CONVICTION AGREE* — "
+                    f"{_tc['base']} {_tc['side']}\n"
+                    f"💎 elite {_ep9.get('tier')} "
+                    f"{float(_ep9.get('score') or 0):.0f} ({_ap9}) · "
+                    f"🏆 top conviction "
+                    f"{float(_tc.get('score') or 0):.0f} · "
+                    f"{int(_tc.get('lanes') or 0)} lanes · "
+                    f"confirmed entry\n"
+                    f"entry `{float(_tc['entry']):g}` · SL "
+                    f"`{float(_tc['stop']):g}` · TP1 "
+                    f"`{float(_tc['tp1']):g}`{_t29}\n"
+                    f"_the double stamp — the elite board fired it "
+                    f"AND the confirmed size-up board seated it_")
+                n_alerts += 1 if ok else 0
+            except Exception as _exc9:
+                print("  elitetop buzz error:", _exc9, flush=True)
         # 🩸 LIQ FLUSH RETIRED (2026-07-28, its own pre-registered rule:
         # still negative past ~50 closed — final record -22.6R/110).
         # Signals stay recorded above for the archive; the desk stops
