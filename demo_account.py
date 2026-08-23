@@ -1,13 +1,14 @@
 """🎮 DEMO ZONE — GEN 6: the $1,500 WILD run (user 2026-08-23).
 
 A simulated REAL account run by the 24/7 worker. GEN 6 rules, all on
-the user's explicit order: $1,500 start, 5 slots, one per coin, Bybit
+the user's explicit order: $1,500 start, 6 slots, one per coin, Bybit
 taker fees both sides, 48h time-stop. The pool is EXACTLY three
 streams — 💥⚡ STRONG TRIGGER breaks and 🔄 RE-RUNs (second-leg breaks
-+ re-qualified elite) on top priority, 💎 elite conviction MAX/HIGH
-(approved) secondary. Sizing is wild by design: each slot margins
-balance/5 and levers 5x-10x by signal grade, so swings are $50-200
-per trade, losses included. TP1 half-bank + BE, trail to TP2, and
++ re-qualified elite) own at least 4 of the 6 seats; 💎 elite
+conviction holds AT MOST 2, and only its cream (approved + MAX
+grade). Sizing is wild by design: each slot margins balance/6 and
+levers 5x-10x by signal grade, so swings are ~$50-200 per trade,
+losses included. TP1 half-bank + BE, trail to TP2, and
 the strength-aware smart exit only steps in when a move is fading.
 
 The 10-day question voiced: does $1,500 honestly reach $2,500? Every
@@ -55,10 +56,12 @@ STATE_FILE = os.environ.get("DEMO_STATE") or \
 # the smart exit only steps in when the move is fading.
 GEN = 6
 START_BAL = 1500.0
-# 3 -> 5 (user 2026-08-09): a CEILING, not a quota — the MIN_RANK
-# floor still gates every slot, so 4-5 only fill on genuinely
-# qualified (often confluence) days.
-MAX_SLOTS = 5
+# 5 -> 6 (user 2026-08-23 follow-up: "we run 6 slots instead of 5
+# out of which elite conviction will have 2 out of 6 at max... 4 of
+# the slots gets the strong trigger and re runs"). A CEILING, not a
+# quota — the MIN_RANK floor still gates every slot. Elite's 2-seat
+# cap below guarantees the top streams always keep >= 4 seats.
+MAX_SLOTS = 6
 # GEN 6 WILD SIZING (user 2026-08-23: "more leverage 5x to 10x...
 # 50-200 dollars per trade... notions as per 1500 in the bank
 # accordingly"): per-slot margin = balance / MAX_SLOTS, leverage
@@ -70,10 +73,13 @@ LEV_MAX = 10.0                 # A-grade: burst >= 85 at the break
 FEE = 0.00055                  # Bybit taker, per side
 TIME_STOP_H = 48
 # GEN 5 (user order 6): 🌊 TREND RIDER is OUT of the demo — its
-# per-source hold/slot/smart-exit carve-outs go with it. The dicts
-# stay so a future re-add is one line each.
+# per-source hold/slot/smart-exit carve-outs go with it.
 TIME_STOP_BY_SRC: dict = {}
-MAX_PER_SRC: dict = {}
+# GEN 6 (user 2026-08-23): 💎 elite conviction holds AT MOST 2 of the
+# 6 slots — and only its cream (the worker's pool gate: approved AND
+# MAX-grade). Counted by plan-winning source, so a coin that a top
+# stream also fired spends a TOP seat, not an elite one.
+MAX_PER_SRC: dict = {"elite_conv": 2}
 SMART_EXIT_SKIP: set = set()
 # 🧠 STRENGTH-AWARE SMART EXIT + TRAIL (user 2026-08-15: "smart exit
 # should have a trailing method... loosen a bit if the signal

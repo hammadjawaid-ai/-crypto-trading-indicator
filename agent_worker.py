@@ -1982,11 +1982,17 @@ def cycle() -> None:
                 _dz_form[_dt] = store.shadow_recent_net(_sh)["net_r"]
             except Exception:
                 _dz_form[_dt] = 0.0
-        # 💎 ELITE CONVICTION (SECONDARY seat) = the APPROVED subset
-        # of the _ec_mh list computed once in the buzz section above
-        # (approved win 65.5% vs 48.5% — unapproved gets no money).
+        # 💎 ELITE CONVICTION (SECONDARY, max 2 of 6 seats — capped
+        # in demo_account.MAX_PER_SRC): only the CREAM spends (user
+        # 2026-08-23: "max or approved and calculated trades that
+        # have the best outcomes not some that are bleh") — 🚀
+        # approved (65.5% vs 48.5%, the proven gate) AND top grade:
+        # MAX tier or a 90+ score. Approved HIGH in the 80s keeps
+        # its buzz and its board; it just doesn't spend demo money.
         _dz_elite = [dict(p, lane_approved=True) for p in _ec_mh
-                     if p.get("appr")]
+                     if p.get("appr")
+                     and ((p.get("tier") or "").upper() == "MAX"
+                          or float(p.get("score") or 0) >= 90)]
         # 💎🔄 RE-QUALIFIED cards are re-runs by definition (user
         # 2026-08-19: a coin already traded that qualifies again is a
         # NEW setup, approved or unapproved) — they take the TOP seat.
@@ -2005,7 +2011,10 @@ def cycle() -> None:
                       + _dz_requal),
             "elite_conv": (_dz_elite
                            + [f for f in _dz_fires
-                              if f["src"] == "elite_conv"])}
+                              if f["src"] == "elite_conv"
+                              and (float(f.get("score") or 0) >= 90
+                                   or float(f.get("burst") or 0)
+                                   >= 85)])}
         def _dz_kr(sym, side):
             """Cached kronos read; force-fetch for the demo's few open
             positions so the smart exit always has a fresh view."""
