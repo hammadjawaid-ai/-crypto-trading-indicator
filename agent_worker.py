@@ -211,6 +211,16 @@ SECOND_LEG_DAYS = 7.0
 # _TRIG_LOCK (written from the watch thread, read from the cycle).
 _DEMO_FIRES: list = []
 DEMO_FIRE_TTL_S = 1800
+# 💎✅ ELITE CONFIRMED ENTRY watch (user 2026-08-23: "make this one
+# then... built separately, no touching the elite conviction cards,
+# and it have the buzz of its own"). The VALIDATED entry style on
+# elite fires — pullback to the card's entry + a confirming candle
+# with volume — measured 67.8% win / +0.025R after fees, green in
+# BOTH history halves (backtest_elite_entry, 387 fires, 100 coins).
+# Every MAX/HIGH fire is watched for 48h; the stream speaks only at
+# the confirmed moment. Cycle-thread only — no lock needed.
+_EC_WATCH: dict = {}
+EC_WATCH_H = 48.0
 # 💎🔄 RE-QUALIFICATION (user 2026-08-19, after ALICE/BANK hit
 # TP1): when a coin we already traded goes quiet and then
 # qualifies MAX/HIGH AGAIN, that is a NEW setup and must be
@@ -1139,6 +1149,108 @@ def cycle() -> None:
                 or _p["symbol"].replace("USDT", ""),
                 "score": float(_p.get("score") or 0),
                 "winner_at": _now}
+    # 💎✅ ELITE CONFIRMED ENTRY — separate stream, own buzz/board/
+    # desk tier. Watches every MAX/HIGH fire for the validated
+    # pullback+confirmation entry; elite cards/buzzes untouched.
+    try:
+        for _p9 in _ec_mh:
+            _sd0 = (_p9.get("side") or "").upper()
+            _e0 = float(_p9.get("entry") or 0)
+            _s0 = float(_p9.get("stop") or 0)
+            _t0 = float(_p9.get("tp1") or 0)
+            if _sd0 not in ("LONG", "SHORT") \
+                    or min(_e0, _s0, _t0) <= 0 or _e0 == _s0:
+                continue
+            _kw = (_p9["symbol"], _sd0)
+            if _kw not in _EC_WATCH:
+                _EC_WATCH[_kw] = {
+                    "symbol": _p9["symbol"],
+                    "base": _p9.get("base")
+                    or _p9["symbol"].replace("USDT", ""),
+                    "side": _sd0, "tier": _p9.get("tier"),
+                    "score": float(_p9.get("score") or 0),
+                    "appr": _p9.get("appr"), "entry": _e0,
+                    "stop": _s0, "tp1": _t0,
+                    "tp2": _p9.get("tp2"), "fired_at": _now,
+                    "pulled": False}
+        for _kw in list(_EC_WATCH):
+            _w9 = _EC_WATCH[_kw]
+            if _now - _w9["fired_at"] > EC_WATCH_H * 3600:
+                _EC_WATCH.pop(_kw, None)
+                continue
+            try:
+                _dfc = binance_client.get_klines(_w9["symbol"],
+                                                 "1h", limit=60)
+            except Exception:
+                continue
+            if _dfc is None or len(_dfc) < 25:
+                continue
+            _lng9 = _w9["side"] == "LONG"
+            # judge on CLOSED candles only — the forming bar lies
+            _cc = _dfc.iloc[:-1]
+            if len(_cc) < 22:
+                continue
+            _lo9 = float(_cc["low"].iloc[-1])
+            _hi9 = float(_cc["high"].iloc[-1])
+            _cl9 = float(_cc["close"].iloc[-1])
+            _op9 = float(_cc["open"].iloc[-1])
+            _pv9 = float(_cc["close"].iloc[-2])
+            if (_lng9 and _lo9 <= _w9["stop"]) or \
+                    ((not _lng9) and _hi9 >= _w9["stop"]):
+                _EC_WATCH.pop(_kw, None)   # stop taken pre-confirm
+                continue
+            if (_lng9 and _lo9 <= _w9["entry"]) or \
+                    ((not _lng9) and _hi9 >= _w9["entry"]):
+                _w9["pulled"] = True
+            if not _w9["pulled"]:
+                continue
+            _em9 = float(_cc["close"].ewm(span=20, adjust=False)
+                         .mean().iloc[-1])
+            try:
+                _vm9 = float(_cc["volume"].rolling(20)
+                             .mean().iloc[-1])
+            except Exception:
+                _vm9 = 0.0
+            _vv9 = float(_cc["volume"].iloc[-1])
+            _ok9 = (((_cl9 > _op9 and _cl9 > _pv9 and _cl9 > _em9)
+                     if _lng9 else
+                     (_cl9 < _op9 and _cl9 < _pv9 and _cl9 < _em9))
+                    and _vm9 > 0 and _vv9 > 1.2 * _vm9)
+            if not _ok9:
+                continue
+            _okp9 = (_w9["stop"] < _cl9 < _w9["tp1"]) if _lng9 \
+                else (_w9["stop"] > _cl9 > _w9["tp1"])
+            _EC_WATCH.pop(_kw, None)
+            if not _okp9:
+                continue                   # confirm landed off-plan
+            _sig9 = {"symbol": _w9["symbol"], "base": _w9["base"],
+                     "side": _w9["side"], "tier": _w9.get("tier"),
+                     "score": _w9.get("score"), "entry": _cl9,
+                     "stop": _w9["stop"], "tp1": _w9["tp1"],
+                     "tp2": _w9.get("tp2")}
+            store.record_signal("elite_confirm", _sig9)
+            shadow_trader.open_from_signal("elite_confirm", _sig9,
+                                           _cl9)
+            if store.should_alert(
+                    f"ecconf:{_w9['symbol']}:{_w9['side']}",
+                    6 * 3600) and not _bstock_quiet(_w9["symbol"]):
+                _ap0 = ("🚀 approved" if _w9.get("appr")
+                        else "approval unknown"
+                        if _w9.get("appr") is None else "unapproved")
+                _t20 = (f" · TP2 `{float(_w9['tp2']):g}`"
+                        if _w9.get("tp2") else "")
+                ok, _ = tg.send(
+                    f"💎✅ *ELITE CONFIRMED ENTRY* — {_w9['base']} "
+                    f"{_w9['side']} (elite {_w9.get('tier')} "
+                    f"{float(_w9.get('score') or 0):.0f} · {_ap0})\n"
+                    f"pulled back to the plan and CONFIRMED — the "
+                    f"validated entry style (67.8% · +0.025R after "
+                    f"fees, green both halves; live ledger decides)\n"
+                    f"enter `{_cl9:g}` · SL `{_w9['stop']:g}` · "
+                    f"TP1 `{_w9['tp1']:g}`{_t20}")
+                n_alerts += 1 if ok else 0
+    except Exception as _exc0:
+        print("  elite-confirm error:", _exc0, flush=True)
     _push(fresh_m, "fresh", _fmt_fresh, min_conf=0, tier="fresh")
     # 2026-08-15 user order: ✅🔥 TAKE NOW, 🚀 EARLY-LANE and ⚡ EARLY
     # MOVERS move to the ALWAYS list ("its green on decision desk

@@ -1666,6 +1666,30 @@ def _sentry_board(pb_state=None):
                    "rare by design. Telegram carries the same buzz.")
 
 
+def _elite_confirm_board(pb_state=None):
+    """💎✅ ELITE CONFIRMED ENTRY — user 2026-08-23: the validated
+    entry style on elite fires, built as its OWN stream (elite
+    conviction cards untouched). Buzz + desk tier elite_confirm."""
+    _stream_board(
+        "elite_confirm", "💎✅ ELITE CONFIRMED ENTRY",
+        "**Every 💎 elite MAX/HIGH fire, entered the measured way.** "
+        "The worker watches each fire for up to 48h; a card lands "
+        "HERE only when price pulls back to the plan and prints a "
+        "confirming candle with volume — the one entry style that "
+        "measured green in BOTH history halves on the exact elite "
+        "population (67.8% win · +0.025R after fees · 387 fires / "
+        "100 coins). Chasing the fire candle measured negative in "
+        "every cell; this board is the anti-chase. Every card is "
+        "shadow-taken as desk tier 💎✅ — the live ledger, not the "
+        "backtest, decides its future.",
+        "💎✅ CONFIRMED", "validated entry · proving live",
+        ("#b388ff", "#2ed47a", "#140a24"), pb_state,
+        key_prefix="ecf", tp2=True, bank_note="BANK AT TP1",
+        empty_note="· No confirmed entry right now — roughly 6 in 10 "
+                   "elite fires give one, and only after the "
+                   "pullback. Telegram buzzes the moment it prints.")
+
+
 def _kr_approved_board(pb_state=None):
     """🔮✅ KRONOS APPROVED — best live win rate on the desk (59%,
     +10.7R over 51 closed). User 2026-08-11: own openable board."""
@@ -3249,6 +3273,11 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
     # desk to be proven).
     _kr_approved_board(pb_state)
 
+    # 💎✅ ELITE CONFIRMED ENTRY (user 2026-08-23: separate stream,
+    # own buzz/board/tier; elite conviction cards untouched) — the
+    # validated entry style on elite fires, proving on its own ledger.
+    _elite_confirm_board(pb_state)
+
     _sentry_board(pb_state)
 
     # 💯 CONVICTION — the high-win-rate board (user 2026-08-06);
@@ -3306,6 +3335,7 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "kr_strong": "⚡🔮 KR-STRONG (proving)",
                    "trig_strong": "💥⚡ STRONG TRIGGER (proving)",
                    "second_leg": "🔥 2ND LEG (proving)",
+                   "elite_confirm": "💎✅ ELITE CONFIRMED (proving)",
                    "trig_strong_kr": "💥⚡🔮 STRONG TRIG × KR (proving)",
                    "prime": "🥇 PRIME (winners board)",
                    "conviction": "💯 CONVICTION (88.6% cell)",
