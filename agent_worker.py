@@ -1119,15 +1119,70 @@ def cycle() -> None:
     for _ec in (r.get("elite") or []):
         if (_ec.get("tier") or "").upper() not in ("MAX", "HIGH"):
             continue
+        _ec_b9 = 0.0
         try:
             _ec_df = binance_client.get_klines(_ec["symbol"], "1h",
                                                limit=120)
             _ec_ok = _vb_w.lane_approved(_ec_df, _ec.get("side"))
+            # the BURST edge — same read that lights the yellow ⚡
+            # edge chip on the openable cards (>=78, card's own side)
+            _b9, _bd9, _ = _vb_w.lane_velocity_burst(_ec_df)
+            if (_bd9 or "").upper() == \
+                    (_ec.get("side") or "").upper():
+                _ec_b9 = float(_b9)
         except Exception:
             _ec_ok = None
         _ec2 = dict(_ec)
         _ec2["appr"] = _ec_ok
+        _ec2["burst_live"] = _ec_b9
         _ec_mh.append(_ec2)
+    # 💎🔥 ELITE + BURST EDGE buzz (user 2026-08-23: "the yellow burst
+    # chip on the elite conviction openable trades — apply
+    # notification for it on my telegram asap"): the moment an elite
+    # MAX/HIGH card carries the live BURST edge (>=78 same side — the
+    # exact read behind the yellow ⚡ chip), it buzzes with the full
+    # plan. Honest grade per the 2026-08-23 studies: >=85 AT the fire
+    # candle measured -0.218R (thrust already spent) — those messages
+    # point to the 💎✅ confirmed entry instead of the chase.
+    # Notification only; boards unchanged. 6h per-coin cooldown.
+    for _p8 in _ec_mh:
+        _b8 = float(_p8.get("burst_live") or 0)
+        if _b8 < 78:
+            continue
+        try:
+            if _bstock_quiet(_p8["symbol"]):
+                continue
+            if not store.should_alert(
+                    f"eliteburst:{_p8['symbol']}:{_p8.get('side')}",
+                    6 * 3600):
+                continue
+            _e8 = float(_p8.get("entry") or 0)
+            _s8 = float(_p8.get("stop") or 0)
+            _t8 = float(_p8.get("tp1") or 0)
+            if min(_e8, _s8, _t8) <= 0:
+                continue
+            _ap8 = ("🚀 approved" if _p8.get("appr")
+                    else "approval unknown"
+                    if _p8.get("appr") is None else "unapproved")
+            _tag8 = ("⚠️ burst maxed AT the fire — chasing this "
+                     "candle measured −0.218R; the validated way in "
+                     "is the 💎✅ CONFIRMED ENTRY buzz when it prints"
+                     if _b8 >= 85 else
+                     "🔥 BURST edge live — stacked-edge cards ran "
+                     "74-78% in the edge study")
+            _t28 = (f" · TP2 `{float(_p8['tp2']):g}`"
+                    if _p8.get("tp2") else "")
+            ok, _ = tg.send(
+                f"💎🔥 *ELITE + BURST EDGE* — "
+                f"{_p8.get('base') or _p8['symbol'].replace('USDT', '')} "
+                f"{_p8.get('side')} (elite {_p8.get('tier')} "
+                f"{float(_p8.get('score') or 0):.0f} · {_ap8} · "
+                f"🔥 burst {_b8:.0f})\n{_tag8}\n"
+                f"entry `{_e8:g}` · SL `{_s8:g}` · "
+                f"TP1 `{_t8:g}`{_t28}")
+            n_alerts += 1 if ok else 0
+        except Exception as _exc8:
+            print("  eliteburst buzz error:", _exc8, flush=True)
     # NOTE: the buzz for these happens in the kronos section below
     # (the 2026-08-15 rescue rule needs the reads): approved → buzz;
     # unapproved → buzz only if kronos agrees; else silent.
