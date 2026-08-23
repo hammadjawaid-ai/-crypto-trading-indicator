@@ -202,6 +202,15 @@ TRIG_ARM_H = 24.0
 # backtest_secondleg validates the construct + pattern cells.
 _SECOND_LEG: dict = {}
 SECOND_LEG_DAYS = 7.0
+# 🎮 GEN 6 demo feed (user 2026-08-23: demo money goes ONLY to strong
+# triggers, re-runs, and elite MAX/HIGH): the 60s watch appends every
+# BREAK here — ⚡ arm → strong_trigger, 🔥 arm → rerun, 💎 arm →
+# elite_conv entering on the validated break. The 5-min cycle drains
+# fresh fires (<=30 min old) into the demo pools; the zone gate and
+# one-per-coin rule in demo_account do the rest. Guarded by
+# _TRIG_LOCK (written from the watch thread, read from the cycle).
+_DEMO_FIRES: list = []
+DEMO_FIRE_TTL_S = 1800
 # 💎🔄 RE-QUALIFICATION (user 2026-08-19, after ALICE/BANK hit
 # TP1): when a coin we already traded goes quiet and then
 # qualifies MAX/HIGH AGAIN, that is a NEW setup and must be
@@ -401,6 +410,23 @@ def _trigger_watch() -> None:
                     a["burst"] = 0.0
                 with _TRIG_LOCK:
                     _TRIG_ARMED.pop(k, None)
+                # 🎮 GEN 6 demo feed — every break is demo-money
+                # candidate material: ⚡ → strong_trigger, 🔥 →
+                # rerun, 💎 → elite entering on the break.
+                _src0 = str(a.get("src", ""))
+                _dsrc = ("strong_trigger" if _src0.startswith("⚡")
+                         else "rerun" if _src0.startswith("🔥")
+                         else "elite_conv")
+                with _TRIG_LOCK:
+                    _DEMO_FIRES.append(
+                        {"symbol": a["symbol"], "base": a["base"],
+                         "side": a["side"], "entry": px,
+                         "stop": a["stop"], "tp1": a["tp1"],
+                         "tp2": a.get("tp2"),
+                         "score": float(a.get("score") or 80),
+                         "burst": float(a.get("burst") or 0),
+                         "src": _dsrc, "fired_at": _now})
+                    del _DEMO_FIRES[:-40]
                 try:
                     if store.should_alert(
                             f"trig:{a['symbol']}:{a['side']}",
@@ -1943,60 +1969,43 @@ def cycle() -> None:
     # move so the user watches it trade.
     try:
         _dz = demo_account.load()
-        # user's seven (2026-08-09): early elite, kronos approved,
-        # surge, ignition, fresh movers, top conviction, moonshot.
-        # PRIME dropped from the demo on his call (desk record flat).
-        # ignition dropped 2026-08-10 (user: "skip ignition")
+        # GEN 6 (user 2026-08-23: "we only go with Strong triggers
+        # and Re Run, and Elite conviction max... nothing else should
+        # be a part of demo trading except the ones i told"): exactly
+        # three streams. Form boosts come from each stream's own live
+        # desk ledger.
         _dz_form = {}
-        for _dt in ("elite_conv", "elite_early", "top_conviction",
-                    "kr_approved", "takenow_hot", "conviction",
-                    "best_board", "fresh"):
+        for _dt, _sh in (("strong_trigger", "trig_strong"),
+                         ("rerun", "second_leg"),
+                         ("elite_conv", "elite_conv")):
             try:
-                _dz_form[_dt] = store.shadow_recent_net(_dt)["net_r"]
+                _dz_form[_dt] = store.shadow_recent_net(_sh)["net_r"]
             except Exception:
                 _dz_form[_dt] = 0.0
-        # 🌊 trend_rider added 2026-08-11 (user: "let trend rider in
-        # the demo") — the desk's biggest earner; capped at 2 slots,
-        # 21d hold, exempt from the kronos smart exit.
-        # 2026-08-11: moonshot removed from the demo pool (user call —
-        # unproven desk record). It keeps firing its own board, buzzes
-        # and desk tier; it just doesn't spend the demo's money.
-        # 💎 ELITE CONVICTION money pool = the APPROVED subset of the
-        # _ec_mh list computed once in the buzz section above (every
-        # MAX/HIGH now buzzes; only 🚀 approved ones spend — approved
-        # win 65.5% vs 48.5%, the unapproved coin-flips get no money).
-        # No slot cap (user 2026-08-14). None (no data) = no money.
+        # 💎 ELITE CONVICTION (SECONDARY seat) = the APPROVED subset
+        # of the _ec_mh list computed once in the buzz section above
+        # (approved win 65.5% vs 48.5% — unapproved gets no money).
         _dz_elite = [dict(p, lane_approved=True) for p in _ec_mh
                      if p.get("appr")]
-        # GEN 5 pools (user order 6): exactly the named five — rider
-        # and surge are out of the money.
-        # 🔀 CONDITIONAL SEATS added same day (user: "💎 BEST ZONE /
-        # 💯 conviction / FRESH — standalone but if kronos agree or
-        # our different models agree then it should take those
-        # trades"): each candidate is stamped kr_agree from the
-        # CACHED kronos read (no extra forecast budget; no read =
-        # not agree); 💯 carries it by construction — its own gate IS
-        # kronos agreement. demo_account drops conditional-only
-        # candidates without a kr agreement or a second model.
-        def _dz_kr_agree(p):
-            _h = _KR_CACHE.get(p.get("symbol"))
-            if not _h or _now - _h["t"] > KR_TTL:
-                return False
-            _d = (_h["s"] or {}).get("direction")
-            return ((_d == "UP" and p.get("side") == "LONG")
-                    or (_d == "DOWN" and p.get("side") == "SHORT"))
-
-        _dz_pools = {"elite_conv": _dz_elite,
-                     "elite_early": elite_early,
-                     "top_conviction": _topc,
-                     "kr_approved": _kr_appr,
-                     "takenow_hot": tn_hot,
-                     "conviction": [dict(p, kr_agree=True)
-                                    for p in _conv],
-                     "best_board": [dict(p, kr_agree=_dz_kr_agree(p))
-                                    for p in best],
-                     "fresh": [dict(p, kr_agree=_dz_kr_agree(p))
-                               for p in fresh_m]}
+        # 💎🔄 RE-QUALIFIED cards are re-runs by definition (user
+        # 2026-08-19: a coin already traded that qualifies again is a
+        # NEW setup, approved or unapproved) — they take the TOP seat.
+        _dz_requal = [dict(p) for p in _ec_mh if p.get("requal")]
+        # 💥 fresh BREAKS from the 60s watch (<=30 min old — the zone
+        # gate in try_open rejects anything that already ran away).
+        with _TRIG_LOCK:
+            _DEMO_FIRES[:] = [f for f in _DEMO_FIRES
+                              if _now - f["fired_at"]
+                              <= DEMO_FIRE_TTL_S]
+            _dz_fires = list(_DEMO_FIRES)
+        _dz_pools = {
+            "strong_trigger": [f for f in _dz_fires
+                               if f["src"] == "strong_trigger"],
+            "rerun": ([f for f in _dz_fires if f["src"] == "rerun"]
+                      + _dz_requal),
+            "elite_conv": (_dz_elite
+                           + [f for f in _dz_fires
+                              if f["src"] == "elite_conv"])}
         def _dz_kr(sym, side):
             """Cached kronos read; force-fetch for the demo's few open
             positions so the smart exit always has a fresh view."""
@@ -2020,15 +2029,17 @@ def cycle() -> None:
         for _po in _dz_opened:
             _agr = int(_po.get("agree", 1))
             ok, _ = tg.send(
-                f"🎮 *DEMO $1200* — OPENED {_po['base']} "
+                f"🎮 *DEMO $1500 GEN6* — OPENED {_po['base']} "
                 f"{_po['side']} "
                 f"({'🤝 ' + str(_agr) + ' SYSTEMS AGREE · ' if _agr > 1 else ''}"
                 f"src `{_po.get('srcs', _po['src'])}` · score "
-                f"{_po['score']:.0f})\n"
+                f"{_po['score']:.0f}"
+                f"{' · 🔥 burst ' + format(_po['burst'], '.0f') if float(_po.get('burst') or 0) >= 85 else ''})\n"
                 f"entry `{_po['entry']:g}` · SL `{_po['stop']:g}` · "
                 f"TP1 `{_po['tp1']:g}` · notional "
-                f"${_po['notional']:,.0f} (~{_po.get('lev', '?')}x "
-                f"the account)\n"
+                f"${_po['notional']:,.0f} "
+                f"(${_po.get('margin', 0):,.0f} margin × "
+                f"{_po.get('lev', '?')}x)\n"
                 f"balance `${_dz['balance']:,.2f}`")
             n_alerts += 1 if ok else 0
         for _ev, _rec in _dz_events:
@@ -2036,8 +2047,8 @@ def cycle() -> None:
                 # 🧠🛡 strength-aware guard — position still open, the
                 # brain gave a STRONG signal room instead of banking
                 ok, _ = tg.send(
-                    f"🎮🧠 *DEMO $1200* — RIDING THROUGH THE FLIP "
-                    f"{_rec['base']} {_rec['side']}\n"
+                    f"🎮🧠 *DEMO $1500 GEN6* — RIDING THROUGH THE "
+                    f"FLIP {_rec['base']} {_rec['side']}\n"
                     f"{_rec['reason']}\nstop now "
                     f"`{_rec['stop']:g}` · balance "
                     f"`${_dz['balance']:,.2f}`")
@@ -2046,7 +2057,7 @@ def cycle() -> None:
             _tag = ("💰 TP1 half-banked" if _ev == "tp1"
                     else "CLOSED")
             ok, _ = tg.send(
-                f"🎮 *DEMO $1200* — {_tag} {_rec['base']} "
+                f"🎮 *DEMO $1500 GEN6* — {_tag} {_rec['base']} "
                 f"{_rec['side']} ({_rec['reason']}) → "
                 f"{'+' if _rec['pnl'] >= 0 else ''}"
                 f"${_rec['pnl']:,.2f}\n"

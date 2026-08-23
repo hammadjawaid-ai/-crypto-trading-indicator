@@ -1,16 +1,18 @@
-"""🎮 DEMO ZONE — the $1,200 one-week live-fire test (user 2026-08-09).
+"""🎮 DEMO ZONE — GEN 6: the $1,500 WILD run (user 2026-08-23).
 
-A simulated REAL account run by the 24/7 worker: starts at $1,200,
-2% risk per trade, MAX 3 slots, one position per coin, Bybit taker
-fees both sides, 48h time-stop — every constraint a real account has.
-Each cycle it auto-picks the HIGHEST-QUALITY signals on the desk
-(💯 > 🥇 > 🎯 > 🔮✅ > 🚀 > elite streams, boosted by each tier's live
-14d form and the signal's own score) and manages them like the desk:
-bank HALF at TP1, stop to breakeven, rest to TP2 or the time-stop.
+A simulated REAL account run by the 24/7 worker. GEN 6 rules, all on
+the user's explicit order: $1,500 start, 5 slots, one per coin, Bybit
+taker fees both sides, 48h time-stop. The pool is EXACTLY three
+streams — 💥⚡ STRONG TRIGGER breaks and 🔄 RE-RUNs (second-leg breaks
++ re-qualified elite) on top priority, 💎 elite conviction MAX/HIGH
+(approved) secondary. Sizing is wild by design: each slot margins
+balance/5 and levers 5x-10x by signal grade, so swings are $50-200
+per trade, losses included. TP1 half-bank + BE, trail to TP2, and
+the strength-aware smart exit only steps in when a move is fading.
 
-The week's question: where does $1,200 honestly land? Target voiced:
-$1,500-1,800. Every open/close buzzes Telegram; the page shows the
-equity curve and every position. Simulated only — no real orders.
+The 10-day question voiced: does $1,500 honestly reach $2,500? Every
+open/close buzzes Telegram; the page shows the equity curve and every
+position. Simulated only — no real orders.
 """
 from __future__ import annotations
 
@@ -42,16 +44,29 @@ STATE_FILE = os.environ.get("DEMO_STATE") or \
 # conviction (approved) · 🏆 top conviction · 🌟 early elite · 🔮✅
 # kronos approved · ✅🔥 take now hot. Surge and fresh lose their
 # money seats too (not on the user's list).
-GEN = 5
-START_BAL = 1200.0
-RISK_PCT = 2.0
+# GEN 6 = 2026-08-23 ("even in bull it lost me money... this time we
+# go wild"): $1,500 start, 5 slots, ONLY the desk's proven-hot
+# streams spend — 💥⚡ STRONG TRIGGER breaks + 🔄 RE-RUN (second-leg
+# breaks / re-qualified elite) on TOP priority, 💎 elite conviction
+# MAX/HIGH (approved) secondary. NOTHING else gets a seat. Sizing is
+# the wild part: each slot margins balance/5 and levers 5x-10x by
+# signal grade, so a normal 1R swing is ~$50-200 instead of $10-20.
+# TP/SL and the smart exit are UNCHANGED — ideally SL/TP resolves;
+# the smart exit only steps in when the move is fading.
+GEN = 6
+START_BAL = 1500.0
 # 3 -> 5 (user 2026-08-09): a CEILING, not a quota — the MIN_RANK
 # floor still gates every slot, so 4-5 only fill on genuinely
-# qualified (often confluence) days. Full load = 10% of account at
-# risk; the demo's own record decides what the real-money version
-# should use.
+# qualified (often confluence) days.
 MAX_SLOTS = 5
-LEV_CAP = 3.0                  # notional <= balance * 3
+# GEN 6 WILD SIZING (user 2026-08-23: "more leverage 5x to 10x...
+# 50-200 dollars per trade... notions as per 1500 in the bank
+# accordingly"): per-slot margin = balance / MAX_SLOTS, leverage
+# graded by the validated quality tells — never a flat max.
+LEV_BASE = 5.0                 # 💎 elite MAX/HIGH (secondary stream)
+LEV_MID = 7.0                  # 💥⚡ strong trigger / 🔄 re-run
+LEV_MAX = 10.0                 # A-grade: burst >= 85 at the break
+                               # (validated 64.7% · +0.288R)
 FEE = 0.00055                  # Bybit taker, per side
 TIME_STOP_H = 48
 # GEN 5 (user order 6): 🌊 TREND RIDER is OUT of the demo — its
@@ -66,7 +81,12 @@ SMART_EXIT_SKIP: set = set()
 # are good enough — use the brain"). The brain's strength read = the
 # signal's own quality at entry: top-class source (💎 elite_conv /
 # 🔮✅ kr_approved), multi-system agreement, or a big score.
-STRONG_SRC = {"elite_conv", "kr_approved"}
+# GEN 6: every money stream is a proven-hot construct, so all three
+# class as STRONG — the smart exit gives them room (scratch-stop /
+# tightened trail) instead of banking early. User 2026-08-23:
+# "ideally it should stop at sl and tp set... smart exit only if you
+# see the movement is fading and it wont push any further."
+STRONG_SRC = {"elite_conv", "kr_approved", "strong_trigger", "rerun"}
 STRONG_SCORE = 85.0            # score >= this counts as strong
 STRONG_AGREE = 2               # >= this many agreeing systems counts
 TRAIL_LOCK = 0.5               # after TP1: stop locks this share of
@@ -99,27 +119,18 @@ MIN_RANK = 100.0
 # take now hot" + elite conviction on top by standing order). 🌊
 # TREND RIDER removed ("it sucks" — 3-of-4 losers didn't fit);
 # surge and fresh lose their seats too (not on the named list).
-CLASS_W = {"elite_conv": 95,       # 💎 the ACE/2Z board, approved-only,
-                                   # wins all via the hard class sort
-           "elite_early": 95,      # +50.8R/215 lifetime
-           "top_conviction": 90,   # 55% win · +17.3R/56
-           "conviction": 88,       # 💯 fast30+82+kr-agree (conditional)
-           "kr_approved": 85,      # GREEN jury: 59% win · +10.7R/51
-           "best_board": 80,       # 💎 BEST ZONE (conditional)
-           "takenow_hot": 75,      # ✅🔥 named by the user for GEN 5;
-                                   # weak-entry block now guards its
-                                   # fires (73.3%/+0.054R validated)
-           "fresh": 65}            # 🌱 (conditional)
-# 🔀 CONDITIONAL SEATS (user 2026-08-15: "it should be standalone but
-# if kronos agree or our different models agree then it should take
-# those trade — its either this or that"): 💎 BEST ZONE, 💯
-# CONVICTION and 🌱 FRESH don't spend money on their own name. A
-# candidate whose ONLY sources are conditional streams trades only
-# when (a) 🔮 kronos agrees with it (kr_agree stamped by the worker
-# from the cached read; 💯 carries it by construction — its gate IS
-# kronos agreement), or (b) at least one OTHER model fired the same
-# coin+side (agree >= 2). Either/or, exactly as ordered.
-CONDITIONAL_SRC = {"best_board", "conviction", "fresh"}
+# GEN 6 pool (user 2026-08-23: "we only go with Strong triggers and
+# Re Run, and Elite conviction max... elite conviction max or high
+# can be secondary, top priority is strong triggers and reruns...
+# nothing else should be a part of demo trading"): exactly three
+# streams, weighted by their LIVE desk records —
+CLASS_W = {"strong_trigger": 100,  # 💥⚡ 79% win · +58.7R/241, the
+                                   # desk's best win rate at scale
+           "rerun": 100,           # 🔄 second-leg breaks + 💎🔄
+                                   # re-qualified (68% win · +0.36R)
+           "elite_conv": 85}       # 💎 MAX/HIGH approved — SECONDARY
+# GEN 6: no conditional seats — the pool is exactly the named three.
+CONDITIONAL_SRC: set = set()
 # 2026-08-11 user call: 🚀 MOONSHOT removed from the demo menu (desk
 # record 9 closed / −0.65R, and those closes pre-date the top-30
 # validation restrictions — it hasn't earned a money seat yet). 🥇
@@ -196,11 +207,14 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
                           "tp2": float(t2) if t2 else None,
                           "src": name, "score": sc, "w": w,
                           "srcs": {name}, "rank": base_rank,
+                          "burst": float(p.get("burst") or 0),
                           "kr_ok": bool(p.get("kr_agree"))}
             else:
                 cur["srcs"].add(name)
                 cur["rank"] = max(cur["rank"], base_rank)
                 cur["score"] = max(cur["score"], sc)
+                cur["burst"] = max(float(cur.get("burst") or 0),
+                                   float(p.get("burst") or 0))
                 cur["kr_ok"] = cur.get("kr_ok") \
                     or bool(p.get("kr_agree"))
                 if w > cur["w"]:        # higher-class plan wins
@@ -217,27 +231,20 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
     for c in out:
         c["agree"] = len(c["srcs"])
         bonus = 25 * (c["agree"] - 1)
-        # priority ladder (user 2026-08-09): EARLY ELITE + KRONOS
-        # APPROVED agreeing = TOP priority; KRONOS APPROVED + any
-        # other desk tier = HIGH priority; rest by score/confidence.
-        # 2026-08-14 deploy order: 💎 ELITE CONVICTION (already
-        # approved-badge-only at the pool gate) WINS ALL — "kronos
-        # approved or unapproved ... elite conviction wins all with no
-        # cap on 5 slots". Implemented as a hard class sort, not just
-        # points: any candidate carrying elite_conv sorts ABOVE every
-        # candidate that doesn't, no matter what confluence the rival
-        # stacked. Kronos agreement still orders elite-conv cards among
-        # THEMSELVES (the +80 pair bonus + confluence +25s), so
-        # 💎×🔮✅ stays the best of the best.
-        if "elite_conv" in c["srcs"]:
+        # GEN 6 priority ladder (user 2026-08-23: "top priority is
+        # strong triggers and reruns... elite conviction max or high
+        # can be secondary"): a hard class sort, not just points —
+        # any candidate carrying a top stream sorts ABOVE every
+        # elite-only candidate, no matter the rank it stacked. The
+        # A-grade burst (>=85, validated) orders top-stream cards
+        # among themselves.
+        _top6 = c["srcs"] & {"strong_trigger", "rerun"}
+        if _top6:
             bonus += 80
-        if "kr_approved" in c["srcs"] and (
-                "elite_early" in c["srcs"] or "elite_conv" in c["srcs"]):
-            bonus += 80
-        elif "kr_approved" in c["srcs"] and c["agree"] >= 2:
-            bonus += 50
+        if float(c.get("burst") or 0) >= 85:
+            bonus += 40
         c["rank"] += bonus
-        c["top"] = 1 if "elite_conv" in c["srcs"] else 0
+        c["top"] = 1 if _top6 else 0
         c["srcs"] = ",".join(sorted(c["srcs"]))
     out.sort(key=lambda x: (-x.get("top", 0), -x["rank"]))
     return out
@@ -256,7 +263,9 @@ def try_open(state: dict, cands: list, live_fn) -> list:
         if len(state["open"]) >= MAX_SLOTS:
             break
         if c.get("rank", 0) < MIN_RANK:
-            break               # ranked list — nothing below the bar
+            continue            # two-key sort (top, rank) — a low
+                                # top-stream rank must not gate the
+                                # elite cards sorted after it
         if c["symbol"] in held:
             continue
         _cap = MAX_PER_SRC.get(c["src"])
@@ -277,15 +286,26 @@ def try_open(state: dict, cands: list, live_fn) -> list:
         stop_pct = abs(live - c["stop"]) / live
         if stop_pct <= 0.001 or stop_pct > STOP_MAX_PCT:
             continue
-        risk_usd = state["balance"] * RISK_PCT / 100.0
-        notional = min(risk_usd / stop_pct,
-                       state["balance"] * LEV_CAP)
+        # GEN 6 WILD SIZING: slot margin = balance/5, leverage graded
+        # by signal quality — 10x needs the validated A-grade burst.
+        margin = state["balance"] / MAX_SLOTS
+        lev = LEV_BASE
+        if c.get("top") or c["src"] in ("strong_trigger", "rerun"):
+            lev = LEV_MID
+        if float(c.get("burst") or 0) >= 85:
+            lev = LEV_MAX
+        # real-account physics: the stop must sit well inside the
+        # slot's margin — a stop past ~liquidation is not a trade.
+        if stop_pct >= 0.8 / lev:
+            continue
+        notional = margin * lev
         fee_in = notional * FEE
         pos = {"symbol": c["symbol"], "base": c["base"],
                "side": c["side"], "entry": live, "stop": c["stop"],
                "tp1": c["tp1"], "tp2": c["tp2"],
                "qty": notional / live, "notional": notional,
-               "lev": round(notional / max(1.0, state["balance"]), 1),
+               "lev": round(lev, 1), "margin": round(margin, 2),
+               "burst": float(c.get("burst") or 0),
                "risk0": abs(live - c["stop"]),
                "src": c["src"], "score": c["score"],
                "agree": c.get("agree", 1),

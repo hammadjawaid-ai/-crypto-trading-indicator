@@ -6888,7 +6888,7 @@ if _qp_mode not in ("Futures", "Spot"):
 # The section code stays below but is unreachable.
 SECTIONS = [
     "🎯 True Signal",
-    "🎮 Demo $1,200",
+    "🎮 Demo $1,500",
     "💎 Best Trade Zone",
     "🔍 Market Scanner", "🔮 Forecast", "🚀 Breakout Radar",
     "🤖 Ask the Oracle", "🪙 Coin Analysis", "📰 News & Sentiment",
@@ -7118,10 +7118,10 @@ if active_section == "🎯 True Signal":
         st.error(f"True Signal failed to render: {_exc_ts}")
 
 # ===========================================================================
-# 🎮 Demo $1,200 — the one-week live-fire test (user 2026-08-09): the
+# 🎮 Demo $1,500 — GEN 6, the 10-day WILD run (user 2026-08-23): the
 # worker auto-trades a simulated real account; this page is its cockpit.
 # ===========================================================================
-if active_section == "🎮 Demo $1,200":
+if active_section == "🎮 Demo $1,500":
     import demo_account as _da
 
     _dz = _da.load()
@@ -7140,7 +7140,7 @@ if active_section == "🎮 Demo $1,200":
             _unreal += _p["qty"] * (_lp - _p["entry"]) * \
                 (1 if _p["side"] == "LONG" else -1)
     _eq = _bal + _unreal
-    _pnl = _eq - float(_dz.get("start") or 1200)
+    _pnl = _eq - float(_dz.get("start") or 1500)
     _days = max(0.0, (time.time()
                       - float(_dz.get("started_at") or time.time()))
                 / 86400)
@@ -7154,48 +7154,41 @@ if active_section == "🎮 Demo $1,200":
         "<span style='font-size:1.5rem;font-weight:900;background:"
         "linear-gradient(90deg,#40c4ff,#b388ff);-webkit-background-"
         "clip:text;-webkit-text-fill-color:transparent;background-"
-        "clip:text'>🎮 DEMO $1,200 — THE ONE-WEEK TEST</span><br>"
+        "clip:text'>🎮 DEMO $1,500 — GEN 6, THE WILD RUN</span><br>"
         "<span style='color:#9aa7c7;font-size:0.82rem'>The 24/7 brain "
-        "trades this like a REAL account from the five streams the "
-        "user named (GEN 5): 💎 ELITE CONVICTION (approved) · 🏆 TOP "
-        "CONVICTION · 🌟 EARLY ELITE · 🔮✅ KRONOS APPROVED · "
-        "✅🔥 TAKE NOW HOT — plus three 🔀 CONDITIONAL seats (💯 "
-        "CONVICTION · 💎 BEST ZONE · 🌱 FRESH) that trade ONLY when "
-        "kronos agrees or a second model fires the same coin. 🌊 "
-        "rider and 📡 surge are OUT of the money. 5 slots max "
-        "(quality-gated — an empty slot beats a weak trade) · 2% risk "
-        "· taker "
-        "fees · one position per coin · bank half at TP1 → breakeven → "
-        "then a 🧵 TRAIL locks half the peak gain riding to TP2. "
-        "Ranked by class weight + "
-        "confidence + live 14d desk form, with a big bonus "
-        "when several systems agree — 💎 ELITE CONVICTION (🚀 approved "
-        "badge only) WINS ALL: it sorts above every other combination, "
-        "Kronos or no Kronos, and 💎×🔮✅ tops even that. 🧠 Smart exit "
-        "is strength-aware: a Kronos flip against a WEAK signal banks "
-        "it; a STRONG signal (💎/🔮✅ · 2+ systems · score 85+) gets "
-        "room — scratch-stop before TP1, tighter trail after. "
-        "🏦 B-stocks are out of the universe (GEN 4). "
-        "🥇 PRIME and 🚀 MOONSHOT are "
-        "OUT until their own desk records turn green. Simulated — "
-        "zero real orders. Day "
-        f"{_days:.1f} of 7.</span></div>", unsafe_allow_html=True)
+        "trades this like a REAL account from EXACTLY the three "
+        "streams the user named (GEN 6, 2026-08-23): 💥⚡ STRONG "
+        "TRIGGER breaks and 🔄 RE-RUNs (second-leg breaks + 💎🔄 "
+        "re-qualified elite) on TOP priority · 💎 ELITE CONVICTION "
+        "MAX/HIGH (🚀 approved) secondary. Nothing else spends a "
+        "cent. 5 slots · one position per coin · WILD sizing: each "
+        "slot margins balance÷5 and levers 5x (elite) / 7x (trigger "
+        "and re-run) / 10x (🔥 burst ≥85, the validated A-grade) — "
+        "swings of $50-200 per trade, losses included. Taker fees "
+        "both sides · bank half at TP1 → breakeven → 🧵 TRAIL locks "
+        "half the peak gain riding to TP2 · 48h time-stop. 🧠 Smart "
+        "exit unchanged and strength-aware — all three streams class "
+        "as STRONG, so it only steps in when a move is truly fading "
+        "(scratch-stop before TP1, tighter trail after); ideally the "
+        "SL/TP set at entry resolves the trade. Simulated — zero "
+        "real orders. Day "
+        f"{_days:.1f} of 10.</span></div>", unsafe_allow_html=True)
     _t1c, _t2c, _t3c, _t4c = st.columns(4)
     _t1c.metric("💼 Equity", f"${_eq:,.2f}",
-                f"{_pnl:+,.2f} ({_pnl / 12:.1f}%)" if _pnl else None)
+                f"{_pnl:+,.2f} ({_pnl / 15:.1f}%)" if _pnl else None)
     _t2c.metric("💵 Realized balance", f"${_bal:,.2f}")
     _t3c.metric("🏆 Win rate",
                 f"{_wr:.0f}%" if _closedp else "—",
                 f"{_wins}/{len(_closedp)} closed")
     _t4c.metric("📂 Slots", f"{len(_openp)}/5")
-    # week-target meter ($1,500 - $1,800)
-    _prog = max(0.0, min(1.0, (_eq - 1200) / 300))
+    # 10-day target meter ($1,500 -> $2,500)
+    _prog = max(0.0, min(1.0, (_eq - 1500) / 1000))
     st.markdown(
         f"<div style='margin:4px 0 10px'>"
-        f"<span style='color:#9aa7c7;font-size:0.78rem'>WEEK TARGET "
-        f"$1,500—$1,800 · honest note: that is +25—50% in a week, far "
-        f"above any measured stream — the real result below is the "
-        f"data that matters</span>"
+        f"<span style='color:#9aa7c7;font-size:0.78rem'>10-DAY TARGET "
+        f"$2,500 · honest note: +67% in 10 days needs the hot streams "
+        f"to STAY hot at 5-10x — the leverage cuts both ways; the "
+        f"real result below is the data that matters</span>"
         f"<div style='background:rgba(255,255,255,0.06);border-radius:"
         f"999px;height:14px;margin-top:4px'>"
         f"<div style='width:{_prog * 100:.1f}%;height:14px;"
