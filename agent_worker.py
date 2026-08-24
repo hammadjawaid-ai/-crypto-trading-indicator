@@ -221,6 +221,11 @@ DEMO_FIRE_TTL_S = 1800
 # the confirmed moment. Cycle-thread only — no lock needed.
 _EC_WATCH: dict = {}
 EC_WATCH_H = 48.0
+# 🎮 confirmed entries feed the GEN 6 demo too (user 2026-08-23
+# follow-up: "lets also have elite confirm entry in place as well —
+# 3 to 4 confirm elite entry and elite entry altogether"). Same
+# TTL/drain pattern as _DEMO_FIRES; cycle-thread only.
+_ECF_FIRES: list = []
 # 💎🔄 RE-QUALIFICATION (user 2026-08-19, after ALICE/BANK hit
 # TP1): when a coin we already traded goes quiet and then
 # qualifies MAX/HIGH AGAIN, that is a NEW setup and must be
@@ -1286,6 +1291,9 @@ def cycle() -> None:
             store.record_signal("elite_confirm", _sig9)
             shadow_trader.open_from_signal("elite_confirm", _sig9,
                                            _cl9)
+            _ECF_FIRES.append(dict(_sig9, fired_at=_now,
+                                   burst=0.0))
+            del _ECF_FIRES[:-20]
             if store.should_alert(
                     f"ecconf:{_w9['symbol']}:{_w9['side']}",
                     6 * 3600) and not _bstock_quiet(_w9["symbol"]):
@@ -2184,7 +2192,8 @@ def cycle() -> None:
         _dz_form = {}
         for _dt, _sh in (("strong_trigger", "trig_strong"),
                          ("rerun", "second_leg"),
-                         ("elite_conv", "elite_conv")):
+                         ("elite_conv", "elite_conv"),
+                         ("elite_confirm", "elite_confirm")):
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_sh)["net_r"]
             except Exception:
@@ -2215,11 +2224,17 @@ def cycle() -> None:
                               if _now - f["fired_at"]
                               <= DEMO_FIRE_TTL_S]
             _dz_fires = list(_DEMO_FIRES)
+        # 💎✅ confirmed entries (user follow-up: elite family seats
+        # are elite cards + confirmed entries together, capped in
+        # demo_account.ELITE_FAMILY_CAP)
+        _ECF_FIRES[:] = [f for f in _ECF_FIRES
+                         if _now - f["fired_at"] <= DEMO_FIRE_TTL_S]
         _dz_pools = {
             "strong_trigger": [f for f in _dz_fires
                                if f["src"] == "strong_trigger"],
             "rerun": ([f for f in _dz_fires if f["src"] == "rerun"]
                       + _dz_requal),
+            "elite_confirm": list(_ECF_FIRES),
             "elite_conv": (_dz_elite
                            + [f for f in _dz_fires
                               if f["src"] == "elite_conv"

@@ -3,11 +3,12 @@
 A simulated REAL account run by the 24/7 worker. GEN 6 rules, all on
 the user's explicit order: $1,500 start, 10 slots, one per coin,
 Bybit taker fees both sides, 48h time-stop. The pool is EXACTLY
-three streams — 💥⚡ STRONG TRIGGER breaks and 🔄 RE-RUNs (second-leg
-breaks + re-qualified elite) own at least 7 of the 10 seats; 💎
-elite conviction holds AT MOST 3, and only its cream (approved +
-MAX grade / 90+ / 2-lane 85+). Sizing is wild by design: each slot
-margins balance/10 and levers 5x-10x by signal grade. TP1 half-bank + BE, trail to TP2, and
+four streams — 💥⚡ STRONG TRIGGER breaks and 🔄 RE-RUNs (second-leg
+breaks + re-qualified elite) own at least 6-7 of the 10 seats; the
+💎 elite family (raw elite conviction cream + 💎✅ confirmed
+entries) holds AT MOST 4 together, raw elite alone at most 3.
+Sizing is wild by design: each slot margins balance/10 and levers
+5x-10x by signal grade. TP1 half-bank + BE, trail to TP2, and
 the strength-aware smart exit only steps in when a move is fading.
 
 The 10-day question voiced: does $1,500 honestly reach $2,500? Every
@@ -85,6 +86,13 @@ TIME_STOP_BY_SRC: dict = {}
 # measured every elite AT-FIRE cell negative after fees — these
 # seats live or die by the demo's own ledger.
 MAX_PER_SRC: dict = {"elite_conv": 3}
+# 💎 FAMILY CAP (user 2026-08-23 follow-up: "7 strong triggers and 3
+# to 4 Confirm elite entry and elite entry altogether"): raw elite
+# cards and 💎✅ confirmed entries SHARE the elite seats — at most 4
+# of the 10 together (raw elite alone still capped at 3 above), so
+# the top streams always keep >= 6 seats, typically 7.
+ELITE_FAMILY = {"elite_conv", "elite_confirm"}
+ELITE_FAMILY_CAP = 4
 SMART_EXIT_SKIP: set = set()
 # 🧠 STRENGTH-AWARE SMART EXIT + TRAIL (user 2026-08-15: "smart exit
 # should have a trailing method... loosen a bit if the signal
@@ -97,7 +105,8 @@ SMART_EXIT_SKIP: set = set()
 # tightened trail) instead of banking early. User 2026-08-23:
 # "ideally it should stop at sl and tp set... smart exit only if you
 # see the movement is fading and it wont push any further."
-STRONG_SRC = {"elite_conv", "kr_approved", "strong_trigger", "rerun"}
+STRONG_SRC = {"elite_conv", "kr_approved", "strong_trigger", "rerun",
+              "elite_confirm"}
 STRONG_SCORE = 85.0            # score >= this counts as strong
 STRONG_AGREE = 2               # >= this many agreeing systems counts
 TRAIL_LOCK = 0.5               # after TP1: stop locks this share of
@@ -139,6 +148,9 @@ CLASS_W = {"strong_trigger": 100,  # 💥⚡ 79% win · +58.7R/241, the
                                    # desk's best win rate at scale
            "rerun": 100,           # 🔄 second-leg breaks + 💎🔄
                                    # re-qualified (68% win · +0.36R)
+           "elite_confirm": 90,    # 💎✅ the validated entry on elite
+                                   # fires (67.8% · +0.025R, green
+                                   # both halves; live ledger proves)
            "elite_conv": 85}       # 💎 MAX/HIGH approved — SECONDARY
 # GEN 6: no conditional seats — the pool is exactly the named three.
 CONDITIONAL_SRC: set = set()
@@ -287,7 +299,11 @@ def try_open(state: dict, cands: list, live_fn) -> list:
             continue
         _cap = MAX_PER_SRC.get(c["src"])
         if _cap is not None and src_n.get(c["src"], 0) >= _cap:
-            continue            # per-source slot cap (rider = 2 of 5)
+            continue            # per-source slot cap
+        if c["src"] in ELITE_FAMILY and \
+                sum(src_n.get(s, 0) for s in ELITE_FAMILY) \
+                >= ELITE_FAMILY_CAP:
+            continue            # 💎 family cap — 4 of 10 together
         try:
             live = float(live_fn(c["symbol"]) or 0)
         except Exception:
