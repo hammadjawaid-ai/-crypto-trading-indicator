@@ -5,8 +5,8 @@ the user's explicit order: $1,500 start, 10 slots, one per coin,
 Bybit taker fees both sides, 48h time-stop. The pool is EXACTLY
 four streams — 💥⚡ STRONG TRIGGER breaks and 🔄 RE-RUNs (second-leg
 breaks + re-qualified elite) own at least 6-7 of the 10 seats; the
-💎 elite family (raw elite conviction cream + 💎✅ confirmed
-entries) holds AT MOST 4 together, raw elite alone at most 3.
+💎 elite family holds AT MOST 4 together — 💎✅ confirmed entries 2
+seats (the higher-weighted construct) + raw elite cream 2 seats.
 Sizing is wild by design: each slot margins balance/10 and levers
 5x-10x by signal grade. TP1 half-bank + BE, trail to TP2, and
 the strength-aware smart exit only steps in when a move is fading.
@@ -78,18 +78,17 @@ TIME_STOP_H = 48
 # GEN 5 (user order 6): 🌊 TREND RIDER is OUT of the demo — its
 # per-source hold/slot/smart-exit carve-outs go with it.
 TIME_STOP_BY_SRC: dict = {}
-# GEN 6 (user 2026-08-23, updated same day): 💎 elite conviction
-# holds AT MOST 3 of the 10 slots — and only its cream (the worker's
-# pool gate: approved AND MAX grade / 90+ / 2-lane 85+). Counted by
-# plan-winning source, so a coin that a top stream also fired spends
-# a TOP seat, not an elite one. NOTE the 2026-08-23 lanes study
-# measured every elite AT-FIRE cell negative after fees — these
-# seats live or die by the demo's own ledger.
-MAX_PER_SRC: dict = {"elite_conv": 3}
-# 💎 FAMILY CAP (user 2026-08-23 follow-up: "7 strong triggers and 3
-# to 4 Confirm elite entry and elite entry altogether"): raw elite
-# cards and 💎✅ confirmed entries SHARE the elite seats — at most 4
-# of the 10 together (raw elite alone still capped at 3 above), so
+# GEN 6 elite seats (user 2026-08-23, final split: "more weightage
+# to the confirmed elite entries... out of 4 it gets 2 and the raw
+# elite gets the 2"): 💎✅ confirmed entries 2 seats, raw 💎 elite
+# cream 2 seats (worker pool gate: approved AND MAX grade / 90+ /
+# 2-lane 85+). Counted by plan-winning source, so a coin a top
+# stream also fired spends a TOP seat, not an elite one. NOTE the
+# 2026-08-23 lanes study measured every elite AT-FIRE cell negative
+# after fees — these seats live or die by the demo's own ledger.
+MAX_PER_SRC: dict = {"elite_conv": 2, "elite_confirm": 2}
+# 💎 FAMILY CAP: raw elite + confirmed entries at most 4 of the 10
+# together (redundant with the 2+2 split above; kept as a guard) —
 # the top streams always keep >= 6 seats, typically 7.
 ELITE_FAMILY = {"elite_conv", "elite_confirm"}
 ELITE_FAMILY_CAP = 4
