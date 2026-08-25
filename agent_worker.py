@@ -917,18 +917,14 @@ def cycle() -> None:
                     print("  tg:", msg, flush=True)
 
     def _push_elite(items):
-        """💎 buzzes with the MAX re-fire rule (user 2026-08-23:
-        "mobile buzz doesn't need to be silent for 6h... confidence
-        at max — it should tell"): HIGH cards keep the 6h clock;
-        MAX-tier cards re-buzz on a 2h clock. One shared key per
-        (coin, side), so a re-fire never double-buzzes."""
+        """💎 buzzes on a 2h re-fire clock for BOTH MAX and HIGH
+        (user 2026-08-23 final call: "max/high or it have reconfirm
+        elite entry" — top-confidence signals should tell; the 6h
+        silence is out). One shared key per (coin, side), so a
+        re-fire never double-buzzes; a card quietly persisting
+        re-buzzes at most every 2h."""
         nonlocal n_alerts
-        _push([p for p in items
-               if (p.get("tier") or "").upper() != "MAX"],
-              "eliteconv", _fmt_elite_conv, min_conf=0)
         for _pmx in items:
-            if (_pmx.get("tier") or "").upper() != "MAX":
-                continue
             try:
                 if _bstock_quiet(_pmx.get("symbol")):
                     continue
@@ -938,8 +934,7 @@ def cycle() -> None:
                     ok, _m9 = tg.send(_fmt_elite_conv(_pmx))
                     n_alerts += 1 if ok else 0
             except Exception as _mx_exc:
-                print("  max-refire buzz error:", _mx_exc,
-                      flush=True)
+                print("  elite buzz error:", _mx_exc, flush=True)
 
     tn_hot = [p for p in takenow if p.get("hot")]
     elite_early = [p for p in tn_hot
@@ -1354,9 +1349,11 @@ def cycle() -> None:
             _ECF_FIRES.append(dict(_sig9, fired_at=_now,
                                    burst=0.0))
             del _ECF_FIRES[:-20]
+            # 2h clock (user 2026-08-23: confirmed entries break the
+            # 6h silence too — "or it have reconfirm elite entry")
             if store.should_alert(
                     f"ecconf:{_w9['symbol']}:{_w9['side']}",
-                    6 * 3600) and not _bstock_quiet(_w9["symbol"]):
+                    2 * 3600) and not _bstock_quiet(_w9["symbol"]):
                 _ap0 = ("🚀 approved" if _w9.get("appr")
                         else "approval unknown"
                         if _w9.get("appr") is None else "unapproved")
