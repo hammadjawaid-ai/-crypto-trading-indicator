@@ -2414,6 +2414,31 @@ def cycle() -> None:
                   f"arms: {_sl_n}", flush=True)
     except Exception as _tw_exc:
         print("  trigger-arm error:", _tw_exc, flush=True)
+    # 💥 THE NUMBERS (user 2026-08-23: "a point where it can burst if
+    # it hit that number... that is something we need to catch") —
+    # publish every armed trigger level to the page, so the exact
+    # burst prices are visible in advance, not just buzzed at break.
+    try:
+        import json as _json_al
+        import os as _os_al
+        with _TRIG_LOCK:
+            _al_snap = [{"symbol": a.get("symbol"),
+                         "base": a.get("base"),
+                         "side": a.get("side"),
+                         "src": str(a.get("src", "")),
+                         "trigger": a.get("trigger"),
+                         "stop": a.get("stop"),
+                         "tp1": a.get("tp1"), "tp2": a.get("tp2"),
+                         "score": a.get("score"),
+                         "armed_at": a.get("armed_at")}
+                        for a in _TRIG_ARMED.values()]
+        _al_path = str(config.state_path(".armed_levels.json"))
+        with open(_al_path + ".tmp", "w", encoding="utf-8") as _f_al:
+            _json_al.dump({"ts": time.time(), "armed": _al_snap},
+                          _f_al)
+        _os_al.replace(_al_path + ".tmp", _al_path)
+    except Exception as _al_exc:
+        print("  armed-levels publish error:", _al_exc, flush=True)
     global _TRIG_STARTED
     if not _TRIG_STARTED:
         _TRIG_STARTED = True

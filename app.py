@@ -3296,6 +3296,63 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                "that **agrees** with 🔮 gets the green edge.")
     _kronos_board()
 
+    # 💥 THE NUMBERS — every armed burst level, visible in advance
+    # (user 2026-08-23: "a point where it can burst if it hit that
+    # number — that is something we need to catch"). The worker
+    # publishes its live armed-trigger book each cycle; a break of
+    # any listed number fires the validated 💥 ladder (buzz + desk).
+    try:
+        import json as _json_al
+        with open(str(config.state_path(".armed_levels.json")),
+                  encoding="utf-8") as _f_al:
+            _al = _json_al.load(_f_al)
+        _al_rows = _al.get("armed") or []
+        _al_age = time.time() - float(_al.get("ts") or 0)
+    except Exception:
+        _al_rows, _al_age = [], 1e9
+    if _al_rows and _al_age < 900:
+        st.markdown("#### 💥 THE NUMBERS — armed burst levels, "
+                    "known in advance")
+        st.caption(f"**{len(_al_rows)} setups armed.** Each number is "
+                   "the exact price where that coin's validated "
+                   "construct ignites — 💎 elite arms, ⚡ strong "
+                   "coils, 🔥 second legs. The 60s watch buzzes 🔶 "
+                   "near (0.4% away) and 💥 at the break; breaks "
+                   "feed the desk and the GEN 6 demo. Sorted by "
+                   "distance — the top rows are closest to firing.")
+        _al_lines = []
+        for _r in _al_rows:
+            try:
+                _lp = float(binance_client.get_ticker_price(
+                    _r["symbol"]) or 0)
+                _tg = float(_r.get("trigger") or 0)
+            except Exception:
+                continue
+            if _lp <= 0 or _tg <= 0:
+                continue
+            _dist = (_tg / _lp - 1) * 100 if _r.get("side") == "LONG" \
+                else (_lp / _tg - 1) * 100
+            _al_lines.append((abs(_dist), _dist, _r))
+        _al_lines.sort(key=lambda x: x[0])
+        for _ad, _dist, _r in _al_lines[:14]:
+            _sc9 = "#2ed47a" if _r.get("side") == "LONG" else "#ff5c5c"
+            _hot9 = _ad <= 0.4
+            st.markdown(
+                f"<span style='color:#8b93a7;font-size:0.8rem'>"
+                f"{_r.get('src', '')}</span> "
+                f"<b>{_r.get('base')}</b> "
+                f"<span style='color:{_sc9};font-weight:800'>"
+                f"{_r.get('side')}</span> · burst number "
+                f"<b>{float(_r.get('trigger') or 0):g}</b> · "
+                f"<span style='color:"
+                f"{'#ffd54a' if _hot9 else '#8b93a7'};font-size:"
+                f"0.8rem'>{_dist:+.2f}% away"
+                f"{' · 🔶 PRESSING' if _hot9 else ''}</span> · "
+                f"<span style='color:#8b93a7;font-size:0.75rem'>SL "
+                f"{float(_r.get('stop') or 0):g} · TP1 "
+                f"{float(_r.get('tp1') or 0):g}</span>",
+                unsafe_allow_html=True)
+
     # 🌋 PRE-BURST on Paper Trading too (user 2026-08-03: separate
     # board on both pages) — display board; opening lives on 🎯.
     _preburst_board(None)
