@@ -1898,7 +1898,7 @@ def cycle() -> None:
             continue
         _conv.append(dict(_cp, burst=_cb9))
     for p in _conv:
-        store.record_signal("conviction", p)
+        store.record_signal("conviction_v2", p)
     _push([p for p in _conv if _in_zone(p)], "conv",
           _fmt_conviction, min_conf=0)
 
@@ -2141,7 +2141,11 @@ def cycle() -> None:
                   ("kr_approved", _kr_appr),
                   ("kr_strong", _kr_strong),
                   ("prime", _prime),
-                  ("conviction", _conv),
+                  # 💯 v2 gets a FRESH ledger (user 2026-08-23:
+                  # "restart conviction v2 from new entries now,
+                  # leave the trades taken before") — the kronos-era
+                  # record stays archived under `conviction`.
+                  ("conviction_v2", _conv),
                   ("moonshot", _moon_fires),
                   ("sentry", _sentry_fires),
                   ("trend_rider", r.get("trend", [])))

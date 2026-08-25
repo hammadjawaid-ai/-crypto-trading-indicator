@@ -1391,7 +1391,7 @@ def _conviction_board(pb_state=None):
                "Desk tier 💯 keeps the live record — it outranks "
                "this backtest too.")
     try:
-        _rows = _ws_cv.recent_by_stream("conviction", 8)
+        _rows = _ws_cv.recent_by_stream("conviction_v2", 8)
     except Exception:
         _rows = []
     _seen, _cards = set(), []
@@ -3401,7 +3401,8 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "elite_confirm": "💎✅ ELITE CONFIRMED (proving)",
                    "trig_strong_kr": "💥⚡🔮 STRONG TRIG × KR (proving)",
                    "prime": "🥇 PRIME (winners board)",
-                   "conviction": "💯 CONVICTION v2 (no kronos)",
+                   "conviction": "💯 CONVICTION v1 (retired — kronos era)",
+                   "conviction_v2": "💯 CONVICTION v2 (fresh ledger)",
                    "same_door": "🚪 SAME DOOR (proving)",
                    "moonshot": "🚀 MOONSHOT (big-move desk)",
                    "sentry": "🎯 SENTRY (your 18-coin watch)",
