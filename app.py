@@ -1356,11 +1356,12 @@ def _prime_board(pb_state=None):
 
 
 def _conviction_board(pb_state=None):
-    """💯 CONVICTION — the high-win-rate board (user 2026-08-06: "70-80%
-    win, fewer trades, solid confidence"). The measured 88.6%/+0.38R
-    cell (n=35): CONFIRMED fast30 entry + score>=80 + Kronos strict
-    AGREE, banked 100% at TP1. NOT PRIME∩Kronos (that stack measured
-    33%/-0.51R n=6). Shared renderer like PRIME."""
+    """💯 CONVICTION v2 (user 2026-08-23: "remove kronos its not even
+    proven effective anyway... make it better") — the old 88.6% Kronos
+    cell collapsed to 39% live, so v2 keeps only both-halves-green
+    discriminators: CONFIRMED fast30 entry + score>=82 + 🚀 approved
+    + burst<85 (no spent thrust). Measured 70.7%/+0.130R (n=147),
+    green both halves. Shared renderer like PRIME."""
     import json as _json_cv
 
     import worker_store as _ws_cv
@@ -1375,15 +1376,20 @@ def _conviction_board(pb_state=None):
         "💯 CONVICTION — THE HIGH WIN-RATE BOARD</span> "
         "<span style='background:rgba(160,120,255,0.15);color:#c5a3ff;"
         "padding:2px 12px;border-radius:999px;font-size:0.72rem;"
-        "font-weight:800;margin-left:8px'>88.6% win · +0.38R backtest "
-        "· n=35</span></div>", unsafe_allow_html=True)
-    st.caption("**Your 70–80% spec, from the measured cell:** a "
-               "pullback-**confirmed** entry (never at-fire) + score "
-               "**82+** + 🔮 Kronos agreeing with **≥1% conviction** — "
-               "**bank 100% at TP1 — every fire, all strengths** (the "
-               "measured construct). Backtest 88% win / +0.40R after "
-               "fees. Fires rarely by construction — less deals, "
-               "great ones. Desk tier 💯 builds the live record.")
+        "font-weight:800;margin-left:8px'>v2 · 70.7% win · +0.13R · "
+        "green both halves</span></div>", unsafe_allow_html=True)
+    st.caption("**v2, rebuilt 2026-08-23 — Kronos removed** (the old "
+               "88.6% Kronos cell collapsed to 39% live; standalone "
+               "Kronos measured −26R). The new gate keeps only what "
+               "measured green in BOTH history halves on 387 elite "
+               "fires: a pullback-**confirmed** entry + score **82+** "
+               "+ 🚀 **approved** + **burst < 85** (a maxed thrust at "
+               "the signal = the −0.218R chase — excluded). "
+               "**Bank 100% at TP1, every fire.** Measured 70.7% win "
+               "/ +0.130R after fees (n=147). Bonus: no Kronos means "
+               "this stream never goes dark when the model is down. "
+               "Desk tier 💯 keeps the live record — it outranks "
+               "this backtest too.")
     try:
         _rows = _ws_cv.recent_by_stream("conviction", 8)
     except Exception:
@@ -3395,7 +3401,8 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "elite_confirm": "💎✅ ELITE CONFIRMED (proving)",
                    "trig_strong_kr": "💥⚡🔮 STRONG TRIG × KR (proving)",
                    "prime": "🥇 PRIME (winners board)",
-                   "conviction": "💯 CONVICTION (88.6% cell)",
+                   "conviction": "💯 CONVICTION v2 (no kronos)",
+                   "same_door": "🚪 SAME DOOR (proving)",
                    "moonshot": "🚀 MOONSHOT (big-move desk)",
                    "sentry": "🎯 SENTRY (your 18-coin watch)",
                    "owl_preburst": "🦉 OWL PRE-BURST (multi-TF)",

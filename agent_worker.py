@@ -547,14 +547,15 @@ def _fmt_conviction(p) -> str:
     # measured banking TP1 in full).
     _geo = "BANK 100% AT TP1 — the validated win-rate geometry"
     return (f"💯 *CONVICTION* — {p['base']} {p['side']} "
-            f"({p['tier']} {p['score']:.0f} · 🔮 {p.get('kr_dir')} "
-            f"{float(p.get('kr_exp') or 0):+.1f}%)\n"
+            f"({p['tier']} {p['score']:.0f} · 🚀 approved · "
+            f"burst {float(p.get('burst') or 0):.0f})\n"
             f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
             f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
             f"➡️ {_geo}\n"
-            f"_the 88%/+0.40R cell: CONFIRMED entry + score 82+ + "
-            f"Kronos agree ≥1%. Desk tier `conviction` builds the "
-            f"live record._")
+            f"_v2 cell (70.7% · +0.13R, green both halves): CONFIRMED "
+            f"entry + 82+ + 🚀 approved + no spent thrust. Kronos "
+            f"removed 2026-08-23 on the live evidence. Desk tier "
+            f"`conviction` keeps the record._")
 
 
 def _fmt_trend_rider(p) -> str:
@@ -718,10 +719,19 @@ def _fmt_elite_conv(p) -> str:
            else "⚠️ unapproved — size accordingly"
            if p.get("requal") else "approval unknown")
     if p.get("requal"):
+        # 🚪 SAME DOOR stamp (user 2026-08-23: "same door is good
+        # lets build it") — re-fires at an UNCHANGED level measured
+        # 77.8% confirmed vs ~54% when the level already moved.
+        _dr = ("\n🚪 SAME DOOR — re-fired at the SAME level (the "
+               "77.8% shape; desk tier same_door proves it live)"
+               if p.get("same_door") else
+               "\n⚠️ level already moved — later entry (the ~50% "
+               "shape, be picky)"
+               if p.get("same_door") is False else "")
         return (f"💎🔄 *ELITE CONVICTION — RE-QUALIFIED* — {p['base']} "
                 f"{p['side']} ({p['tier']} {p['score']:.0f} · {_ap})\n"
                 f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
-                f"TP1 `{p['tp1']:g}`{_tp2(p)}{_kr_note(p)}\n"
+                f"TP1 `{p['tp1']:g}`{_tp2(p)}{_dr}{_kr_note(p)}\n"
                 f"_a coin you already traded is back: it went quiet, "
                 f"now it qualifies MAX/HIGH again — a NEW setup, new "
                 f"plan, new stop. Fires approved or unapproved by "
@@ -905,6 +915,31 @@ def cycle() -> None:
                 n_alerts += 1 if ok else 0
                 if not ok:
                     print("  tg:", msg, flush=True)
+
+    def _push_elite(items):
+        """💎 buzzes with the MAX re-fire rule (user 2026-08-23:
+        "mobile buzz doesn't need to be silent for 6h... confidence
+        at max — it should tell"): HIGH cards keep the 6h clock;
+        MAX-tier cards re-buzz on a 2h clock. One shared key per
+        (coin, side), so a re-fire never double-buzzes."""
+        nonlocal n_alerts
+        _push([p for p in items
+               if (p.get("tier") or "").upper() != "MAX"],
+              "eliteconv", _fmt_elite_conv, min_conf=0)
+        for _pmx in items:
+            if (_pmx.get("tier") or "").upper() != "MAX":
+                continue
+            try:
+                if _bstock_quiet(_pmx.get("symbol")):
+                    continue
+                if store.should_alert(
+                        f"eliteconv:{_pmx['symbol']}:{_pmx['side']}",
+                        2 * 3600):
+                    ok, _m9 = tg.send(_fmt_elite_conv(_pmx))
+                    n_alerts += 1 if ok else 0
+            except Exception as _mx_exc:
+                print("  max-refire buzz error:", _mx_exc,
+                      flush=True)
 
     tn_hot = [p for p in takenow if p.get("hot")]
     elite_early = [p for p in tn_hot
@@ -1203,11 +1238,36 @@ def cycle() -> None:
             if _prev9 and (_now - float(_prev9.get("winner_at") or 0)
                            >= RE_GAP_H * 3600):
                 _p["requal"] = True
+                # 🚪 SAME DOOR (user 2026-08-23, validated
+                # backtest_flipreq: re-fires at an UNCHANGED level =
+                # 69.2%/+0.346R at-fire, 77.8%/+0.127R confirmed;
+                # level moved >= ~1 risk unit = the ~50% chase).
+                _lv0 = float(_prev9.get("level") or 0)
+                _e9 = float(_p.get("entry") or 0)
+                _rk9 = abs(_e9 - float(_p.get("stop") or 0))
+                if _lv0 > 0 and _e9 > 0 and _rk9 > 0:
+                    _p["same_door"] = bool(
+                        abs(_e9 - _lv0) <= 0.8 * _rk9)
+                if _p.get("same_door"):
+                    # silent desk tier — the live ledger decides if
+                    # the 78% survives (n=18 backtest is a hint, not
+                    # proof; the 💯 88%->39% lesson).
+                    try:
+                        _px9 = float(binance_client.get_ticker_price(
+                            _p["symbol"]) or 0)
+                        if _px9 > 0:
+                            store.record_signal("same_door", _p)
+                            shadow_trader.open_from_signal(
+                                "same_door", _p, _px9)
+                    except Exception as _sd_exc:
+                        print("  same-door proof error:", _sd_exc,
+                              flush=True)
             _SECOND_LEG[_p["symbol"]] = {
                 "side": _sd9,
                 "base": _p.get("base")
                 or _p["symbol"].replace("USDT", ""),
                 "score": float(_p.get("score") or 0),
+                "level": float(_p.get("entry") or 0),
                 "winner_at": _now}
     # 💎✅ ELITE CONFIRMED ENTRY — separate stream, own buzz/board/
     # desk tier. Watches every MAX/HIGH fire for the validated
@@ -1760,8 +1820,7 @@ def cycle() -> None:
                 _ec_buzz.append(dict(_pe, kr_rescue=True))
         for _pe in _ec_buzz:
             store.record_signal("elite_conv", _pe)
-        _push(list(_ec_buzz), "eliteconv", _fmt_elite_conv,
-              min_conf=0)
+        _push_elite(list(_ec_buzz))
         # ⚡🔮 KR-STRONG proving tier (user 2026-08-15: "testing
         # strong elite convictions with kronos") — SILENT: no buzz,
         # no board card yet. Cache-only reads, zero extra forecast
@@ -1796,55 +1855,52 @@ def cycle() -> None:
         _ec_buzz = [p for p in _ec_mh if p.get("appr")]
         for _pe in _ec_buzz:
             store.record_signal("elite_conv", _pe)
-        _push(list(_ec_buzz), "eliteconv", _fmt_elite_conv, min_conf=0)
+        _push_elite(list(_ec_buzz))
 
-    # 💯 CONVICTION (user 2026-08-06: "70-80% win rate, fewer trades,
-    # solid confidence") — the measured 88.6%/+0.38R cell (n=35,
-    # krgate study): CONFIRMED entry (fast30 pullback+confirm) +
-    # score>=80 + Kronos strict AGREE, banked at TP1. Deliberately NOT
-    # PRIME∩Kronos: that stack measured 33%/-0.51R (n=6) — agreement
-    # helps confirmed momentum entries, hurts calm-pullback PRIME
-    # entries. Desk tier proves the cell forward from day one.
+    # 💯 CONVICTION v2 (user 2026-08-23: "remove kronos its not even
+    # proven effective anyway... make it better somehow"). Kronos is
+    # OUT — the old 88.6% backtest cell collapsed to 39% live, and
+    # standalone Kronos measured -26R. The v2 gate keeps ONLY
+    # discriminators that measured green in BOTH history halves on
+    # the 387-fire entry study (.conv_gate_pick, n=147): CONFIRMED
+    # entry (fast30 pullback+confirm) + score>=82 (user's floor) +
+    # 🚀 approved + burst<85 at the card (the anti-chase law: a
+    # maxed thrust AT the signal measured -0.218R). Measured cell:
+    # 70.7% win · +0.130R after fees (+0.076R older / +0.187R
+    # recent). Bonus: no Kronos = the stream no longer goes dark
+    # when the model is down. The live desk ledger outranks this
+    # backtest too — 39% taught us that.
     _conv = []
-    if _kr_ok:
-        for _cp in _f30:
-            # tokenized eligible again 2026-08-06 (user: "let them in
-            # everywhere") — note the 88.6% cell was measured on
-            # crypto; tokenized fires are extrapolation on the record.
-            # 2026-08-07 user: floor 80 -> 82, the old HIGH-tier bar
-            # ("less deals but great ones").
-            if float(_cp.get("score") or 0) < 82:
-                continue
-            _cv = _kr_get(_cp.get("symbol"), _cp.get("side"))
-            if not _cv:
-                continue
-            # 2026-08-07 tightening (.conv_tighten.py on the krgate
-            # rows): agree + |exp|>=1% = 88.0%/+0.40R (n=25) vs +0.38R
-            # any-agree — the floor filters marginal reads (the BABY
-            # -0.8% case) without losing the cell. Plus construct
-            # fidelity: the cell was measured banking TP1 at 1:1 — a
+    for _cp in _f30:
+        if float(_cp.get("score") or 0) < 82:
+            continue
+        try:
+            # construct fidelity: the cell banks TP1 at ~1:1 — a
             # plan whose TP1 pays < ~1R isn't the measured trade.
-            if abs(float(_cv.get("exp_move_pct") or 0)) < 1.0:
+            _rk = abs(float(_cp["entry"]) - float(_cp["stop"]))
+            _rw = abs(float(_cp["tp1"]) - float(_cp["entry"]))
+            if _rk <= 0 or _rw / _rk < 0.95:
                 continue
-            try:
-                _rk = abs(float(_cp["entry"]) - float(_cp["stop"]))
-                _rw = abs(float(_cp["tp1"]) - float(_cp["entry"]))
-                if _rk <= 0 or _rw / _rk < 0.95:
-                    continue
-            except (KeyError, TypeError, ValueError):
+        except (KeyError, TypeError, ValueError):
+            continue
+        try:
+            _cd9 = binance_client.get_klines(_cp["symbol"], "1h",
+                                             limit=120)
+            if not _vb_w.lane_approved(_cd9, _cp.get("side")):
                 continue
-            if ((_cv.get("direction") == "UP"
-                 and _cp.get("side") == "LONG")
-                    or (_cv.get("direction") == "DOWN"
-                        and _cp.get("side") == "SHORT")):
-                _cp2 = dict(_cp)
-                _cp2["kr_dir"] = _cv.get("direction")
-                _cp2["kr_exp"] = _cv.get("exp_move_pct")
-                _conv.append(_cp2)
-        for p in _conv:
-            store.record_signal("conviction", p)
-        _push([p for p in _conv if _in_zone(p)], "conv",
-              _fmt_conviction, min_conf=0)
+            _cb9, _cbd9, _ = _vb_w.lane_velocity_burst(_cd9)
+            _cb9 = (float(_cb9)
+                    if (_cbd9 or "").upper()
+                    == (_cp.get("side") or "").upper() else 0.0)
+            if _cb9 >= 85:
+                continue      # thrust already spent — not the cell
+        except Exception:
+            continue
+        _conv.append(dict(_cp, burst=_cb9))
+    for p in _conv:
+        store.record_signal("conviction", p)
+    _push([p for p in _conv if _in_zone(p)], "conv",
+          _fmt_conviction, min_conf=0)
 
     # 🎯 TRUE SIGNAL (user 2026-07-28: "one solid system, no fuzz") —
     # five gates, Kronos on top with the last word. Desk tier proves it
