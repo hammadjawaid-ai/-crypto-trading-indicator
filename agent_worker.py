@@ -2233,17 +2233,30 @@ def cycle() -> None:
     # user 2026-07-13 ("I don't want the trend rider notification") —
     # the desk shadow record keeps building silently on the app.
 
-    # 📟 HOLDINGS PULSE (user 2026-08-25, the FF lesson: his held coin
-    # ran +7.5% in ~90 min while every 1h read was blind — the 15m
-    # tells had it at trend 82-92 LONG a full 90 min before the top).
-    # The coins he HOLDS, watched on the 15m clock every cycle: a
-    # turn with strength (early-trend >= 80 side-matched) or a 15m
-    # burst ignition (>= 78) buzzes IMMEDIATELY, both directions —
-    # a DOWN pulse on a held coin is the exit warning. Info alarm on
-    # owned positions, honestly labeled — not a validated entry
-    # stream. 2h per (coin, side) cooldown.
+    # 📟 ELITE PULSE (user 2026-08-25 v2: "i want it for every coin —
+    # if this happens on elite conviction or elite confirm you should
+    # watch every move of them"). Every coin with a LIVE 💎 elite
+    # MAX/HIGH card or an active 💎✅ confirm watch gets the 15m
+    # fast-clock check each cycle: a turn with strength (early-trend
+    # >= 80 side-matched) or a 15m burst ignition (>= 78) buzzes
+    # IMMEDIATELY. Pulse WITH the card's side = igniting NOW; pulse
+    # AGAINST it = the fast clock turning on the card — the warning.
+    # The FF lesson made general (his coin ran +7.5% in ~90 min while
+    # the 1h clock was silent; the 15m tells had it 90 min early).
+    # Info alarm, honestly labeled. 2h per (coin, side) cooldown.
     try:
-        for _hp_sym in getattr(config, "HOLDINGS_PULSE", []):
+        _pl_cards = {}
+        for _p9 in _ec_mh:
+            _sd0 = (_p9.get("side") or "").upper()
+            if _sd0 in ("LONG", "SHORT"):
+                _pl_cards[_p9["symbol"]] = (
+                    _sd0, f"💎 {_p9.get('tier')} "
+                          f"{float(_p9.get('score') or 0):.0f}")
+        for _kw9, _w9 in list(_EC_WATCH.items()):
+            _pl_cards.setdefault(_kw9[0], (
+                _kw9[1], f"💎✅ watch · {_w9.get('tier')} "
+                         f"{float(_w9.get('score') or 0):.0f}"))
+        for _hp_sym, (_pl_side, _pl_tag) in _pl_cards.items():
             try:
                 _hp_df = binance_client.get_klines(_hp_sym, "15m",
                                                    limit=200)
@@ -2268,6 +2281,8 @@ def cycle() -> None:
                 _hp_side = _hp_td
             if not _hp_side:
                 continue
+            if _bstock_quiet(_hp_sym):
+                continue
             if not store.should_alert(
                     f"pulse:{_hp_sym}:{_hp_side}", 2 * 3600):
                 continue
@@ -2278,20 +2293,23 @@ def cycle() -> None:
             _hp_vk = (float(_hp_v[-1])
                       / max(1e-9, float(_hp_v[-21:-1].mean())))
             _hp_b = _hp_sym.replace("USDT", "")
-            _hp_word = ("🟢 turning UP" if _hp_side == "LONG"
-                        else "🔴 turning DOWN — exit warning")
+            if _hp_side == _pl_side:
+                _hp_word = (f"🟢 IGNITING on the 15m — with the card "
+                            f"({_pl_tag})")
+            else:
+                _hp_word = (f"🔴 15m turning AGAINST the card "
+                            f"({_pl_tag}) — caution")
             ok, _ = tg.send(
-                f"📟 *HOLDINGS PULSE* — {_hp_b} {_hp_word} on the "
-                f"15m\n"
+                f"📟 *ELITE PULSE* — {_hp_b} {_hp_word}\n"
                 f"trend {_hp_ts:.0f} {_hp_td or '-'} · 15m burst "
                 f"{_hp_bs:.0f} {_hp_bd or '-'} · last 90m "
                 f"{_hp_mv:+.1f}% · vol x{_hp_vk:.1f}\n"
-                f"_your coin is moving NOW — info alarm on the fast "
-                f"clock (works even on fresh listings the 1h engine "
-                f"can't score). Not a sized entry signal._")
+                f"_the fast clock on every elite-family coin — moves "
+                f"start here ~30-90 min before the 1h engine speaks. "
+                f"Info alarm, not a sized entry._")
             n_alerts += 1 if ok else 0
     except Exception as _hp_exc:
-        print("  holdings-pulse error:", _hp_exc, flush=True)
+        print("  elite-pulse error:", _hp_exc, flush=True)
 
     # 🎮 DEMO ZONE — the $1,200 one-week live-fire test (user
     # 2026-08-09): the worker auto-picks the HIGHEST-QUALITY signals
