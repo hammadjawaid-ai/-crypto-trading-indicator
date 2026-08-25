@@ -140,6 +140,16 @@ WORKER_FLIP_WATCH = _secret("WORKER_FLIP_WATCH") or (
     "SOLUSDT,ETHUSDT,BTCUSDT,AVAXUSDT,WLFIUSDT,LINKUSDT,"
     "ETHFIUSDT")
 WORKER_ALERT_COOLDOWN_MIN = int(_secret("WORKER_ALERT_COOLDOWN_MIN") or "360")
+# 📟 HOLDINGS PULSE (user 2026-08-25, the FF case: held coin ran +7.5%
+# in ~90 min while the 1h machinery was blind — a fresh listing with
+# no composite history). The coins the user actually HOLDS, watched on
+# the 15m clock every cycle: a turn with strength (early-trend 80+) or
+# a 15m burst ignition (78+) buzzes in BOTH directions. INFO alarm on
+# owned positions — not a validated entry stream (the 15m-thrust ENTRY
+# construct measured -0.15R; this reassures/warns, it does not size).
+HOLDINGS_PULSE = [s.strip().upper() for s in (
+    _secret("HOLDINGS_PULSE")
+    or "SEIUSDT,WLDUSDT,FFUSDT,LUNCUSDT").split(",") if s.strip()]
 WORKER_SST1_MIN_CONV = float(_secret("WORKER_SST1_MIN_CONV") or "70")
 WORKER_LEADERBOARD_MIN_SCORE = float(
     _secret("WORKER_LEADERBOARD_MIN_SCORE") or "85")

@@ -43,6 +43,7 @@ import shadow_trader
 import surge_radar
 import telegram_notify as tg
 import velocity_burst as _vb_w
+import early_trend as _et_w
 import worker_store as store
 
 INTERVAL = max(1, int(getattr(config, "WORKER_INTERVAL_MIN", 5))) * 60
@@ -2231,6 +2232,66 @@ def cycle() -> None:
     # 🌊 TREND HEALTH pings (🔴 exit / 🟡 caution) REMOVED entirely per
     # user 2026-07-13 ("I don't want the trend rider notification") —
     # the desk shadow record keeps building silently on the app.
+
+    # 📟 HOLDINGS PULSE (user 2026-08-25, the FF lesson: his held coin
+    # ran +7.5% in ~90 min while every 1h read was blind — the 15m
+    # tells had it at trend 82-92 LONG a full 90 min before the top).
+    # The coins he HOLDS, watched on the 15m clock every cycle: a
+    # turn with strength (early-trend >= 80 side-matched) or a 15m
+    # burst ignition (>= 78) buzzes IMMEDIATELY, both directions —
+    # a DOWN pulse on a held coin is the exit warning. Info alarm on
+    # owned positions, honestly labeled — not a validated entry
+    # stream. 2h per (coin, side) cooldown.
+    try:
+        for _hp_sym in getattr(config, "HOLDINGS_PULSE", []):
+            try:
+                _hp_df = binance_client.get_klines(_hp_sym, "15m",
+                                                   limit=200)
+            except Exception:
+                continue
+            if _hp_df is None or len(_hp_df) < 60:
+                continue
+            try:
+                _hp_ts, _hp_td, _ = _et_w.detect(_hp_df)
+            except Exception:
+                _hp_ts, _hp_td = 0.0, ""
+            try:
+                _hp_bs, _hp_bd, _ = _vb_w.lane_velocity_burst(_hp_df)
+            except Exception:
+                _hp_bs, _hp_bd = 0.0, ""
+            _hp_td = (_hp_td or "").upper()
+            _hp_bd = (_hp_bd or "").upper()
+            _hp_side = None
+            if _hp_bs >= 78 and _hp_bd in ("LONG", "SHORT"):
+                _hp_side = _hp_bd
+            elif _hp_ts >= 80 and _hp_td in ("LONG", "SHORT"):
+                _hp_side = _hp_td
+            if not _hp_side:
+                continue
+            if not store.should_alert(
+                    f"pulse:{_hp_sym}:{_hp_side}", 2 * 3600):
+                continue
+            _hp_c = _hp_df["close"].to_numpy()
+            _hp_v = _hp_df["volume"].to_numpy()
+            _hp_mv = (float(_hp_c[-1]) / float(_hp_c[-7]) - 1) * 100 \
+                if len(_hp_c) > 7 else 0.0
+            _hp_vk = (float(_hp_v[-1])
+                      / max(1e-9, float(_hp_v[-21:-1].mean())))
+            _hp_b = _hp_sym.replace("USDT", "")
+            _hp_word = ("🟢 turning UP" if _hp_side == "LONG"
+                        else "🔴 turning DOWN — exit warning")
+            ok, _ = tg.send(
+                f"📟 *HOLDINGS PULSE* — {_hp_b} {_hp_word} on the "
+                f"15m\n"
+                f"trend {_hp_ts:.0f} {_hp_td or '-'} · 15m burst "
+                f"{_hp_bs:.0f} {_hp_bd or '-'} · last 90m "
+                f"{_hp_mv:+.1f}% · vol x{_hp_vk:.1f}\n"
+                f"_your coin is moving NOW — info alarm on the fast "
+                f"clock (works even on fresh listings the 1h engine "
+                f"can't score). Not a sized entry signal._")
+            n_alerts += 1 if ok else 0
+    except Exception as _hp_exc:
+        print("  holdings-pulse error:", _hp_exc, flush=True)
 
     # 🎮 DEMO ZONE — the $1,200 one-week live-fire test (user
     # 2026-08-09): the worker auto-picks the HIGHEST-QUALITY signals
