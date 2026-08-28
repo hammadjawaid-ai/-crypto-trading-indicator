@@ -968,7 +968,20 @@ def cycle() -> None:
                 if store.should_alert(
                         f"eliteconv:{_pmx['symbol']}:{_pmx['side']}",
                         2 * 3600):
-                    ok, _m9 = tg.send(_fmt_elite_conv(_pmx))
+                    _msg9 = _fmt_elite_conv(_pmx)
+                    # 🎯 conf on the 💎 buzz too (user 2026-08-28)
+                    _cf9 = _pmx.get("conf")
+                    if _cf9 is None:
+                        try:
+                            _cf9 = best_board.confidence(
+                                _pmx.get("symbol"),
+                                _pmx.get("side"))
+                        except Exception:
+                            _cf9 = None
+                    if _cf9 is not None and "\n" in _msg9:
+                        _msg9 = _msg9.replace(
+                            "\n", f" · 🎯 conf {_cf9}/100\n", 1)
+                    ok, _m9 = tg.send(_msg9)
                     n_alerts += 1 if ok else 0
             except Exception as _mx_exc:
                 print("  elite buzz error:", _mx_exc, flush=True)
