@@ -1407,20 +1407,38 @@ def cycle() -> None:
                         f"chasing here adds {_mv9:.1f}% to the "
                         f"risk._")
                     n_alerts += 1 if ok else 0
-                if _mv9 <= -1.0 and not _w9.get("dip_sent"):
-                    _w9["dip_sent"] = True
-                    ok, _ = tg.send(
-                        f"💎🔻 *DISCOUNT* — {_w9['base']} "
-                        f"{_w9['side']} now {abs(_mv9):.1f}% "
-                        f"BELOW the buzz entry "
-                        f"`{float(_w9['entry']):g}`\n"
-                        f"_a better price IF it holds — heads-up, "
-                        f"not the green light: bare-dip entries "
-                        f"measured 49% · −0.08R, the CONFIRMED "
-                        f"re-entry 67.8% · +0.03R. The 💎✅ buzz "
-                        f"fires the moment the confirmation candle "
-                        f"prints — that one is the get-in._")
-                    n_alerts += 1 if ok else 0
+                # 🔻 discount LADDER (user 2026-08-28 follow-up:
+                # "discount can be even lower, 2 to 3%, or
+                # re-entry") — one-shot per depth; a straight drop
+                # fires only the deepest applicable tier.
+                _dtiers = ((3.0, "dip3_sent", "DEEPEST DISCOUNT",
+                            "⚠️ this deep sits near the plan stop "
+                            "— if the stop level breaks, the setup "
+                            "is DEAD, not cheap"),
+                           (2.0, "dip2_sent", "DEEP DISCOUNT",
+                            "a serious re-entry price IF the level "
+                            "holds"),
+                           (1.0, "dip_sent", "DISCOUNT",
+                            "a better price IF it holds"))
+                for _dt9, _df9, _lb9, _nt9 in _dtiers:
+                    if _mv9 <= -_dt9 and not _w9.get(_df9):
+                        for _dt8, _df8, _l8, _n8 in _dtiers:
+                            if _dt8 <= _dt9:
+                                _w9[_df8] = True
+                        ok, _ = tg.send(
+                            f"💎🔻 *{_lb9}* — {_w9['base']} "
+                            f"{_w9['side']} now {abs(_mv9):.1f}% "
+                            f"BELOW the buzz entry "
+                            f"`{float(_w9['entry']):g}` (SL "
+                            f"`{float(_w9['stop']):g}`)\n"
+                            f"_{_nt9} — heads-up, not the green "
+                            f"light: bare-dip entries measured 49% "
+                            f"· −0.08R, the CONFIRMED re-entry "
+                            f"67.8% · +0.03R. The 💎✅ buzz fires "
+                            f"when the confirmation candle prints "
+                            f"— that one is the get-in._")
+                        n_alerts += 1 if ok else 0
+                        break
             if (_lng9 and _lo9 <= _w9["entry"]) or \
                     ((not _lng9) and _hi9 >= _w9["entry"]):
                 _w9["pulled"] = True
