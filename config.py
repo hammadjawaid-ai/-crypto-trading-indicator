@@ -442,4 +442,5 @@ SOCIAL_FEEDS = {
 # pullback-confirmation candle (the ENA shape: green close above prev
 # close + ema20 on 1.2x volume, after a real dip). One Telegram buzz per
 # coin per 6h max. Edit this list to change the watched coins.
-PERSONAL_WATCH = ["ZECUSDT", "INJUSDT", "VIRTUALUSDT"]
+PERSONAL_WATCH = ["INJUSDT", "ENAUSDT", "ZECUSDT", "VIRTUALUSDT",
+                  "WLDUSDT"]
