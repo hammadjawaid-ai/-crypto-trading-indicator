@@ -77,7 +77,13 @@ def open_from_signal(tier: str, p: dict, live_px: float | None) -> bool:
         return False
     if store.shadow_has_open(tier, sym):
         return False
-    store.shadow_open(tier, sym, side, entry, stop, tp1, tp2)
+    _cf = p.get("conf")
+    try:
+        _cf = float(_cf) if _cf is not None else None
+    except (TypeError, ValueError):
+        _cf = None
+    store.shadow_open(tier, sym, side, entry, stop, tp1, tp2,
+                      conf=_cf)
     return True
 
 

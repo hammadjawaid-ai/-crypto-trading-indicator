@@ -186,14 +186,23 @@ def shadow_has_open(tier: str, symbol: str) -> bool:
 
 
 def shadow_open(tier: str, symbol: str, side: str, entry: float,
-                stop: float, tp1: float, tp2: float) -> None:
+                stop: float, tp1: float, tp2: float,
+                conf: float | None = None) -> None:
+    """2026-08-28 (user: "the confidence on telegram... I want to
+    know their win rates"): every shadow trade now carries the 🎯
+    confidence score at open, so win rates slice by band directly."""
     c = _open()
     try:
+        try:
+            c.execute("ALTER TABLE shadow_trades ADD COLUMN conf REAL")
+            c.commit()
+        except Exception:
+            pass                       # column already exists
         c.execute(
             "INSERT INTO shadow_trades (tier,symbol,side,entry,stop,stop0,"
-            "tp1,tp2,peak,opened_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            "tp1,tp2,peak,opened_at,conf) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
             (tier, symbol, side, entry, stop, stop, tp1, tp2, entry,
-             time.time()))
+             time.time(), conf))
         c.commit()
     finally:
         c.close()

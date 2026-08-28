@@ -1051,8 +1051,12 @@ def cycle() -> None:
         print("  ign_strong error:", _igs_exc, flush=True)
     for p in _igs:
         store.record_signal("ignition_strong", p)
-    _push([p for p in _igs if _in_zone(p)], "ignstrong",
-          _fmt_ign_strong, min_conf=0)
+    # 2026-08-28 user order: ⚡🚨 STRONG IGNITION buzz OFF ("I dont
+    # want the telegram notification for surge and strong ignitions
+    # now") — 🕵️ OI LOAD is the upgraded pre-spike layer. Board +
+    # desk tier keep recording; re-enable is this one line.
+    # _push([p for p in _igs if _in_zone(p)], "ignstrong",
+    #       _fmt_ign_strong, min_conf=0)
     # ⏱ FAST CONFIRM 30m (user 2026-07-25: "remove 1h, 30 min confirm").
     # The proven tiers + executor STAY on 1h (his own tests measured 30m
     # as the loser twice this week); this is the sanctioned early outlet
@@ -1150,12 +1154,14 @@ def cycle() -> None:
         print("  surge error:", _srg_exc, flush=True)
     for p in _srg:
         store.record_signal("surge", p)
-    # 📡 buzz RESTORED (user 2026-08-06 "make surge restore as well")
-    # — the 2026-07-26 test-first mute's re-enable condition was met by
-    # the live desk record: 195 closed · 48% win · +22.38R after fees ·
-    # GREEN. The fresh-pump catcher for the ALLO/EPIC mover class.
-    _push([p for p in _srg if _in_zone(p)], "surge", _fmt_surge,
-          min_conf=0, tier="surge")
+    # 2026-08-28 user order: 📡 SURGE buzz OFF ("I dont want the
+    # telegram notification for surge and strong ignitions now") —
+    # 🕵️ OI LOAD is the upgraded pre-spike layer for this mover
+    # class. Board + desk tier keep recording; re-enable is this
+    # one line. (History: muted 07-26, restored 08-06 on the green
+    # record, muted again today on user call.)
+    # _push([p for p in _srg if _in_zone(p)], "surge", _fmt_surge,
+    #       min_conf=0, tier="surge")
     _push([p for p in best if _in_zone(p)], "best", _fmt_best,
           tier="best_board")
     _push(apex, "apex", _fmt_apex, min_conf=0, tier="apex")
@@ -2177,6 +2183,16 @@ def cycle() -> None:
                   ("trend_rider", r.get("trend", [])))
         for _tname, _sigs in _tiers:
             for p in _sigs:
+                # 🎯 conf on EVERY desk trade (user 2026-08-28: "the
+                # confidence on telegram... I want to know their win
+                # rates") — stamped at open, stored in the trade row,
+                # so the desk answers win-rate-by-band directly.
+                if p.get("conf") is None:
+                    try:
+                        p["conf"] = best_board.confidence(
+                            p.get("symbol"), p.get("side"))
+                    except Exception:
+                        pass
                 if shadow_trader.open_from_signal(_tname, p,
                                                   _live(p.get("symbol"))):
                     n_shadow_open += 1
