@@ -2416,7 +2416,31 @@ def cycle() -> None:
                     if _o0 <= 0:
                         continue
                     _bld = (_o1 / _o0 - 1) * 100
-                    if _bld < 3.0:
+                    # ⚡ FAST LANE (user 2026-08-28: "why is it 8h —
+                    # silent coins... short time stamps"): a 15m OI
+                    # read catches a sudden load in ~90 min instead
+                    # of hours. Measured WEAKER alone (the short
+                    # window ran 1.27x vs 2.19x for the slow build),
+                    # so fast-only detections need grade A
+                    # corroboration before they may buzz.
+                    _kick = 0.0
+                    try:
+                        _oh15 = _dv_w._fapi_get(
+                            "/futures/data/openInterestHist",
+                            {"symbol": _os, "period": "15m",
+                             "limit": 8}) or []
+                        if len(_oh15) >= 6:
+                            _k0 = float(
+                                _oh15[0]["sumOpenInterestValue"])
+                            _k1 = float(
+                                _oh15[-1]["sumOpenInterestValue"])
+                            if _k0 > 0:
+                                _kick = (_k1 / _k0 - 1) * 100
+                    except Exception:
+                        pass
+                    _slow = _bld >= 3.0
+                    _fast = _kick >= 2.0
+                    if not (_slow or _fast):
                         continue
                     _dfq = binance_client.get_klines(_os, "1h",
                                                      limit=130)
@@ -2490,6 +2514,11 @@ def cycle() -> None:
                                     for p9 in (r.get("strong") or [])}:
                         _gp += 1
                         _gn.append("💎 card live")
+                    # 6) ⚡ the fast kick corroborating the slow build
+                    if _fast:
+                        _gp += 1
+                        _gn.append(f"⚡ fast kick "
+                                   f"+{_kick:.1f}%/90m")
                     _grade = ("A" if _gp >= 3 else
                               "B" if _gp == 2 else "C")
                     _hi24 = float(_hq[-24:].max())
@@ -2497,6 +2526,10 @@ def cycle() -> None:
                              "base": _os.replace("USDT", ""),
                              "side": "LONG",
                              "build": round(_bld, 1),
+                             "kick": round(_kick, 1),
+                             "lane": ("slow+fast" if _slow and _fast
+                                      else "slow" if _slow
+                                      else "fast"),
                              "ch24": round(_chq, 1),
                              "grade": _grade, "tells": _gp,
                              "notes": " · ".join(_gn)}
@@ -2542,14 +2575,21 @@ def cycle() -> None:
                     if _grade == "C":
                         continue    # C = OI alone — board + records
                                     # only (the buzz diet holds)
+                    if not _slow and _grade != "A":
+                        continue    # ⚡ fast-only lane is the weaker
+                                    # measured tell — it must earn an
+                                    # A (3+ tells) to buzz
                     if not store.should_alert(f"oiload:{_os}",
-                                              8 * 3600):
+                                              4 * 3600):
                         continue
+                    _ld9 = (f"positioning +{_bld:.1f}%/8h"
+                            if _slow else
+                            f"⚡ sudden load +{_kick:.1f}%/90m")
                     ok, _ = tg.send(
                         f"🕵️ *OI LOAD {_grade} — PRE-SPIKE* — "
                         f"{_os.replace('USDT', '')} "
                         f"({_gp + 1} tells)\n"
-                        f"positioning +{_bld:.1f}%/8h · price "
+                        f"{_ld9} · price "
                         f"{_chq:+.1f}%/24h · {_sigq['notes']}\n"
                         f"💥 armed at `{_hi24:g}` — the ladder "
                         f"buzzes 🔶 near and 💥 on the break\n"
