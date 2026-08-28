@@ -436,3 +436,10 @@ SOCIAL_FEEDS = {
     "Crypto": ["CryptoCurrency", "Bitcoin", "ethereum", "CryptoMarkets"],
     "Stocks / Markets": ["stocks", "wallstreetbets", "investing"],
 }
+
+# --- 👁 Personal watch (user 2026-08-29) -----------------------------------
+# Hand-picked coins the worker watches round the clock for the 1h
+# pullback-confirmation candle (the ENA shape: green close above prev
+# close + ema20 on 1.2x volume, after a real dip). One Telegram buzz per
+# coin per 6h max. Edit this list to change the watched coins.
+PERSONAL_WATCH = ["ZECUSDT", "INJUSDT", "VIRTUALUSDT"]

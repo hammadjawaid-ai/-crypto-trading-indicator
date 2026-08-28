@@ -3103,6 +3103,68 @@ def cycle() -> None:
     except Exception:
         pass
 
+    # 👁 PERSONAL WATCH (user 2026-08-29): round-the-clock eye on a
+    # hand-picked list (config.PERSONAL_WATCH — ZEC, INJ, VIRTUAL).
+    # One job: buzz the phone the moment a 1h pullback-confirmation
+    # candle prints — the exact ENA shape the user asked to reproduce
+    # (green close above prev close + ema20 on 1.2x volume), and only
+    # after a real dip so there is actually a pullback to be over.
+    # Additive stream — touches nothing else. 6h cooldown per coin.
+    for _pw_sym in list(getattr(config, "PERSONAL_WATCH", [])):
+        try:
+            _pwd = binance_client.get_klines(_pw_sym, "1h", limit=60)
+            if _pwd is None or len(_pwd) < 30:
+                continue
+            _pc = _pwd["close"].to_numpy()
+            _po = _pwd["open"].to_numpy()
+            _pv = _pwd["volume"].to_numpy()
+            _pe = (_pwd["close"].ewm(span=20, adjust=False)
+                   .mean().to_numpy())
+            _pvma = float(_pv[-21:-1].mean())
+            # confirm candle = last CLOSED 1h bar
+            _pw_conf = (_pc[-2] > _po[-2] and _pc[-2] > _pc[-3]
+                        and _pc[-2] > _pe[-2] and _pvma > 0
+                        and _pv[-2] > 1.2 * _pvma)
+            # ...resolving a real dip: 2+ of the 5 bars before it
+            # closed red or under ema20 (no dip → nothing to confirm)
+            _pw_dip = sum(
+                1 for _pi in range(-7, -2)
+                if _pc[_pi] < _po[_pi] or _pc[_pi] < _pe[_pi]) >= 2
+            if not (_pw_conf and _pw_dip):
+                continue
+            if not store.should_alert(f"pwatch:{_pw_sym}", 6 * 3600):
+                continue
+            _pw_px = float(_pc[-1]) if _pc[-1] > 0 else float(_pc[-2])
+            _pwh = _pwd["high"].to_numpy()
+            _pwl = _pwd["low"].to_numpy()
+            _pw_atr = float((_pwh[-15:-1] - _pwl[-15:-1]).mean())
+            _pw_sl = float(_pwl[-11:-1].min()) - 0.25 * _pw_atr
+            if not (0 < _pw_px - _pw_sl <= 4 * _pw_atr):
+                _pw_sl = _pw_px - 1.5 * _pw_atr
+            _pw_r = _pw_px - _pw_sl
+            _pw_base = _pw_sym.replace("USDT", "")
+            _pw_vx = _pv[-2] / _pvma if _pvma > 0 else 0.0
+            ok, _pw_err = tg.send(
+                f"🟢 *{_pw_base} JUST CONFIRMED* — the pullback is "
+                f"over.\n"
+                f"1h confirmation candle: green · above ema20 · "
+                f"vol {_pw_vx:.1f}x\n"
+                f"💰 `{_pw_px:g}` · SL `{_pw_sl:g}` "
+                f"({(_pw_sl / _pw_px - 1) * 100:+.1f}%) · TP1 "
+                f"`{_pw_px + _pw_r:g}` (+{_pw_r / _pw_px * 100:.1f}%) "
+                f"· TP2 `{_pw_px + 2 * _pw_r:g}`\n"
+                f"👁 personal watch")
+            n_alerts += 1 if ok else 0
+            if not ok:
+                print("  👁 tg:", _pw_err, flush=True)
+            store.record_signal("personal_watch", {
+                "symbol": _pw_sym, "base": _pw_base, "side": "LONG",
+                "entry": _pw_px, "stop": _pw_sl,
+                "tp1": _pw_px + _pw_r, "tp2": _pw_px + 2 * _pw_r,
+                "vol_x": round(float(_pw_vx), 2)})
+        except Exception as _pw_exc:
+            print(f"  👁 watch {_pw_sym}: {_pw_exc}", flush=True)
+
     store.record_cycle(regime, len(sst1), len(takenow), n_alerts)
     print(f"[{stamp}] regime={regime} · 🌊TREND={len(r.get('trend', []))} · "
           f"APEX={len(apex)} · EARLY_ELITE={len(elite_early)} · "
