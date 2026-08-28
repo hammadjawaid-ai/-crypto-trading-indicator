@@ -826,7 +826,16 @@ def cycle() -> None:
         pass
 
     # Store every best-signal this cycle (history for pattern analysis).
+    # 🎯 conf stamped at record time (user 2026-08-28: "win rate at
+    # confidence 87 and 98") — the score was buzz-only before, so no
+    # historical slice exists; from today every apex/best/elite
+    # record carries it in `extra` for exact slicing.
     for p in apex:
+        try:
+            p["conf"] = best_board.confidence(p.get("symbol"),
+                                              p.get("side"))
+        except Exception:
+            pass
         store.record_signal("apex", p)
     for p in sst1:
         store.record_signal("sst1", p)
@@ -972,6 +981,11 @@ def cycle() -> None:
         best = []
         print("  best_board error:", exc, flush=True)
     for p in best:
+        try:
+            p["conf"] = best_board.confidence(p.get("symbol"),
+                                              p.get("side"))
+        except Exception:
+            pass
         store.record_signal("best", p)
 
     def _in_zone(p):
@@ -1821,6 +1835,11 @@ def cycle() -> None:
                              and _pe["side"] == "SHORT")):
                 _ec_buzz.append(dict(_pe, kr_rescue=True))
         for _pe in _ec_buzz:
+            try:
+                _pe["conf"] = best_board.confidence(
+                    _pe.get("symbol"), _pe.get("side"))
+            except Exception:
+                pass
             store.record_signal("elite_conv", _pe)
         _push_elite(list(_ec_buzz))
         # ⚡🔮 KR-STRONG proving tier (user 2026-08-15: "testing
@@ -1856,6 +1875,11 @@ def cycle() -> None:
         # elite conviction fires so the stream never goes fully dark.
         _ec_buzz = [p for p in _ec_mh if p.get("appr")]
         for _pe in _ec_buzz:
+            try:
+                _pe["conf"] = best_board.confidence(
+                    _pe.get("symbol"), _pe.get("side"))
+            except Exception:
+                pass
             store.record_signal("elite_conv", _pe)
         _push_elite(list(_ec_buzz))
 
