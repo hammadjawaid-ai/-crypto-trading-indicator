@@ -3359,6 +3359,56 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                 f"{float(_r.get('tp1') or 0):g}</span>",
                 unsafe_allow_html=True)
 
+    # 🕵️ OI LOAD — pre-spike radar strip (user 2026-08-28: "oi load
+    # pre spike is for the paper trading and notification buzz...
+    # the upgraded version of strong ignition"): ⚡🚨 ignition fires
+    # ON the spike; this lists the coins loading BEFORE one. Fed by
+    # the worker's 15-min OI scan; Telegram buzzes ride an 8h
+    # per-coin cooldown.
+    try:
+        import json as _json_oi
+        import worker_store as _ws_oi
+        _oi_rows = _ws_oi.recent_by_stream("oi_load", 20)
+    except Exception:
+        _oi_rows = []
+    _oi_seen, _oi_fresh = set(), []
+    for _r in _oi_rows:
+        _s9 = _r.get("symbol")
+        if _s9 in _oi_seen:
+            continue
+        _oi_seen.add(_s9)
+        if time.time() - float(_r.get("ts") or 0) < 12 * 3600:
+            _oi_fresh.append(_r)
+    if _oi_fresh:
+        st.markdown("#### 🕵️ OI LOAD — money entering BEFORE the "
+                    "spike (the upgraded ignition)")
+        st.caption("**Futures positioning building ≥3% over 8h "
+                   "while price still sits quiet** — the one "
+                   "measured pre-spike tell (2.19x the base rate "
+                   "ahead of ≥10% runs). ⚡🚨 STRONG IGNITION fires "
+                   "ON the spike; these coins are loading BEFORE "
+                   "one. Honest read: the tell precedes roughly 1 "
+                   "in 5 big moves — the earliest heads-up that "
+                   "exists in the system, not a certainty. If it "
+                   "goes, 💥 THE NUMBERS and the trigger ladder "
+                   "fire the entry.")
+        _oi_lines = []
+        for _r in _oi_fresh[:10]:
+            try:
+                _x9 = _json_oi.loads(_r.get("extra") or "{}")
+            except Exception:
+                _x9 = {}
+            _age9 = int(max(0, time.time()
+                            - float(_r.get("ts") or 0)) // 60)
+            _oi_lines.append(
+                f"<b>{_r.get('base') or _r.get('symbol')}</b> "
+                f"<span style='color:#ffd54a;font-weight:800'>OI "
+                f"+{float(_x9.get('build') or 0):.1f}%/8h</span> "
+                f"<span style='color:#8b93a7;font-size:0.78rem'>· "
+                f"price {float(_x9.get('ch24') or 0):+.1f}%/24h · "
+                f"{_age9}m ago</span>")
+        st.markdown("<br>".join(_oi_lines), unsafe_allow_html=True)
+
     # 🌋 PRE-BURST on Paper Trading too (user 2026-08-03: separate
     # board on both pages) — display board; opening lives on 🎯.
     _preburst_board(None)
