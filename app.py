@@ -7264,9 +7264,12 @@ if active_section == "🎮 Demo $1,500":
         "only while its signal stays healthy (max 2 rotations per "
         "cycle). WILD sizing: slot margin balance÷10, levered 5x "
         "(elite) / 7x (triggers, re-runs, best-of-best) / 10x (🔥 "
-        "burst ≥85). Taker fees both sides · bank half at TP1 → "
-        "breakeven → 🧵 TRAIL to TP2 · 48h time-stop · 🧠 smart "
-        "exit unchanged. Simulated — zero real orders. Day "
+        "burst ≥85). Taker fees both sides · 💰 BANK 100% AT TP1 "
+        "(the GEN 6 half-bank lost money at a 67% win rate — "
+        "winners paid ~0.5R, stops hit −1R) — the seat frees at "
+        "once and the coin RE-ENTERS on a fresh plan while its "
+        "signal still holds · 48h time-stop · 🧠 smart exit "
+        "unchanged. Simulated — zero real orders. Day "
         f"{_days:.1f}.</span></div>", unsafe_allow_html=True)
     _t1c, _t2c, _t3c, _t4c = st.columns(4)
     _t1c.metric("💼 Equity", f"${_eq:,.2f}",

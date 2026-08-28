@@ -561,13 +561,19 @@ def manage(state: dict, live_fn, kr_get=None) -> list:
             events.append(("close", rec))
             continue
         if hit_tp1 and not p["be_set"]:
-            half = p["qty"] / 2
-            rec = _close_qty(state, p, half, p["tp1"], "TP1 bank half")
-            p["qty"] -= half
-            p["tp1_banked"] = rec["pnl"]
-            p["stop"] = p["entry"]          # breakeven
-            p["be_set"] = True
-            events.append(("tp1", rec))
+            # GEN 7 (user 2026-08-28: "bank full at tp1 and start
+            # trade again if the signals hold with confidence"):
+            # 100% banked AT TP1 — the GEN 6 half-bank geometry lost
+            # money at a 67% win rate (winners paid ~0.5R, stops hit
+            # full -1R). The seat frees immediately; if the signal
+            # is still live next cycle with a fresh in-zone plan,
+            # try_open re-enters it as a NEW trade.
+            rec = _close_qty(state, p, p["qty"], p["tp1"],
+                             "TP1 — banked 100% (GEN 7); re-enters "
+                             "if the signal still holds")
+            state["closed"].append(rec)
+            events.append(("close", rec))
+            continue
         if p["qty"] > 0 and (hit_tp2 or expired):
             px = t2 if hit_tp2 and t2 else live
             rec = _close_qty(state, p, p["qty"], px,
