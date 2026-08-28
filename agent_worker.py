@@ -3130,9 +3130,7 @@ def cycle() -> None:
             _pw_dip = sum(
                 1 for _pi in range(-7, -2)
                 if _pc[_pi] < _po[_pi] or _pc[_pi] < _pe[_pi]) >= 2
-            if not (_pw_conf and _pw_dip):
-                continue
-            if not store.should_alert(f"pwatch:{_pw_sym}", 6 * 3600):
+            if not _pw_dip:
                 continue
             _pw_px = float(_pc[-1]) if _pc[-1] > 0 else float(_pc[-2])
             _pwh = _pwd["high"].to_numpy()
@@ -3143,6 +3141,54 @@ def cycle() -> None:
                 _pw_sl = _pw_px - 1.5 * _pw_atr
             _pw_r = _pw_px - _pw_sl
             _pw_base = _pw_sym.replace("USDT", "")
+            # ⚡ EARLY lane (user 2026-08-29: "on the go... instead of
+            # waiting 1h"): fire when the turn is already MOVING —
+            # price reclaims the 1h ema20 intra-candle while the 15m
+            # trend AND burst are both LONG. Honest framing baked into
+            # the buzz: early entries measured ~49% vs 67.8% for the
+            # confirmed shape, so this is the smaller-size heads-up
+            # and 🟢 CONFIRMED stays the green light.
+            if not _pw_conf and _pw_px > float(_pe[-1]):
+                try:
+                    _pw15 = binance_client.get_klines(
+                        _pw_sym, "15m", limit=120)
+                    _ts15, _td15, _ = _et_w.detect(_pw15)
+                    _bs15, _bd15, _ = _vb_w.lane_velocity_burst(_pw15)
+                    if (_ts15 >= 55 and _td15 == "LONG"
+                            and _bs15 >= 65
+                            and (_bd15 or "").upper() == "LONG"
+                            and store.should_alert(
+                                f"pwatch_early:{_pw_sym}", 6 * 3600)):
+                        ok, _pw_err = tg.send(
+                            f"⚡ *{_pw_base} WAKING NOW* — moving "
+                            f"before the 1h confirm.\n"
+                            f"15m trend {_ts15:.0f} LONG · burst "
+                            f"{_bs15:.0f} LONG · price back above the "
+                            f"1h ema20\n"
+                            f"💰 entry `{_pw_px:g}` · SL `{_pw_sl:g}` "
+                            f"({(_pw_sl / _pw_px - 1) * 100:+.1f}%) · "
+                            f"TP1 `{_pw_px + _pw_r:g}` · TP2 "
+                            f"`{_pw_px + 2 * _pw_r:g}`\n"
+                            f"⚠️ early read — smaller size; 🟢 the 1h "
+                            f"confirm candle is still the green light\n"
+                            f"👁 personal watch")
+                        n_alerts += 1 if ok else 0
+                        if not ok:
+                            print("  👁 tg:", _pw_err, flush=True)
+                        store.record_signal("personal_watch_early", {
+                            "symbol": _pw_sym, "base": _pw_base,
+                            "side": "LONG", "entry": _pw_px,
+                            "stop": _pw_sl, "tp1": _pw_px + _pw_r,
+                            "tp2": _pw_px + 2 * _pw_r,
+                            "t15": round(float(_ts15)),
+                            "b15": round(float(_bs15))})
+                except Exception as _pw_exc:
+                    print(f"  👁 early {_pw_sym}: {_pw_exc}",
+                          flush=True)
+            if not _pw_conf:
+                continue
+            if not store.should_alert(f"pwatch:{_pw_sym}", 6 * 3600):
+                continue
             _pw_vx = _pv[-2] / _pvma if _pvma > 0 else 0.0
             ok, _pw_err = tg.send(
                 f"🟢 *{_pw_base} JUST CONFIRMED* — the pullback is "
