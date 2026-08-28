@@ -44,6 +44,7 @@ import surge_radar
 import telegram_notify as tg
 import velocity_burst as _vb_w
 import early_trend as _et_w
+import derivatives as _dv_w
 import worker_store as store
 
 INTERVAL = max(1, int(getattr(config, "WORKER_INTERVAL_MIN", 5))) * 60
@@ -222,6 +223,9 @@ DEMO_FIRE_TTL_S = 1800
 # the confirmed moment. Cycle-thread only — no lock needed.
 _EC_WATCH: dict = {}
 EC_WATCH_H = 48.0
+# 🕵️ OI LOAD pre-spike radar clock (15-min cadence — the tell is an
+# 8h positioning build; faster polling adds calls, not information)
+_OI_LAST = 0.0
 # 🎮 confirmed entries feed the GEN 6 demo too (user 2026-08-23
 # follow-up: "lets also have elite confirm entry in place as well —
 # 3 to 4 confirm elite entry and elite entry altogether"). Same
@@ -2311,6 +2315,74 @@ def cycle() -> None:
     except Exception as _hp_exc:
         print("  elite-pulse error:", _hp_exc, flush=True)
 
+    # 🕵️ OI LOAD — the PRE-SPIKE radar (user 2026-08-26: "strong
+    # ignition is shown when the candles show a spike... i want to
+    # sense and know the trade BEFORE the spike"). Every price-based
+    # early construct measured red — candles cannot precede
+    # themselves. The ONE validated pre-spike tell is POSITIONING:
+    # futures OI building >= 3% in the trailing 8h while price is
+    # still quiet ran at 2.19x the base rate before >=10% runs
+    # (backtest_insider, 206 events vs 778 controls). This buzzes
+    # the loading and records it for the capture ledger; it never
+    # sizes a trade itself (the direct entry construct measured
+    # -0.21R — the alarm plus the armed-levels ladder IS the play).
+    global _OI_LAST
+    if _now - _OI_LAST >= 900:
+        _OI_LAST = _now
+        try:
+            _oi_syms = binance_client.get_top_symbols(
+                100)["symbol"].tolist()
+            for _os in _oi_syms:
+                try:
+                    _oh = _dv_w._fapi_get(
+                        "/futures/data/openInterestHist",
+                        {"symbol": _os, "period": "1h",
+                         "limit": 10})
+                    if not _oh or len(_oh) < 9:
+                        continue
+                    _o0 = float(_oh[0]["sumOpenInterestValue"])
+                    _o1 = float(_oh[-1]["sumOpenInterestValue"])
+                    if _o0 <= 0:
+                        continue
+                    _bld = (_o1 / _o0 - 1) * 100
+                    if _bld < 3.0:
+                        continue
+                    _dfq = binance_client.get_klines(_os, "1h",
+                                                     limit=30)
+                    if _dfq is None or len(_dfq) < 26:
+                        continue
+                    _cq = _dfq["close"].to_numpy()
+                    _chq = (float(_cq[-1]) / float(_cq[-25]) - 1) \
+                        * 100
+                    if abs(_chq) >= 5.0:
+                        continue    # already moving — not pre-spike
+                    store.record_signal("oi_load", {
+                        "symbol": _os,
+                        "base": _os.replace("USDT", ""),
+                        "side": "LONG", "build": round(_bld, 1),
+                        "ch24": round(_chq, 1)})
+                    if _bstock_quiet(_os):
+                        continue
+                    if not store.should_alert(f"oiload:{_os}",
+                                              8 * 3600):
+                        continue
+                    ok, _ = tg.send(
+                        f"🕵️ *OI LOAD — PRE-SPIKE* — "
+                        f"{_os.replace('USDT', '')}\n"
+                        f"futures positioning +{_bld:.1f}% in 8h "
+                        f"while price sits {_chq:+.1f}%/24h — money "
+                        f"entering BEFORE any candle spike (the "
+                        f"validated 2.19x precursor)\n"
+                        f"_no spike yet — that is the point. If it "
+                        f"goes, the armed levels and trigger ladder "
+                        f"fire the entry; this is the heads-up._")
+                    n_alerts += 1 if ok else 0
+                except Exception:
+                    continue
+                time.sleep(0.12)
+        except Exception as _oi_exc:
+            print("  oi-load radar error:", _oi_exc, flush=True)
+
     # 🎮 DEMO ZONE — the $1,200 one-week live-fire test (user
     # 2026-08-09): the worker auto-picks the HIGHEST-QUALITY signals
     # (💯>🥇>🎯>🔮✅>🚀>elite, boosted by live 14d form + score) under
@@ -2328,6 +2400,7 @@ def cycle() -> None:
         _dz_form = {}
         for _dt, _sh in (("strong_trigger", "trig_strong"),
                          ("rerun", "second_leg"),
+                         ("best_conf", "best_board"),
                          ("elite_conv", "elite_conv"),
                          ("elite_confirm", "elite_confirm")):
             try:
@@ -2365,11 +2438,26 @@ def cycle() -> None:
         # demo_account.ELITE_FAMILY_CAP)
         _ECF_FIRES[:] = [f for f in _ECF_FIRES
                          if _now - f["fired_at"] <= DEMO_FIRE_TTL_S]
+        # 🎯 GEN 7 BEST-OF-BEST seats (user 2026-08-26: "best of the
+        # best... confidence score 98/100 or above, above 80/100 as
+        # we have it on telegram — 3 slots"): 💎 BEST ZONE cards
+        # carrying the telegram 🎯 confidence read >= 80, ranked by
+        # it — the 98+ ones outrank everything in the lane.
+        _dz_best = []
+        for _bp7 in best:
+            try:
+                _cf7 = float(best_board.confidence(
+                    _bp7.get("symbol"), _bp7.get("side")) or 0)
+            except Exception:
+                _cf7 = 0.0
+            if _cf7 >= 80:
+                _dz_best.append(dict(_bp7, conf=_cf7, score=_cf7))
         _dz_pools = {
             "strong_trigger": [f for f in _dz_fires
                                if f["src"] == "strong_trigger"],
             "rerun": ([f for f in _dz_fires if f["src"] == "rerun"]
                       + _dz_requal),
+            "best_conf": _dz_best,
             "elite_confirm": list(_ECF_FIRES),
             "elite_conv": (_dz_elite
                            + [f for f in _dz_fires
@@ -2377,6 +2465,15 @@ def cycle() -> None:
                               and (float(f.get("score") or 0) >= 90
                                    or float(f.get("burst") or 0)
                                    >= 85)])}
+        # 🔄 GEN 7 rotation input: every (coin, side) with a LIVE
+        # signal this cycle — positions outside this set are the
+        # rotation candidates ("a losing trade stands only while
+        # its signals are healthy").
+        _dz_active = set()
+        for _pl7 in _dz_pools.values():
+            for _p7 in _pl7:
+                _dz_active.add((_p7.get("symbol"),
+                                (_p7.get("side") or "").upper()))
         def _dz_kr(sym, side):
             """Cached kronos read; force-fetch for the demo's few open
             positions so the smart exit always has a fresh view."""
@@ -2393,14 +2490,23 @@ def cycle() -> None:
             except Exception:
                 return None
         _dz_events = demo_account.manage(_dz, _live, _dz_kr)
-        _dz_opened = demo_account.try_open(
+        _dz_opened, _dz_rot = demo_account.try_open(
             _dz, demo_account.rank_candidates(_dz_pools, _dz_form),
-            _live)
+            _live, active=_dz_active)
         demo_account.save(_dz)
+        for _rr in _dz_rot:
+            ok, _ = tg.send(
+                f"🎮🔄 *DEMO $1500 GEN7* — ROTATED OUT "
+                f"{_rr['base']} {_rr['side']} ({_rr['reason']}) → "
+                f"{'+' if _rr['pnl'] >= 0 else ''}"
+                f"${_rr['pnl']:,.2f}\n"
+                f"_seat freed for a stronger live signal_ · balance "
+                f"`${_dz['balance']:,.2f}`")
+            n_alerts += 1 if ok else 0
         for _po in _dz_opened:
             _agr = int(_po.get("agree", 1))
             ok, _ = tg.send(
-                f"🎮 *DEMO $1500 GEN6* — OPENED {_po['base']} "
+                f"🎮 *DEMO $1500 GEN7* — OPENED {_po['base']} "
                 f"{_po['side']} "
                 f"({'🤝 ' + str(_agr) + ' SYSTEMS AGREE · ' if _agr > 1 else ''}"
                 f"src `{_po.get('srcs', _po['src'])}` · score "
@@ -2418,7 +2524,7 @@ def cycle() -> None:
                 # 🧠🛡 strength-aware guard — position still open, the
                 # brain gave a STRONG signal room instead of banking
                 ok, _ = tg.send(
-                    f"🎮🧠 *DEMO $1500 GEN6* — RIDING THROUGH THE "
+                    f"🎮🧠 *DEMO $1500 GEN7* — RIDING THROUGH THE "
                     f"FLIP {_rec['base']} {_rec['side']}\n"
                     f"{_rec['reason']}\nstop now "
                     f"`{_rec['stop']:g}` · balance "
@@ -2428,7 +2534,7 @@ def cycle() -> None:
             _tag = ("💰 TP1 half-banked" if _ev == "tp1"
                     else "CLOSED")
             ok, _ = tg.send(
-                f"🎮 *DEMO $1500 GEN6* — {_tag} {_rec['base']} "
+                f"🎮 *DEMO $1500 GEN7* — {_tag} {_rec['base']} "
                 f"{_rec['side']} ({_rec['reason']}) → "
                 f"{'+' if _rec['pnl'] >= 0 else ''}"
                 f"${_rec['pnl']:,.2f}\n"

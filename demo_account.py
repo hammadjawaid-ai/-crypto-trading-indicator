@@ -54,7 +54,19 @@ STATE_FILE = os.environ.get("DEMO_STATE") or \
 # signal grade, so a normal 1R swing is ~$50-200 instead of $10-20.
 # TP/SL and the smart exit are UNCHANGED — ideally SL/TP resolves;
 # the smart exit only steps in when the move is fading.
-GEN = 6
+# GEN 7 = 2026-08-26 ("lets rerun this demo trading from today its
+# not making money"): fresh $1,500 ledger, new seat map — 5 top-
+# stream seats (💥⚡ strong triggers + 🔄 re-runs) · 3 🎯 BEST-OF-
+# BEST seats (💎 BEST ZONE cards carrying the telegram confidence
+# score >= 80; 98+ outranks everything in that lane) · 2 💎 elite-
+# family seats (elite cream + 💎✅ confirmed/re-entry, max scores).
+# Slots stay a CEILING, not a quota. NEW ROTATION RULE (user: "if
+# the signals get healthier from other coins we should close the
+# weak ones"): when a stronger signal is waiting and its seats are
+# full, a position whose SIGNAL HAS DIED is rotated out — banked if
+# positive, cut if negative; a losing position stands ONLY while
+# its signal stays healthy.
+GEN = 7
 START_BAL = 1500.0
 # 6 -> 10 (user 2026-08-23 second follow-up: "instead of 6 we have
 # 10 slots now and 7 for strong triggers and 3 for elite
@@ -78,20 +90,23 @@ TIME_STOP_H = 48
 # GEN 5 (user order 6): 🌊 TREND RIDER is OUT of the demo — its
 # per-source hold/slot/smart-exit carve-outs go with it.
 TIME_STOP_BY_SRC: dict = {}
-# GEN 6 elite seats (user 2026-08-23, final split: "more weightage
-# to the confirmed elite entries... out of 4 it gets 2 and the raw
-# elite gets the 2"): 💎✅ confirmed entries 2 seats, raw 💎 elite
-# cream 2 seats (worker pool gate: approved AND MAX grade / 90+ /
-# 2-lane 85+). Counted by plan-winning source, so a coin a top
-# stream also fired spends a TOP seat, not an elite one. NOTE the
-# 2026-08-23 lanes study measured every elite AT-FIRE cell negative
-# after fees — these seats live or die by the demo's own ledger.
-MAX_PER_SRC: dict = {"elite_conv": 2, "elite_confirm": 2}
-# 💎 FAMILY CAP: raw elite + confirmed entries at most 4 of the 10
-# together (redundant with the 2+2 split above; kept as a guard) —
-# the top streams always keep >= 6 seats, typically 7.
+# GEN 7 seat map (user 2026-08-26): 5 top-stream · 3 best-of-best ·
+# 2 elite family. Per-src and family caps below enforce it; counted
+# by plan-winning source.
+MAX_PER_SRC: dict = {"elite_conv": 2, "elite_confirm": 2,
+                     "best_conf": 3}
+# 💥 TOP FAMILY: strong triggers + re-runs share 5 seats.
+TOP_FAMILY = {"strong_trigger", "rerun"}
+TOP_FAMILY_CAP = 5
+# 💎 ELITE FAMILY: raw elite cream + confirmed/re-entry share 2.
 ELITE_FAMILY = {"elite_conv", "elite_confirm"}
-ELITE_FAMILY_CAP = 4
+ELITE_FAMILY_CAP = 2
+# 🔄 ROTATION (GEN 7): when a qualified candidate is blocked by a
+# full board/family, a position whose signal has DIED this cycle
+# (its coin+side no longer active in ANY pool) may be rotated out —
+# positives banked first, then negatives cut. Healthy signals are
+# NEVER rotated, and at most this many rotations happen per cycle.
+ROTATE_MAX = 2
 SMART_EXIT_SKIP: set = set()
 # 🧠 STRENGTH-AWARE SMART EXIT + TRAIL (user 2026-08-15: "smart exit
 # should have a trailing method... loosen a bit if the signal
@@ -147,6 +162,9 @@ CLASS_W = {"strong_trigger": 100,  # 💥⚡ 79% win · +58.7R/241, the
                                    # desk's best win rate at scale
            "rerun": 100,           # 🔄 second-leg breaks + 💎🔄
                                    # re-qualified (68% win · +0.36R)
+           "best_conf": 95,        # 🎯 GEN 7: BEST ZONE cards with
+                                   # telegram confidence >= 80; the
+                                   # 98+ ones are the best-of-best
            "elite_confirm": 90,    # 💎✅ the validated entry on elite
                                    # fires (67.8% · +0.025R, green
                                    # both halves; live ledger proves)
@@ -230,6 +248,7 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
                           "src": name, "score": sc, "w": w,
                           "srcs": {name}, "rank": base_rank,
                           "burst": float(p.get("burst") or 0),
+                          "conf": float(p.get("conf") or 0),
                           "kr_ok": bool(p.get("kr_agree"))}
             else:
                 cur["srcs"].add(name)
@@ -237,6 +256,8 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
                 cur["score"] = max(cur["score"], sc)
                 cur["burst"] = max(float(cur.get("burst") or 0),
                                    float(p.get("burst") or 0))
+                cur["conf"] = max(float(cur.get("conf") or 0),
+                                  float(p.get("conf") or 0))
                 cur["kr_ok"] = cur.get("kr_ok") \
                     or bool(p.get("kr_agree"))
                 if w > cur["w"]:        # higher-class plan wins
@@ -265,6 +286,10 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
             bonus += 80
         if float(c.get("burst") or 0) >= 85:
             bonus += 40
+        # GEN 7: 🎯 98+ confidence = the true best-of-best — outranks
+        # everything inside its 3-seat lane
+        if "best_conf" in c["srcs"] and float(c.get("conf") or 0) >= 98:
+            bonus += 30
         c["rank"] += bonus
         c["top"] = 1 if _top6 else 0
         c["srcs"] = ",".join(sorted(c["srcs"]))
@@ -272,37 +297,90 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
     return out
 
 
-def try_open(state: dict, cands: list, live_fn) -> list:
+def try_open(state: dict, cands: list, live_fn, active=None):
     """Fill free slots with the best in-zone candidates. Real-account
-    rules: slot cap, one per coin, notional risk-sized off the CURRENT
-    balance, entry fee paid immediately."""
-    opened = []
+    rules: seat caps, one per coin, margin sized off the CURRENT
+    balance, entry fee paid immediately.
+
+    GEN 7 ROTATION (user 2026-08-26: "if the signals get healthier
+    from other coins we should close the weak ones"): `active` = the
+    (symbol, side) pairs with a live signal this cycle. When a
+    qualified candidate is blocked by a full board/family/source, ONE
+    position whose signal has DIED may be rotated out — banked if
+    positive, cut if negative. Healthy signals are never rotated;
+    at most ROTATE_MAX rotations per cycle.
+    Returns (opened, rotated)."""
+    opened, rotated = [], []
     held = {p["symbol"] for p in state["open"]}
     src_n: dict = {}
     for p in state["open"]:
         src_n[p.get("src")] = src_n.get(p.get("src"), 0) + 1
+
+    def _rotate(scope=None):
+        if active is None or len(rotated) >= ROTATE_MAX:
+            return False
+        best = None
+        for p in state["open"]:
+            if scope is not None and p.get("src") not in scope:
+                continue
+            if (p["symbol"],
+                    (p.get("side") or "").upper()) in active:
+                continue        # signal healthy — never rotated
+            try:
+                lv = float(live_fn(p["symbol"]) or 0)
+            except Exception:
+                lv = 0.0
+            if lv <= 0:
+                continue
+            r0 = float(p.get("risk0") or 0) or \
+                abs(p["entry"] - p["stop"]) or p["entry"] * 0.02
+            pr = (lv - p["entry"]) * \
+                (1 if p["side"] == "LONG" else -1) / r0
+            key = (0 if pr >= 0 else 1, -pr)
+            if best is None or key < best[0]:
+                best = (key, p, lv, pr)
+        if best is None:
+            return False        # every position's signal is healthy
+        _, p, lv, pr = best
+        rec = _close_qty(
+            state, p, p["qty"], lv,
+            f"rotated — signal gone, stronger setup waiting "
+            f"({'banked' if pr >= 0 else 'cut'} at {pr:+.2f}R)")
+        state["open"].remove(p)
+        state["closed"].append(rec)
+        held.discard(p["symbol"])
+        src_n[p.get("src")] = max(0, src_n.get(p.get("src"), 0) - 1)
+        rotated.append(rec)
+        return True
+
     for c in cands:
-        if len(state["open"]) >= MAX_SLOTS_HOT:
-            break
-        if len(state["open"]) >= MAX_SLOTS and not (
-                c.get("top")
-                and (float(c.get("burst") or 0) >= 85
-                     or int(c.get("agree") or 1) >= 2)):
-            continue            # 🔥 overflow seats 7-8: hot
-                                # top-stream fires only
         if c.get("rank", 0) < MIN_RANK:
             continue            # two-key sort (top, rank) — a low
                                 # top-stream rank must not gate the
-                                # elite cards sorted after it
+                                # cards sorted after it
         if c["symbol"] in held:
             continue
+        if len(state["open"]) >= MAX_SLOTS and not _rotate():
+            continue            # board full, nothing rotatable
         _cap = MAX_PER_SRC.get(c["src"])
         if _cap is not None and src_n.get(c["src"], 0) >= _cap:
-            continue            # per-source slot cap
-        if c["src"] in ELITE_FAMILY and \
-                sum(src_n.get(s, 0) for s in ELITE_FAMILY) \
-                >= ELITE_FAMILY_CAP:
-            continue            # 💎 family cap — 4 of 10 together
+            if not _rotate({c["src"]}) or \
+                    src_n.get(c["src"], 0) >= _cap:
+                continue        # per-source seats full
+        if c["src"] in TOP_FAMILY:
+            if sum(src_n.get(s, 0) for s in TOP_FAMILY) \
+                    >= TOP_FAMILY_CAP and (
+                    not _rotate(TOP_FAMILY)
+                    or sum(src_n.get(s, 0) for s in TOP_FAMILY)
+                    >= TOP_FAMILY_CAP):
+                continue        # 💥 top-family 5 seats full
+        if c["src"] in ELITE_FAMILY:
+            if sum(src_n.get(s, 0) for s in ELITE_FAMILY) \
+                    >= ELITE_FAMILY_CAP and (
+                    not _rotate(ELITE_FAMILY)
+                    or sum(src_n.get(s, 0) for s in ELITE_FAMILY)
+                    >= ELITE_FAMILY_CAP):
+                continue        # 💎 elite-family 2 seats full
         try:
             live = float(live_fn(c["symbol"]) or 0)
         except Exception:
@@ -318,11 +396,13 @@ def try_open(state: dict, cands: list, live_fn) -> list:
         stop_pct = abs(live - c["stop"]) / live
         if stop_pct <= 0.001 or stop_pct > STOP_MAX_PCT:
             continue
-        # GEN 6 WILD SIZING: slot margin = balance/5, leverage graded
-        # by signal quality — 10x needs the validated A-grade burst.
+        # WILD SIZING: slot margin = balance/10, leverage graded by
+        # signal quality — 10x needs the validated A-grade burst.
+        # GEN 7: 🎯 best-of-best seats size with the top streams.
         margin = state["balance"] / MAX_SLOTS
         lev = LEV_BASE
-        if c.get("top") or c["src"] in ("strong_trigger", "rerun"):
+        if c.get("top") or c["src"] in ("strong_trigger", "rerun",
+                                        "best_conf"):
             lev = LEV_MID
         if float(c.get("burst") or 0) >= 85:
             lev = LEV_MAX
@@ -349,7 +429,7 @@ def try_open(state: dict, cands: list, live_fn) -> list:
         held.add(c["symbol"])
         src_n[c["src"]] = src_n.get(c["src"], 0) + 1
         opened.append(pos)
-    return opened
+    return opened, rotated
 
 
 def _close_qty(state, p, qty, px, reason) -> dict:
