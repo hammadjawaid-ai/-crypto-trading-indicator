@@ -436,17 +436,20 @@ def _trigger_watch() -> None:
                 _src0 = str(a.get("src", ""))
                 _dsrc = ("strong_trigger" if _src0.startswith("⚡")
                          else "rerun" if _src0.startswith("🔥")
+                         else None if _src0.startswith("🕵️")
                          else "elite_conv")
-                with _TRIG_LOCK:
-                    _DEMO_FIRES.append(
-                        {"symbol": a["symbol"], "base": a["base"],
-                         "side": a["side"], "entry": px,
-                         "stop": a["stop"], "tp1": a["tp1"],
-                         "tp2": a.get("tp2"),
-                         "score": float(a.get("score") or 80),
-                         "burst": float(a.get("burst") or 0),
-                         "src": _dsrc, "fired_at": _now})
-                    del _DEMO_FIRES[:-40]
+                if _dsrc is not None:   # 🕵️ breaks: no demo money
+                                        # until their ledger earns it
+                    with _TRIG_LOCK:
+                        _DEMO_FIRES.append(
+                            {"symbol": a["symbol"], "base": a["base"],
+                             "side": a["side"], "entry": px,
+                             "stop": a["stop"], "tp1": a["tp1"],
+                             "tp2": a.get("tp2"),
+                             "score": float(a.get("score") or 80),
+                             "burst": float(a.get("burst") or 0),
+                             "src": _dsrc, "fired_at": _now})
+                        del _DEMO_FIRES[:-40]
                 try:
                     if store.should_alert(
                             f"trig:{a['symbol']}:{a['side']}",
@@ -484,6 +487,26 @@ def _trigger_watch() -> None:
                             "second_leg", _sig_sl, px)
                     except Exception as exc:
                         print("[trigger] 2ndleg-proof error:", exc,
+                              flush=True)
+                # 🕵️💥 OI-load arm broke — the fused pre-spike
+                # construct completing (user 2026-08-28: "work with
+                # the whole system"): its own desk tier proves what
+                # a graded load's BREAK is worth live.
+                if str(a.get("src", "")).startswith("🕵️"):
+                    try:
+                        _sig_oi = {"symbol": a["symbol"],
+                                   "base": a["base"],
+                                   "side": a["side"],
+                                   "tier": "OILOAD",
+                                   "score": a.get("score"),
+                                   "entry": px, "stop": a["stop"],
+                                   "tp1": a["tp1"],
+                                   "tp2": a.get("tp2")}
+                        store.record_signal("oi_break", _sig_oi)
+                        shadow_trader.open_from_signal(
+                            "oi_break", _sig_oi, px)
+                    except Exception as exc:
+                        print("[trigger] oi-proof error:", exc,
                               flush=True)
                 if str(a.get("src", "")).startswith("⚡"):
                     try:
@@ -2396,8 +2419,8 @@ def cycle() -> None:
                     if _bld < 3.0:
                         continue
                     _dfq = binance_client.get_klines(_os, "1h",
-                                                     limit=30)
-                    if _dfq is None or len(_dfq) < 26:
+                                                     limit=130)
+                    if _dfq is None or len(_dfq) < 40:
                         continue
                     _cq = _dfq["close"].to_numpy()
                     _chq = (float(_cq[-1]) / float(_cq[-25]) - 1) \
@@ -2408,45 +2431,132 @@ def cycle() -> None:
                     _lq = _dfq["low"].to_numpy()
                     _atrq = float((_hq[-14:] - _lq[-14:]).mean())
                     _pxq = float(_cq[-1])
+                    # ── v2 FUSION (user 2026-08-28: "make this with
+                    # pulse and candles and movement... work with the
+                    # whole system"): grade every load with every
+                    # validated tell the system owns. More agreeing
+                    # tells = earlier + stronger; graded honestly,
+                    # never called certain.
+                    _gp, _gn = 0, []
+                    # 1) 📟 the 15m pulse — earliest candles stirring
+                    try:
+                        _d15q = binance_client.get_klines(
+                            _os, "15m", limit=120)
+                        _t15, _t15d, _ = _et_w.detect(_d15q)
+                        _b15, _b15d, _ = _vb_w.lane_velocity_burst(
+                            _d15q)
+                        if (_t15 >= 60 and _t15d == "LONG") or \
+                                (_b15 >= 55 and (_b15d or "").upper()
+                                 == "LONG"):
+                            _gp += 1
+                            _gn.append("📟 15m stirring")
+                    except Exception:
+                        pass
+                    # 2) 🌀 tight coil — the one pre-burst shape that
+                    # ever measured green (armed-coil break +0.12R)
+                    try:
+                        _r24 = (float(_hq[-24:].max())
+                                - float(_lq[-24:].min())) / _pxq
+                        _rpr = (float(_hq[-120:-24].max())
+                                - float(_lq[-120:-24].min())) / _pxq
+                        if _rpr > 0 and _r24 / (_rpr / 4) < 0.9:
+                            _gp += 1
+                            _gn.append("🌀 tight coil")
+                    except Exception:
+                        pass
+                    # 3) 🏗 loaded spring — sitting AT the high, not
+                    # the bottom of a dump
+                    if _pxq >= float(_hq[-24:].max()) * 0.985:
+                        _gp += 1
+                        _gn.append("🏗 at the high")
+                    # 4) 💸 funding jump — the rare 4.2x tell
+                    try:
+                        _fr9 = _dv_w._fapi_get(
+                            "/fapi/v1/fundingRate",
+                            {"symbol": _os, "limit": 6}) or []
+                        if len(_fr9) >= 4:
+                            _fnew = float(_fr9[-1]["fundingRate"])
+                            _fold = sum(
+                                float(x["fundingRate"])
+                                for x in _fr9[:-1]) / (len(_fr9) - 1)
+                            if (_fnew - _fold) * 1e4 >= 2.0:
+                                _gp += 1
+                                _gn.append("💸 funding jump")
+                    except Exception:
+                        pass
+                    # 5) 💎 a card already sniffing it
+                    if _os in {p9.get("symbol") for p9 in _ec_mh} or \
+                            _os in {p9.get("symbol")
+                                    for p9 in (r.get("strong") or [])}:
+                        _gp += 1
+                        _gn.append("💎 card live")
+                    _grade = ("A" if _gp >= 3 else
+                              "B" if _gp == 2 else "C")
+                    _hi24 = float(_hq[-24:].max())
                     _sigq = {"symbol": _os,
                              "base": _os.replace("USDT", ""),
                              "side": "LONG",
                              "build": round(_bld, 1),
-                             "ch24": round(_chq, 1)}
+                             "ch24": round(_chq, 1),
+                             "grade": _grade, "tells": _gp,
+                             "notes": " · ".join(_gn)}
                     if _atrq > 0 and _pxq > 0:
                         _sigq.update(
                             entry=_pxq, stop=_pxq - 1.5 * _atrq,
                             tp1=_pxq + 1.5 * _atrq,
                             tp2=_pxq + 3.0 * _atrq)
                     store.record_signal("oi_load", _sigq)
-                    # 🧪 decision-desk proving tier (user 2026-08-28:
-                    # "if it needs to be at decision desk do it") —
-                    # records only, one open per coin, ATR plan at
-                    # detection. The backtested arm+break entry
-                    # measured red on the thin free-OI window; the
-                    # LIVE ledger now decides whether the alarm
-                    # itself carries a tradeable edge.
+                    # 🧪 desk proving tier — one per coin, ATR plan
+                    # at detection; the live ledger grades the alarm.
                     try:
                         if _sigq.get("entry"):
                             shadow_trader.open_from_signal(
                                 "oi_load", _sigq, _pxq)
                     except Exception:
                         pass
+                    # 💥 A/B loads ARM the trigger ladder at the 24h
+                    # high — the whole system takes over: 🔶 near and
+                    # 💥 break buzzes, desk fire on the break. The
+                    # earliest tell feeding the proven machinery.
+                    if _grade in ("A", "B") and _atrq > 0 \
+                            and _hi24 > _pxq:
+                        with _TRIG_LOCK:
+                            _k_oi = (_os, "LONG")
+                            if _k_oi not in _TRIG_ARMED:
+                                _TRIG_ARMED[_k_oi] = {
+                                    "symbol": _os,
+                                    "base": _os.replace("USDT", ""),
+                                    "side": "LONG",
+                                    "trigger": _hi24,
+                                    "entry": _hi24,
+                                    "stop": _hi24 - 1.5 * _atrq,
+                                    "tp1": _hi24 + 1.5 * _atrq,
+                                    "tp2": _hi24 + 3.0 * _atrq,
+                                    "score": 60 + 10 * _gp,
+                                    "src": f"🕵️ OI LOAD {_grade}",
+                                    "armed_at": _now,
+                                    "near_sent": False,
+                                    "mom_sent": False}
                     if _bstock_quiet(_os):
                         continue
+                    if _grade == "C":
+                        continue    # C = OI alone — board + records
+                                    # only (the buzz diet holds)
                     if not store.should_alert(f"oiload:{_os}",
                                               8 * 3600):
                         continue
                     ok, _ = tg.send(
-                        f"🕵️ *OI LOAD — PRE-SPIKE* — "
-                        f"{_os.replace('USDT', '')}\n"
-                        f"futures positioning +{_bld:.1f}% in 8h "
-                        f"while price sits {_chq:+.1f}%/24h — money "
-                        f"entering BEFORE any candle spike (the "
-                        f"validated 2.19x precursor)\n"
-                        f"_no spike yet — that is the point. If it "
-                        f"goes, the armed levels and trigger ladder "
-                        f"fire the entry; this is the heads-up._")
+                        f"🕵️ *OI LOAD {_grade} — PRE-SPIKE* — "
+                        f"{_os.replace('USDT', '')} "
+                        f"({_gp + 1} tells)\n"
+                        f"positioning +{_bld:.1f}%/8h · price "
+                        f"{_chq:+.1f}%/24h · {_sigq['notes']}\n"
+                        f"💥 armed at `{_hi24:g}` — the ladder "
+                        f"buzzes 🔶 near and 💥 on the break\n"
+                        f"_money loading BEFORE the spike; grade "
+                        f"{_grade} = OI + "
+                        f"{_gp} system tells agreeing. Early, "
+                        f"graded, never guaranteed._")
                     n_alerts += 1 if ok else 0
                 except Exception:
                     continue

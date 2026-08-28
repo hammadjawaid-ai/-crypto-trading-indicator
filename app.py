@@ -1896,14 +1896,18 @@ def _oi_load_board():
     st.caption("**Futures positioning building ≥3% over 8h while "
                "price still sits quiet** — the one measured "
                "pre-spike tell (2.19x the base rate ahead of ≥10% "
-               "runs). ⚡🚨 STRONG IGNITION and 📡 SURGE fire ON "
-               "the move; these coins are loading BEFORE one. Every "
-               "detection buzzes Telegram (8h per-coin cooldown) "
-               "and opens a 🕵️ desk proving trade — the live "
-               "ledger decides what the alarm is worth. Honest "
-               "read: the tell precedes roughly 1 in 5 big moves — "
-               "the earliest heads-up in the system, not a "
-               "certainty.")
+               "runs) — now FUSED with every tell the system owns: "
+               "📟 the 15m pulse · 🌀 tight coil · 🏗 sitting at "
+               "the high · 💸 funding jump (the 4.2x rare tell) · "
+               "💎 a live card sniffing it. More tells = higher "
+               "grade: **A (3+ tells) and B (2) buzz Telegram and "
+               "ARM the 💥 trigger ladder at the 24h high** — 🔶 "
+               "near and 💥 break fire with plans, and breaks build "
+               "their own 🕵️💥 OI BREAK desk record. C-grade (OI "
+               "alone) stays board+records only. Every detection "
+               "opens a 🕵️ desk proving trade. Honest read: graded "
+               "and as early as measurement allows — never "
+               "guaranteed.")
     try:
         _oi_rows = _ws_oi.recent_by_stream("oi_load", 20)
     except Exception:
@@ -3485,6 +3489,7 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "trig_strong_kr": "💥⚡🔮 STRONG TRIG × KR (proving)",
                    "prime": "🥇 PRIME (winners board)",
                    "oi_load": "🕵️ OI LOAD (pre-spike, proving)",
+                   "oi_break": "🕵️💥 OI BREAK (graded load fired)",
                    "conviction": "💯 CONVICTION v1 (retired — kronos era)",
                    "conviction_v2": "💯 CONVICTION v2 (fresh ledger)",
                    "same_door": "🚪 SAME DOOR (proving)",
