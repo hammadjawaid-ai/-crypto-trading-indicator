@@ -2380,11 +2380,34 @@ def cycle() -> None:
                         * 100
                     if abs(_chq) >= 5.0:
                         continue    # already moving — not pre-spike
-                    store.record_signal("oi_load", {
-                        "symbol": _os,
-                        "base": _os.replace("USDT", ""),
-                        "side": "LONG", "build": round(_bld, 1),
-                        "ch24": round(_chq, 1)})
+                    _hq = _dfq["high"].to_numpy()
+                    _lq = _dfq["low"].to_numpy()
+                    _atrq = float((_hq[-14:] - _lq[-14:]).mean())
+                    _pxq = float(_cq[-1])
+                    _sigq = {"symbol": _os,
+                             "base": _os.replace("USDT", ""),
+                             "side": "LONG",
+                             "build": round(_bld, 1),
+                             "ch24": round(_chq, 1)}
+                    if _atrq > 0 and _pxq > 0:
+                        _sigq.update(
+                            entry=_pxq, stop=_pxq - 1.5 * _atrq,
+                            tp1=_pxq + 1.5 * _atrq,
+                            tp2=_pxq + 3.0 * _atrq)
+                    store.record_signal("oi_load", _sigq)
+                    # 🧪 decision-desk proving tier (user 2026-08-28:
+                    # "if it needs to be at decision desk do it") —
+                    # records only, one open per coin, ATR plan at
+                    # detection. The backtested arm+break entry
+                    # measured red on the thin free-OI window; the
+                    # LIVE ledger now decides whether the alarm
+                    # itself carries a tradeable edge.
+                    try:
+                        if _sigq.get("entry"):
+                            shadow_trader.open_from_signal(
+                                "oi_load", _sigq, _pxq)
+                    except Exception:
+                        pass
                     if _bstock_quiet(_os):
                         continue
                     if not store.should_alert(f"oiload:{_os}",

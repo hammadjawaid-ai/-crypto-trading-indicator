@@ -1871,6 +1871,80 @@ def _moonshot_board(pb_state=None):
                     unsafe_allow_html=True)
 
 
+def _oi_load_board():
+    """🕵️ OI LOAD — its own standalone board (user 2026-08-28: "it
+    should be treated separately... it's for surge and strong
+    ignition, but we need to catch trades early BEFORE the spike").
+    Fed by the worker's 15-min OI radar; every detection also opens
+    a desk proving trade under tier oi_load."""
+    import json as _json_oi
+    import worker_store as _ws_oi
+    st.markdown(
+        "<div style='background:linear-gradient(135deg,"
+        "rgba(255,213,74,0.14),rgba(255,140,0,0.06));border:1.5px "
+        "solid rgba(255,213,74,0.55);border-radius:14px;padding:"
+        "12px 18px;margin:14px 0 8px'>"
+        "<span style='font-size:1.25rem;font-weight:900;background:"
+        "linear-gradient(90deg,#ffd54a,#ff8c00);-webkit-background-"
+        "clip:text;-webkit-text-fill-color:transparent;background-"
+        "clip:text'>🕵️ OI LOAD — BEFORE THE SPIKE</span> "
+        "<span style='background:rgba(255,213,74,0.15);color:"
+        "#ffd54a;padding:2px 12px;border-radius:999px;font-size:"
+        "0.72rem;font-weight:800;margin-left:8px'>the upgraded "
+        "ignition · 2.19x precursor · proving</span></div>",
+        unsafe_allow_html=True)
+    st.caption("**Futures positioning building ≥3% over 8h while "
+               "price still sits quiet** — the one measured "
+               "pre-spike tell (2.19x the base rate ahead of ≥10% "
+               "runs). ⚡🚨 STRONG IGNITION and 📡 SURGE fire ON "
+               "the move; these coins are loading BEFORE one. Every "
+               "detection buzzes Telegram (8h per-coin cooldown) "
+               "and opens a 🕵️ desk proving trade — the live "
+               "ledger decides what the alarm is worth. Honest "
+               "read: the tell precedes roughly 1 in 5 big moves — "
+               "the earliest heads-up in the system, not a "
+               "certainty.")
+    try:
+        _oi_rows = _ws_oi.recent_by_stream("oi_load", 20)
+    except Exception:
+        _oi_rows = []
+    _oi_seen, _oi_fresh = set(), []
+    for _r in _oi_rows:
+        _s9 = _r.get("symbol")
+        if _s9 in _oi_seen:
+            continue
+        _oi_seen.add(_s9)
+        if time.time() - float(_r.get("ts") or 0) < 12 * 3600:
+            _oi_fresh.append(_r)
+    if not _oi_fresh:
+        st.caption("· Nothing loading right now — quiet positioning "
+                   "everywhere. The radar sweeps all 100 coins "
+                   "every 15 minutes.")
+        return
+    _oi_lines = []
+    for _r in _oi_fresh[:10]:
+        try:
+            _x9 = _json_oi.loads(_r.get("extra") or "{}")
+        except Exception:
+            _x9 = {}
+        _age9 = int(max(0, time.time()
+                        - float(_r.get("ts") or 0)) // 60)
+        _e9 = float(_r.get("entry") or 0)
+        _s9v = float(_r.get("stop") or 0)
+        _t9 = float(_r.get("tp1") or 0)
+        _plan9 = (f" · <span style='color:#8b93a7;font-size:"
+                  f"0.75rem'>watch plan: {_e9:g} · SL {_s9v:g} · "
+                  f"TP1 {_t9:g}</span>" if _e9 > 0 else "")
+        _oi_lines.append(
+            f"<b>{_r.get('base') or _r.get('symbol')}</b> "
+            f"<span style='color:#ffd54a;font-weight:800'>OI "
+            f"+{float(_x9.get('build') or 0):.1f}%/8h</span> "
+            f"<span style='color:#8b93a7;font-size:0.78rem'>· "
+            f"price {float(_x9.get('ch24') or 0):+.1f}%/24h · "
+            f"{_age9}m ago</span>{_plan9}")
+    st.markdown("<br>".join(_oi_lines), unsafe_allow_html=True)
+
+
 def _preburst_board(pb_state=None):
     """🌋 PRE-BURST board — shared (🎯 page + Paper Trader). Quiet
     coils where Kronos forecasts a big move, caught BEFORE the burst
@@ -3359,59 +3433,18 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                 f"{float(_r.get('tp1') or 0):g}</span>",
                 unsafe_allow_html=True)
 
-    # 🕵️ OI LOAD — pre-spike radar strip (user 2026-08-28: "oi load
-    # pre spike is for the paper trading and notification buzz...
-    # the upgraded version of strong ignition"): ⚡🚨 ignition fires
-    # ON the spike; this lists the coins loading BEFORE one. Fed by
-    # the worker's 15-min OI scan; Telegram buzzes ride an 8h
-    # per-coin cooldown.
-    try:
-        import json as _json_oi
-        import worker_store as _ws_oi
-        _oi_rows = _ws_oi.recent_by_stream("oi_load", 20)
-    except Exception:
-        _oi_rows = []
-    _oi_seen, _oi_fresh = set(), []
-    for _r in _oi_rows:
-        _s9 = _r.get("symbol")
-        if _s9 in _oi_seen:
-            continue
-        _oi_seen.add(_s9)
-        if time.time() - float(_r.get("ts") or 0) < 12 * 3600:
-            _oi_fresh.append(_r)
-    if _oi_fresh:
-        st.markdown("#### 🕵️ OI LOAD — money entering BEFORE the "
-                    "spike (the upgraded ignition)")
-        st.caption("**Futures positioning building ≥3% over 8h "
-                   "while price still sits quiet** — the one "
-                   "measured pre-spike tell (2.19x the base rate "
-                   "ahead of ≥10% runs). ⚡🚨 STRONG IGNITION fires "
-                   "ON the spike; these coins are loading BEFORE "
-                   "one. Honest read: the tell precedes roughly 1 "
-                   "in 5 big moves — the earliest heads-up that "
-                   "exists in the system, not a certainty. If it "
-                   "goes, 💥 THE NUMBERS and the trigger ladder "
-                   "fire the entry.")
-        _oi_lines = []
-        for _r in _oi_fresh[:10]:
-            try:
-                _x9 = _json_oi.loads(_r.get("extra") or "{}")
-            except Exception:
-                _x9 = {}
-            _age9 = int(max(0, time.time()
-                            - float(_r.get("ts") or 0)) // 60)
-            _oi_lines.append(
-                f"<b>{_r.get('base') or _r.get('symbol')}</b> "
-                f"<span style='color:#ffd54a;font-weight:800'>OI "
-                f"+{float(_x9.get('build') or 0):.1f}%/8h</span> "
-                f"<span style='color:#8b93a7;font-size:0.78rem'>· "
-                f"price {float(_x9.get('ch24') or 0):+.1f}%/24h · "
-                f"{_age9}m ago</span>")
-        st.markdown("<br>".join(_oi_lines), unsafe_allow_html=True)
+    # 🕵️ OI LOAD moved to its OWN board (user 2026-08-28 correction:
+    # "it should not be a part of it, treated separately") — see
+    # _oi_load_board(), rendered after the pre-burst board below.
 
     # 🌋 PRE-BURST on Paper Trading too (user 2026-08-03: separate
     # board on both pages) — display board; opening lives on 🎯.
     _preburst_board(None)
+
+    # 🕵️ OI LOAD — its own standalone board (user 2026-08-28: "it
+    # should be treated separately"), right before the desk so its
+    # proving tier sits next to its record.
+    _oi_load_board()
 
     # ── ✳️ DECISION DESK — FORWARD PROOF (user 2026-07-08) ──────────────
     # The brain takes every tier's signal itself as a live shadow trade
@@ -3451,6 +3484,7 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "elite_confirm": "💎✅ ELITE CONFIRMED (proving)",
                    "trig_strong_kr": "💥⚡🔮 STRONG TRIG × KR (proving)",
                    "prime": "🥇 PRIME (winners board)",
+                   "oi_load": "🕵️ OI LOAD (pre-spike, proving)",
                    "conviction": "💯 CONVICTION v1 (retired — kronos era)",
                    "conviction_v2": "💯 CONVICTION v2 (fresh ledger)",
                    "same_door": "🚪 SAME DOOR (proving)",
