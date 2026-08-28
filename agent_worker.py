@@ -1381,6 +1381,46 @@ def cycle() -> None:
                     ((not _lng9) and _hi9 >= _w9["stop"]):
                 _EC_WATCH.pop(_kw, None)   # stop taken pre-confirm
                 continue
+            # 💎📈 / 💎🔻 entry-zone follow-ups (user 2026-08-28:
+            # "if the entry point is showing strength and going
+            # 1-1.5% it should notify... if it falls below the
+            # entry which makes my trade even better it should
+            # notify"). One-shot each per fire, on live price.
+            try:
+                _lp9 = float(binance_client.get_ticker_price(
+                    _w9["symbol"]) or 0)
+            except Exception:
+                _lp9 = 0.0
+            if _lp9 > 0 and not _bstock_quiet(_w9["symbol"]):
+                _mv9 = (_lp9 / float(_w9["entry"]) - 1) * 100 \
+                    * (1 if _lng9 else -1)
+                if _mv9 >= 1.2 and not _w9.get("ran_sent"):
+                    _w9["ran_sent"] = True
+                    ok, _ = tg.send(
+                        f"💎📈 *RUNNING* — {_w9['base']} "
+                        f"{_w9['side']} is +{_mv9:.1f}% past the "
+                        f"buzz entry `{float(_w9['entry']):g}` — "
+                        f"strength confirmed\n"
+                        f"_the card is doing its job. SL "
+                        f"`{float(_w9['stop']):g}` · TP1 "
+                        f"`{float(_w9['tp1']):g}` still stand; "
+                        f"chasing here adds {_mv9:.1f}% to the "
+                        f"risk._")
+                    n_alerts += 1 if ok else 0
+                if _mv9 <= -1.0 and not _w9.get("dip_sent"):
+                    _w9["dip_sent"] = True
+                    ok, _ = tg.send(
+                        f"💎🔻 *DISCOUNT* — {_w9['base']} "
+                        f"{_w9['side']} now {abs(_mv9):.1f}% "
+                        f"BELOW the buzz entry "
+                        f"`{float(_w9['entry']):g}`\n"
+                        f"_a better price IF it holds — heads-up, "
+                        f"not the green light: bare-dip entries "
+                        f"measured 49% · −0.08R, the CONFIRMED "
+                        f"re-entry 67.8% · +0.03R. The 💎✅ buzz "
+                        f"fires the moment the confirmation candle "
+                        f"prints — that one is the get-in._")
+                    n_alerts += 1 if ok else 0
             if (_lng9 and _lo9 <= _w9["entry"]) or \
                     ((not _lng9) and _hi9 >= _w9["entry"]):
                 _w9["pulled"] = True
