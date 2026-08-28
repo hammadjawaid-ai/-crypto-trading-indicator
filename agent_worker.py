@@ -1205,7 +1205,13 @@ def cycle() -> None:
     # candle measured -0.218R (thrust already spent) — those messages
     # point to the 💎✅ confirmed entry instead of the chase.
     # Notification only; boards unchanged. 6h per-coin cooldown.
-    for _p8 in _ec_mh:
+    # 2026-08-28 user call ("burst edge... not necessarily for
+    # notification"): 💎🔥 buzz OFF — the yellow ⚡ edge chip on the
+    # cards carries the same read, approval already buzzes the same
+    # coins, and the >=85 variant is a don't-act message. burst_live
+    # stays stamped on cards/records. Re-enable: flip _EB_BUZZ.
+    _EB_BUZZ = False
+    for _p8 in (_ec_mh if _EB_BUZZ else []):
         _b8 = float(_p8.get("burst_live") or 0)
         if _b8 < 78:
             continue
@@ -2325,6 +2331,12 @@ def cycle() -> None:
                 _hp_side = _hp_td
             if not _hp_side:
                 continue
+            # 2026-08-28 user call: 🟢 with-the-card pulse OFF (the
+            # 💥 trigger ladder owns the igniting moment, with a
+            # plan attached). Only the 🔴 AGAINST-the-card warning
+            # buzzes — the one read no other stream provides.
+            if _hp_side == _pl_side:
+                continue
             if _bstock_quiet(_hp_sym):
                 continue
             if not store.should_alert(
@@ -2337,12 +2349,8 @@ def cycle() -> None:
             _hp_vk = (float(_hp_v[-1])
                       / max(1e-9, float(_hp_v[-21:-1].mean())))
             _hp_b = _hp_sym.replace("USDT", "")
-            if _hp_side == _pl_side:
-                _hp_word = (f"🟢 IGNITING on the 15m — with the card "
-                            f"({_pl_tag})")
-            else:
-                _hp_word = (f"🔴 15m turning AGAINST the card "
-                            f"({_pl_tag}) — caution")
+            _hp_word = (f"🔴 15m turning AGAINST the card "
+                        f"({_pl_tag}) — caution")
             ok, _ = tg.send(
                 f"📟 *ELITE PULSE* — {_hp_b} {_hp_word}\n"
                 f"trend {_hp_ts:.0f} {_hp_td or '-'} · 15m burst "
