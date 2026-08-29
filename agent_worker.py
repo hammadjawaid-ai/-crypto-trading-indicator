@@ -2489,15 +2489,19 @@ def cycle() -> None:
             _hp_b = _hp_sym.replace("USDT", "")
             _hp_word = (f"🔴 15m turning AGAINST the card "
                         f"({_pl_tag}) — caution")
-            ok, _ = tg.send(
-                f"📟 *ELITE PULSE* — {_hp_b} {_hp_word}\n"
-                f"trend {_hp_ts:.0f} {_hp_td or '-'} · 15m burst "
-                f"{_hp_bs:.0f} {_hp_bd or '-'} · last 90m "
-                f"{_hp_mv:+.1f}% · vol x{_hp_vk:.1f}\n"
-                f"_the fast clock on every elite-family coin — moves "
-                f"start here ~30-90 min before the 1h engine speaks. "
-                f"Info alarm, not a sized entry._")
-            n_alerts += 1 if ok else 0
+            # 📵 BUZZ DIET 2 (user 2026-08-29: "rest mute") — 📟
+            # pulse red warnings off Telegram. Detection + records
+            # unchanged. Revert: uncomment the tg.send below.
+            # ok, _ = tg.send(
+            #     f"📟 *ELITE PULSE* — {_hp_b} {_hp_word}\n"
+            #     f"trend {_hp_ts:.0f} {_hp_td or '-'} · 15m burst "
+            #     f"{_hp_bs:.0f} {_hp_bd or '-'} · last 90m "
+            #     f"{_hp_mv:+.1f}% · vol x{_hp_vk:.1f}\n"
+            #     f"_the fast clock on every elite-family coin — "
+            #     f"moves start here ~30-90 min before the 1h engine "
+            #     f"speaks. Info alarm, not a sized entry._")
+            print(f"  📟 pulse (muted): {_hp_b} {_hp_word}",
+                  flush=True)
     except Exception as _hp_exc:
         print("  elite-pulse error:", _hp_exc, flush=True)
 
@@ -2700,19 +2704,26 @@ def cycle() -> None:
                     _ld9 = (f"positioning +{_bld:.1f}%/8h"
                             if _slow else
                             f"⚡ sudden load +{_kick:.1f}%/90m")
-                    ok, _ = tg.send(
-                        f"🕵️ *OI LOAD {_grade} — PRE-SPIKE* — "
-                        f"{_os.replace('USDT', '')} "
-                        f"({_gp + 1} tells)\n"
-                        f"{_ld9} · price "
-                        f"{_chq:+.1f}%/24h · {_sigq['notes']}\n"
-                        f"💥 armed at `{_hi24:g}` — the ladder "
-                        f"buzzes 🔶 near and 💥 on the break\n"
-                        f"_money loading BEFORE the spike; grade "
-                        f"{_grade} = OI + "
-                        f"{_gp} system tells agreeing. Early, "
-                        f"graded, never guaranteed._")
-                    n_alerts += 1 if ok else 0
+                    # 📵 BUZZ DIET 2 (user 2026-08-29: "rest mute")
+                    # — 🕵️ OI LOAD detection buzz off Telegram. The
+                    # ARMING stays: breaks still fire through the 💥
+                    # trigger ladder (roster item), and oi_load /
+                    # oi_break desk tiers keep recording. Revert:
+                    # uncomment the tg.send below.
+                    # ok, _ = tg.send(
+                    #     f"🕵️ *OI LOAD {_grade} — PRE-SPIKE* — "
+                    #     f"{_os.replace('USDT', '')} "
+                    #     f"({_gp + 1} tells)\n"
+                    #     f"{_ld9} · price "
+                    #     f"{_chq:+.1f}%/24h · {_sigq['notes']}\n"
+                    #     f"💥 armed at `{_hi24:g}` — the ladder "
+                    #     f"buzzes 🔶 near and 💥 on the break\n"
+                    #     f"_money loading BEFORE the spike; grade "
+                    #     f"{_grade} = OI + "
+                    #     f"{_gp} system tells agreeing. Early, "
+                    #     f"graded, never guaranteed._")
+                    print(f"  🕵️ load (muted): {_os} {_grade} "
+                          f"{_ld9}", flush=True)
                 except Exception:
                     continue
                 time.sleep(0.12)
@@ -3029,7 +3040,9 @@ def cycle() -> None:
     try:
         _dh_utc = int(getattr(config, "WORKER_DIGEST_HOUR_UTC", 4))
         _hr_now = datetime.now(timezone.utc).hour
-        if (_dh_utc <= _hr_now < _dh_utc + 3
+        # 📵 BUZZ DIET 2 (user 2026-08-29: "rest mute") — morning
+        # digest off Telegram. Revert: drop the `and False`.
+        if (_dh_utc <= _hr_now < _dh_utc + 3 and False
                 and store.should_alert("daily_digest", 20 * 3600)):
             recs = shadow_trader.tier_records()
             lines = ["🌅 *MORNING REPORT*"]
@@ -3094,7 +3107,9 @@ def cycle() -> None:
     try:
         _eh_utc = int(getattr(config, "WORKER_EVENING_HOUR_UTC", 13))
         _hr_now2 = datetime.now(timezone.utc).hour
-        if (_eh_utc <= _hr_now2 < _eh_utc + 3
+        # 📵 BUZZ DIET 2 (user 2026-08-29: "rest mute") — evening
+        # report off Telegram. Revert: drop the `and False`.
+        if (_eh_utc <= _hr_now2 < _eh_utc + 3 and False
                 and store.should_alert("evening_digest", 20 * 3600)):
             lines = ["🌆 *EVENING REPORT* — US session ahead"]
             _picks = []
