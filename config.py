@@ -443,4 +443,5 @@ SOCIAL_FEEDS = {
 # close + ema20 on 1.2x volume, after a real dip). One Telegram buzz per
 # coin per 6h max. Edit this list to change the watched coins.
 PERSONAL_WATCH = ["INJUSDT", "ENAUSDT", "ZECUSDT", "VIRTUALUSDT",
-                  "WLDUSDT"]
+                  "WLDUSDT", "MUBARAKUSDT", "FETUSDT", "ENSOUSDT",
+                  "PYTHUSDT", "HUMAUSDT", "SOLUSDT", "DASHUSDT"]
