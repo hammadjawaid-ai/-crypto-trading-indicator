@@ -1182,11 +1182,11 @@ def cycle() -> None:
     for p in _prime:
         store.record_signal("prime", p)
     # 2026-08-15 user order 7: PRIME buzz muted until GREEN.
-    # 📵 BUZZ DIET (user 2026-08-29): PRIME fully OFF the buzz roster
-    # (live desk record hasn't earned the mined 73%; user's own desk
-    # reading). Board + desk keep recording. Revert: uncomment.
-    # _push(list(_prime), "prime", _fmt_prime_board, min_conf=0,
-    #       tier="prime")
+    # 📵 diet amendment (user 2026-08-29: "dont remove... prime") —
+    # restored to its pre-diet form: the tier gate keeps it silent
+    # until its desk record turns green, then it speaks by itself.
+    _push(list(_prime), "prime", _fmt_prime_board, min_conf=0,
+          tier="prime")
     # 📡 SURGE RADAR (user 2026-07-26, LPT case): whole-market fresh-
     # pump ignition — fires only in a pump's first ~2h, refuses
     # extended chases. Unproven: labeled stream + desk tier proving.
@@ -1217,10 +1217,9 @@ def cycle() -> None:
     # gate. Kronos disagreeing is fine ("if kronos dont agree thats
     # ok"): the 🔮 line on every buzz already spells out all three
     # states — AGREES / CONFLICTS / FLAT (no conviction either way).
-    # 📵 BUZZ DIET (user 2026-08-29): 🌟 EARLY ELITE off the roster —
-    # its coins re-surface through 💎 (conf-gated) and 💥 triggers.
-    # Revert: uncomment.
-    # _push(elite_early, "elite_early", _fmt_elite_early, min_conf=0)
+    # 📵 diet amendment (user same day: "dont remove... early elite")
+    # — 🌟 EARLY ELITE restored to its pre-diet ALWAYS form.
+    _push(elite_early, "elite_early", _fmt_elite_early, min_conf=0)
     # 💎 ELITE CONVICTION fires — EVERY MAX/HIGH, approved or not
     # (user 2026-08-15, the PORTAL lesson: HIGH 87 fired 47h before a
     # +50% move and no buzz existed for it). The approval verdict and
@@ -1531,16 +1530,18 @@ def cycle() -> None:
     # MOVERS move to the ALWAYS list ("its green on decision desk
     # bro") — greens gates off.
     # 📵 BUZZ DIET (user 2026-08-29 "only the following"): ✅🔥 TAKE
-    # NOW, 🚀 EARLY-LANE and ⚡ EARLY MOVERS buzzes OFF (this reverses
-    # the 08-15 ALWAYS order on his own call). Boards + desk tiers
-    # keep recording. Revert: uncomment the three _push lines.
+    # NOW buzz OFF (reverses the 08-15 ALWAYS order on his own call).
+    # Board + desk tier keep recording. Revert: uncomment.
     # _push(tn_rest, "takenow", _fmt_takenow, min_conf=0)
-    # _push([p for p in em_big if _in_zone(p)], "em", _fmt_prime,
-    #       min_conf=0)
+    # 📵 diet amendment (user same day: "dont remove... early lane
+    # and early movers") — 🚀 EARLY-LANE (the 81.3% cell) + ⚡ EARLY
+    # MOVERS restored to their pre-diet ALWAYS forms.
+    _push([p for p in em_big if _in_zone(p)], "em", _fmt_prime,
+          min_conf=0)
     _em_rest = [p for p in r.get("early_strong", [])
                 if not p.get("early_lanes")]
-    # _push([p for p in _em_rest if _in_zone(p)], "emrest",
-    #       _fmt_early_rest, min_conf=0)
+    _push([p for p in _em_rest if _in_zone(p)], "emrest",
+          _fmt_early_rest, min_conf=0)
     # 🌊 TREND RIDER buzz MUTED AGAIN same day (user 2026-08-06 after
     # the honest 25%-win framing: "not effective for me") — the 3-of-4
     # loser cadence doesn't fit how he trades, even net-positive.
