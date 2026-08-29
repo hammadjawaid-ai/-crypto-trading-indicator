@@ -1463,11 +1463,20 @@ def cycle() -> None:
             _EC_WATCH.pop(_kw, None)
             if not _okp9:
                 continue                   # confirm landed off-plan
+            # 🎯 conf on the confirmed entry too (user 2026-08-29:
+            # "elite confirm entry should also hold the confidence
+            # score on mobile buzz") — stamped on the buzz AND the
+            # record/shadow so the band win-rates stay answerable.
+            try:
+                _cf0 = best_board.confidence(_w9["symbol"],
+                                             _w9["side"])
+            except Exception:
+                _cf0 = None
             _sig9 = {"symbol": _w9["symbol"], "base": _w9["base"],
                      "side": _w9["side"], "tier": _w9.get("tier"),
                      "score": _w9.get("score"), "entry": _cl9,
                      "stop": _w9["stop"], "tp1": _w9["tp1"],
-                     "tp2": _w9.get("tp2")}
+                     "tp2": _w9.get("tp2"), "conf": _cf0}
             store.record_signal("elite_confirm", _sig9)
             shadow_trader.open_from_signal("elite_confirm", _sig9,
                                            _cl9)
@@ -1484,10 +1493,13 @@ def cycle() -> None:
                         if _w9.get("appr") is None else "unapproved")
                 _t20 = (f" · TP2 `{float(_w9['tp2']):g}`"
                         if _w9.get("tp2") else "")
+                _cf0s = (f" · 🎯 conf {_cf0}/100"
+                         if _cf0 is not None else "")
                 ok, _ = tg.send(
                     f"💎✅ *ELITE CONFIRMED ENTRY* — {_w9['base']} "
                     f"{_w9['side']} (elite {_w9.get('tier')} "
-                    f"{float(_w9.get('score') or 0):.0f} · {_ap0})\n"
+                    f"{float(_w9.get('score') or 0):.0f} · {_ap0})"
+                    f"{_cf0s}\n"
                     f"pulled back to the plan and CONFIRMED — the "
                     f"validated entry style (67.8% · +0.025R after "
                     f"fees, green both halves; live ledger decides)\n"
