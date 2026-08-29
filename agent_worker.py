@@ -3115,6 +3115,89 @@ def cycle() -> None:
     except Exception:
         pass
 
+    # 🔴 ITS GONE — red exit buzz (user 2026-08-29 final shape: "red
+    # one should be the one when its all gone not in middle let the
+    # trade ride"). No mid-trade cuts — the validated half-stop rule
+    # was measured (+0.050R vs +0.025R) and DECLINED by the user's
+    # let-it-ride rule. Red = the plan stop actually BROKEN on a
+    # green-lit entry (elite_confirm / personal_watch / conviction_v2
+    # buzzes). One buzz per entry, skipped if TP1 was banked first.
+    try:
+        _rg_watch = []
+        for _rg_stream in ("elite_confirm", "personal_watch",
+                           "personal_watch_early", "conviction_v2"):
+            try:
+                _rg_watch += [(r, _rg_stream) for r in
+                              store.recent_by_stream(_rg_stream, 8)]
+            except Exception:
+                pass
+        _rg_now = time.time()
+        for _rg, _rg_src in _rg_watch:
+            _rg_ts = float(_rg.get("ts") or 0)
+            if not _rg_ts or _rg_now - _rg_ts > 48 * 3600:
+                continue
+            _rg_sym = _rg.get("symbol")
+            _rg_side = (_rg.get("side") or "").upper()
+            _rg_ent = float(_rg.get("entry") or 0)
+            _rg_stp = float(_rg.get("stop") or 0)
+            _rg_tp1 = float(_rg.get("tp1") or 0)
+            if not (_rg_sym and _rg_ent > 0 and _rg_stp > 0):
+                continue
+            _rg_key = f"redgone:{_rg_sym}:{_rg_side}:{int(_rg_ts)}"
+            _rg_px = float(
+                binance_client.get_ticker_price(_rg_sym) or 0)
+            if _rg_px <= 0:
+                continue
+            _rg_long = _rg_side == "LONG"
+            _rg_dead = (_rg_px <= _rg_stp) if _rg_long \
+                else (_rg_px >= _rg_stp)
+            if not _rg_dead:
+                continue
+            # banked first? walk the 1h candles since the buzz — if
+            # TP1 was touched before the stop broke, the plan already
+            # paid; stay silent.
+            _rg_banked = False
+            try:
+                _rgd = binance_client.get_klines(_rg_sym, "1h",
+                                                 limit=60)
+                _rg_hi = _rgd["high"].to_numpy()
+                _rg_lo = _rgd["low"].to_numpy()
+                _rg_idx = _rgd.index
+                for _ri in range(len(_rgd)):
+                    if _rg_idx[_ri].timestamp() < _rg_ts:
+                        continue
+                    _hit_stop = (_rg_lo[_ri] <= _rg_stp) if _rg_long \
+                        else (_rg_hi[_ri] >= _rg_stp)
+                    _hit_tp = (_rg_tp1 > 0 and
+                               ((_rg_hi[_ri] >= _rg_tp1) if _rg_long
+                                else (_rg_lo[_ri] <= _rg_tp1)))
+                    if _hit_stop:
+                        break
+                    if _hit_tp:
+                        _rg_banked = True
+                        break
+            except Exception:
+                pass
+            if _rg_banked:
+                continue
+            if not store.should_alert(_rg_key, 7 * 24 * 3600):
+                continue
+            _rg_base = _rg.get("base") or _rg_sym.replace("USDT", "")
+            ok, _rg_err = tg.send(
+                f"🔴 *{_rg_base} {_rg_side} — IT'S GONE.* Stop "
+                f"`{_rg_stp:g}` broken (now `{_rg_px:g}`, entry was "
+                f"`{_rg_ent:g}`).\n"
+                f"The plan closes it here at −1R — no averaging, no "
+                f"moving the stop. Below the invalidation, cheap "
+                f"does not exist.\n"
+                f"A fresh confirmation candle from lower is a NEW "
+                f"trade — it gets its own 🟢 buzz.")
+            n_alerts += 1 if ok else 0
+            if not ok:
+                print("  🔴 tg:", _rg_err, flush=True)
+    except Exception as _rg_exc:
+        print("  🔴 red-exit error:", _rg_exc, flush=True)
+
     # 👁 PERSONAL WATCH (user 2026-08-29): round-the-clock eye on a
     # hand-picked list (config.PERSONAL_WATCH — ZEC, INJ, VIRTUAL).
     # One job: buzz the phone the moment a 1h pullback-confirmation
