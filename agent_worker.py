@@ -959,25 +959,29 @@ def cycle() -> None:
         elite entry" — top-confidence signals should tell; the 6h
         silence is out). One shared key per (coin, side), so a
         re-fire never double-buzzes; a card quietly persisting
-        re-buzzes at most every 2h."""
+        re-buzzes at most every 2h.
+        📵 BUZZ DIET (user 2026-08-29): elite conv buzzes need
+        🎯 conf >= 65 (the measured 2-vote cliff: 48% below, 74%
+        at). The 💎✅ confirmed re-entry buzz stays UNGATED by the
+        user's explicit call. Revert: delete the _cf9 gate below."""
         nonlocal n_alerts
         for _pmx in items:
             try:
                 if _bstock_quiet(_pmx.get("symbol")):
                     continue
+                _cf9 = _pmx.get("conf")
+                if _cf9 is None:
+                    try:
+                        _cf9 = best_board.confidence(
+                            _pmx.get("symbol"), _pmx.get("side"))
+                    except Exception:
+                        _cf9 = None
+                if _cf9 is not None and _cf9 < 65:
+                    continue      # 📵 below the measured edge line
                 if store.should_alert(
                         f"eliteconv:{_pmx['symbol']}:{_pmx['side']}",
                         2 * 3600):
                     _msg9 = _fmt_elite_conv(_pmx)
-                    # 🎯 conf on the 💎 buzz too (user 2026-08-28)
-                    _cf9 = _pmx.get("conf")
-                    if _cf9 is None:
-                        try:
-                            _cf9 = best_board.confidence(
-                                _pmx.get("symbol"),
-                                _pmx.get("side"))
-                        except Exception:
-                            _cf9 = None
                     if _cf9 is not None and "\n" in _msg9:
                         _msg9 = _msg9.replace(
                             "\n", f" · 🎯 conf {_cf9}/100\n", 1)
@@ -1178,8 +1182,11 @@ def cycle() -> None:
     for p in _prime:
         store.record_signal("prime", p)
     # 2026-08-15 user order 7: PRIME buzz muted until GREEN.
-    _push(list(_prime), "prime", _fmt_prime_board, min_conf=0,
-          tier="prime")
+    # 📵 BUZZ DIET (user 2026-08-29): PRIME fully OFF the buzz roster
+    # (live desk record hasn't earned the mined 73%; user's own desk
+    # reading). Board + desk keep recording. Revert: uncomment.
+    # _push(list(_prime), "prime", _fmt_prime_board, min_conf=0,
+    #       tier="prime")
     # 📡 SURGE RADAR (user 2026-07-26, LPT case): whole-market fresh-
     # pump ignition — fires only in a pump's first ~2h, refuses
     # extended chases. Unproven: labeled stream + desk tier proving.
@@ -1198,14 +1205,22 @@ def cycle() -> None:
     # record, muted again today on user call.)
     # _push([p for p in _srg if _in_zone(p)], "surge", _fmt_surge,
     #       min_conf=0, tier="surge")
+    # 📵 BUZZ DIET (user 2026-08-29): BEST ZONE + APEX buzz only at
+    # 🎯 conf >= 70 (the measured edge zone: 73-78% win vs 38-48%
+    # below; 80 was considered and rejected — it cuts the 74% band
+    # for ~4pts). Revert: best had the default 85 floor (no min_conf
+    # arg), apex had min_conf=0.
     _push([p for p in best if _in_zone(p)], "best", _fmt_best,
-          tier="best_board")
-    _push(apex, "apex", _fmt_apex, min_conf=0, tier="apex")
+          min_conf=70, tier="best_board")
+    _push(apex, "apex", _fmt_apex, min_conf=70, tier="apex")
     # 2026-08-15 user order: 🌟 EARLY ELITE buzzes ALWAYS — no greens
     # gate. Kronos disagreeing is fine ("if kronos dont agree thats
     # ok"): the 🔮 line on every buzz already spells out all three
     # states — AGREES / CONFLICTS / FLAT (no conviction either way).
-    _push(elite_early, "elite_early", _fmt_elite_early, min_conf=0)
+    # 📵 BUZZ DIET (user 2026-08-29): 🌟 EARLY ELITE off the roster —
+    # its coins re-surface through 💎 (conf-gated) and 💥 triggers.
+    # Revert: uncomment.
+    # _push(elite_early, "elite_early", _fmt_elite_early, min_conf=0)
     # 💎 ELITE CONVICTION fires — EVERY MAX/HIGH, approved or not
     # (user 2026-08-15, the PORTAL lesson: HIGH 87 fired 47h before a
     # +50% move and no buzz existed for it). The approval verdict and
@@ -1508,17 +1523,24 @@ def cycle() -> None:
                 n_alerts += 1 if ok else 0
     except Exception as _exc0:
         print("  elite-confirm error:", _exc0, flush=True)
-    _push(fresh_m, "fresh", _fmt_fresh, min_conf=0, tier="fresh")
+    # 📵 BUZZ DIET (user 2026-08-29): 🌱 FRESH buzz OFF — deep
+    # validation had already shown its 74% caption was window luck
+    # (55.3%/−0.142R on 8 months). Board keeps it. Revert: uncomment.
+    # _push(fresh_m, "fresh", _fmt_fresh, min_conf=0, tier="fresh")
     # 2026-08-15 user order: ✅🔥 TAKE NOW, 🚀 EARLY-LANE and ⚡ EARLY
     # MOVERS move to the ALWAYS list ("its green on decision desk
     # bro") — greens gates off.
-    _push(tn_rest, "takenow", _fmt_takenow, min_conf=0)
-    _push([p for p in em_big if _in_zone(p)], "em", _fmt_prime,
-          min_conf=0)
+    # 📵 BUZZ DIET (user 2026-08-29 "only the following"): ✅🔥 TAKE
+    # NOW, 🚀 EARLY-LANE and ⚡ EARLY MOVERS buzzes OFF (this reverses
+    # the 08-15 ALWAYS order on his own call). Boards + desk tiers
+    # keep recording. Revert: uncomment the three _push lines.
+    # _push(tn_rest, "takenow", _fmt_takenow, min_conf=0)
+    # _push([p for p in em_big if _in_zone(p)], "em", _fmt_prime,
+    #       min_conf=0)
     _em_rest = [p for p in r.get("early_strong", [])
                 if not p.get("early_lanes")]
-    _push([p for p in _em_rest if _in_zone(p)], "emrest",
-          _fmt_early_rest, min_conf=0)
+    # _push([p for p in _em_rest if _in_zone(p)], "emrest",
+    #       _fmt_early_rest, min_conf=0)
     # 🌊 TREND RIDER buzz MUTED AGAIN same day (user 2026-08-06 after
     # the honest 25%-win framing: "not effective for me") — the 3-of-4
     # loser cadence doesn't fit how he trades, even net-positive.
@@ -1985,8 +2007,11 @@ def cycle() -> None:
         # fresh mover / early elite approved should be on telegram") —
         # the live face of the validated agree bucket (86%/+0.34R,
         # n=138 backtest; desk tier kr_approved is the binding jury).
-        _push([p for p in _kr_appr if _in_zone(p)], "krapp",
-              _fmt_kr_approved, min_conf=0)
+        # 📵 BUZZ DIET (user 2026-08-29): 🔮✅ KR-APPROVED buzz off
+        # the roster. Desk tier kr_approved keeps judging silently.
+        # Revert: uncomment.
+        # _push([p for p in _kr_appr if _in_zone(p)], "krapp",
+        #       _fmt_kr_approved, min_conf=0)
 
     if not _kr_ok:
         # kronos down → the rescue can't be judged; buzz the approved
@@ -2043,8 +2068,12 @@ def cycle() -> None:
         _conv.append(dict(_cp, burst=_cb9))
     for p in _conv:
         store.record_signal("conviction_v2", p)
-    _push([p for p in _conv if _in_zone(p)], "conv",
-          _fmt_conviction, min_conf=0)
+    # 📵 BUZZ DIET (user 2026-08-29): 💯 v2 buzz off the roster (his
+    # earlier read: "100 conviction is not worthy at all with win
+    # rates") — the fresh conviction_v2 ledger keeps recording
+    # silently and can earn the buzz back. Revert: uncomment.
+    # _push([p for p in _conv if _in_zone(p)], "conv",
+    #       _fmt_conviction, min_conf=0)
 
     # 🎯 TRUE SIGNAL (user 2026-07-28: "one solid system, no fuzz") —
     # five gates, Kronos on top with the last word. Desk tier proves it
