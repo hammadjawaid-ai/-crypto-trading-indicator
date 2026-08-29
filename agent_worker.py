@@ -3338,6 +3338,19 @@ def cycle() -> None:
             except Exception:
                 pass
             if _rg_banked:
+                # 🏦 TP1 buzz (2026-08-29, user in-trade coverage):
+                # the plan banks 100% here — say so on the phone.
+                if store.should_alert(
+                        f"tp1hit:{_rg_sym}:{_rg_side}:{int(_rg_ts)}",
+                        7 * 24 * 3600):
+                    _rg_b2 = _rg.get("base") or \
+                        _rg_sym.replace("USDT", "")
+                    ok, _ = tg.send(
+                        f"🏦 *{_rg_b2} {_rg_side} — TP1 HIT* "
+                        f"`{_rg_tp1:g}` — BANK 100% HERE (the plan). "
+                        f"Re-enter only on a fresh 🟢 confirm or "
+                        f"re-fire.")
+                    n_alerts += 1 if ok else 0
                 continue
             if not store.should_alert(_rg_key, 7 * 24 * 3600):
                 continue
