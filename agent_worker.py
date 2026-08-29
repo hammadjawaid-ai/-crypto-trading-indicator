@@ -23,6 +23,12 @@ if hasattr(sys.stdout, "buffer"):
 
 import best_board
 import binance_client
+import btc_outlook
+import market_context as _mc_w
+import news as _news_w
+import news_impact as _ni_w
+import sentiment as _sent_w
+import signals as _sig_w
 import coinalyze_client as cz
 import config
 import demo_account
@@ -3034,18 +3040,124 @@ def cycle() -> None:
         threading.Thread(target=_trigger_watch, daemon=True).start()
         print("  💥 trigger watch thread started (60s)", flush=True)
 
-    # 📊🌅 DAILY MORNING REPORT — desk status + the 4-5 best qualifying
-    # setups of the morning (user 2026-07-08). Default 04:00 UTC = 09:00
-    # Pakistan; override with WORKER_DIGEST_HOUR_UTC.
+    # 🧭 24H BATTLE PLAN (user 2026-08-29: digests STAY, upgraded —
+    # "what the situation looks like for next 24 hours... concrete
+    # plan on the things happening as news... best trades... how btc
+    # will behave"). Shared by the morning + evening reports.
+    def _brief24():
+        _bl = []
+        try:
+            _b1 = binance_client.get_klines("BTCUSDT", "1h", limit=30)
+            _bpx = float(_b1["close"].iloc[-1])
+            _bch = (_bpx / float(_b1["close"].iloc[-25]) - 1) * 100
+        except Exception:
+            _bpx, _bch = 0.0, 0.0
+        try:
+            import statistics as _st
+            _alt9 = [float(p.get("pct_24h") or 0) for p in
+                     (best or []) + (apex or [])
+                     if p.get("pct_24h") is not None]
+            _amed = _st.median(_alt9) if _alt9 else 0.0
+        except Exception:
+            _amed = 0.0
+        _a4 = _a1d = _a1w = None
+        try:
+            _a4 = _sig_w.analyze(
+                binance_client.get_klines("BTCUSDT", "4h", limit=300))
+        except Exception:
+            pass
+        try:
+            _a1d = _sig_w.analyze(
+                binance_client.get_klines("BTCUSDT", "1d", limit=400))
+        except Exception:
+            pass
+        try:
+            _a1w = _sig_w.analyze(
+                binance_client.get_klines("BTCUSDT", "1w", limit=200))
+        except Exception:
+            pass
+        try:
+            _fg9 = _sent_w.fear_greed().get("value")
+        except Exception:
+            _fg9 = None
+        try:
+            _mc9 = _mc_w.global_market().get("market_cap_change_24h")
+        except Exception:
+            _mc9 = None
+        _nd = None
+        _np = None
+        try:
+            _nd = _news_w.fetch_news()
+            if _nd is not None and len(_nd):
+                _bm = _nd["title"].str.contains(
+                    r"\b(?:bitcoin|btc)\b", case=False, na=False,
+                    regex=True)
+                _np = {"btc": {"count": int(_bm.sum()),
+                               "sentiment": (float(
+                                   _nd[_bm]["sentiment"].mean())
+                                   if _bm.any() else 0.0)},
+                       "macro": _news_w.category_mood(
+                           _nd, "Macro / Politics"),
+                       "crypto": _news_w.category_mood(_nd, "Crypto")}
+        except Exception:
+            pass
+        try:
+            _o9 = btc_outlook.compute(_a4, _a1d, None, _fg9, _mc9,
+                                      _bch, _amed, btc_1w=_a1w,
+                                      news=_np)
+            _ar9 = {"Up": "🟢▲", "Down": "🔴▼"}.get(
+                _o9["direction"], "🟡◆")
+            _bl.append(f"₿ *BTC NEXT 24H:* {_ar9} {_o9['takeaway']}")
+            _bl.append(
+                f"conf {_o9['confidence']}% · "
+                f"{_o9['aligned_categories']}/"
+                f"{_o9['total_categories']} categories agree · "
+                f"expected range ±{_o9['expected_range_pct']:.1f}% "
+                f"· BTC {_bpx:,.0f} ({_bch:+.1f}%/24h)")
+            _st9 = (_o9.get("briefing") or {}).get("next_steps")
+            if isinstance(_st9, (list, tuple)):
+                _st9 = " ".join(str(x) for x in _st9[:2])
+            if _st9:
+                _bl.append(f"📋 *the plan:* {str(_st9)[:350]}")
+        except Exception as _o_exc:
+            print("  brief24 outlook error:", _o_exc, flush=True)
+        try:
+            if kf.available():
+                _k9 = kf.forecast("BTCUSDT", "1h", horizon=24)
+                if _k9:
+                    _bl.append(
+                        f"🔮 kronos on BTC: {_k9['direction']} "
+                        f"{float(_k9.get('exp_move_pct') or 0):+.1f}%"
+                        f"/24h (secondary voice)")
+        except Exception:
+            pass
+        try:
+            _imp = _ni_w.detect_impactful(_nd, max_count=3) \
+                if _nd is not None else []
+            if _imp:
+                _bl.append("📰 *moving the tape right now:*")
+                for _n9 in _imp:
+                    _e9 = {"Bullish": "🟢", "Bearish": "🔴"}.get(
+                        _n9.get("direction"), "⚪")
+                    _bl.append(
+                        f"{_e9} {_n9.get('source')}: "
+                        f"{str(_n9.get('title'))[:110]} "
+                        f"(impact {_n9.get('score')})")
+        except Exception:
+            pass
+        return _bl
+
+    # 📊🌅 DAILY MORNING REPORT — the 24h battle plan + best trades
+    # (user 2026-07-08, upgraded 2026-08-29). Default 04:00 UTC =
+    # 09:00 Pakistan; override with WORKER_DIGEST_HOUR_UTC.
     try:
         _dh_utc = int(getattr(config, "WORKER_DIGEST_HOUR_UTC", 4))
         _hr_now = datetime.now(timezone.utc).hour
-        # 📵 BUZZ DIET 2 (user 2026-08-29: "rest mute") — morning
-        # digest off Telegram. Revert: drop the `and False`.
-        if (_dh_utc <= _hr_now < _dh_utc + 3 and False
+        if (_dh_utc <= _hr_now < _dh_utc + 3
                 and store.should_alert("daily_digest", 20 * 3600)):
             recs = shadow_trader.tier_records()
-            lines = ["🌅 *MORNING REPORT*"]
+            lines = ["🌅 *MORNING REPORT* — the next 24 hours"]
+            lines += _brief24()
             # -- best picks of the morning, ranked by validated quality ----
             _picks = []
             for p in best[:3]:
@@ -3107,11 +3219,11 @@ def cycle() -> None:
     try:
         _eh_utc = int(getattr(config, "WORKER_EVENING_HOUR_UTC", 13))
         _hr_now2 = datetime.now(timezone.utc).hour
-        # 📵 BUZZ DIET 2 (user 2026-08-29: "rest mute") — evening
-        # report off Telegram. Revert: drop the `and False`.
-        if (_eh_utc <= _hr_now2 < _eh_utc + 3 and False
+        if (_eh_utc <= _hr_now2 < _eh_utc + 3
                 and store.should_alert("evening_digest", 20 * 3600)):
-            lines = ["🌆 *EVENING REPORT* — US session ahead"]
+            lines = ["🌆 *EVENING REPORT* — US session ahead, "
+                     "the next 24 hours"]
+            lines += _brief24()
             _picks = []
             for p in best[:3]:
                 _picks.append(("💎 BEST ZONE", p))
