@@ -960,10 +960,12 @@ def cycle() -> None:
         silence is out). One shared key per (coin, side), so a
         re-fire never double-buzzes; a card quietly persisting
         re-buzzes at most every 2h.
-        📵 BUZZ DIET (user 2026-08-29): elite conv buzzes need
-        🎯 conf >= 65 (the measured 2-vote cliff: 48% below, 74%
-        at). The 💎✅ confirmed re-entry buzz stays UNGATED by the
-        user's explicit call. Revert: delete the _cf9 gate below."""
+        📵 BUZZ DIET (user 2026-08-29, amended same day: "we can go
+        with 55"): elite conv buzzes need 🎯 conf >= 55 (between the
+        1-vote 48% and 2-vote 74% bands — the user's chosen line;
+        65 was the measured cliff). The 💎✅ confirmed re-entry buzz
+        stays UNGATED but SHOWS its conf, both by explicit call.
+        Revert: delete the _cf9 gate below."""
         nonlocal n_alerts
         for _pmx in items:
             try:
@@ -976,8 +978,8 @@ def cycle() -> None:
                             _pmx.get("symbol"), _pmx.get("side"))
                     except Exception:
                         _cf9 = None
-                if _cf9 is not None and _cf9 < 65:
-                    continue      # 📵 below the measured edge line
+                if _cf9 is not None and _cf9 < 55:
+                    continue      # 📵 below the user's elite line
                 if store.should_alert(
                         f"eliteconv:{_pmx['symbol']}:{_pmx['side']}",
                         2 * 3600):
