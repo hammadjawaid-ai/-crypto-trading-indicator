@@ -139,7 +139,10 @@ WORKER_FLIP_WATCH = _secret("WORKER_FLIP_WATCH") or (
     "DODOUSDT,REUSDT,RIFUSDT,TAOUSDT,VIRTUALUSDT,SENTUSDT,"
     "SOLUSDT,ETHUSDT,BTCUSDT,AVAXUSDT,WLFIUSDT,LINKUSDT,"
     "ETHFIUSDT")
-WORKER_ALERT_COOLDOWN_MIN = int(_secret("WORKER_ALERT_COOLDOWN_MIN") or "360")
+# 2026-08-29 user order: per-coin buzz cooldown 6h -> 3h ("make it
+# 3h instead of 6") — a card that re-qualifies mid-day speaks again
+# sooner. Env WORKER_ALERT_COOLDOWN_MIN still overrides.
+WORKER_ALERT_COOLDOWN_MIN = int(_secret("WORKER_ALERT_COOLDOWN_MIN") or "180")
 # (2026-08-25: the holdings-list pulse lasted one commit — user v2
 # order repointed the 15m fast-clock watch at the ELITE FAMILY coins
 # instead; see 📟 ELITE PULSE in agent_worker. No config list needed:
