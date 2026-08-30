@@ -1398,6 +1398,38 @@ def cycle() -> None:
         _ec2["appr"] = _ec_ok
         _ec2["burst_live"] = _ec_b9
         _ec_mh.append(_ec2)
+    # 🦅 EAGLE enrol #2 (user 2026-08-29 follow-up: "for every elite
+    # conviction... it have its eye to monitor its movement right?"):
+    # every 💎 MAX/HIGH fire joins the eagle watch — NO conf gate
+    # here, because the validation universe WAS these fires (387 of
+    # them, all-comers: 63.5%/+0.221R; MAX cell 69.7%/+0.431R). The
+    # heat gate itself does the filtering.
+    try:
+        _eg_now2 = time.time()
+        for _ep2 in _ec_mh:
+            if not (_ep2.get("entry") and _ep2.get("stop")
+                    and _ep2.get("tp1")):
+                continue
+            try:
+                _ec92 = best_board.confidence(_ep2.get("symbol"),
+                                              _ep2.get("side"))
+            except Exception:
+                _ec92 = None
+            _ekey2 = (_ep2["symbol"], _ep2["side"])
+            with _TRIG_LOCK:
+                _old92 = _EAGLE_WATCH.get(_ekey2) or {}
+                _EAGLE_WATCH[_ekey2] = {
+                    "symbol": _ep2["symbol"],
+                    "base": _ep2.get("base"), "side": _ep2["side"],
+                    "tier": _ep2.get("tier"),
+                    "score": _ep2.get("score"), "conf": _ec92,
+                    "entry": _ep2.get("entry"),
+                    "stop": _ep2.get("stop"),
+                    "tp1": _ep2.get("tp1"), "tp2": _ep2.get("tp2"),
+                    "added_at": _old92.get("added_at", _eg_now2),
+                    "last_chk": _old92.get("last_chk", 0)}
+    except Exception as _eg_exc2:
+        print("  eagle elite enrol error:", _eg_exc2, flush=True)
     # 💎🔥 ELITE + BURST EDGE buzz (user 2026-08-23: "the yellow burst
     # chip on the elite conviction openable trades — apply
     # notification for it on my telegram asap"): the moment an elite
