@@ -589,20 +589,18 @@ def _trigger_watch() -> None:
                                       or (not _lng9
                                           and _px9 <= _tp19)):
                         continue      # move already paid — no chase
-                    _d3 = binance_client.get_klines(_es9, "3m",
-                                                    limit=120)
-                    _t3, _td3, _ = _et_w.detect(_d3)
-                    _b3, _bd3, _ = _vb_w.lane_velocity_burst(_d3)
-                    if not (_b3 >= 65
-                            and (_bd3 or "").upper() == _eside):
-                        continue
+                    # VALIDATED gate (backtest_eagle, 387 fires:
+                    # 63.5%/+0.221R, green both halves; MAX cell
+                    # 69.7%/+0.431R): 5m burst >= 65 AND 5m trend
+                    # >= 55, both side-matched — the exact studied
+                    # shape, no 3m looseners.
                     _d5 = binance_client.get_klines(_es9, "5m",
                                                     limit=150)
                     _t5, _td5, _ = _et_w.detect(_d5)
                     _b5, _bd5, _ = _vb_w.lane_velocity_burst(_d5)
-                    if not ((_t5 >= 55 and _td5 == _eside)
-                            or (_b5 >= 55
-                                and (_bd5 or "").upper() == _eside)):
+                    if not (_b5 >= 65
+                            and (_bd5 or "").upper() == _eside
+                            and _t5 >= 55 and _td5 == _eside):
                         continue
                     if _bstock_quiet(_es9):
                         continue
