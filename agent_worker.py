@@ -3621,17 +3621,20 @@ def cycle() -> None:
                 _pw_px + (_pw_px - _pw_plan)))
             _pw_r = _pw_px - _pw_sl
             _pw_base = _pw_sym.replace("USDT", "")
-            # 💪 STRENGTH-ADAPTIVE TP (user 2026-08-29: "it should
-            # change depending on the strength and candle movement").
-            # Deploys the SHELVED validated cell (backtest_tp, 573
-            # entries): TP1 x1.25 on STRENGTH entries earned ~30%
-            # more per trade (HOT +0.143 vs +0.106R), stable at all
-            # checkpoints, ~2-3pt hit-rate cost. Strength = hot ATR
-            # (top 40% of trailing 100 bars) OR 1h burst >= 65 on
-            # the long side. 2R stretch measured DEAD (22% win,
-            # negative) — never shipped, do not re-propose.
-            _pw_mult = 1.0
-            _pw_why = "standard 1:1 (quiet confirm)"
+            # 🎯 BENCHMARK TP, strength-scaled (user 2026-08-29:
+            # "TP should be according to the benchmark and race to
+            # it... according to its strength" — VALIDATED same day,
+            # backtest_bench on 245 confirmed entries: level-anchored
+            # targets beat both 1:1 and the x1.25 stretch — bench
+            # 61.2%/+0.037R, bench+strength +0.041R best-in-test,
+            # green both halves; plain x1.25 was RED in the older
+            # half here and is out). Target = the 24h-high benchmark,
+            # clipped by strength: STRONG (hot ATR top-40% or 1h
+            # burst >= 65 long) -> [1.0R, 2.5R]; quiet -> [0.75R,
+            # 1.25R]. Blind ratio stretches beyond structure stay
+            # banned (2R cell 22% win).
+            _pw_strong = False
+            _pw_tell = ""
             try:
                 _tr9 = _pwh - _pwl
                 _atr_now = float(_tr9[-15:-1].mean())
@@ -3644,19 +3647,25 @@ def cycle() -> None:
                 _bs9, _bd9, _ = _vb_w.lane_velocity_burst(_pwd)
                 _brst9 = (_bs9 >= 65
                           and (_bd9 or "").upper() == "LONG")
-                if _hot9 or _brst9:
-                    _pw_mult = 1.25
+                _pw_strong = _hot9 or _brst9
+                if _pw_strong:
                     _pw_tell = " + ".join(
                         [t for t, on in (("HOT ATR", _hot9),
                                          (f"burst {_bs9:.0f}",
                                           _brst9)) if on])
-                    _pw_why = (f"💪 {_pw_tell} → TP1 stretched x1.25 "
-                               f"(validated +30% money on strength "
-                               f"entries)")
             except Exception:
                 pass
-            _pw_tp1 = _pw_px + _pw_mult * _pw_r
-            _pw_tp2 = _pw_px + 2 * _pw_r
+            _pw_bench = float(_pwh[-25:-1].max())
+            _pw_br = (_pw_bench - _pw_px) / _pw_r if _pw_r > 0 else 0
+            _lo9, _hi9 = (1.0, 2.5) if _pw_strong else (0.75, 1.25)
+            _pw_clip = min(max(_pw_br, _lo9), _hi9) \
+                if _pw_br > 0 else _lo9
+            _pw_tp1 = _pw_px + _pw_clip * _pw_r
+            _pw_tp2 = _pw_px + max(2.0, _pw_clip + 0.5) * _pw_r
+            _pw_why = (f"🎯 racing the benchmark `{_pw_bench:g}` "
+                       f"(24h high) → TP1 at {_pw_clip:.2f}R · "
+                       + (f"💪 STRONG ({_pw_tell})" if _pw_strong
+                          else "quiet confirm — tight race"))
             # ⚡ EARLY lane (user 2026-08-29: "on the go... instead of
             # waiting 1h"): fire when the turn is already MOVING —
             # price reclaims the 1h ema20 intra-candle while the 15m
