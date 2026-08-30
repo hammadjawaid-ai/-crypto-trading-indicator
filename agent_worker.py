@@ -3582,7 +3582,7 @@ def cycle() -> None:
     # Additive stream — touches nothing else. 6h cooldown per coin.
     for _pw_sym in list(getattr(config, "PERSONAL_WATCH", [])):
         try:
-            _pwd = binance_client.get_klines(_pw_sym, "1h", limit=60)
+            _pwd = binance_client.get_klines(_pw_sym, "1h", limit=160)
             if _pwd is None or len(_pwd) < 30:
                 continue
             _pc = _pwd["close"].to_numpy()
@@ -3611,6 +3611,42 @@ def cycle() -> None:
                 _pw_sl = _pw_px - 1.5 * _pw_atr
             _pw_r = _pw_px - _pw_sl
             _pw_base = _pw_sym.replace("USDT", "")
+            # 💪 STRENGTH-ADAPTIVE TP (user 2026-08-29: "it should
+            # change depending on the strength and candle movement").
+            # Deploys the SHELVED validated cell (backtest_tp, 573
+            # entries): TP1 x1.25 on STRENGTH entries earned ~30%
+            # more per trade (HOT +0.143 vs +0.106R), stable at all
+            # checkpoints, ~2-3pt hit-rate cost. Strength = hot ATR
+            # (top 40% of trailing 100 bars) OR 1h burst >= 65 on
+            # the long side. 2R stretch measured DEAD (22% win,
+            # negative) — never shipped, do not re-propose.
+            _pw_mult = 1.0
+            _pw_why = "standard 1:1 (quiet confirm)"
+            try:
+                _tr9 = _pwh - _pwl
+                _atr_now = float(_tr9[-15:-1].mean())
+                _hist9 = [float(_tr9[j - 14:j].mean())
+                          for j in range(max(15, len(_tr9) - 100),
+                                         len(_tr9))]
+                _hot9 = (len(_hist9) >= 30 and
+                         sum(1 for x in _hist9 if x < _atr_now)
+                         / len(_hist9) >= 0.6)
+                _bs9, _bd9, _ = _vb_w.lane_velocity_burst(_pwd)
+                _brst9 = (_bs9 >= 65
+                          and (_bd9 or "").upper() == "LONG")
+                if _hot9 or _brst9:
+                    _pw_mult = 1.25
+                    _pw_tell = " + ".join(
+                        [t for t, on in (("HOT ATR", _hot9),
+                                         (f"burst {_bs9:.0f}",
+                                          _brst9)) if on])
+                    _pw_why = (f"💪 {_pw_tell} → TP1 stretched x1.25 "
+                               f"(validated +30% money on strength "
+                               f"entries)")
+            except Exception:
+                pass
+            _pw_tp1 = _pw_px + _pw_mult * _pw_r
+            _pw_tp2 = _pw_px + 2 * _pw_r
             # ⚡ EARLY lane (user 2026-08-29: "on the go... instead of
             # waiting 1h"): fire when the turn is already MOVING —
             # price reclaims the 1h ema20 intra-candle while the 15m
@@ -3637,8 +3673,10 @@ def cycle() -> None:
                             f"1h ema20\n"
                             f"💰 entry `{_pw_px:g}` · SL `{_pw_sl:g}` "
                             f"({(_pw_sl / _pw_px - 1) * 100:+.1f}%) · "
-                            f"TP1 `{_pw_px + _pw_r:g}` · TP2 "
-                            f"`{_pw_px + 2 * _pw_r:g}`\n"
+                            f"TP1 `{_pw_tp1:g}` "
+                            f"(+{(_pw_tp1 / _pw_px - 1) * 100:.1f}%) "
+                            f"· TP2 `{_pw_tp2:g}`\n"
+                            f"{_pw_why}\n"
                             f"⚠️ early read — smaller size; 🟢 the 1h "
                             f"confirm candle is still the green light\n"
                             f"👁 personal watch")
@@ -3648,8 +3686,9 @@ def cycle() -> None:
                         store.record_signal("personal_watch_early", {
                             "symbol": _pw_sym, "base": _pw_base,
                             "side": "LONG", "entry": _pw_px,
-                            "stop": _pw_sl, "tp1": _pw_px + _pw_r,
-                            "tp2": _pw_px + 2 * _pw_r,
+                            "stop": _pw_sl, "tp1": _pw_tp1,
+                            "tp2": _pw_tp2,
+                            "tp_mult": _pw_mult,
                             "t15": round(float(_ts15)),
                             "b15": round(float(_bs15))})
                 except Exception as _pw_exc:
@@ -3667,8 +3706,9 @@ def cycle() -> None:
                 f"vol {_pw_vx:.1f}x\n"
                 f"💰 `{_pw_px:g}` · SL `{_pw_sl:g}` "
                 f"({(_pw_sl / _pw_px - 1) * 100:+.1f}%) · TP1 "
-                f"`{_pw_px + _pw_r:g}` (+{_pw_r / _pw_px * 100:.1f}%) "
-                f"· TP2 `{_pw_px + 2 * _pw_r:g}`\n"
+                f"`{_pw_tp1:g}` (+{(_pw_tp1 / _pw_px - 1) * 100:.1f}%) "
+                f"· TP2 `{_pw_tp2:g}`\n"
+                f"{_pw_why}\n"
                 f"👁 personal watch")
             n_alerts += 1 if ok else 0
             if not ok:
@@ -3676,7 +3716,8 @@ def cycle() -> None:
             store.record_signal("personal_watch", {
                 "symbol": _pw_sym, "base": _pw_base, "side": "LONG",
                 "entry": _pw_px, "stop": _pw_sl,
-                "tp1": _pw_px + _pw_r, "tp2": _pw_px + 2 * _pw_r,
+                "tp1": _pw_tp1, "tp2": _pw_tp2,
+                "tp_mult": _pw_mult,
                 "vol_x": round(float(_pw_vx), 2)})
         except Exception as _pw_exc:
             print(f"  👁 watch {_pw_sym}: {_pw_exc}", flush=True)
