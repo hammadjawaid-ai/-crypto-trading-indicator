@@ -237,6 +237,15 @@ _OI_LAST = 0.0
 # 3 to 4 confirm elite entry and elite entry altogether"). Same
 # TTL/drain pattern as _DEMO_FIRES; cycle-thread only.
 _ECF_FIRES: list = []
+# 🦅 EAGLE EYE (user 2026-08-29: "monitor very sharply like an eagle
+# even if its 3m movement and the time we sense anything that is
+# heating up it should buzz right at the point"): every 🌟 EARLY
+# ELITE / 💎 BEST card at 🎯 conf >= 70 goes under the 60s daemon's
+# fast-clock watch (3m + 5m) for 48h — falls included. Populated by
+# the cycle, scanned by the trigger daemon, shared under _TRIG_LOCK.
+_EAGLE_WATCH: dict = {}
+EAGLE_WATCH_H = 48.0
+EAGLE_MAX = 10
 # 💎🔄 RE-QUALIFICATION (user 2026-08-19, after ALICE/BANK hit
 # TP1): when a coin we already traded goes quiet and then
 # qualifies MAX/HIGH AGAIN, that is a NEW setup and must be
@@ -542,6 +551,103 @@ def _trigger_watch() -> None:
                     except Exception as exc:
                         print("[trigger] desk-proof error:", exc,
                               flush=True)
+            # 🦅 EAGLE EYE fast-clock scan (user 2026-08-29: "I want
+            # the signal when the coin is about to move... close to
+            # trigger and can go big from there"). Up to 4 cards per
+            # 60s tick, oldest-checked first — every card gets a
+            # 3m-class look every ~2-3 min. Heat = 3m burst >= 65
+            # side-matched AND the 5m agreeing, price not past TP1
+            # (no chases). Watch survives falls for 48h.
+            with _TRIG_LOCK:
+                _eg_items = sorted(
+                    _EAGLE_WATCH.items(),
+                    key=lambda kv: kv[1].get("last_chk", 0))
+            _eg_done = 0
+            for _ek, _ea in _eg_items:
+                if _eg_done >= 4:
+                    break
+                if _now - float(_ea.get("added_at") or 0) \
+                        > EAGLE_WATCH_H * 3600:
+                    with _TRIG_LOCK:
+                        _EAGLE_WATCH.pop(_ek, None)
+                    continue
+                if _now - float(_ea.get("last_chk") or 0) < 150:
+                    continue
+                _eg_done += 1
+                with _TRIG_LOCK:
+                    _ea["last_chk"] = _now
+                try:
+                    _es9 = _ea["symbol"]
+                    _eside = _ea["side"]
+                    _lng9 = _eside == "LONG"
+                    _px9 = float(
+                        binance_client.get_ticker_price(_es9) or 0)
+                    if _px9 <= 0:
+                        continue
+                    _tp19 = float(_ea.get("tp1") or 0)
+                    if _tp19 > 0 and ((_lng9 and _px9 >= _tp19)
+                                      or (not _lng9
+                                          and _px9 <= _tp19)):
+                        continue      # move already paid — no chase
+                    _d3 = binance_client.get_klines(_es9, "3m",
+                                                    limit=120)
+                    _t3, _td3, _ = _et_w.detect(_d3)
+                    _b3, _bd3, _ = _vb_w.lane_velocity_burst(_d3)
+                    if not (_b3 >= 65
+                            and (_bd3 or "").upper() == _eside):
+                        continue
+                    _d5 = binance_client.get_klines(_es9, "5m",
+                                                    limit=150)
+                    _t5, _td5, _ = _et_w.detect(_d5)
+                    _b5, _bd5, _ = _vb_w.lane_velocity_burst(_d5)
+                    if not ((_t5 >= 55 and _td5 == _eside)
+                            or (_b5 >= 55
+                                and (_bd5 or "").upper() == _eside)):
+                        continue
+                    if _bstock_quiet(_es9):
+                        continue
+                    if not store.should_alert(
+                            f"eagleheat:{_es9}:{_eside}", 4 * 3600):
+                        continue
+                    _l59 = (f"5m trend {_t5:.0f}"
+                            if (_t5 >= 55 and _td5 == _eside)
+                            else f"5m burst {_b5:.0f}")
+                    _t29 = (f" · TP2 `{float(_ea['tp2']):g}`"
+                            if _ea.get("tp2") else "")
+                    ok, _ = tg.send(
+                        f"🦅 *EAGLE EYE — {_ea['base']} {_eside} "
+                        f"HEATING NOW* (card {_ea.get('tier')} "
+                        f"{float(_ea.get('score') or 0):.0f} · 🎯 "
+                        f"conf {_ea.get('conf')}/100)\n"
+                        f"3m burst {_b3:.0f} + {_l59} — the first "
+                        f"candles of the move · live `{_px9:g}`\n"
+                        f"entry `{float(_ea['entry']):g}` · SL "
+                        f"`{float(_ea['stop']):g}` · TP1 "
+                        f"`{float(_ea['tp1']):g}`{_t29}\n"
+                        f"_the 60s eagle on every conf-70+ 🌟/💎 "
+                        f"card — the about-to-move look. Earliest "
+                        f"tell = smaller size; 💥 break / 🟢 confirm "
+                        f"stay the full green lights._")
+                    try:
+                        _sig_e = {"symbol": _es9,
+                                  "base": _ea.get("base"),
+                                  "side": _eside,
+                                  "tier": _ea.get("tier"),
+                                  "score": _ea.get("score"),
+                                  "entry": _px9,
+                                  "stop": _ea.get("stop"),
+                                  "tp1": _ea.get("tp1"),
+                                  "tp2": _ea.get("tp2"),
+                                  "conf": _ea.get("conf")}
+                        store.record_signal("eagle_heat", _sig_e)
+                        shadow_trader.open_from_signal(
+                            "eagle_heat", _sig_e, _px9)
+                    except Exception as exc:
+                        print("[eagle] proof error:", exc, flush=True)
+                    print(f"[eagle] 🦅 {_ea['base']} {_eside} heat "
+                          f"@ {_px9:g}", flush=True)
+                except Exception as exc:
+                    print("[eagle] scan error:", exc, flush=True)
         except Exception as exc:
             print("[trigger] loop error:", exc, flush=True)
 
@@ -1228,6 +1334,46 @@ def cycle() -> None:
     # 📵 diet amendment (user same day: "dont remove... early elite")
     # — 🌟 EARLY ELITE restored to its pre-diet ALWAYS form.
     _push(elite_early, "elite_early", _fmt_elite_early, min_conf=0)
+    # 🦅 EAGLE EYE enrol (user 2026-08-29): every 🌟 EARLY ELITE and
+    # 💎 BEST card at 🎯 conf >= 70 goes under the daemon's 60s
+    # fast-clock watch for 48h — falls included. The daemon watches;
+    # this just keeps the roster fresh.
+    try:
+        _eg_now = time.time()
+        for _ep in list(elite_early) + list(best[:8]):
+            if not (_ep.get("entry") and _ep.get("stop")
+                    and _ep.get("tp1")):
+                continue
+            try:
+                _ec9 = best_board.confidence(_ep.get("symbol"),
+                                             _ep.get("side"))
+            except Exception:
+                continue
+            if _ec9 < 70:
+                continue
+            _ekey = (_ep["symbol"], _ep["side"])
+            with _TRIG_LOCK:
+                _old9 = _EAGLE_WATCH.get(_ekey) or {}
+                _EAGLE_WATCH[_ekey] = {
+                    "symbol": _ep["symbol"],
+                    "base": _ep.get("base"), "side": _ep["side"],
+                    "tier": _ep.get("tier"),
+                    "score": _ep.get("score"), "conf": _ec9,
+                    "entry": _ep.get("entry"),
+                    "stop": _ep.get("stop"),
+                    "tp1": _ep.get("tp1"), "tp2": _ep.get("tp2"),
+                    "added_at": _old9.get("added_at", _eg_now),
+                    "last_chk": _old9.get("last_chk", 0)}
+        with _TRIG_LOCK:
+            _ex9 = len(_EAGLE_WATCH) - EAGLE_MAX
+            if _ex9 > 0:
+                for _k9 in sorted(
+                        _EAGLE_WATCH,
+                        key=lambda k: _EAGLE_WATCH[k]
+                        .get("added_at", 0))[:_ex9]:
+                    _EAGLE_WATCH.pop(_k9, None)
+    except Exception as _eg_exc:
+        print("  eagle enrol error:", _eg_exc, flush=True)
     # 💎 ELITE CONVICTION fires — EVERY MAX/HIGH, approved or not
     # (user 2026-08-15, the PORTAL lesson: HIGH 87 fired 47h before a
     # +50% move and no buzz existed for it). The approval verdict and
@@ -3274,13 +3420,15 @@ def cycle() -> None:
     except Exception:
         pass
 
-    # 🔴 ITS GONE — red exit buzz (user 2026-08-29 final shape: "red
-    # one should be the one when its all gone not in middle let the
-    # trade ride"). No mid-trade cuts — the validated half-stop rule
-    # was measured (+0.050R vs +0.025R) and DECLINED by the user's
-    # let-it-ride rule. Red = the plan stop actually BROKEN on a
-    # green-lit entry (elite_confirm / personal_watch / conviction_v2
-    # buzzes). One buzz per entry, skipped if TP1 was banked first.
+    # 🔴 INVERSE RISK — the red signal (user 2026-08-29 final word:
+    # "red mark remove and replace with inverse risk caution"). The
+    # stop-break IT'S GONE buzz is REMOVED — the exchange stop is the
+    # exit and needs no announcement. Red now means: momentum died
+    # and the trade is turning inverse (underwater + 1h closed back
+    # through ema20 + 15m trending against). One-shot per entry,
+    # caution framing — measured (backtest_greenred): exiting on this
+    # signature lost money vs holding, so the SL stays the exit per
+    # let-it-ride. 🏦 TP1 bank buzz rides the same watch.
     try:
         _rg_watch = []
         for _rg_stream in ("elite_confirm", "personal_watch",
@@ -3302,20 +3450,16 @@ def cycle() -> None:
             _rg_tp1 = float(_rg.get("tp1") or 0)
             if not (_rg_sym and _rg_ent > 0 and _rg_stp > 0):
                 continue
-            _rg_key = f"redgone:{_rg_sym}:{_rg_side}:{int(_rg_ts)}"
             _rg_px = float(
                 binance_client.get_ticker_price(_rg_sym) or 0)
             if _rg_px <= 0:
                 continue
             _rg_long = _rg_side == "LONG"
-            _rg_dead = (_rg_px <= _rg_stp) if _rg_long \
-                else (_rg_px >= _rg_stp)
-            if not _rg_dead:
-                continue
-            # banked first? walk the 1h candles since the buzz — if
-            # TP1 was touched before the stop broke, the plan already
-            # paid; stay silent.
+            # walk the 1h candles since the buzz — which came first,
+            # TP1 or the stop? (also catches a TP1 spike between
+            # worker polls)
             _rg_banked = False
+            _rg_stopped = False
             try:
                 _rgd = binance_client.get_klines(_rg_sym, "1h",
                                                  limit=60)
@@ -3331,6 +3475,7 @@ def cycle() -> None:
                                ((_rg_hi[_ri] >= _rg_tp1) if _rg_long
                                 else (_rg_lo[_ri] <= _rg_tp1)))
                     if _hit_stop:
+                        _rg_stopped = True
                         break
                     if _hit_tp:
                         _rg_banked = True
@@ -3338,8 +3483,7 @@ def cycle() -> None:
             except Exception:
                 pass
             if _rg_banked:
-                # 🏦 TP1 buzz (2026-08-29, user in-trade coverage):
-                # the plan banks 100% here — say so on the phone.
+                # 🏦 TP1 buzz — the plan banks 100% here.
                 if store.should_alert(
                         f"tp1hit:{_rg_sym}:{_rg_side}:{int(_rg_ts)}",
                         7 * 24 * 3600):
@@ -3352,21 +3496,50 @@ def cycle() -> None:
                         f"re-fire.")
                     n_alerts += 1 if ok else 0
                 continue
-            if not store.should_alert(_rg_key, 7 * 24 * 3600):
+            if _rg_stopped:
+                continue    # stop did its job — silent by user rule
+            # 🔴 INVERSE RISK — the red signal: momentum died, trade
+            # turning inverse. One-shot per entry, caution framing.
+            _rg_uw = (_rg_px < _rg_ent) if _rg_long \
+                else (_rg_px > _rg_ent)
+            if not _rg_uw:
                 continue
-            _rg_base = _rg.get("base") or _rg_sym.replace("USDT", "")
-            ok, _rg_err = tg.send(
-                f"🔴 *{_rg_base} {_rg_side} — IT'S GONE.* Stop "
-                f"`{_rg_stp:g}` broken (now `{_rg_px:g}`, entry was "
-                f"`{_rg_ent:g}`).\n"
-                f"The plan closes it here at −1R — no averaging, no "
-                f"moving the stop. Below the invalidation, cheap "
-                f"does not exist.\n"
-                f"A fresh confirmation candle from lower is a NEW "
-                f"trade — it gets its own 🟢 buzz.")
-            n_alerts += 1 if ok else 0
-            if not ok:
-                print("  🔴 tg:", _rg_err, flush=True)
+            try:
+                _rd1 = binance_client.get_klines(_rg_sym, "1h",
+                                                 limit=30)
+                _rc1 = _rd1["close"].to_numpy()
+                _re1 = (_rd1["close"]
+                        .ewm(span=20, adjust=False)
+                        .mean().to_numpy())
+                _lost = ((_rc1[-2] < _re1[-2]) if _rg_long
+                         else (_rc1[-2] > _re1[-2]))
+                if not _lost:
+                    continue
+                _rd15 = binance_client.get_klines(_rg_sym, "15m",
+                                                  limit=120)
+                _rt15, _rtd15, _ = _et_w.detect(_rd15)
+                _agn = "SHORT" if _rg_long else "LONG"
+                if not (_rt15 >= 65 and _rtd15 == _agn):
+                    continue
+                if not store.should_alert(
+                        f"momdied:{_rg_sym}:{_rg_side}:"
+                        f"{int(_rg_ts)}", 7 * 24 * 3600):
+                    continue
+                _rg_b3 = _rg.get("base") or \
+                    _rg_sym.replace("USDT", "")
+                ok, _ = tg.send(
+                    f"🔴 *{_rg_b3} {_rg_side} — INVERSE RISK: the "
+                    f"momentum has died.* Live `{_rg_px:g}` under "
+                    f"the entry `{_rg_ent:g}`, the 1h closed back "
+                    f"through its ema20 and the 15m trends "
+                    f"{_agn.lower()} ({_rt15:.0f}).\n"
+                    f"_The wind changed — your call on the early "
+                    f"door. Measured honesty: cutting on this "
+                    f"signature lost money vs holding; the plan "
+                    f"rides to SL `{_rg_stp:g}`._")
+                n_alerts += 1 if ok else 0
+            except Exception:
+                pass
     except Exception as _rg_exc:
         print("  🔴 red-exit error:", _rg_exc, flush=True)
 

@@ -3493,6 +3493,7 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "conviction": "💯 CONVICTION v1 (retired — kronos era)",
                    "conviction_v2": "💯 CONVICTION v2 (fresh ledger)",
                    "same_door": "🚪 SAME DOOR (proving)",
+                   "eagle_heat": "🦅 EAGLE HEAT (3m watch, proving)",
                    "moonshot": "🚀 MOONSHOT (big-move desk)",
                    "sentry": "🎯 SENTRY (your 18-coin watch)",
                    "owl_preburst": "🦉 OWL PRE-BURST (multi-TF)",
