@@ -448,4 +448,4 @@ SOCIAL_FEEDS = {
 PERSONAL_WATCH = ["INJUSDT", "ENAUSDT", "ZECUSDT", "VIRTUALUSDT",
                   "WLDUSDT", "MUBARAKUSDT", "FETUSDT", "ENSOUSDT",
                   "PYTHUSDT", "HUMAUSDT", "SOLUSDT", "DASHUSDT",
-                  "ETHFIUSDT"]
+                  "ETHFIUSDT", "UNIUSDT", "LINKUSDT", "SUIUSDT"]
