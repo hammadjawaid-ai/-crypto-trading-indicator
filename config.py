@@ -444,4 +444,5 @@ SOCIAL_FEEDS = {
 # coin per 6h max. Edit this list to change the watched coins.
 PERSONAL_WATCH = ["INJUSDT", "ENAUSDT", "ZECUSDT", "VIRTUALUSDT",
                   "WLDUSDT", "MUBARAKUSDT", "FETUSDT", "ENSOUSDT",
-                  "PYTHUSDT", "HUMAUSDT", "SOLUSDT", "DASHUSDT"]
+                  "PYTHUSDT", "HUMAUSDT", "SOLUSDT", "DASHUSDT",
+                  "ETHFIUSDT"]
