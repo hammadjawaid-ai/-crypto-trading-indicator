@@ -46,6 +46,7 @@ import polymarket_events
 import true_signal
 import scan_core
 import shadow_trader
+import smart_stop as _ss_w
 import surge_radar
 import telegram_notify as tg
 import velocity_burst as _vb_w
@@ -3606,9 +3607,18 @@ def cycle() -> None:
             _pwh = _pwd["high"].to_numpy()
             _pwl = _pwd["low"].to_numpy()
             _pw_atr = float((_pwh[-15:-1] - _pwl[-15:-1]).mean())
-            _pw_sl = float(_pwl[-11:-1].min()) - 0.25 * _pw_atr
-            if not (0 < _pw_px - _pw_sl <= 4 * _pw_atr):
-                _pw_sl = _pw_px - 1.5 * _pw_atr
+            # 🛡️ the ELITE structural stop, verbatim (user 2026-08-29:
+            # "sl should be also based on strength like we have for
+            # elite convictions — its soo good"): same smart_stop
+            # engine the elite cards use (validated GIGGLE fix —
+            # swing low − 0.25×true-range-ATR, 4×ATR cap, plan-stop
+            # fallback). Structure decides the stop and it breathes
+            # with volatility on its own; widening beyond structure
+            # measured flat-or-worse (backtest_stops).
+            _pw_plan = _pw_px - 1.5 * _pw_atr
+            _pw_sl = float(_ss_w.structural_stop(
+                _pwd, "LONG", _pw_px, _pw_plan,
+                _pw_px + (_pw_px - _pw_plan)))
             _pw_r = _pw_px - _pw_sl
             _pw_base = _pw_sym.replace("USDT", "")
             # 💪 STRENGTH-ADAPTIVE TP (user 2026-08-29: "it should
