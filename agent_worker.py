@@ -256,6 +256,55 @@ EAGLE_MAX = 10
 RE_GAP_H = 6.0
 
 
+def _conf_votes(df1h, side: str):
+    """🎯 conf = 25 + 20 x stacked edge votes, computed from candles.
+
+    The SAME ladder best_board.confidence encodes, but self-contained
+    so it works on ANY symbol (LAST_VOTES only covers the scan
+    universe and would fall back to 55). Votes: HOT ATR (top 40% of
+    trailing 100) + HOT ROC (6-bar, top 40%) + 1h velocity burst >=78
+    on the trade side. VALIDATED 2026-08-31 on 197 resolved confirms:
+    conf>=65 -> 63.9% / +0.241R (older +0.119, recent +0.331 — green
+    BOTH halves); conf<65 -> 50.7% / -0.035R (flat-to-red).
+    """
+    try:
+        side = (side or "").upper()
+        h = df1h["high"].to_numpy()
+        l = df1h["low"].to_numpy()
+        c = df1h["close"].to_numpy()
+        if len(c) < 40:
+            return None
+        tr = h - l
+        atr_now = float(tr[-15:-1].mean())
+        hist = [float(tr[j - 14:j].mean())
+                for j in range(max(15, len(tr) - 100), len(tr))]
+        hot = (len(hist) >= 30
+               and sum(1 for x in hist if x < atr_now)
+               / len(hist) >= 0.6)
+        roc_now = float(c[-1] / c[-7] - 1)
+        rh = [float(c[j] / c[j - 6] - 1)
+              for j in range(max(7, len(c) - 100), len(c))]
+        hotroc = (len(rh) >= 30
+                  and sum(1 for x in rh if x < roc_now)
+                  / len(rh) >= 0.6)
+        bs, bd, _ = _vb_w.lane_velocity_burst(df1h)
+        b78 = bs >= 78 and (bd or "").upper() == side
+        votes = int(hot) + int(hotroc) + int(b78)
+        return int(min(98, 25 + 20 * votes))
+    except Exception:
+        return None
+
+
+def _conf_chip(a: dict) -> str:
+    """The 🎯 conf chip for a buzz line — empty when unknown."""
+    cf = a.get("conf")
+    if cf is None:
+        return ""
+    return (f" · 🎯 conf {int(cf)}/100"
+            + (" 💪 EDGE ZONE" if int(cf) >= 65
+               else " (below the 65 line)"))
+
+
 def _trigger_pass(a: dict, px: float) -> bool:
     """True when live price has broken the armed trigger."""
     if px <= 0:
@@ -282,6 +331,7 @@ def _fmt_trigger(a: dict, px: float, vk: float) -> str:
             f"breaking `{a['trigger']:g}` NOW\n"
             f"live `{px:g}` · 15m vol {vk:.1f}x · score "
             f"{float(a.get('score') or 0):.0f} · armed {_age:.1f}h ago"
+            f"{_conf_chip(a)}"
             f"{_grade}\n"
             f"entry `{a['entry']:g}` · SL `{a['stop']:g}` · "
             f"TP1 `{a['tp1']:g}`{_t2}\n"
@@ -348,7 +398,8 @@ def _fmt_near(a: dict, px: float) -> str:
     return (f"🔶 *{a['src']} NEAR TRIGGER* — {a['base']} {a['side']}\n"
             f"live `{px:g}` pressing the trigger `{a['trigger']:g}` "
             f"({_d:.2f}% away) · score "
-            f"{float(a.get('score') or 0):.0f}\n"
+            f"{float(a.get('score') or 0):.0f}"
+            f"{_conf_chip(a)}\n"
             f"plan: entry `{a['entry']:g}` · SL `{a['stop']:g}` · "
             f"TP1 `{a['tp1']:g}`{_t2}\n"
             f"_the smell-the-move moment — get ready. The 💥 fires "
@@ -416,6 +467,14 @@ def _trigger_watch() -> None:
                                     f"{a['side']}", 6 * 3600) \
                                     and not _bstock_quiet(
                                         a["symbol"]):
+                                # 🎯 conf on the near warning too
+                                try:
+                                    a["conf"] = _conf_votes(
+                                        binance_client.get_klines(
+                                            a["symbol"], "1h",
+                                            limit=140), a["side"])
+                                except Exception:
+                                    a["conf"] = None
                                 tg.send(_fmt_near(a, px))
                         except Exception as exc:
                             print("[trigger] near-buzz error:", exc,
@@ -442,6 +501,11 @@ def _trigger_watch() -> None:
                     a["burst"] = (float(_bsv)
                                   if (_bsd or "").upper() == a["side"]
                                   else 0.0)
+                    # 🎯 conf stamp on the break (user 2026-08-31:
+                    # "for strong trigger and strong near triggers
+                    # also set the confidence score") — free here,
+                    # the 1h frame is already in hand.
+                    a["conf"] = _conf_votes(_dfb, a["side"])
                 except Exception:
                     a["burst"] = 0.0
                 with _TRIG_LOCK:
@@ -3655,6 +3719,10 @@ def cycle() -> None:
                                           _brst9)) if on])
             except Exception:
                 pass
+            # 🎯 CONFIDENCE on the personal watch (user 2026-08-31,
+            # VALIDATED same day on 197 resolved confirms). Computed
+            # from candles via _conf_votes so it works on any coin.
+            _pw_cf = _conf_votes(_pwd, "LONG")
             _pw_bench = float(_pwh[-25:-1].max())
             _pw_br = (_pw_bench - _pw_px) / _pw_r if _pw_r > 0 else 0
             _lo9, _hi9 = (1.0, 2.5) if _pw_strong else (0.75, 1.25)
@@ -3696,6 +3764,8 @@ def cycle() -> None:
                             f"(+{(_pw_tp1 / _pw_px - 1) * 100:.1f}%) "
                             f"· TP2 `{_pw_tp2:g}`\n"
                             f"{_pw_why}\n"
+                            f"🎯 conf {_pw_cf}/100"
+                            f"{' 💪 EDGE ZONE' if (_pw_cf or 0) >= 65 else ' — below the 65 line'}\n"
                             f"⚠️ early read — smaller size; 🟢 the 1h "
                             f"confirm candle is still the green light\n"
                             f"👁 personal watch")
@@ -3707,13 +3777,24 @@ def cycle() -> None:
                             "side": "LONG", "entry": _pw_px,
                             "stop": _pw_sl, "tp1": _pw_tp1,
                             "tp2": _pw_tp2,
-                            "tp_mult": _pw_mult,
+                            "tp_r": round(float(_pw_clip), 2),
+                            "conf": _pw_cf,
                             "t15": round(float(_ts15)),
                             "b15": round(float(_bs15))})
                 except Exception as _pw_exc:
                     print(f"  👁 early {_pw_sym}: {_pw_exc}",
                           flush=True)
             if not _pw_conf:
+                continue
+            # 🎯 CONF GATE at 65 (user 2026-08-31: "ship it with the
+            # gate at 65") — VALIDATED same day on 197 resolved
+            # confirms: conf>=65 63.9% / +0.241R, GREEN BOTH HALVES
+            # (older +0.119, recent +0.331); conf<65 50.7% /
+            # -0.035R (older +0.004, recent -0.067 — flat-to-red).
+            # Sub-65 confirms stay silent. Revert: delete this block.
+            if _pw_cf is not None and _pw_cf < 65:
+                print(f"  👁 {_pw_sym} confirm muted — conf "
+                      f"{_pw_cf} < 65", flush=True)
                 continue
             if not store.should_alert(f"pwatch:{_pw_sym}", 6 * 3600):
                 continue
@@ -3728,6 +3809,8 @@ def cycle() -> None:
                 f"`{_pw_tp1:g}` (+{(_pw_tp1 / _pw_px - 1) * 100:.1f}%) "
                 f"· TP2 `{_pw_tp2:g}`\n"
                 f"{_pw_why}\n"
+                f"🎯 conf {_pw_cf}/100 💪 EDGE ZONE — validated "
+                f"63.9% · +0.241R\n"
                 f"👁 personal watch")
             n_alerts += 1 if ok else 0
             if not ok:
@@ -3736,7 +3819,8 @@ def cycle() -> None:
                 "symbol": _pw_sym, "base": _pw_base, "side": "LONG",
                 "entry": _pw_px, "stop": _pw_sl,
                 "tp1": _pw_tp1, "tp2": _pw_tp2,
-                "tp_mult": _pw_mult,
+                "tp_r": round(float(_pw_clip), 2),
+                "conf": _pw_cf,
                 "vol_x": round(float(_pw_vx), 2)})
         except Exception as _pw_exc:
             print(f"  👁 watch {_pw_sym}: {_pw_exc}", flush=True)
