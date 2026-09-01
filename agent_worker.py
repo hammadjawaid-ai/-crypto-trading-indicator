@@ -1156,22 +1156,24 @@ def cycle() -> None:
                             _pmx.get("symbol"), _pmx.get("side"))
                     except Exception:
                         _cf9 = None
-                _eg9_gate = _pmx.get("edge_conf")
-                # 📵 ELITE GATE v2 (user 2026-08-31). The board-conf
-                # 55 gate is REMOVED — it had no evidence on either
-                # scale and was muting elite-only cards (they score
-                # 40), reintroducing the PORTAL problem the
-                # buzz-everything design existed to prevent. The gate
-                # is now the EDGE band: only edge-conf 45 (exactly
-                # one of hot-ATR / hot-ROC / burst>=78) qualifies.
-                # Measured at-fire: 25 -> 36.8% (bad in BOTH halves),
-                # 45 -> 54.0%, 65 -> 51.3%, 85 -> 50.0%. HONEST
-                # CAVEAT: 45-over-65 holds in the older half (55.1 vs
-                # 47.5) but VANISHES in the recent one (53.1 vs
-                # 53.3) — only "25 is bad" survives both halves. The
-                # 45-only cut is the user's explicit call for
-                # selectivity; widening to 45-or-65 is one edit.
-                if _eg9_gate is not None and _eg9_gate != 45:
+                # 📵 ELITE GATE — FINAL (user 2026-08-31 revert:
+                # "elite conviction fires approved unapproved with
+                # high and max with confidence score set to 40 and
+                # above, also add edge to it"). Back to the original
+                # design — EVERY MAX/HIGH fire speaks, approved or
+                # not (the PORTAL lesson), with a conf FLOOR at 40
+                # rather than a filter: an elite-only card scores
+                # exactly 40 (W_ELITE_WATCH 0.75), so this admits the
+                # whole stream and only blocks a card that somehow
+                # scores beneath its own board weight. The edge-45
+                # experiment is withdrawn — its 45-over-65 advantage
+                # vanished in the recent half (53.1 vs 53.3), so it
+                # was never both-halves validated. Both scores now
+                # ride the buzz as INFORMATION: 🎯 conf (board
+                # agreement) + ⚡ edge (candle heat). The validated
+                # discriminator stays the 🚀 approval chip (65.5% vs
+                # 48.5%). Revert: change the 40 below.
+                if _cf9 is not None and _cf9 < 40:
                     continue
                 if store.should_alert(
                         f"eliteconv:{_pmx['symbol']}:{_pmx['side']}",
