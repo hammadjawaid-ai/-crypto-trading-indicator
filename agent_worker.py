@@ -559,6 +559,7 @@ def _trigger_watch() -> None:
                                    "side": a["side"],
                                    "tier": "2NDLEG",
                                    "score": a.get("score"),
+                                   "conf": a.get("conf"),
                                    "entry": px, "stop": a["stop"],
                                    "tp1": a["tp1"],
                                    "tp2": a.get("tp2")}
@@ -579,6 +580,7 @@ def _trigger_watch() -> None:
                                    "side": a["side"],
                                    "tier": "OILOAD",
                                    "score": a.get("score"),
+                                   "conf": a.get("conf"),
                                    "entry": px, "stop": a["stop"],
                                    "tp1": a["tp1"],
                                    "tp2": a.get("tp2")}
@@ -594,6 +596,7 @@ def _trigger_watch() -> None:
                                   "base": a["base"],
                                   "side": a["side"], "tier": "STRONG",
                                   "score": a.get("score"),
+                                  "conf": a.get("conf"),
                                   "entry": px, "stop": a["stop"],
                                   "tp1": a["tp1"],
                                   "tp2": a.get("tp2")}
@@ -3783,7 +3786,7 @@ def cycle() -> None:
                         n_alerts += 1 if ok else 0
                         if not ok:
                             print("  👁 tg:", _pw_err, flush=True)
-                        store.record_signal("personal_watch_early", {
+                        _pw_sig_e = {
                             "symbol": _pw_sym, "base": _pw_base,
                             "side": "LONG", "entry": _pw_px,
                             "stop": _pw_sl, "tp1": _pw_tp1,
@@ -3791,7 +3794,17 @@ def cycle() -> None:
                             "tp_r": round(float(_pw_clip), 2),
                             "conf": _pw_cf,
                             "t15": round(float(_ts15)),
-                            "b15": round(float(_bs15))})
+                            "b15": round(float(_bs15))}
+                        store.record_signal("personal_watch_early",
+                                            _pw_sig_e)
+                        # 🧪 desk tier (user 2026-08-31: "have this on
+                        # decision desk as well on paper trading") —
+                        # the ⚡ early lane now builds its own live
+                        # record, carrying its EDGE-conf so the
+                        # confidence panel can price that dimension
+                        # too. Records only; the buzz is unchanged.
+                        shadow_trader.open_from_signal(
+                            "personal_watch_early", _pw_sig_e, _pw_px)
                 except Exception as _pw_exc:
                     print(f"  👁 early {_pw_sym}: {_pw_exc}",
                           flush=True)
@@ -3826,13 +3839,21 @@ def cycle() -> None:
             n_alerts += 1 if ok else 0
             if not ok:
                 print("  👁 tg:", _pw_err, flush=True)
-            store.record_signal("personal_watch", {
+            _pw_sig = {
                 "symbol": _pw_sym, "base": _pw_base, "side": "LONG",
                 "entry": _pw_px, "stop": _pw_sl,
                 "tp1": _pw_tp1, "tp2": _pw_tp2,
                 "tp_r": round(float(_pw_clip), 2),
                 "conf": _pw_cf,
-                "vol_x": round(float(_pw_vx), 2)})
+                "vol_x": round(float(_pw_vx), 2)}
+            store.record_signal("personal_watch", _pw_sig)
+            # 🧪 desk tier (user 2026-08-31): the 🟢 confirm builds
+            # its own live record on the Decision Desk, carrying its
+            # EDGE-conf. This is the stream whose backtest says
+            # 63.9%/+0.241R at conf>=65 — now it gets to prove that
+            # forward with real forward prices. Records only.
+            shadow_trader.open_from_signal("personal_watch",
+                                           _pw_sig, _pw_px)
         except Exception as _pw_exc:
             print(f"  👁 watch {_pw_sym}: {_pw_exc}", flush=True)
 
