@@ -1162,9 +1162,25 @@ def cycle() -> None:
                         f"eliteconv:{_pmx['symbol']}:{_pmx['side']}",
                         2 * 3600):
                     _msg9 = _fmt_elite_conv(_pmx)
-                    if _cf9 is not None and "\n" in _msg9:
+                    # 🎯 board-conf + ⚡ edge-conf side by side on
+                    # elite only (user 2026-08-31). Two different
+                    # measures: board = how many boards agree,
+                    # edge = how hot this coin's own candles are.
+                    # Edge on elite peaks at 45 (hump, not ladder) —
+                    # the tag says so rather than implying higher is
+                    # better. Neither gates anything here.
+                    _eg9 = _pmx.get("edge_conf")
+                    _cbits = []
+                    if _cf9 is not None:
+                        _cbits.append(f"🎯 board {_cf9}/100")
+                    if _eg9 is not None:
+                        _etag = (" sweet spot" if _eg9 == 45
+                                 else " hot — may be late"
+                                 if _eg9 >= 85 else "")
+                        _cbits.append(f"⚡ edge {_eg9}/100{_etag}")
+                    if _cbits and "\n" in _msg9:
                         _msg9 = _msg9.replace(
-                            "\n", f" · 🎯 conf {_cf9}/100\n", 1)
+                            "\n", " · " + " · ".join(_cbits) + "\n", 1)
                     ok, _m9 = tg.send(_msg9)
                     n_alerts += 1 if ok else 0
             except Exception as _mx_exc:
@@ -1465,6 +1481,21 @@ def cycle() -> None:
         _ec2 = dict(_ec)
         _ec2["appr"] = _ec_ok
         _ec2["burst_live"] = _ec_b9
+        # ⚡ EDGE-conf alongside the board-conf (user 2026-08-31:
+        # "can we have the confidence score and edge confidence both
+        # on elite conviction only?"). Free here — the 1h frame is
+        # already fetched above for approval + burst. Measured shape
+        # on elite (1,232 filled entries): it is a HUMP not a ladder
+        # — edge 45 was the best cell in both entry styles (54.4%
+        # at-fire / 72.8% confirmed) while edge 85 UNDERperformed it,
+        # consistent with burst>=85 at an elite fire measuring
+        # -0.218R: a screaming chart on a fire candle means late,
+        # not early. Display only — it gates nothing.
+        try:
+            _ec2["edge_conf"] = _conf_votes(_ec_df,
+                                            _ec.get("side"))
+        except Exception:
+            _ec2["edge_conf"] = None
         _ec_mh.append(_ec2)
     # 🦅 EAGLE enrol #2 (user 2026-08-29 follow-up: "for every elite
     # conviction... it have its eye to monitor its movement right?"):
