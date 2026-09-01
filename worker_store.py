@@ -248,6 +248,80 @@ def shadow_summary() -> list[dict]:
         "FROM shadow_trades GROUP BY tier ORDER BY net_r DESC")
 
 
+def conf_bands(days: float = 0.0) -> list[dict]:
+    """🎯 Win rate + net R by CONFIDENCE BAND, per desk tier.
+
+    The reader for the conf stamped on every shadow trade since
+    2026-08-28 (user 2026-08-31: "build the reader panel on paper
+    trading decision desk so we have the backlog of this data").
+    Reads only — never writes, never gates anything.
+
+    Returns one row per (tier, band) with n / wins / win_pct / net_r,
+    plus a synthetic tier "ALL" pooling every tier. Bands: "<65",
+    "65-84", "85+". Trades whose conf was never stamped are skipped
+    (nothing before 2026-08-28 has one). `days` > 0 limits to trades
+    CLOSED in that window.
+    """
+    c = _open()
+    try:
+        cols = {r[1] for r in c.execute(
+            "PRAGMA table_info(shadow_trades)")}
+        if "conf" not in cols:
+            return []
+        sql = ("SELECT tier, conf, pnl_r FROM shadow_trades "
+               "WHERE status != 'OPEN' AND conf IS NOT NULL "
+               "AND pnl_r IS NOT NULL")
+        args: tuple = ()
+        if days and days > 0:
+            sql += " AND closed_at >= ?"
+            args = (time.time() - days * 86400,)
+        rows = c.execute(sql, args).fetchall()
+    except Exception:
+        return []
+    finally:
+        c.close()
+
+    def _band(cf: float) -> str:
+        return "<65" if cf < 65 else ("65-84" if cf < 85 else "85+")
+
+    agg: dict = {}
+    for tier, cf, pnl in rows:
+        for key in ((tier or "?"), "ALL"):
+            b = agg.setdefault((key, _band(float(cf))),
+                               {"tier": key, "band": _band(float(cf)),
+                                "n": 0, "wins": 0, "net_r": 0.0})
+            b["n"] += 1
+            b["wins"] += 1 if float(pnl) > 0 else 0
+            b["net_r"] += float(pnl)
+    out = []
+    for v in agg.values():
+        v["win_pct"] = (v["wins"] / v["n"] * 100.0) if v["n"] else 0.0
+        v["exp_r"] = (v["net_r"] / v["n"]) if v["n"] else 0.0
+        out.append(v)
+    order = {"<65": 0, "65-84": 1, "85+": 2}
+    out.sort(key=lambda r: (r["tier"] != "ALL", r["tier"],
+                            order.get(r["band"], 9)))
+    return out
+
+
+def conf_open_count() -> int:
+    """How many conf-stamped trades are still OPEN (not yet counted)."""
+    c = _open()
+    try:
+        cols = {r[1] for r in c.execute(
+            "PRAGMA table_info(shadow_trades)")}
+        if "conf" not in cols:
+            return 0
+        return int(c.execute(
+            "SELECT COUNT(*) FROM shadow_trades "
+            "WHERE status = 'OPEN' AND conf IS NOT NULL"
+        ).fetchone()[0])
+    except Exception:
+        return 0
+    finally:
+        c.close()
+
+
 def shadow_purge_tier(tier: str) -> None:
     """Remove a tier's shadow trades entirely (user cut, e.g. sst1)."""
     c = _open()

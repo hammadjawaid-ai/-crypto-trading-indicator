@@ -854,6 +854,14 @@ def _shadow_closed_all_cached(_bust):
     return _ws_c.shadow_closed_all()
 
 
+@st.cache_data(ttl=120, show_spinner=False)
+def _conf_bands_cached(_bust, days: float = 0.0):
+    """🎯 win rate by confidence band — reads the conf stamped on
+    every shadow trade since 2026-08-28."""
+    import worker_store as _ws_c
+    return _ws_c.conf_bands(days=days), _ws_c.conf_open_count()
+
+
 @st.cache_data(ttl=90, show_spinner=False)
 def _shadow_open_cached(_bust):
     import worker_store as _ws_c
@@ -3620,6 +3628,71 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                             f"{_thin}</span>", unsafe_allow_html=True)
             except Exception as _em_exc:
                 st.caption(f"edge miner unavailable: {_em_exc}")
+        # 🎯 WIN RATE BY CONFIDENCE BAND (user 2026-08-31: "build the
+        # reader panel on paper trading decision desk so we have the
+        # backlog of this data"). Every shadow trade has carried its
+        # 🎯 conf since 2026-08-28 — this is the reader that groups
+        # them. Read-only: it gates nothing and buzzes nothing.
+        with st.expander("🎯 WIN RATE BY CONFIDENCE SCORE — what the "
+                         "number on your Telegram buzz is worth",
+                         expanded=True):
+            try:
+                _cb_rows, _cb_open = _conf_bands_cached(
+                    int(time.time() // 120))
+            except Exception as _cb_exc:
+                _cb_rows, _cb_open = [], 0
+                st.caption(f"conf reader unavailable: {_cb_exc}")
+            st.caption(
+                "Every desk trade is stamped with the 🎯 confidence "
+                "score at open (since 2026-08-28) — this table reads "
+                "those stamps back. **This is LIVE forward data, not "
+                "a backtest.** A band needs ~20 closed trades before "
+                "its number means anything; treat anything thinner "
+                "as a placeholder, not a verdict.")
+            if not _cb_rows:
+                st.info(
+                    "No conf-stamped trades have CLOSED yet. The "
+                    "stamping started 2026-08-28, so this table "
+                    "fills in as trades resolve"
+                    + (f" — {_cb_open} stamped trade(s) are open "
+                       f"right now." if _cb_open else "."))
+            else:
+                _tot = sum(r["n"] for r in _cb_rows
+                           if r["tier"] == "ALL")
+                st.markdown(
+                    f"<span style='font-size:0.82rem;color:#9aa7c7'>"
+                    f"{_tot} closed conf-stamped trades"
+                    + (f" · {_cb_open} still open"
+                       if _cb_open else "")
+                    + "</span>", unsafe_allow_html=True)
+                _cur = None
+                for _r in _cb_rows:
+                    if _r["tier"] != _cur:
+                        _cur = _r["tier"]
+                        _nm = ("**ALL TIERS POOLED**" if _cur == "ALL"
+                               else f"**{_tier_names.get(_cur, _cur)}**")
+                        st.markdown(
+                            f"<div style='margin-top:.45rem'>{_nm}"
+                            f"</div>", unsafe_allow_html=True)
+                    _c = ("#2ed47a" if _r["exp_r"] > 0 else "#ff5c5c")
+                    _thin = ("" if _r["n"] >= 20
+                             else f" · ⚠️ only {_r['n']} — too thin")
+                    st.markdown(
+                        f"<span style='font-size:0.8rem;color:#9aa7c7'>"
+                        f"· conf <b>{_r['band']}</b> — n={_r['n']} · "
+                        f"win <b>{_r['win_pct']:.0f}%</b> · "
+                        f"<b style='color:{_c}'>{_r['exp_r']:+.3f}R"
+                        f"/trade</b>{_thin}</span>",
+                        unsafe_allow_html=True)
+                st.caption(
+                    "⚠️ Honest note: the conf on 🏆 APEX / 💎 BEST / "
+                    "💎 ELITE buzzes counts BOARD AGREEMENT (how many "
+                    "streams flagged the coin). The conf on 💥 "
+                    "TRIGGER / 🔶 NEAR / 🟢 personal-watch buzzes "
+                    "counts CANDLE EDGES (hot ATR, hot ROC, burst). "
+                    "They are different measures — this table is the "
+                    "first thing that will tell us what each is "
+                    "actually worth live.")
         # 💸 SLOT REPLAY (user 2026-07-25: "we can't take every trade in
         # real money — prove how many trades a day works with $1,200").
         # Replays the desk's ACTUAL closed trades chronologically under
