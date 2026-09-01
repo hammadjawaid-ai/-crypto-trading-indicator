@@ -1156,8 +1156,23 @@ def cycle() -> None:
                             _pmx.get("symbol"), _pmx.get("side"))
                     except Exception:
                         _cf9 = None
-                if _cf9 is not None and _cf9 < 55:
-                    continue      # 📵 below the user's elite line
+                _eg9_gate = _pmx.get("edge_conf")
+                # 📵 ELITE GATE v2 (user 2026-08-31). The board-conf
+                # 55 gate is REMOVED — it had no evidence on either
+                # scale and was muting elite-only cards (they score
+                # 40), reintroducing the PORTAL problem the
+                # buzz-everything design existed to prevent. The gate
+                # is now the EDGE band: only edge-conf 45 (exactly
+                # one of hot-ATR / hot-ROC / burst>=78) qualifies.
+                # Measured at-fire: 25 -> 36.8% (bad in BOTH halves),
+                # 45 -> 54.0%, 65 -> 51.3%, 85 -> 50.0%. HONEST
+                # CAVEAT: 45-over-65 holds in the older half (55.1 vs
+                # 47.5) but VANISHES in the recent one (53.1 vs
+                # 53.3) — only "25 is bad" survives both halves. The
+                # 45-only cut is the user's explicit call for
+                # selectivity; widening to 45-or-65 is one edit.
+                if _eg9_gate is not None and _eg9_gate != 45:
+                    continue
                 if store.should_alert(
                         f"eliteconv:{_pmx['symbol']}:{_pmx['side']}",
                         2 * 3600):
@@ -1172,7 +1187,7 @@ def cycle() -> None:
                     _eg9 = _pmx.get("edge_conf")
                     _cbits = []
                     if _cf9 is not None:
-                        _cbits.append(f"🎯 board {_cf9}/100")
+                        _cbits.append(f"🎯 conf {_cf9}/100")
                     if _eg9 is not None:
                         _etag = (" sweet spot" if _eg9 == 45
                                  else " hot — may be late"
@@ -1792,6 +1807,21 @@ def cycle() -> None:
                         if _w9.get("tp2") else "")
                 _cf0s = (f" · 🎯 conf {_cf0}/100"
                          if _cf0 is not None else "")
+                # ⚡ edge score on the confirmed re-entry too (user
+                # 2026-08-31). Measured on the CONFIRM style, the
+                # middle band is where the money is — 45 (+0.041 /
+                # +0.171 both halves) and 65 (+0.006 / +0.074) are
+                # green, while 25 and 85 are negative in BOTH halves.
+                # Display only; the confirm stream stays ungated.
+                try:
+                    _eg0 = _conf_votes(_cc, _w9.get("side"))
+                except Exception:
+                    _eg0 = None
+                if _eg0 is not None:
+                    _etag0 = (" sweet spot" if _eg0 in (45, 65)
+                              else " — thin edge" if _eg0 <= 25
+                              else " hot — may be late")
+                    _cf0s += f" · ⚡ edge {_eg0}/100{_etag0}"
                 ok, _ = tg.send(
                     f"💎✅ *ELITE CONFIRMED ENTRY* — {_w9['base']} "
                     f"{_w9['side']} (elite {_w9.get('tier')} "
