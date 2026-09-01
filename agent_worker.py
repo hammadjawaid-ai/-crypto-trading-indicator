@@ -3102,8 +3102,17 @@ def cycle() -> None:
             _dz, demo_account.rank_candidates(_dz_pools, _dz_form),
             _live, active=_dz_active)
         demo_account.save(_dz)
+        # 📵 GEN7 demo buzzes OFF (user 2026-08-31: "remove gen7
+        # notifications from my telegram notifications"). The demo
+        # keeps trading and its ledger + board keep updating — only
+        # the phone goes quiet. Revert: _DZ_BUZZ = True.
+        _DZ_BUZZ = False
+
+        def _dz_tg(_m):
+            return tg.send(_m) if _DZ_BUZZ else (False, "muted")
+
         for _rr in _dz_rot:
-            ok, _ = tg.send(
+            ok, _ = _dz_tg(
                 f"🎮🔄 *DEMO $1500 GEN7* — ROTATED OUT "
                 f"{_rr['base']} {_rr['side']} ({_rr['reason']}) → "
                 f"{'+' if _rr['pnl'] >= 0 else ''}"
@@ -3113,7 +3122,7 @@ def cycle() -> None:
             n_alerts += 1 if ok else 0
         for _po in _dz_opened:
             _agr = int(_po.get("agree", 1))
-            ok, _ = tg.send(
+            ok, _ = _dz_tg(
                 f"🎮 *DEMO $1500 GEN7* — OPENED {_po['base']} "
                 f"{_po['side']} "
                 f"({'🤝 ' + str(_agr) + ' SYSTEMS AGREE · ' if _agr > 1 else ''}"
@@ -3131,7 +3140,7 @@ def cycle() -> None:
             if _ev == "guard":
                 # 🧠🛡 strength-aware guard — position still open, the
                 # brain gave a STRONG signal room instead of banking
-                ok, _ = tg.send(
+                ok, _ = _dz_tg(
                     f"🎮🧠 *DEMO $1500 GEN7* — RIDING THROUGH THE "
                     f"FLIP {_rec['base']} {_rec['side']}\n"
                     f"{_rec['reason']}\nstop now "
@@ -3141,7 +3150,7 @@ def cycle() -> None:
                 continue
             _tag = ("💰 TP1 half-banked" if _ev == "tp1"
                     else "CLOSED")
-            ok, _ = tg.send(
+            ok, _ = _dz_tg(
                 f"🎮 *DEMO $1500 GEN7* — {_tag} {_rec['base']} "
                 f"{_rec['side']} ({_rec['reason']}) → "
                 f"{'+' if _rec['pnl'] >= 0 else ''}"
