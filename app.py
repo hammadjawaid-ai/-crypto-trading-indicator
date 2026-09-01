@@ -3493,6 +3493,7 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "kr_strong": "⚡🔮 KR-STRONG (proving)",
                    "trig_strong": "💥⚡ STRONG TRIGGER (proving)",
                    "second_leg": "🔥 2ND LEG (proving)",
+                   "elite_conv": "💎 ELITE CONVICTION (records only)",
                    "elite_confirm": "💎✅ ELITE CONFIRMED (proving)",
                    "trig_strong_kr": "💥⚡🔮 STRONG TRIG × KR (proving)",
                    "prime": "🥇 PRIME (winners board)",

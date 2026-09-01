@@ -2548,6 +2548,17 @@ def cycle() -> None:
         # Signals stay recorded above for the archive; the desk stops
         # taking them. Re-add here only if a NEW validation earns it.
         _tiers = (("top_conviction", _topc),
+                  # 💎 ELITE CONVICTION desk tier (user 2026-08-31:
+                  # "confidence score should be recorded for elite
+                  # conviction"). It was the ONE requested stream with
+                  # no desk tier at all — recorded as a signal but
+                  # never shadow-taken, so it could never appear on
+                  # the desk or in the conf panel. RECORDS ONLY: the
+                  # elite board, scoring, approval and buzz are
+                  # untouched (standing rule). open_from_signal
+                  # dedupes one open per (tier, symbol), so a card
+                  # persisting across cycles is taken once.
+                  ("elite_conv", _ec_mh),
                   ("best_board", best),
                   ("apex", apex), ("takenow_hot", tn_hot),
                   ("elite_early", elite_early),
