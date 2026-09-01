@@ -456,29 +456,33 @@ def _trigger_watch() -> None:
                         except Exception as exc:
                             print("[trigger] mom-buzz error:", exc,
                                   flush=True)
-                    # 🔶 pressing the trigger? one warning, a little
-                    # before — then silence until the break itself.
-                    if not a.get("near_sent") and _trigger_near(a, px):
-                        with _TRIG_LOCK:
-                            a["near_sent"] = True
-                        try:
-                            if store.should_alert(
-                                    f"trignear:{a['symbol']}:"
-                                    f"{a['side']}", 6 * 3600) \
-                                    and not _bstock_quiet(
-                                        a["symbol"]):
-                                # 🎯 conf on the near warning too
-                                try:
-                                    a["conf"] = _conf_votes(
-                                        binance_client.get_klines(
-                                            a["symbol"], "1h",
-                                            limit=140), a["side"])
-                                except Exception:
-                                    a["conf"] = None
-                                tg.send(_fmt_near(a, px))
-                        except Exception as exc:
-                            print("[trigger] near-buzz error:", exc,
-                                  flush=True)
+                    # 📵 🔶 NEAR TRIGGER buzz OFF (user 2026-08-31:
+                    # "remove near trigger buzz from telegram
+                    # notifications just strong triggers only"). The
+                    # arming and near-detection still run — only the
+                    # phone stays quiet until the actual 💥 BREAK,
+                    # which is the validated construct (79% live).
+                    # Revert: uncomment the block below.
+                    # if not a.get("near_sent") and _trigger_near(a, px):
+                    #     with _TRIG_LOCK:
+                    #         a["near_sent"] = True
+                    #     try:
+                    #         if store.should_alert(
+                    #                 f"trignear:{a['symbol']}:"
+                    #                 f"{a['side']}", 6 * 3600) \
+                    #                 and not _bstock_quiet(
+                    #                     a["symbol"]):
+                    #             try:
+                    #                 a["conf"] = _conf_votes(
+                    #                     binance_client.get_klines(
+                    #                         a["symbol"], "1h",
+                    #                         limit=140), a["side"])
+                    #             except Exception:
+                    #                 a["conf"] = None
+                    #             tg.send(_fmt_near(a, px))
+                    #     except Exception as exc:
+                    #         print("[trigger] near-buzz error:", exc,
+                    #               flush=True)
                     continue
                 # volume kick on the forming 15m bar — fetched only
                 # on an actual break (rare), never in the hot loop

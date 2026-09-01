@@ -3688,6 +3688,11 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                         f"/trade</b>{_thin}</span>",
                         unsafe_allow_html=True)
                 st.caption(
+                    "🔎 The 40-vs-55 question (user, 2026-08-31): the "
+                    "💎 ELITE CONVICTION row splits 40-54 vs 55-64 — "
+                    "when both reach ~20 closed trades, that settles "
+                    "whether the old 55 floor was worth anything or "
+                    "the 40 floor is right.\n\n"
                     "⚠️ Honest note: the conf on 🏆 APEX / 💎 BEST / "
                     "💎 ELITE buzzes counts BOARD AGREEMENT (how many "
                     "streams flagged the coin). The conf on 💥 "

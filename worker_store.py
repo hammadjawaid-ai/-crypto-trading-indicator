@@ -282,7 +282,18 @@ def conf_bands(days: float = 0.0) -> list[dict]:
         c.close()
 
     def _band(cf: float) -> str:
-        return "<65" if cf < 65 else ("65-84" if cf < 85 else "85+")
+        # Cut points chosen to answer live questions directly (user
+        # 2026-08-31: "elite conviction with confidence score of 55
+        # and above vs 40 and above — measure this somewhere"). The
+        # old <65 bucket lumped 40-54 and 55-64 together and could
+        # never settle that; these boundaries separate them.
+        if cf < 40:
+            return "<40"
+        if cf < 55:
+            return "40-54"
+        if cf < 65:
+            return "55-64"
+        return "65-84" if cf < 85 else "85+"
 
     agg: dict = {}
     for tier, cf, pnl in rows:
@@ -298,7 +309,7 @@ def conf_bands(days: float = 0.0) -> list[dict]:
         v["win_pct"] = (v["wins"] / v["n"] * 100.0) if v["n"] else 0.0
         v["exp_r"] = (v["net_r"] / v["n"]) if v["n"] else 0.0
         out.append(v)
-    order = {"<65": 0, "65-84": 1, "85+": 2}
+    order = {"<40": 0, "40-54": 1, "55-64": 2, "65-84": 3, "85+": 4}
     out.sort(key=lambda r: (r["tier"] != "ALL", r["tier"],
                             order.get(r["band"], 9)))
     return out
