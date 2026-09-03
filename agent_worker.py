@@ -1853,7 +1853,14 @@ def cycle() -> None:
                               else " — thin edge" if _eg0 <= 25
                               else " hot — may be late")
                     _cf0s += f" · ⚡ edge {_eg0}/100{_etag0}"
-                ok, _ = tg.send(
+                # 📵 MUTE (user 2026-09-03: "go with 1 mute elite
+                # confirm now") — replaced by the 🦅 eagle as the
+                # right-moment voice on elite cards (eagle validated
+                # 63.5%/+0.221R vs confirm's live 42%/-19R over 174).
+                # Records + desk tier keep accruing untouched.
+                # Revert: _mute_ecf -> tg.send.
+                _mute_ecf = (lambda _m: (False, "muted"))
+                ok, _ = _mute_ecf(
                     f"💎✅ *ELITE CONFIRMED ENTRY* — {_w9['base']} "
                     f"{_w9['side']} (elite {_w9.get('tier')} "
                     f"{float(_w9.get('score') or 0):.0f} · {_ap0})"
