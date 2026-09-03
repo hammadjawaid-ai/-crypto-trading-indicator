@@ -2699,12 +2699,25 @@ def cycle() -> None:
     # fires. Own desk tier `duo85` proves it forward from day one.
     try:
         for _du in store.fresh_duo_clusters(1800.0):
-            if (_du.get("conf") or 0) < 85:
-                continue
             if _bstock_quiet(_du["symbol"]):
                 continue
+            # 💎👑 KING PAIR (user 2026-09-03: "have the buzz for one
+            # trade and best as this is crucial too") — the measured
+            # best pair on the board: BEST + ONE TRADE within 30 min
+            # ran 51% / +0.540R over 86 closed UNGATED (57% at 85+),
+            # so it buzzes at ANY conf.
+            _du_king = set(_du["tiers"]) == {"best_board", "one_trade"}
+            # 🤝 DUO gate at 80 (user 2026-09-03: "duo 80+ buzz").
+            # Honest note: the MEASURED winner cell was conf 85+
+            # (50% / +0.218R); 80-84 falls inside the 65-84 band that
+            # measured 11% win on 2-stream clusters. One-word revert:
+            # 80 -> 85.
+            if not _du_king and (_du.get("conf") or 0) < 80:
+                continue
+            _du_key = "kingpair" if _du_king else "duo85"
             if not store.should_alert(
-                    f"duo85:{_du['symbol']}:{_du['side']}", 4 * 3600):
+                    f"{_du_key}:{_du['symbol']}:{_du['side']}",
+                    4 * 3600):
                 continue
             _du_b = _du["symbol"].replace("USDT", "")
             _du_names = {"apex": "🏆 APEX", "best_board": "💎 BEST",
@@ -2716,17 +2729,32 @@ def cycle() -> None:
             _du_t = " + ".join(_du_names.get(t, t) for t in _du["tiers"])
             _du_t2 = (f" · TP2 `{float(_du['tp2']):g}`"
                       if _du.get("tp2") else "")
-            ok, _ = tg.send(
-                f"🤝 *DUO 85+ — {_du_b} {_du['side']}* — the "
-                f"measured winner cell\n"
-                f"{_du_t} both fired within 30 min · 🎯 conf "
-                f"{float(_du['conf']):.0f}/100\n"
-                f"entry `{float(_du['entry']):g}` · SL "
-                f"`{float(_du['stop']):g}` · TP1 "
-                f"`{float(_du['tp1']):g}`{_du_t2}\n"
-                f"_2 streams + conf 85+ = 50% / +0.218R live (n=28). "
-                f"A 3rd stream joining downgrades the cell — don't "
-                f"chase re-fires._")
+            _du_cf = (f"{float(_du['conf']):.0f}"
+                      if _du.get("conf") is not None else "—")
+            if _du_king:
+                _du_msg = (
+                    f"💎👑 *KING PAIR — {_du_b} {_du['side']}* — "
+                    f"BEST + ONE TRADE together\n"
+                    f"both fired within 30 min · 🎯 conf "
+                    f"{_du_cf}/100\n"
+                    f"entry `{float(_du['entry']):g}` · SL "
+                    f"`{float(_du['stop']):g}` · TP1 "
+                    f"`{float(_du['tp1']):g}`{_du_t2}\n"
+                    f"_the measured best pair on the board: 51% / "
+                    f"+0.540R over 86 closed (57% at conf 85+)._")
+            else:
+                _du_msg = (
+                    f"🤝 *DUO 80+ — {_du_b} {_du['side']}*\n"
+                    f"{_du_t} both fired within 30 min · 🎯 conf "
+                    f"{_du_cf}/100\n"
+                    f"entry `{float(_du['entry']):g}` · SL "
+                    f"`{float(_du['stop']):g}` · TP1 "
+                    f"`{float(_du['tp1']):g}`{_du_t2}\n"
+                    f"_2 streams at conf 85+ measured 50% / +0.218R "
+                    f"live (n=28); the 80 floor is the user call. A "
+                    f"3rd stream joining downgrades the cell — don't "
+                    f"chase re-fires._")
+            ok, _ = tg.send(_du_msg)
             n_alerts += 1 if ok else 0
             try:
                 _du_sig = {"symbol": _du["symbol"], "base": _du_b,
@@ -2734,17 +2762,18 @@ def cycle() -> None:
                            "stop": _du["stop"], "tp1": _du["tp1"],
                            "tp2": _du["tp2"], "conf": _du["conf"],
                            "tier": "+".join(_du["tiers"])}
-                store.record_signal("duo85", _du_sig)
+                store.record_signal(_du_key, _du_sig)
                 try:
                     _du_px = binance_client.get_ticker_price(
                         _du["symbol"])
                 except Exception:
                     _du_px = None
                 shadow_trader.open_from_signal(
-                    "duo85", _du_sig, _du_px)
+                    _du_key, _du_sig, _du_px)
             except Exception as _du_exc2:
-                print("  duo85 record error:", _du_exc2, flush=True)
-            print(f"[duo85] 🤝 {_du_b} {_du['side']} "
+                print(f"  {_du_key} record error:", _du_exc2,
+                      flush=True)
+            print(f"[{_du_key}] 🤝 {_du_b} {_du['side']} "
                   f"({_du_t})", flush=True)
     except Exception as _du_exc:
         print("  duo85 error:", _du_exc, flush=True)
