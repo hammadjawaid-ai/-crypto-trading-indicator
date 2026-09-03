@@ -1604,7 +1604,12 @@ def cycle() -> None:
                      "74-78% in the edge study")
             _t28 = (f" · TP2 `{float(_p8['tp2']):g}`"
                     if _p8.get("tp2") else "")
-            ok, _ = tg.send(
+            # 📵 MUTE (user 2026-09-03, "mute 2"): built on the
+            # burst>=78 vote that sign-flipped between halves
+            # (+0.160R older / -0.182R recent). Detection + records
+            # unchanged. Revert: _mute_ebe -> tg.send.
+            _mute_ebe = (lambda _m: (False, "muted"))
+            ok, _ = _mute_ebe(
                 f"💎🔥 *ELITE + BURST EDGE* — "
                 f"{_p8.get('base') or _p8['symbol'].replace('USDT', '')} "
                 f"{_p8.get('side')} (elite {_p8.get('tier')} "
@@ -1726,7 +1731,11 @@ def cycle() -> None:
                     * (1 if _lng9 else -1)
                 if _mv9 >= 1.2 and not _w9.get("ran_sent"):
                     _w9["ran_sent"] = True
-                    ok, _ = tg.send(
+                    # 📵 MUTE (user 2026-09-03, "mute 4"): commentary
+                    # ladder, no action attached. Revert: _mute_run
+                    # -> tg.send.
+                    _mute_run = (lambda _m: (False, "muted"))
+                    ok, _ = _mute_run(
                         f"💎📈 *RUNNING* — {_w9['base']} "
                         f"{_w9['side']} is +{_mv9:.1f}% past the "
                         f"buzz entry `{float(_w9['entry']):g}` — "
@@ -1755,7 +1764,11 @@ def cycle() -> None:
                         for _dt8, _df8, _l8, _n8 in _dtiers:
                             if _dt8 <= _dt9:
                                 _w9[_df8] = True
-                        ok, _ = tg.send(
+                        # 📵 MUTE (user 2026-09-03, "mute 4"): the
+                        # discount half of the commentary ladder.
+                        # Revert: _mute_dsc -> tg.send.
+                        _mute_dsc = (lambda _m: (False, "muted"))
+                        ok, _ = _mute_dsc(
                             f"💎🔻 *{_lb9}* — {_w9['base']} "
                             f"{_w9['side']} now {abs(_mv9):.1f}% "
                             f"BELOW the buzz entry "
@@ -2042,7 +2055,12 @@ def cycle() -> None:
                                     f" at 1R){_run}")
                     except Exception:
                         pass
-                    ok, _ = tg.send(
+                    # 📵 MUTE (user 2026-09-03, "mute 3"): the kronos
+                    # family bleeds live (KR-APPROVED -17R); a flip is
+                    # information, not an entry. Records unchanged.
+                    # Revert: _mute_krf -> tg.send.
+                    _mute_krf = (lambda _m: (False, "muted"))
+                    ok, _ = _mute_krf(
                         f"🔄 *KRONOS FLIP* — "
                         f"{_fs.replace('USDT', '')} read changed "
                         f"{_prev} → *{_fd}* "
@@ -2608,7 +2626,11 @@ def cycle() -> None:
                         else "unapproved — size accordingly")
                 _t29 = (f" · TP2 `{float(_tc['tp2']):g}`"
                         if _tc.get("tp2") else "")
-                ok, _ = tg.send(
+                # 📵 MUTE (user 2026-09-03, "mute 6" — the GREEN
+                # LIGHT half of #6 STAYS live per the same message).
+                # Revert: _mute_etc -> tg.send.
+                _mute_etc = (lambda _m: (False, "muted"))
+                ok, _ = _mute_etc(
                     f"💎🏆 *ELITE × TOP CONVICTION AGREE* — "
                     f"{_tc['base']} {_tc['side']}\n"
                     f"💎 elite {_ep9.get('tier')} "
