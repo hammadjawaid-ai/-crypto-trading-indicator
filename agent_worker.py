@@ -627,9 +627,15 @@ def _trigger_watch() -> None:
             # the signal when the coin is about to move... close to
             # trigger and can go big from there"). Up to 4 cards per
             # 60s tick, oldest-checked first — every card gets a
-            # 3m-class look every ~2-3 min. Heat = 3m burst >= 65
-            # side-matched AND the 5m agreeing, price not past TP1
-            # (no chases). Watch survives falls for 48h.
+            # fast look every ~2-3 min. Heat = 5m burst >= 65 AND 5m
+            # trend >= 55, both side-matched, price not past TP1 (no
+            # chases). Watch survives falls for 48h.
+            # 2026-09-03 FIX: the buzz f-string read `_b3`, a name that
+            # was never assigned anywhere in this file (leftover from
+            # the pre-validation 3m draft). Every eagle fire raised
+            # NameError inside the try below, so the buzz never sent
+            # and no desk trade ever opened — the tier had 0 rows.
+            # Now reports the 5m burst the gate actually measures.
             with _TRIG_LOCK:
                 _eg_items = sorted(
                     _EAGLE_WATCH.items(),
@@ -689,7 +695,7 @@ def _trigger_watch() -> None:
                         f"HEATING NOW* (card {_ea.get('tier')} "
                         f"{float(_ea.get('score') or 0):.0f} · 🎯 "
                         f"conf {_ea.get('conf')}/100)\n"
-                        f"3m burst {_b3:.0f} + {_l59} — the first "
+                        f"5m burst {_b5:.0f} + {_l59} — the first "
                         f"candles of the move · live `{_px9:g}`\n"
                         f"entry `{float(_ea['entry']):g}` · SL "
                         f"`{float(_ea['stop']):g}` · TP1 "

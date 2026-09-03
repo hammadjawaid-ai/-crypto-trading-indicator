@@ -449,4 +449,6 @@ PERSONAL_WATCH = ["INJUSDT", "ENAUSDT", "ZECUSDT", "VIRTUALUSDT",
                   "WLDUSDT", "MUBARAKUSDT", "FETUSDT", "ENSOUSDT",
                   "PYTHUSDT", "HUMAUSDT", "SOLUSDT", "DASHUSDT",
                   "ETHFIUSDT", "UNIUSDT", "LINKUSDT", "SUIUSDT",
-                  "CHIPUSDT"]
+                  "CHIPUSDT",
+                  # user 2026-09-03 (CHIP + UNI were already on the list)
+                  "XPLUSDT", "ARBUSDT", "PROMUSDT"]
