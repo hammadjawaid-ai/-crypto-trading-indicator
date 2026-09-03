@@ -880,6 +880,14 @@ def _confluence_conf_cached(_bust, window_min: float = 30.0):
     return _ws_c.confluence_conf_bands(window_min=window_min)
 
 
+@st.cache_data(ttl=120, show_spinner=False)
+def _duo_pairs_cached(_bust, window_min: float = 30.0):
+    """🤝 which exact pairs win (user 2026-09-03: 'apex + best or one
+    trade can we test?')."""
+    import worker_store as _ws_c
+    return _ws_c.duo_pair_bands(window_min=window_min)
+
+
 @st.cache_data(ttl=90, show_spinner=False)
 def _shadow_open_cached(_bust):
     import worker_store as _ws_c
@@ -3809,6 +3817,28 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                 st.caption("conf stamps exist since 2026-08-28 only, "
                            "so this cross-tab covers the recent slice "
                            "of the clusters above.")
+            # 🤝 WHICH pairs (user 2026-09-03: "apex + best or one
+            # trade can we test?") — exactly-2 clusters by pair.
+            try:
+                _dpb = _duo_pairs_cached(int(time.time() // 120), 30.0)
+            except Exception:
+                _dpb = []
+            if _dpb:
+                st.markdown("<div style='margin-top:.5rem'>**🤝 which "
+                            "pairs win (exactly 2 streams, ±30 min; "
+                            "@85+ = the DUO buzz cell)**</div>",
+                            unsafe_allow_html=True)
+                for _r in _dpb:
+                    _c = ("#2ed47a" if _r["net_r"] > 0 else "#ff5c5c")
+                    _per = (_r["net_r"] / _r["n"]) if _r["n"] else 0.0
+                    _thin = ("" if _r["n"] >= 20
+                             else f" · ⚠️ only {_r['n']} — too thin")
+                    st.markdown(
+                        f"<span style='font-size:0.8rem;color:#9aa7c7'>"
+                        f"· <b>{_r['pair']}</b> — n={_r['n']} · win "
+                        f"<b>{_r['win_pct']:.0f}%</b> · "
+                        f"<b style='color:{_c}'>{_per:+.3f}R/trade</b>"
+                        f"{_thin}</span>", unsafe_allow_html=True)
             if _ccb.get("elite"):
                 st.markdown("<div style='margin-top:.5rem'>**💎 the "
                             "elite bracket (MAX / HIGH + score) inside "

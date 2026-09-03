@@ -506,6 +506,58 @@ def confluence_conf_bands(window_min: float = 30.0) -> dict:
     return {"conf": _fin(conf_g, corder), "elite": _fin(elite_g)}
 
 
+def duo_pair_bands(window_min: float = 30.0) -> list[dict]:
+    """🤝 WHICH pairs win (user 2026-09-03: "apex + best or one trade
+    can we test?") — closed trades in EXACTLY-2-stream clusters,
+    grouped by the pair itself, overall and at conf >= 85 (the buzz
+    cell). Read-only."""
+    c = _open()
+    try:
+        cols = {r[1] for r in c.execute("PRAGMA table_info(shadow_trades)")}
+        sel_conf = "conf" if "conf" in cols else "NULL"
+        marks = ",".join("?" for _ in CONFLUENCE_TIERS)
+        allr = [dict(zip(("tier", "symbol", "side", "t"), r))
+                for r in c.execute(
+                    f"SELECT tier, symbol, side, opened_at "
+                    f"FROM shadow_trades WHERE tier IN ({marks}) "
+                    f"AND opened_at IS NOT NULL", CONFLUENCE_TIERS)]
+        closed = [dict(zip(("tier", "symbol", "side", "t", "pnl", "conf"),
+                           r))
+                  for r in c.execute(
+                      f"SELECT tier, symbol, side, opened_at, pnl_r, "
+                      f"{sel_conf} FROM shadow_trades "
+                      f"WHERE tier IN ({marks}) AND status != 'OPEN' "
+                      f"AND pnl_r IS NOT NULL AND opened_at IS NOT NULL",
+                      CONFLUENCE_TIERS)]
+    except Exception:
+        return []
+    finally:
+        c.close()
+    by_key: dict = {}
+    for r in allr:
+        by_key.setdefault((r["symbol"], r["side"]), []).append(r)
+    win = window_min * 60.0
+    groups: dict = {}
+    for r in closed:
+        peers = {p["tier"] for p in by_key.get((r["symbol"], r["side"]), [])
+                 if abs(p["t"] - r["t"]) <= win}
+        if len(peers) != 2:
+            continue
+        pair = " + ".join(sorted(peers))
+        hi = (r["conf"] is not None and float(r["conf"]) >= 85)
+        for lab in ([pair] + ([f"{pair} @85+"] if hi else [])):
+            g = groups.setdefault(lab, {"pair": lab, "n": 0, "wins": 0,
+                                        "net_r": 0.0})
+            g["n"] += 1
+            g["wins"] += 1 if r["pnl"] > 0 else 0
+            g["net_r"] += float(r["pnl"])
+    out = sorted(groups.values(), key=lambda g: (-g["n"], g["pair"]))
+    for g in out:
+        g["win_pct"] = round(g["wins"] / g["n"] * 100.0, 1) if g["n"] else 0.0
+        g["net_r"] = round(g["net_r"], 2)
+    return out
+
+
 def fresh_duo_clusters(window_sec: float = 1800.0) -> list[dict]:
     """🤝 (symbol, side) where EXACTLY TWO elite-family streams opened
     desk trades within the trailing window. The measured winner cell
