@@ -871,6 +871,15 @@ def _confluence_cached(_bust, window_min: float = 30.0):
     return _ws_c.confluence_bands(window_min=window_min)
 
 
+@st.cache_data(ttl=120, show_spinner=False)
+def _confluence_conf_cached(_bust, window_min: float = 30.0):
+    """🤝×🎯 conf bands INSIDE clusters (user 2026-09-03: 'i want to
+    know the win rate by confidence... if it have multiple buzz from
+    multiple streams for the same coin')."""
+    import worker_store as _ws_c
+    return _ws_c.confluence_conf_bands(window_min=window_min)
+
+
 @st.cache_data(ttl=90, show_spinner=False)
 def _shadow_open_cached(_bust):
     import worker_store as _ws_c
@@ -3760,6 +3769,67 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                 "take-the-buzz experience. If 3+ swarm beats solo "
                 "here with real n, the swarm becomes a first-class "
                 "buzz construct; until then it gates nothing.")
+            # 🤝×🎯 (user 2026-09-03: "when apex best of the best
+            # together or apex one trade elite conviction fires within
+            # the same 30 minutes i want to know the win rate by
+            # confidence... and in bracket it also says strong or max")
+            st.markdown("<div style='margin-top:.6rem'>**🎯 inside "
+                        "the cluster — which confidence score made "
+                        "the winners (±30 min)**</div>",
+                        unsafe_allow_html=True)
+            try:
+                _ccb = _confluence_conf_cached(int(time.time() // 120),
+                                               30.0)
+            except Exception as _ccb_exc:
+                _ccb = {"conf": [], "elite": []}
+                st.caption(f"cluster-conf reader unavailable: {_ccb_exc}")
+            if not _ccb.get("conf"):
+                st.info("No conf-stamped clustered trades closed yet "
+                        "(stamping began 2026-08-28) — fills as they "
+                        "resolve.")
+            else:
+                _cur_bk = None
+                for _r in _ccb["conf"]:
+                    if _r["bucket"] != _cur_bk:
+                        _cur_bk = _r["bucket"]
+                        st.markdown(f"<div style='margin-top:.4rem'>"
+                                    f"**{_cur_bk}**</div>",
+                                    unsafe_allow_html=True)
+                    _c = ("#2ed47a" if _r["net_r"] > 0 else "#ff5c5c")
+                    _per = (_r["net_r"] / _r["n"]) if _r["n"] else 0.0
+                    _thin = ("" if _r["n"] >= 20
+                             else f" · ⚠️ only {_r['n']} — too thin")
+                    st.markdown(
+                        f"<span style='font-size:0.8rem;color:#9aa7c7'>"
+                        f"· conf <b>{_r['band']}</b> — n={_r['n']} · "
+                        f"win <b>{_r['win_pct']:.0f}%</b> · "
+                        f"<b style='color:{_c}'>{_per:+.3f}R/trade</b>"
+                        f"{_thin}</span>", unsafe_allow_html=True)
+                st.caption("conf stamps exist since 2026-08-28 only, "
+                           "so this cross-tab covers the recent slice "
+                           "of the clusters above.")
+            if _ccb.get("elite"):
+                st.markdown("<div style='margin-top:.5rem'>**💎 the "
+                            "elite bracket (MAX / HIGH + score) inside "
+                            "vs outside the cluster**</div>",
+                            unsafe_allow_html=True)
+                _cur_bk2 = None
+                for _r in _ccb["elite"]:
+                    if _r["bucket"] != _cur_bk2:
+                        _cur_bk2 = _r["bucket"]
+                        st.markdown(f"<div style='margin-top:.4rem'>"
+                                    f"**{_cur_bk2}**</div>",
+                                    unsafe_allow_html=True)
+                    _c = ("#2ed47a" if _r["net_r"] > 0 else "#ff5c5c")
+                    _per = (_r["net_r"] / _r["n"]) if _r["n"] else 0.0
+                    _thin = ("" if _r["n"] >= 20
+                             else f" · ⚠️ only {_r['n']} — too thin")
+                    st.markdown(
+                        f"<span style='font-size:0.8rem;color:#9aa7c7'>"
+                        f"· <b>{_r['band']}</b> — n={_r['n']} · win "
+                        f"<b>{_r['win_pct']:.0f}%</b> · "
+                        f"<b style='color:{_c}'>{_per:+.3f}R/trade</b>"
+                        f"{_thin}</span>", unsafe_allow_html=True)
         # 💸 SLOT REPLAY (user 2026-07-25: "we can't take every trade in
         # real money — prove how many trades a day works with $1,200").
         # Replays the desk's ACTUAL closed trades chronologically under

@@ -393,6 +393,119 @@ def confluence_bands(window_min: float = 30.0) -> list[dict]:
     return out
 
 
+def confluence_conf_bands(window_min: float = 30.0) -> dict:
+    """🤝×🎯 The user's exact question (2026-09-03): "when apex + best
+    + one trade + elite fire within the same 30 minutes — what
+    confidence score made them the winners?"
+
+    Returns {"conf": [...], "elite": [...]}:
+      conf  — closed conf-stamped elite-family trades, grouped by
+              cluster bucket (solo / 2 streams / 3+ swarm) x conf band.
+      elite — the elite MAX/HIGH slice: closed elite trades joined to
+              their signal record (symbol+side within ±10 min) for the
+              MAX/HIGH label and the bracket score, grouped by bucket x
+              tier and bucket x score band.
+    Read-only; conf stamps exist since 2026-08-28 only.
+    """
+    c = _open()
+    try:
+        cols = {r[1] for r in c.execute("PRAGMA table_info(shadow_trades)")}
+        has_conf = "conf" in cols
+        marks = ",".join("?" for _ in CONFLUENCE_TIERS)
+        allr = [dict(zip(("tier", "symbol", "side", "t"), r))
+                for r in c.execute(
+                    f"SELECT tier, symbol, side, opened_at "
+                    f"FROM shadow_trades WHERE tier IN ({marks}) "
+                    f"AND opened_at IS NOT NULL", CONFLUENCE_TIERS)]
+        sel_conf = "conf" if has_conf else "NULL"
+        closed = [dict(zip(("tier", "symbol", "side", "t", "pnl", "conf"),
+                           r))
+                  for r in c.execute(
+                      f"SELECT tier, symbol, side, opened_at, pnl_r, "
+                      f"{sel_conf} FROM shadow_trades "
+                      f"WHERE tier IN ({marks}) AND status != 'OPEN' "
+                      f"AND pnl_r IS NOT NULL AND opened_at IS NOT NULL",
+                      CONFLUENCE_TIERS)]
+        esigs = [dict(zip(("ts", "symbol", "side", "etier", "score"), r))
+                 for r in c.execute(
+                     "SELECT ts, symbol, side, tier, score FROM signals "
+                     "WHERE tier IN ('MAX','HIGH') AND ts IS NOT NULL")]
+    except Exception:
+        return {"conf": [], "elite": []}
+    finally:
+        c.close()
+
+    by_key: dict = {}
+    for r in allr:
+        by_key.setdefault((r["symbol"], r["side"]), []).append(r)
+    esig_key: dict = {}
+    for s in esigs:
+        esig_key.setdefault((s["symbol"], s["side"]), []).append(s)
+    win = window_min * 60.0
+
+    def _bucket(r):
+        peers = {p["tier"] for p in by_key.get((r["symbol"], r["side"]), [])
+                 if abs(p["t"] - r["t"]) <= win}
+        k = len(peers)
+        return "1 solo" if k <= 1 else ("2 streams" if k == 2
+                                        else "3+ swarm")
+
+    def _cband(cf):
+        if cf < 40:
+            return "<40"
+        if cf < 55:
+            return "40-54"
+        if cf < 65:
+            return "55-64"
+        return "65-84" if cf < 85 else "85+"
+
+    conf_g: dict = {}
+    elite_g: dict = {}
+    for r in closed:
+        bk = _bucket(r)
+        if r["conf"] is not None:
+            key = (bk, _cband(float(r["conf"])))
+            g = conf_g.setdefault(key, {"bucket": bk, "band": key[1],
+                                        "n": 0, "wins": 0, "net_r": 0.0})
+            g["n"] += 1
+            g["wins"] += 1 if r["pnl"] > 0 else 0
+            g["net_r"] += float(r["pnl"])
+        # elite MAX/HIGH slice: nearest MAX/HIGH signal within ±10 min
+        if r["tier"] in ("elite_conv", "elite_confirm"):
+            cands = [s for s in esig_key.get((r["symbol"], r["side"]), [])
+                     if abs(s["ts"] - r["t"]) <= 600]
+            if cands:
+                s = min(cands, key=lambda x: abs(x["ts"] - r["t"]))
+                sc = float(s["score"] or 0)
+                sb = ("90+" if sc >= 90 else
+                      "85-89" if sc >= 85 else
+                      "80-84" if sc >= 80 else "<80")
+                for lab in (f"{s['etier']}", f"score {sb}"):
+                    key = (bk, lab)
+                    g = elite_g.setdefault(key, {"bucket": bk, "band": lab,
+                                                 "n": 0, "wins": 0,
+                                                 "net_r": 0.0})
+                    g["n"] += 1
+                    g["wins"] += 1 if r["pnl"] > 0 else 0
+                    g["net_r"] += float(r["pnl"])
+
+    border = {"1 solo": 0, "2 streams": 1, "3+ swarm": 2}
+    corder = {"<40": 0, "40-54": 1, "55-64": 2, "65-84": 3, "85+": 4}
+
+    def _fin(groups, bandorder=None):
+        out = sorted(groups.values(),
+                     key=lambda g: (border.get(g["bucket"], 9),
+                                    (bandorder or {}).get(g["band"], 9),
+                                    g["band"]))
+        for g in out:
+            g["win_pct"] = (round(g["wins"] / g["n"] * 100.0, 1)
+                            if g["n"] else 0.0)
+            g["net_r"] = round(g["net_r"], 2)
+        return out
+
+    return {"conf": _fin(conf_g, corder), "elite": _fin(elite_g)}
+
+
 def shadow_purge_tier(tier: str) -> None:
     """Remove a tier's shadow trades entirely (user cut, e.g. sst1)."""
     c = _open()
