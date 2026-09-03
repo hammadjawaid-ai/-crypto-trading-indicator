@@ -2707,12 +2707,10 @@ def cycle() -> None:
             # ran 51% / +0.540R over 86 closed UNGATED (57% at 85+),
             # so it buzzes at ANY conf.
             _du_king = set(_du["tiers"]) == {"best_board", "one_trade"}
-            # 🤝 DUO gate at 80 (user 2026-09-03: "duo 80+ buzz").
-            # Honest note: the MEASURED winner cell was conf 85+
-            # (50% / +0.218R); 80-84 falls inside the 65-84 band that
-            # measured 11% win on 2-stream clusters. One-word revert:
-            # 80 -> 85.
-            if not _du_king and (_du.get("conf") or 0) < 80:
+            # 🤝 DUO gate at 85 — the measured winner cell (50% /
+            # +0.218R at conf 85+; user briefly set 80 on 2026-09-03
+            # and reverted to 85 the same minute).
+            if not _du_king and (_du.get("conf") or 0) < 85:
                 continue
             _du_key = "kingpair" if _du_king else "duo85"
             if not store.should_alert(
@@ -2744,16 +2742,16 @@ def cycle() -> None:
                     f"+0.540R over 86 closed (57% at conf 85+)._")
             else:
                 _du_msg = (
-                    f"🤝 *DUO 80+ — {_du_b} {_du['side']}*\n"
+                    f"🤝 *DUO 85+ — {_du_b} {_du['side']}* — the "
+                    f"measured winner cell\n"
                     f"{_du_t} both fired within 30 min · 🎯 conf "
                     f"{_du_cf}/100\n"
                     f"entry `{float(_du['entry']):g}` · SL "
                     f"`{float(_du['stop']):g}` · TP1 "
                     f"`{float(_du['tp1']):g}`{_du_t2}\n"
-                    f"_2 streams at conf 85+ measured 50% / +0.218R "
-                    f"live (n=28); the 80 floor is the user call. A "
-                    f"3rd stream joining downgrades the cell — don't "
-                    f"chase re-fires._")
+                    f"_2 streams + conf 85+ = 50% / +0.218R live "
+                    f"(n=28). A 3rd stream joining downgrades the "
+                    f"cell — don't chase re-fires._")
             ok, _ = tg.send(_du_msg)
             n_alerts += 1 if ok else 0
             try:
