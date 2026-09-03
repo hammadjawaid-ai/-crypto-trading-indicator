@@ -1433,8 +1433,14 @@ def cycle() -> None:
     # below; 80 was considered and rejected — it cuts the 74% band
     # for ~4pts). Revert: best had the default 85 floor (no min_conf
     # arg), apex had min_conf=0.
+    # 2026-09-03 user order: "bring back the best of the best to the
+    # notification on my cellphone" — the stream had gone silent NOT by
+    # any conf gate but because best_board's 14d desk form turned
+    # negative and the greens gate muted the tier. tier=None exempts
+    # BEST from that gate (the conf>=70 floor stands); the desk tier
+    # still records everything.
     _push([p for p in best if _in_zone(p)], "best", _fmt_best,
-          min_conf=70, tier="best_board")
+          min_conf=70, tier=None)
     _push(apex, "apex", _fmt_apex, min_conf=70, tier="apex")
     # 2026-08-15 user order: 🌟 EARLY ELITE buzzes ALWAYS — no greens
     # gate. Kronos disagreeing is fine ("if kronos dont agree thats
@@ -2683,6 +2689,65 @@ def cycle() -> None:
         _sh_closed = []
         _pxs = {}
         print("  shadow error:", exc, flush=True)
+
+    # 🤝 DUO 85+ (user 2026-09-03: "when 2 streams fire with conf 85+
+    # buzz me that one") — the measured winner cell from the live
+    # confluence panel: EXACTLY 2 elite-family streams on the same
+    # coin+side within 30 min at conf 85+ ran 50% / +0.218R, while the
+    # 3+ swarm ran 31% / -0.167R. Exactly-two is the construct — if a
+    # third stream joins, the cluster leaves this cell and no buzz
+    # fires. Own desk tier `duo85` proves it forward from day one.
+    try:
+        for _du in store.fresh_duo_clusters(1800.0):
+            if (_du.get("conf") or 0) < 85:
+                continue
+            if _bstock_quiet(_du["symbol"]):
+                continue
+            if not store.should_alert(
+                    f"duo85:{_du['symbol']}:{_du['side']}", 4 * 3600):
+                continue
+            _du_b = _du["symbol"].replace("USDT", "")
+            _du_names = {"apex": "🏆 APEX", "best_board": "💎 BEST",
+                         "one_trade": "👑 ONE TRADE",
+                         "elite_conv": "💎 ELITE CONV",
+                         "elite_confirm": "💎✅ ELITE CONFIRM",
+                         "elite_early": "🌟 EARLY ELITE",
+                         "takenow_hot": "✅🔥 TAKE NOW HOT"}
+            _du_t = " + ".join(_du_names.get(t, t) for t in _du["tiers"])
+            _du_t2 = (f" · TP2 `{float(_du['tp2']):g}`"
+                      if _du.get("tp2") else "")
+            ok, _ = tg.send(
+                f"🤝 *DUO 85+ — {_du_b} {_du['side']}* — the "
+                f"measured winner cell\n"
+                f"{_du_t} both fired within 30 min · 🎯 conf "
+                f"{float(_du['conf']):.0f}/100\n"
+                f"entry `{float(_du['entry']):g}` · SL "
+                f"`{float(_du['stop']):g}` · TP1 "
+                f"`{float(_du['tp1']):g}`{_du_t2}\n"
+                f"_2 streams + conf 85+ = 50% / +0.218R live (n=28). "
+                f"A 3rd stream joining downgrades the cell — don't "
+                f"chase re-fires._")
+            n_alerts += 1 if ok else 0
+            try:
+                _du_sig = {"symbol": _du["symbol"], "base": _du_b,
+                           "side": _du["side"], "entry": _du["entry"],
+                           "stop": _du["stop"], "tp1": _du["tp1"],
+                           "tp2": _du["tp2"], "conf": _du["conf"],
+                           "tier": "+".join(_du["tiers"])}
+                store.record_signal("duo85", _du_sig)
+                try:
+                    _du_px = binance_client.get_ticker_price(
+                        _du["symbol"])
+                except Exception:
+                    _du_px = None
+                shadow_trader.open_from_signal(
+                    "duo85", _du_sig, _du_px)
+            except Exception as _du_exc2:
+                print("  duo85 record error:", _du_exc2, flush=True)
+            print(f"[duo85] 🤝 {_du_b} {_du['side']} "
+                  f"({_du_t})", flush=True)
+    except Exception as _du_exc:
+        print("  duo85 error:", _du_exc, flush=True)
 
     # 🤖💸 AGENTIC LIVE EXECUTOR (user go 2026-07-13, after the desk gate
     # was met on live forward records). Real Bybit orders from the PROVEN

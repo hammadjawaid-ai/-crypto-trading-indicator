@@ -506,6 +506,46 @@ def confluence_conf_bands(window_min: float = 30.0) -> dict:
     return {"conf": _fin(conf_g, corder), "elite": _fin(elite_g)}
 
 
+def fresh_duo_clusters(window_sec: float = 1800.0) -> list[dict]:
+    """🤝 (symbol, side) where EXACTLY TWO elite-family streams opened
+    desk trades within the trailing window. The measured winner cell
+    (2026-09-03 confluence panel): 2 streams + conf 85+ ran 50% /
+    +0.218R while the 3+ swarm ran 31% / -0.167R — exactly-two is the
+    construct, a third voice downgrades it."""
+    cutoff = time.time() - window_sec
+    c = _open()
+    try:
+        cols = {r[1] for r in c.execute("PRAGMA table_info(shadow_trades)")}
+        sel_conf = "conf" if "conf" in cols else "NULL"
+        marks = ",".join("?" for _ in CONFLUENCE_TIERS)
+        rows = [dict(zip(("tier", "symbol", "side", "t", "conf", "entry",
+                          "stop", "tp1", "tp2"), r))
+                for r in c.execute(
+                    f"SELECT tier, symbol, side, opened_at, {sel_conf}, "
+                    f"entry, stop, tp1, tp2 FROM shadow_trades "
+                    f"WHERE tier IN ({marks}) AND opened_at >= ?",
+                    (*CONFLUENCE_TIERS, cutoff))]
+    except Exception:
+        return []
+    finally:
+        c.close()
+    by_key: dict = {}
+    for r in rows:
+        by_key.setdefault((r["symbol"], r["side"]), []).append(r)
+    out = []
+    for (sym, side), rs in by_key.items():
+        tiers = sorted({r["tier"] for r in rs})
+        if len(tiers) != 2:
+            continue
+        fresh = max(rs, key=lambda r: r["t"])
+        confs = [float(r["conf"]) for r in rs if r["conf"] is not None]
+        out.append({"symbol": sym, "side": side, "tiers": tiers,
+                    "conf": max(confs) if confs else None,
+                    "entry": fresh["entry"], "stop": fresh["stop"],
+                    "tp1": fresh["tp1"], "tp2": fresh["tp2"]})
+    return out
+
+
 def shadow_purge_tier(tier: str) -> None:
     """Remove a tier's shadow trades entirely (user cut, e.g. sst1)."""
     c = _open()
