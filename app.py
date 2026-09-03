@@ -862,6 +862,15 @@ def _conf_bands_cached(_bust, days: float = 0.0):
     return _ws_c.conf_bands(days=days), _ws_c.conf_open_count()
 
 
+@st.cache_data(ttl=120, show_spinner=False)
+def _confluence_cached(_bust, window_min: float = 30.0):
+    """🤝 win rate by cross-stream confluence (user 2026-09-03: the
+    multiple-buzzes-within-minutes trades 'were proven very very
+    effective' — this reads that construct off the live ledger)."""
+    import worker_store as _ws_c
+    return _ws_c.confluence_bands(window_min=window_min)
+
+
 @st.cache_data(ttl=90, show_spinner=False)
 def _shadow_open_cached(_bust):
     import worker_store as _ws_c
@@ -3701,6 +3710,56 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                     "They are different measures — this table is the "
                     "first thing that will tell us what each is "
                     "actually worth live.")
+        # 🤝 WIN RATE BY CONFLUENCE (user 2026-09-03: "apex one trade
+        # best of the best or maybe elite all buzzed within 5 mins...
+        # these trades were proven very very effective for me").
+        # Reads the user's observed construct straight off the live
+        # ledger BEFORE anything ever gates on it. Read-only.
+        with st.expander("🤝 WIN RATE BY CONFLUENCE — when the elite "
+                         "streams agree within minutes",
+                         expanded=True):
+            st.caption(
+                "Counts, for every closed elite-family desk trade "
+                "(APEX · BEST · ONE TRADE · ELITE CONV/CONFIRM/EARLY "
+                "· TAKE NOW HOT), how many of those streams opened "
+                "the **same coin, same side** within the window — "
+                "then groups outcomes. **Live forward data.** This "
+                "is the 'my phone buzzed 3 times in 5 minutes' "
+                "moments, measured.")
+            try:
+                _cfl5 = _confluence_cached(int(time.time() // 120), 5.0)
+                _cfl30 = _confluence_cached(int(time.time() // 120),
+                                            30.0)
+            except Exception as _cfl_exc:
+                _cfl5, _cfl30 = [], []
+                st.caption(f"confluence reader unavailable: {_cfl_exc}")
+            if not (_cfl5 or _cfl30):
+                st.info("No closed elite-family trades with open "
+                        "timestamps yet — fills as trades resolve.")
+            for _wlab, _wrows in (("±5 min window", _cfl5),
+                                  ("±30 min window", _cfl30)):
+                if not _wrows:
+                    continue
+                st.markdown(f"<div style='margin-top:.45rem'>"
+                            f"**{_wlab}**</div>",
+                            unsafe_allow_html=True)
+                for _r in _wrows:
+                    _c = ("#2ed47a" if _r["net_r"] > 0 else "#ff5c5c")
+                    _per = (_r["net_r"] / _r["n"]) if _r["n"] else 0.0
+                    _thin = ("" if _r["n"] >= 20
+                             else f" · ⚠️ only {_r['n']} — too thin")
+                    st.markdown(
+                        f"<span style='font-size:0.8rem;color:#9aa7c7'>"
+                        f"· <b>{_r['band']}</b> — n={_r['n']} · win "
+                        f"<b>{_r['win_pct']:.0f}%</b> · "
+                        f"<b style='color:{_c}'>{_per:+.3f}R/trade</b>"
+                        f"{_thin}</span>", unsafe_allow_html=True)
+            st.caption(
+                "⚠️ Per-trade basis: a 3-stream cluster contributes "
+                "each of its trades to the 3+ row — that matches the "
+                "take-the-buzz experience. If 3+ swarm beats solo "
+                "here with real n, the swarm becomes a first-class "
+                "buzz construct; until then it gates nothing.")
         # 💸 SLOT REPLAY (user 2026-07-25: "we can't take every trade in
         # real money — prove how many trades a day works with $1,200").
         # Replays the desk's ACTUAL closed trades chronologically under

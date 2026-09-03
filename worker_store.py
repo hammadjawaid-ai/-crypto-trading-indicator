@@ -333,6 +333,66 @@ def conf_open_count() -> int:
         c.close()
 
 
+# 🤝 the elite-family streams whose AGREEMENT the user trades on
+# (2026-09-03: "apex one trade best of the best or maybe elite all
+# buzzed within 5 mins... these trades were proven very very effective")
+CONFLUENCE_TIERS = ("apex", "best_board", "one_trade", "elite_conv",
+                    "elite_confirm", "elite_early", "takenow_hot")
+
+
+def confluence_bands(window_min: float = 30.0) -> list[dict]:
+    """🤝 Win rate by CROSS-STREAM CONFLUENCE, from the live ledger.
+
+    For every CLOSED elite-family shadow trade, counts how many
+    DISTINCT elite-family tiers opened the same (symbol, side) within
+    ±window_min of it (itself included), then buckets: solo / 2
+    streams / 3+ swarm. Reads only — measures the user's observed
+    "multiple buzzes at once = the effective trades" construct before
+    anything ever gates on it. Per-trade basis: a 3-tier cluster
+    contributes each of its closed trades to the 3+ row (that IS the
+    'take the buzz' experience).
+    """
+    c = _open()
+    try:
+        marks = ",".join("?" for _ in CONFLUENCE_TIERS)
+        allr = [dict(zip(("tier", "symbol", "side", "t"), r))
+                for r in c.execute(
+                    f"SELECT tier, symbol, side, opened_at "
+                    f"FROM shadow_trades WHERE tier IN ({marks}) "
+                    f"AND opened_at IS NOT NULL", CONFLUENCE_TIERS)]
+        closed = [dict(zip(("tier", "symbol", "side", "t", "pnl"), r))
+                  for r in c.execute(
+                      f"SELECT tier, symbol, side, opened_at, pnl_r "
+                      f"FROM shadow_trades WHERE tier IN ({marks}) "
+                      f"AND status != 'OPEN' AND pnl_r IS NOT NULL "
+                      f"AND opened_at IS NOT NULL", CONFLUENCE_TIERS)]
+    except Exception:
+        return []
+    finally:
+        c.close()
+    by_key: dict = {}
+    for r in allr:
+        by_key.setdefault((r["symbol"], r["side"]), []).append(r)
+    win = window_min * 60.0
+    bands: dict = {}
+    for r in closed:
+        peers = {p["tier"] for p in by_key.get((r["symbol"], r["side"]), [])
+                 if abs(p["t"] - r["t"]) <= win}
+        k = len(peers)
+        band = "1 solo" if k <= 1 else ("2 streams" if k == 2 else "3+ swarm")
+        b = bands.setdefault(band, {"band": band, "n": 0, "wins": 0,
+                                    "net_r": 0.0})
+        b["n"] += 1
+        b["wins"] += 1 if r["pnl"] > 0 else 0
+        b["net_r"] += float(r["pnl"])
+    order = {"1 solo": 0, "2 streams": 1, "3+ swarm": 2}
+    out = sorted(bands.values(), key=lambda b: order.get(b["band"], 9))
+    for b in out:
+        b["win_pct"] = round(b["wins"] / b["n"] * 100.0, 1) if b["n"] else 0.0
+        b["net_r"] = round(b["net_r"], 2)
+    return out
+
+
 def shadow_purge_tier(tier: str) -> None:
     """Remove a tier's shadow trades entirely (user cut, e.g. sst1)."""
     c = _open()
