@@ -1439,8 +1439,16 @@ def cycle() -> None:
     # negative and the greens gate muted the tier. tier=None exempts
     # BEST from that gate (the conf>=70 floor stands); the desk tier
     # still records everything.
+    # 2026-09-04 user order: "best of the best zone is still not giving
+    # notification — make it live." Diagnosis: silencer #2. The _push
+    # conf gate recomputes best_board.confidence from FORM-WEIGHTED
+    # votes; with most tiers' 14d form red, voters are halved and a
+    # qualifying 💎 card can score 55-65 at buzz time — dying on the 70
+    # floor even though the card shows 85+ on the page. The stream is
+    # already self-gated by its own qualification bar (and deflation
+    # double-counts form), so the floor drops to 0. Revert: min_conf=70.
     _push([p for p in best if _in_zone(p)], "best", _fmt_best,
-          min_conf=70, tier=None)
+          min_conf=0, tier=None)
     _push(apex, "apex", _fmt_apex, min_conf=70, tier="apex")
     # 2026-08-15 user order: 🌟 EARLY ELITE buzzes ALWAYS — no greens
     # gate. Kronos disagreeing is fine ("if kronos dont agree thats
@@ -1764,11 +1772,12 @@ def cycle() -> None:
                         for _dt8, _df8, _l8, _n8 in _dtiers:
                             if _dt8 <= _dt9:
                                 _w9[_df8] = True
-                        # 📵 MUTE (user 2026-09-03, "mute 4"): the
-                        # discount half of the commentary ladder.
-                        # Revert: _mute_dsc -> tg.send.
-                        _mute_dsc = (lambda _m: (False, "muted"))
-                        ok, _ = _mute_dsc(
+                        # 🔊 RESTORED (user 2026-09-04: "discount and
+                        # deep discount should be a buzz... remove the
+                        # running one") — the discount ladder is the
+                        # one buzz class that improves entry price
+                        # instead of chasing; RUNNING stays muted.
+                        ok, _ = tg.send(
                             f"💎🔻 *{_lb9}* — {_w9['base']} "
                             f"{_w9['side']} now {abs(_mv9):.1f}% "
                             f"BELOW the buzz entry "
