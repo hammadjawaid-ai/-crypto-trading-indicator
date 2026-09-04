@@ -3611,6 +3611,20 @@ def cycle() -> None:
     try:
         _dh_utc = int(getattr(config, "WORKER_DIGEST_HOUR_UTC", 4))
         _hr_now = datetime.now(timezone.utc).hour
+        # 🔬 NIGHTLY AUDITOR (user go 2026-09-04, validated 5/5 on the
+        # week's real defects — commit 9125e84): rides the same clock
+        # window as the morning digest, its own 20h key so neither can
+        # double-fire the other. One message: findings (or all-clear)
+        # + yesterday-in-numbers + decision-ready tiers. Deterministic
+        # SQL findings; Fable only phrases the headline, fail-soft.
+        if (_dh_utc <= _hr_now < _dh_utc + 3
+                and store.should_alert("auditor_daily", 20 * 3600)):
+            try:
+                import auditor as _aud
+                _aud.run_daily(send=True)
+                print("[auditor] daily report sent", flush=True)
+            except Exception as _aud_exc:
+                print("[auditor] error:", _aud_exc, flush=True)
         if (_dh_utc <= _hr_now < _dh_utc + 3
                 and store.should_alert("daily_digest", 20 * 3600)):
             recs = shadow_trader.tier_records()
