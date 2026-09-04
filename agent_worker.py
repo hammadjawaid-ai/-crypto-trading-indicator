@@ -2739,18 +2739,30 @@ def cycle() -> None:
         for _du in store.fresh_duo_clusters(1800.0):
             if _bstock_quiet(_du["symbol"]):
                 continue
-            # 💎👑 KING PAIR (user 2026-09-03: "have the buzz for one
-            # trade and best as this is crucial too") — the measured
-            # best pair on the board: BEST + ONE TRADE within 30 min
-            # ran 51% / +0.540R over 86 closed UNGATED (57% at 85+),
-            # so it buzzes at ANY conf.
-            _du_king = set(_du["tiers"]) == {"best_board", "one_trade"}
-            # 🤝 DUO gate at 85 — the measured winner cell (50% /
-            # +0.218R at conf 85+; user briefly set 80 on 2026-09-03
-            # and reverted to 85 the same minute).
-            if not _du_king and (_du.get("conf") or 0) < 85:
-                continue
-            _du_key = "kingpair" if _du_king else "duo85"
+            # NAMED PAIRS — buzz at ANY conf, each on its own desk
+            # tier so its record is judged separately:
+            #   💎👑 kingpair (user 2026-09-03): BEST + ONE TRADE —
+            #   the measured best pair, 51% / +0.540R over 86 closed.
+            #   🔥💎 tnelite (user 2026-09-04: "take hot and elite
+            #   conviction both agree... their win rate is high") —
+            #   HONEST NOTE: this pair has almost NO record yet
+            #   (elite_conv desk born Sep 1; its pair cells are n=2).
+            #   Ships on the user's call, proves on tier `tnelite`;
+            #   the MEASURED strong TN pair is apex+takenow_hot
+            #   (52% / +0.354R, n=142), covered by DUO 85+.
+            _NAMED_PAIRS = {
+                frozenset(("best_board", "one_trade")): "kingpair",
+                frozenset(("takenow_hot", "elite_conv")): "tnelite",
+            }
+            _du_key = _NAMED_PAIRS.get(frozenset(_du["tiers"]))
+            if _du_key is None:
+                # 🤝 DUO gate at 85 — the measured winner cell (50% /
+                # +0.218R at conf 85+; user briefly set 80 on
+                # 2026-09-03 and reverted to 85 the same minute).
+                if (_du.get("conf") or 0) < 85:
+                    continue
+                _du_key = "duo85"
+            _du_king = _du_key == "kingpair"
             if not store.should_alert(
                     f"{_du_key}:{_du['symbol']}:{_du['side']}",
                     4 * 3600):
@@ -2778,6 +2790,20 @@ def cycle() -> None:
                     f"`{float(_du['tp1']):g}`{_du_t2}\n"
                     f"_the measured best pair on the board: 51% / "
                     f"+0.540R over 86 closed (57% at conf 85+)._")
+            elif _du_key == "tnelite":
+                _du_msg = (
+                    f"🔥💎 *TN × ELITE — {_du_b} {_du['side']}* — "
+                    f"TAKE NOW HOT + ELITE CONV agree\n"
+                    f"both fired within 30 min · 🎯 conf "
+                    f"{_du_cf}/100\n"
+                    f"entry `{float(_du['entry']):g}` · SL "
+                    f"`{float(_du['stop']):g}` · TP1 "
+                    f"`{float(_du['tp1']):g}`{_du_t2}\n"
+                    f"_user-picked pair, record still PROVING (desk "
+                    f"tier tnelite). Conf benchmark from the panel: "
+                    f"2-stream clusters at 85+ ran 50% / +0.218R; "
+                    f"below 85 the duo bands measured red — weight "
+                    f"the 🎯 number accordingly._")
             else:
                 _du_msg = (
                     f"🤝 *DUO 85+ — {_du_b} {_du['side']}* — the "

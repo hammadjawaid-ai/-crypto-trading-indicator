@@ -44,6 +44,7 @@ STREAM_TO_TIER = {
     "takenow": "takenow_hot", "early_strong": "early_movers",
     "trend": "trend_rider", "eagle_heat": "eagle_heat",
     "duo85": "duo85", "kingpair": "kingpair",
+    "tnelite": "tnelite",
     "personal_watch": "personal_watch",
     "personal_watch_early": "personal_watch_early",
 }
@@ -51,7 +52,8 @@ STREAM_TO_TIER = {
 # streams that exist in THIS code era (the second July-DB lesson).
 DEPENDENTS = {"eagle_heat": ("elite_conv", 3.0),
               "duo85": ("apex", 7.0),
-              "kingpair": ("one_trade", 14.0)}
+              "kingpair": ("one_trade", 14.0),
+              "tnelite": ("takenow", 14.0)}
 # buzz alert-key prefix -> stream that must record alongside it
 BUZZ_RECORD = {"pwatch": "personal_watch",
                "pwatch_early": "personal_watch_early"}

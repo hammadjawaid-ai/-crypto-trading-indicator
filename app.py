@@ -3533,6 +3533,7 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "eagle_heat": "🦅 EAGLE HEAT (3m watch, proving)",
                    "duo85": "🤝 DUO 85+ (2 streams agree, proving)",
                    "kingpair": "💎👑 KING PAIR (BEST+ONE, proving)",
+                   "tnelite": "🔥💎 TN×ELITE PAIR (proving)",
                    "moonshot": "🚀 MOONSHOT (big-move desk)",
                    "sentry": "🎯 SENTRY (your 18-coin watch)",
                    "owl_preburst": "🦉 OWL PRE-BURST (multi-TF)",
