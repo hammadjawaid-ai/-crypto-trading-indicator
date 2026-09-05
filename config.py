@@ -449,11 +449,10 @@ SOCIAL_FEEDS = {
 # me when it reclaims 0.02996 with momentum"). The 60s clock buzzes
 # ONCE when price crosses the level WITH the validated 15m momentum
 # bar (trend >= 55 + burst >= 65, side-matched). Edit/clear freely.
-USER_LEVEL_WATCHES = [
-    {"symbol": "TUTUSDT", "level": 0.02996, "side": "LONG",
-     "note": "reclaim of the fall-back range high — the measured "
-             "resume trigger"},
-]
+# TUT: covered by the 💀→🚀 REVIVAL watch (triggers at the ELITE
+# card's own entry with momentum — the user's spec; the desk knows the
+# exact entry). This list stays for ad-hoc price levels.
+USER_LEVEL_WATCHES: list = []
 
 PERSONAL_WATCH = ["INJUSDT", "ENAUSDT", "ZECUSDT", "VIRTUALUSDT",
                   "WLDUSDT", "MUBARAKUSDT", "FETUSDT", "ENSOUSDT",

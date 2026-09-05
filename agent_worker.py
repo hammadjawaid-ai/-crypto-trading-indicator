@@ -3861,9 +3861,34 @@ def cycle() -> None:
                     binance_client.get_ticker_price(_rvs) or 0)
                 if _rvpx <= 0:
                     continue
-                _took = (_rvpx > _ext) if _lng_rv else (_rvpx < _ext)
+                # 2026-09-06 USER SPEC (the TUT correction: "0.02996
+                # is not the entry point... it should be what elite
+                # conviction shared and it was above the SL and making
+                # its comeback"): the trigger is the ORIGINAL ELITE
+                # ENTRY reclaimed WITH momentum — the earliest valid
+                # re-entry, not the late range-high. Honest note: the
+                # bare entry-reclaim measured +0.05R in the study; the
+                # 15m momentum gate is the user's addition and the
+                # proving tier judges the combination. The range-high
+                # (_ext) is still reported on the buzz as the
+                # confirmation level above.
+                _took = ((_rvpx > float(_rve)) if _lng_rv
+                         else (_rvpx < float(_rve)))
                 if not _took:
                     continue          # keep watching next cycle
+                try:
+                    _rvd15 = binance_client.get_klines(_rvs, "15m",
+                                                       limit=120)
+                    _rvt, _rvtd, _ = _et_w.detect(_rvd15)
+                    _rvb, _rvbd, _ = _vb_w.lane_velocity_burst(_rvd15)
+                except Exception:
+                    continue
+                _rv_want = "LONG" if _lng_rv else "SHORT"
+                if not (_rvt >= 55 and _rvtd == _rv_want
+                        and _rvb >= 65
+                        and (_rvbd or "").upper() == _rv_want):
+                    continue          # back above entry but limp —
+                                      # wait for the momentum
                 # one record per stopped trade — key consumed only on
                 # an actual trigger
                 if not store.should_alert(f"revival:{_rvid}",
@@ -3902,15 +3927,19 @@ def cycle() -> None:
                 # range-reclaim earned a look.
                 ok, _ = tg.send(
                     f"💀→🚀 *REVIVAL — {_rv_sig['base']} "
-                    f"{_rvside}* — the stopped elite coin is BACK\n"
-                    f"price reclaimed the ENTIRE fire-to-stop range "
-                    f"at `{_rvpx:g}` — the ASTER shape, caught\n"
+                    f"{_rvside}* — back through the ELITE ENTRY "
+                    f"with momentum\n"
+                    f"the stopped elite coin reclaimed its original "
+                    f"entry `{float(_rve):g}` · live `{_rvpx:g}` · "
+                    f"15m trend {_rvt:.0f} · burst {_rvb:.0f}\n"
                     f"entry `{_rvpx:g}` · SL `{_rvsl:g}` · TP "
-                    f"`{_rvtp:g}` (1.5R fixed)\n"
-                    f"_measured on 387 real elite fires: this "
-                    f"trigger ran +0.215R / 50.7% (n=69), improving "
-                    f"through time but NOT yet thirds-green — "
-                    f"PROVING on the desk. Size small._")
+                    f"`{_rvtp:g}` (1.5R) · full-range confirm above "
+                    f"at `{_ext:g}`\n"
+                    f"_the ASTER catcher — earliest valid re-entry "
+                    f"(elite plan level + momentum). PROVING on the "
+                    f"desk; the range-high `{_ext:g}` breaking adds "
+                    f"the measured +0.215R confirmation. Size "
+                    f"small._")
                 n_alerts += 1 if ok else 0
                 print(f"[revival] 💀→🚀 {_rvs} {_rvside} extreme "
                       f"reclaimed @ {_rvpx:g} (buzzed)",
