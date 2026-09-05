@@ -1526,7 +1526,13 @@ def cycle() -> None:
     # undeflated scale — on today's deflated scale 70 is nearly
     # unreachable, so the floor had become a mute, not a filter.
     # Revert: min_conf=70, tier="apex".
-    _push(apex, "apex", _fmt_apex, min_conf=0, tier=None)
+    # 2026-09-05 later: user set the APEX floor back to 70 ("apex
+    # confidence score 70 above") — the measured gate (it silenced a
+    # 32%/-0.228R band). tier stays None so the 14d-form mute cannot
+    # silently kill the stream again; only the conf floor gates.
+    # NOTE: with form-deflated votes, 70 is a HIGH bar in red regimes
+    # — fewer apex buzzes until tier forms recover, by design.
+    _push(apex, "apex", _fmt_apex, min_conf=70, tier=None)
     # 2026-08-15 user order: 🌟 EARLY ELITE buzzes ALWAYS — no greens
     # gate. Kronos disagreeing is fine ("if kronos dont agree thats
     # ok"): the 🔮 line on every buzz already spells out all three
