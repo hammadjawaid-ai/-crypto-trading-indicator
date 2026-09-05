@@ -44,7 +44,7 @@ STREAM_TO_TIER = {
     "takenow": "takenow_hot", "early_strong": "early_movers",
     "trend": "trend_rider", "eagle_heat": "eagle_heat",
     "duo85": "duo85", "kingpair": "kingpair",
-    "tnelite": "tnelite",
+    "tnelite": "tnelite", "apextn": "apextn",
     "personal_watch": "personal_watch",
     "personal_watch_early": "personal_watch_early",
 }
@@ -53,7 +53,8 @@ STREAM_TO_TIER = {
 DEPENDENTS = {"eagle_heat": ("elite_conv", 3.0),
               "duo85": ("apex", 7.0),
               "kingpair": ("one_trade", 14.0),
-              "tnelite": ("takenow", 14.0)}
+              "tnelite": ("takenow", 14.0),
+              "apextn": ("apex", 14.0)}
 # buzz alert-key prefix -> stream that must record alongside it
 BUZZ_RECORD = {"pwatch": "personal_watch",
                "pwatch_early": "personal_watch_early"}
@@ -160,6 +161,38 @@ def _brief(c: sqlite3.Connection, now: float) -> list[str]:
         w = min(day, key=lambda x: x[3] or 0)
         lines.append(f"best `{b[1]}` {b[2]} ({b[0]}) {b[3]:+.2f}R · "
                      f"worst `{w[1]}` {w[2]} ({w[0]}) {w[3]:+.2f}R")
+    # 📊 analyst section (user go 2026-09-04): per-tier day movers,
+    # 14d form leaders/laggards, narrative-recorder count — every
+    # number a query, the model only phrases the headline.
+    tiers: dict = {}
+    for t, _sym, _side, r in day:
+        g = tiers.setdefault(t, [0, 0.0])
+        g[0] += 1
+        g[1] += float(r or 0)
+    movers = sorted(tiers.items(), key=lambda kv: -abs(kv[1][1]))[:3]
+    if movers:
+        lines.append("day movers: " + " · ".join(
+            f"`{t}` {n}cl {net:+.1f}R" for t, (n, net) in movers))
+    forms = []
+    for (t,) in c.execute("SELECT DISTINCT tier FROM shadow_trades"):
+        r = c.execute(
+            "SELECT COALESCE(SUM(pnl_r),0), COUNT(*) FROM shadow_trades "
+            "WHERE tier=? AND status='CLOSED' AND closed_at>=?",
+            (t, now - 14 * D)).fetchone()
+        if int(r[1]) >= 10:
+            forms.append((t, float(r[0])))
+    if forms:
+        forms.sort(key=lambda x: -x[1])
+        hi, lo = forms[0], forms[-1]
+        lines.append(f"14d form: best `{hi[0]}` {hi[1]:+.1f}R · "
+                     f"worst `{lo[0]}` {lo[1]:+.1f}R")
+    try:
+        n_ev = store.event_flag_count(1.0)
+        if n_ev:
+            lines.append(f"📰 {n_ev} event flags recorded (proving, "
+                         f"gates nothing)")
+    except Exception:
+        pass
     ready = list(c.execute(
         "SELECT tier, COUNT(*), SUM(CASE WHEN pnl_r>0 THEN 1 ELSE 0 "
         "END), COALESCE(SUM(pnl_r),0) FROM shadow_trades WHERE "
@@ -184,7 +217,7 @@ def _phrase(findings: list[tuple[str, str]], brief: list[str]) -> str | None:
         r = cl.messages.create(
             model=getattr(config, "ANTHROPIC_MODEL_DEEP",
                           "claude-fable-5"),
-            max_tokens=120,
+            max_tokens=260,
             messages=[{"role": "user", "content":
                        "One sentence, direct, for a trader's morning "
                        "Telegram: the single most important thing in "

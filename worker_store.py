@@ -51,6 +51,11 @@ CREATE TABLE IF NOT EXISTS shadow_trades (
   opened_at REAL, status TEXT DEFAULT 'OPEN',
   exit_px REAL, exit_reason TEXT, closed_at REAL, pnl_r REAL
 );
+CREATE TABLE IF NOT EXISTS event_flags (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts REAL, symbol TEXT, direction TEXT, category TEXT,
+  impact REAL, title TEXT
+);
 """
 
 
@@ -556,6 +561,55 @@ def duo_pair_bands(window_min: float = 30.0) -> list[dict]:
         g["win_pct"] = round(g["wins"] / g["n"] * 100.0, 1) if g["n"] else 0.0
         g["net_r"] = round(g["net_r"], 2)
     return out
+
+
+def live_cluster(symbol: str, side: str,
+                 window_sec: float = 1800.0) -> list[str]:
+    """🤝 Which OTHER elite-family streams opened this (symbol, side)
+    within the trailing window — the cluster-count confidence display
+    (2026-09-04 conf rebuild, display-only, gates nothing)."""
+    cutoff = time.time() - window_sec
+    c = _open()
+    try:
+        marks = ",".join("?" for _ in CONFLUENCE_TIERS)
+        return sorted({r[0] for r in c.execute(
+            f"SELECT DISTINCT tier FROM shadow_trades "
+            f"WHERE tier IN ({marks}) AND symbol=? AND side=? "
+            f"AND opened_at >= ?",
+            (*CONFLUENCE_TIERS, symbol, (side or "").upper(), cutoff))})
+    except Exception:
+        return []
+    finally:
+        c.close()
+
+
+def record_event_flag(symbol, direction, category, impact, title) -> None:
+    """📰 Narrative-layer recorder (2026-09-04): stores impactful news
+    flags per coin. RECORDS ONLY — nothing reads this to gate or buzz;
+    after the pre-registered ~2-3 week window the flags get joined to
+    desk outcomes and judged."""
+    c = _open()
+    try:
+        c.execute(
+            "INSERT INTO event_flags (ts,symbol,direction,category,"
+            "impact,title) VALUES (?,?,?,?,?,?)",
+            (time.time(), symbol, direction, category,
+             float(impact or 0), str(title or "")[:200]))
+        c.commit()
+    finally:
+        c.close()
+
+
+def event_flag_count(days: float = 1.0) -> int:
+    c = _open()
+    try:
+        return int(c.execute(
+            "SELECT COUNT(*) FROM event_flags WHERE ts >= ?",
+            (time.time() - days * 86400,)).fetchone()[0])
+    except Exception:
+        return 0
+    finally:
+        c.close()
 
 
 def fresh_duo_clusters(window_sec: float = 1800.0) -> list[dict]:

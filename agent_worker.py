@@ -305,6 +305,58 @@ def _conf_chip(a: dict) -> str:
                else " (below the 65 line)"))
 
 
+def _atr_heat(df1h) -> int | None:
+    """🌡 HEAT 0-100 — the ONE candle input that survived validation
+    (2026-09-04 conf rebuild: HOT ATR spread +0.200R ON-vs-OFF, both
+    halves; ROC inert, burst sign-flipped — both dropped). Continuous
+    percentile of the current 14-bar ATR vs its trailing 100, instead
+    of the old 0.6 cliff. Display-only, gates nothing."""
+    try:
+        h = df1h["high"].to_numpy()
+        l = df1h["low"].to_numpy()
+        if len(h) < 45:
+            return None
+        tr = h - l
+        atr_now = float(tr[-15:-1].mean())
+        hist = [float(tr[j - 14:j].mean())
+                for j in range(max(15, len(tr) - 100), len(tr))]
+        if len(hist) < 30:
+            return None
+        return int(round(sum(1 for x in hist if x < atr_now)
+                         / len(hist) * 100))
+    except Exception:
+        return None
+
+
+def _pair_chips(symbol, side) -> str:
+    """🤝 cluster + 🌡 heat chips (2026-09-04 conf rebuild, display-
+    only). Cluster = which other elite-family streams opened the same
+    coin+side in the last 30 min — measured agreement instead of the
+    abstract vote sum (2 streams was THE winner cell; 3+ downgrades).
+    NEVER raises — a chip must not kill a buzz (the _b3 lesson)."""
+    bits = []
+    try:
+        others = [t for t in store.live_cluster(symbol, side)]
+        _nm = {"apex": "APEX", "best_board": "BEST",
+               "one_trade": "ONE", "elite_conv": "ELITE",
+               "elite_confirm": "CONFIRM", "elite_early": "E-ELITE",
+               "takenow_hot": "TN"}
+        if others:
+            names = "+".join(_nm.get(t, t) for t in others[:3])
+            warn = " ⚠️ crowd" if len(others) >= 3 else ""
+            bits.append(f"🤝 with {names}{warn}")
+    except Exception:
+        pass
+    try:
+        _dfh = binance_client.get_klines(symbol, "1h", limit=120)
+        _ht = _atr_heat(_dfh)
+        if _ht is not None:
+            bits.append(f"🌡 heat {_ht}")
+    except Exception:
+        pass
+    return (" · " + " · ".join(bits)) if bits else ""
+
+
 def _trigger_pass(a: dict, px: float) -> bool:
     """True when live price has broken the armed trigger."""
     if px <= 0:
@@ -1133,9 +1185,14 @@ def cycle() -> None:
             if store.should_alert(f"{key_prefix}:{p['symbol']}:{p['side']}",
                                   COOLDOWN):
                 _msg = fmt(p)
+                # 🤝🌡 conf rebuild chips (2026-09-04, display-only)
+                _chips = _pair_chips(p.get("symbol"), p.get("side"))
                 if p.get("_conf") is not None and "\n" in _msg:
                     _msg = _msg.replace(
-                        "\n", f" · 🎯 conf {p['_conf']}/100\n", 1)
+                        "\n", f" · 🎯 conf {p['_conf']}/100"
+                              f"{_chips}\n", 1)
+                elif _chips and "\n" in _msg:
+                    _msg = _msg.replace("\n", f"{_chips}\n", 1)
                 ok, msg = tg.send(_msg)
                 n_alerts += 1 if ok else 0
                 if not ok:
@@ -1200,6 +1257,9 @@ def cycle() -> None:
                     _cbits = []
                     if _cf9 is not None:
                         _cbits.append(f"🎯 conf {_cf9}/100")
+                    _ht9 = _pmx.get("heat")
+                    if _ht9 is not None:
+                        _cbits.append(f"🌡 heat {_ht9}")
                     if _eg9 is not None:
                         _etag = (" sweet spot" if _eg9 == 45
                                  else " hot — may be late"
@@ -1537,6 +1597,13 @@ def cycle() -> None:
                                             _ec.get("side"))
         except Exception:
             _ec2["edge_conf"] = None
+        # 🌡 conf rebuild (2026-09-04): the continuous ATR percentile
+        # — the one candle input that survived validation — rides
+        # along for display next to the legacy edge chip.
+        try:
+            _ec2["heat"] = _atr_heat(_ec_df)
+        except Exception:
+            _ec2["heat"] = None
         _ec_mh.append(_ec2)
     # 🦅 EAGLE enrol #2 (user 2026-08-29 follow-up: "for every elite
     # conviction... it have its eye to monitor its movement right?"):
@@ -2750,9 +2817,13 @@ def cycle() -> None:
             #   Ships on the user's call, proves on tier `tnelite`;
             #   the MEASURED strong TN pair is apex+takenow_hot
             #   (52% / +0.354R, n=142), covered by DUO 85+.
+            #   🏆🔥 apextn (user go 2026-09-04): APEX + TAKE NOW HOT
+            #   — the strongest measured pair not yet named: 52% /
+            #   +0.354R over 142 closed, second only to the king pair.
             _NAMED_PAIRS = {
                 frozenset(("best_board", "one_trade")): "kingpair",
                 frozenset(("takenow_hot", "elite_conv")): "tnelite",
+                frozenset(("apex", "takenow_hot")): "apextn",
             }
             _du_key = _NAMED_PAIRS.get(frozenset(_du["tiers"]))
             if _du_key is None:
@@ -2790,6 +2861,17 @@ def cycle() -> None:
                     f"`{float(_du['tp1']):g}`{_du_t2}\n"
                     f"_the measured best pair on the board: 51% / "
                     f"+0.540R over 86 closed (57% at conf 85+)._")
+            elif _du_key == "apextn":
+                _du_msg = (
+                    f"🏆🔥 *APEX × TN — {_du_b} {_du['side']}* — "
+                    f"APEX + TAKE NOW HOT agree\n"
+                    f"both fired within 30 min · 🎯 conf "
+                    f"{_du_cf}/100\n"
+                    f"entry `{float(_du['entry']):g}` · SL "
+                    f"`{float(_du['stop']):g}` · TP1 "
+                    f"`{float(_du['tp1']):g}`{_du_t2}\n"
+                    f"_measured pair: 52% / +0.354R over 142 closed "
+                    f"— second only to the king pair._")
             elif _du_key == "tnelite":
                 _du_msg = (
                     f"🔥💎 *TN × ELITE — {_du_b} {_du['side']}* — "
@@ -3639,6 +3721,42 @@ def cycle() -> None:
         except Exception:
             pass
         return _bl
+
+    # 📰 NARRATIVE RECORDER (user go 2026-09-04, validation-first
+    # design): every hour, store the impactful headlines as per-coin
+    # event flags. RECORDS ONLY — nothing reads event_flags to gate or
+    # buzz. Pre-registered judgment: after ~2-3 weeks, flags join to
+    # desk outcomes; the veto/boost claim must be green in both halves
+    # of the window before any flag touches a buzz.
+    try:
+        if store.should_alert("evflag_hourly", 3600):
+            _ef_df = _news_w.fetch_news()
+            _ef_imp = _ni_w.detect_impactful(_ef_df, max_count=8) \
+                if _ef_df is not None else []
+            _ef_bases = {s.replace("USDT", "")
+                         for s in getattr(config, "PERSONAL_WATCH", [])}
+            try:
+                _ef_bases |= {str(p.get("base") or "") for p in apex}
+                _ef_bases |= {str(p.get("base") or "") for p in best}
+            except Exception:
+                pass
+            _ef_n = 0
+            for _ef in _ef_imp:
+                _ef_t = str(_ef.get("title") or "")
+                _ef_up = _ef_t.upper()
+                _ef_syms = [b for b in _ef_bases
+                            if b and len(b) >= 3 and b in _ef_up] or [None]
+                for _ef_s in _ef_syms[:3]:
+                    store.record_event_flag(
+                        (_ef_s + "USDT") if _ef_s else None,
+                        _ef.get("direction"), _ef.get("category"),
+                        _ef.get("score"), _ef_t)
+                    _ef_n += 1
+            if _ef_n:
+                print(f"[evflag] 📰 {_ef_n} event flags recorded",
+                      flush=True)
+    except Exception as _ef_exc:
+        print("  evflag error:", _ef_exc, flush=True)
 
     # 📊🌅 DAILY MORNING REPORT — the 24h battle plan + best trades
     # (user 2026-07-08, upgraded 2026-08-29). Default 04:00 UTC =
