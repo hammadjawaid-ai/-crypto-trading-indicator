@@ -445,6 +445,16 @@ SOCIAL_FEEDS = {
 # pullback-confirmation candle (the ENA shape: green close above prev
 # close + ema20 on 1.2x volume, after a real dip). One Telegram buzz per
 # coin per 6h max. Edit this list to change the watched coins.
+# 📍 One-shot USER LEVEL ALARMS (user 2026-09-06: "watch tut and buzz
+# me when it reclaims 0.02996 with momentum"). The 60s clock buzzes
+# ONCE when price crosses the level WITH the validated 15m momentum
+# bar (trend >= 55 + burst >= 65, side-matched). Edit/clear freely.
+USER_LEVEL_WATCHES = [
+    {"symbol": "TUTUSDT", "level": 0.02996, "side": "LONG",
+     "note": "reclaim of the fall-back range high — the measured "
+             "resume trigger"},
+]
+
 PERSONAL_WATCH = ["INJUSDT", "ENAUSDT", "ZECUSDT", "VIRTUALUSDT",
                   "WLDUSDT", "MUBARAKUSDT", "FETUSDT", "ENSOUSDT",
                   "PYTHUSDT", "HUMAUSDT", "SOLUSDT", "DASHUSDT",

@@ -840,6 +840,46 @@ def _trigger_watch() -> None:
                           f"{_spx:g}", flush=True)
                 except Exception as exc:
                     print("[sniper] fire error:", exc, flush=True)
+            # 📍 USER LEVEL ALARMS (user 2026-09-06: "watch tut and
+            # buzz me when it reclaims 0.02996 with momentum") — one
+            # -shot, momentum-gated with the validated 15m bar.
+            for _ul in getattr(config, "USER_LEVEL_WATCHES", []):
+                try:
+                    _uls = _ul["symbol"]
+                    _ull = float(_ul["level"])
+                    _ulsd = (_ul.get("side") or "LONG").upper()
+                    _ulpx = float(
+                        binance_client.get_ticker_price(_uls) or 0)
+                    if _ulpx <= 0:
+                        continue
+                    if not (_ulpx >= _ull if _ulsd == "LONG"
+                            else _ulpx <= _ull):
+                        continue
+                    _uld = binance_client.get_klines(_uls, "15m",
+                                                     limit=120)
+                    _ut, _utd, _ = _et_w.detect(_uld)
+                    _ub, _ubd, _ = _vb_w.lane_velocity_burst(_uld)
+                    if not (_ut >= 55 and _utd == _ulsd
+                            and _ub >= 65
+                            and (_ubd or "").upper() == _ulsd):
+                        continue
+                    if not store.should_alert(
+                            f"ulevel:{_uls}:{_ull:g}",
+                            7 * 24 * 3600):
+                        continue
+                    _ulb = _uls.replace("USDT", "")
+                    tg.send(
+                        f"📍 *{_ulb} RECLAIMED `{_ull:g}` WITH "
+                        f"MOMENTUM* — the level you asked for\n"
+                        f"live `{_ulpx:g}` · 15m trend {_ut:.0f} "
+                        f"{_utd} · burst {_ub:.0f}\n"
+                        f"_{_ul.get('note', 'user level watch')} — "
+                        f"the fall-back high is taken with force. "
+                        f"Your watch, your call._")
+                    print(f"[ulevel] 📍 {_ulb} {_ull:g} reclaimed",
+                          flush=True)
+                except Exception as exc:
+                    print("[ulevel] error:", exc, flush=True)
         except Exception as exc:
             print("[trigger] loop error:", exc, flush=True)
 
