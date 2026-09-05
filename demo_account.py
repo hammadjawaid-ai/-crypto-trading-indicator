@@ -66,48 +66,54 @@ STATE_FILE = os.environ.get("DEMO_STATE") or \
 # full, a position whose SIGNAL HAS DIED is rotated out — banked if
 # positive, cut if negative; a losing position stands ONLY while
 # its signal stays healthy.
-GEN = 7
+# GEN 8 = 2026-09-05 ("demo trading reset to 1500... 8 slots with
+# maximum leverage of upto 10x per trade... strong triggers priority,
+# then the confidence duo bands we measure success, and the waking on
+# our coins. no closing until risk is involved, ride to tp1, close,
+# and if the momentum is still there open the trade again").
+GEN = 8
 START_BAL = 1500.0
 # 6 -> 10 (user 2026-08-23 second follow-up: "instead of 6 we have
 # 10 slots now and 7 for strong triggers and 3 for elite
 # conviction"). A CEILING, not a quota — the MIN_RANK floor still
 # gates every slot. Elite's 3-seat cap below guarantees the top
 # streams (strong triggers + re-runs) always keep >= 7 seats.
-MAX_SLOTS = 10
+MAX_SLOTS = 8
 # The earlier 6->8 good-day overflow is absorbed by the 10-slot
 # base; no seats beyond 10.
-MAX_SLOTS_HOT = 10
+MAX_SLOTS_HOT = 8
 # GEN 6 WILD SIZING (user 2026-08-23: "more leverage 5x to 10x...
 # 50-200 dollars per trade... notions as per 1500 in the bank
 # accordingly"): per-slot margin = balance / MAX_SLOTS, leverage
 # graded by the validated quality tells — never a flat max.
-LEV_BASE = 5.0                 # 💎 elite MAX/HIGH (secondary stream)
-LEV_MID = 7.0                  # 💥⚡ strong trigger / 🔄 re-run
-LEV_MAX = 10.0                 # A-grade: burst >= 85 at the break
+LEV_BASE = 5.0                 # GEN 8: ⚡ pw_waking
+LEV_MID = 8.0                  # GEN 8: 🤝 duo_band pairs
+LEV_MAX = 10.0                 # GEN 8: 💥 strong trigger (the cap)
                                # (validated 64.7% · +0.288R)
 FEE = 0.00055                  # Bybit taker, per side
-TIME_STOP_H = 48
+TIME_STOP_H = 72     # GEN 8: seat hygiene only — the
+                     # user's exit is SL or TP1
 # GEN 5 (user order 6): 🌊 TREND RIDER is OUT of the demo — its
 # per-source hold/slot/smart-exit carve-outs go with it.
 TIME_STOP_BY_SRC: dict = {}
 # GEN 7 seat map (user 2026-08-26): 5 top-stream · 3 best-of-best ·
 # 2 elite family. Per-src and family caps below enforce it; counted
 # by plan-winning source.
-MAX_PER_SRC: dict = {"elite_conv": 2, "elite_confirm": 2,
-                     "best_conf": 3}
+MAX_PER_SRC: dict = {}   # GEN 8: the priority ladder decides
 # 💥 TOP FAMILY: strong triggers + re-runs share 5 seats.
-TOP_FAMILY = {"strong_trigger", "rerun"}
-TOP_FAMILY_CAP = 5
+TOP_FAMILY = {"strong_trigger"}
+TOP_FAMILY_CAP = 8
 # 💎 ELITE FAMILY: raw elite cream + confirmed/re-entry share 2.
-ELITE_FAMILY = {"elite_conv", "elite_confirm"}
-ELITE_FAMILY_CAP = 2
+ELITE_FAMILY: set = set()
+ELITE_FAMILY_CAP = 0
 # 🔄 ROTATION (GEN 7): when a qualified candidate is blocked by a
 # full board/family, a position whose signal has DIED this cycle
 # (its coin+side no longer active in ANY pool) may be rotated out —
 # positives banked first, then negatives cut. Healthy signals are
 # NEVER rotated, and at most this many rotations happen per cycle.
 ROTATE_MAX = 2
-SMART_EXIT_SKIP: set = set()
+SMART_EXIT_SKIP: set = {"strong_trigger", "duo_band",
+                        "pw_waking"}   # GEN 8: SL/TP1 only
 # 🧠 STRENGTH-AWARE SMART EXIT + TRAIL (user 2026-08-15: "smart exit
 # should have a trailing method... loosen a bit if the signal
 # strength is good... let them ride to tp and trail to tp2 if they
@@ -158,17 +164,12 @@ MIN_RANK = 100.0
 # can be secondary, top priority is strong triggers and reruns...
 # nothing else should be a part of demo trading"): exactly three
 # streams, weighted by their LIVE desk records —
-CLASS_W = {"strong_trigger": 100,  # 💥⚡ 79% win · +58.7R/241, the
-                                   # desk's best win rate at scale
-           "rerun": 100,           # 🔄 second-leg breaks + 💎🔄
-                                   # re-qualified (68% win · +0.36R)
-           "best_conf": 95,        # 🎯 GEN 7: BEST ZONE cards with
-                                   # telegram confidence >= 80; the
-                                   # 98+ ones are the best-of-best
-           "elite_confirm": 90,    # 💎✅ the validated entry on elite
-                                   # fires (67.8% · +0.025R, green
-                                   # both halves; live ledger proves)
-           "elite_conv": 85}       # 💎 MAX/HIGH approved — SECONDARY
+CLASS_W = {"strong_trigger": 100,  # 💥⚡ P1 (68% live at scale)
+           "duo_band": 95,         # 🤝 P2: kingpair/apextn/duo85/
+                                   # tnelite — the measured pairs
+           "pw_waking": 90}        # ⚡ P3: the user's 20-coin waking
+                                   # lane (75% live at 12 closed,
+                                   # bar: >=60% at 20)
 # GEN 6: no conditional seats — the pool is exactly the named three.
 CONDITIONAL_SRC: set = set()
 # 2026-08-11 user call: 🚀 MOONSHOT removed from the demo menu (desk
@@ -400,12 +401,11 @@ def try_open(state: dict, cands: list, live_fn, active=None):
         # signal quality — 10x needs the validated A-grade burst.
         # GEN 7: 🎯 best-of-best seats size with the top streams.
         margin = state["balance"] / MAX_SLOTS
-        lev = LEV_BASE
-        if c.get("top") or c["src"] in ("strong_trigger", "rerun",
-                                        "best_conf"):
-            lev = LEV_MID
-        if float(c.get("burst") or 0) >= 85:
-            lev = LEV_MAX
+        # GEN 8 ladder: strong trigger 10x, duo pairs 8x, waking 5x —
+        # "maximum leverage of upto 10x per trade" is the cap.
+        lev = {"strong_trigger": LEV_MAX,
+               "duo_band": LEV_MID,
+               "pw_waking": LEV_BASE}.get(c["src"], LEV_BASE)
         # real-account physics: the stop must sit well inside the
         # slot's margin — a stop past ~liquidation is not a trade.
         if stop_pct >= 0.8 / lev:
@@ -569,8 +569,20 @@ def manage(state: dict, live_fn, kr_get=None) -> list:
             # is still live next cycle with a fresh in-zone plan,
             # try_open re-enters it as a NEW trade.
             rec = _close_qty(state, p, p["qty"], p["tp1"],
-                             "TP1 — banked 100% (GEN 7); re-enters "
-                             "if the signal still holds")
+                             "TP1 — banked 100% (GEN 8); reopens if "
+                             "the momentum still holds")
+            # GEN 8 re-entry payload (user: "if the momentum is still
+            # there open the trade again") — the worker checks the 1h
+            # burst and re-opens with the same plan geometry anchored
+            # at the live price. Chain-capped at 2 re-entries.
+            rec["replan"] = {
+                "stop_d": float(p.get("risk0")
+                                or abs(p["entry"] - p["stop"])),
+                "tp1_d": abs(p["tp1"] - p["entry"]),
+                "tp2_d": (abs(p["tp2"] - p["entry"])
+                          if p.get("tp2") else None),
+                "score": p.get("score"),
+                "chain": int(p.get("chain") or 0)}
             state["closed"].append(rec)
             events.append(("close", rec))
             continue

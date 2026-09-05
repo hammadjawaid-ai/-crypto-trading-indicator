@@ -220,6 +220,14 @@ SECOND_LEG_DAYS = 7.0
 # _TRIG_LOCK (written from the watch thread, read from the cycle).
 _DEMO_FIRES: list = []
 DEMO_FIRE_TTL_S = 1800
+# 🎮 GEN 8 feeds (user 2026-09-05): the duo-pair buzzes and the ⚡
+# waking lane get demo seats. Cycle-thread only; TTL-drained like
+# _DEMO_FIRES. _DEMO_REOPEN holds TP1-banked winners whose momentum
+# check passed — they re-enter next cycle ("if the momentum is still
+# there open the trade again"), chain-capped at 2.
+_DEMO_DUOS: list = []
+_DEMO_WAKE: list = []
+_DEMO_REOPEN: list = []
 # 💎✅ ELITE CONFIRMED ENTRY watch (user 2026-08-23: "make this one
 # then... built separately, no touching the elite conviction cards,
 # and it have the buzz of its own"). The VALIDATED entry style on
@@ -1509,7 +1517,16 @@ def cycle() -> None:
     # double-counts form), so the floor drops to 0. Revert: min_conf=70.
     _push([p for p in best if _in_zone(p)], "best", _fmt_best,
           min_conf=0, tier=None)
-    _push(apex, "apex", _fmt_apex, min_conf=70, tier="apex")
+    # 2026-09-05 user order: "apex seems closed... can we have it back
+    # please and best of the best and one trade as well" — same two
+    # silencers as BEST: the greens gate (14d form) and the conf-70
+    # floor bitten by form-deflated votes. tier=None + min_conf=0
+    # restores the stream; HONEST NOTE: the 70 gate was the one
+    # measured earner (it silenced a 32%/-0.228R band) on the OLD
+    # undeflated scale — on today's deflated scale 70 is nearly
+    # unreachable, so the floor had become a mute, not a filter.
+    # Revert: min_conf=70, tier="apex".
+    _push(apex, "apex", _fmt_apex, min_conf=0, tier=None)
     # 2026-08-15 user order: 🌟 EARLY ELITE buzzes ALWAYS — no greens
     # gate. Kronos disagreeing is fine ("if kronos dont agree thats
     # ok"): the 🔮 line on every buzz already spells out all three
@@ -1999,7 +2016,9 @@ def cycle() -> None:
         # 2026-08-15 user order: 👑 ONE TRADE is losing on the desk —
         # buzz removed behind the greens gate. The selector keeps
         # recording so the record can still earn its voice back.
-        _push([_one], "one", _fmt_one, min_conf=0, tier="one_trade")
+        _push([_one], "one", _fmt_one, min_conf=0,
+              tier=None)  # 2026-09-05 user order: greens-gate
+                          # exempt, same as apex/best
 
     # 🔮 KRONOS capture (user 2026-07-28, validated same day: agree
     # +0.259R vs veto -0.143R on our own entries, n=81). Forecast the
@@ -2929,6 +2948,15 @@ def cycle() -> None:
                       flush=True)
             print(f"[{_du_key}] 🤝 {_du_b} {_du['side']} "
                   f"({_du_t})", flush=True)
+            # 🎮 GEN 8 P2 feed: every pair buzz is a demo candidate
+            _DEMO_DUOS.append(
+                {"symbol": _du["symbol"], "base": _du_b,
+                 "side": _du["side"], "entry": _du["entry"],
+                 "stop": _du["stop"], "tp1": _du["tp1"],
+                 "tp2": _du.get("tp2"),
+                 "score": float(_du.get("conf") or 90),
+                 "src": "duo_band", "fired_at": time.time()})
+            del _DEMO_DUOS[:-20]
     except Exception as _du_exc:
         print("  duo85 error:", _du_exc, flush=True)
 
@@ -3326,12 +3354,12 @@ def cycle() -> None:
         # be a part of demo trading except the ones i told"): exactly
         # three streams. Form boosts come from each stream's own live
         # desk ledger.
+        # GEN 8 form boosts: each pool's own live desk ledger (duo
+        # form = the duo85 tier; young tiers just read ~0 = neutral).
         _dz_form = {}
         for _dt, _sh in (("strong_trigger", "trig_strong"),
-                         ("rerun", "second_leg"),
-                         ("best_conf", "best_board"),
-                         ("elite_conv", "elite_conv"),
-                         ("elite_confirm", "elite_confirm")):
+                         ("duo_band", "duo85"),
+                         ("pw_waking", "personal_watch_early")):
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_sh)["net_r"]
             except Exception:
@@ -3381,19 +3409,31 @@ def cycle() -> None:
                 _cf7 = 0.0
             if _cf7 >= 80:
                 _dz_best.append(dict(_bp7, conf=_cf7, score=_cf7))
+        # 🎮 GEN 8 POOLS (user 2026-09-05): exactly the named three,
+        # in priority order — 💥 strong triggers (P1, includes 🔄
+        # re-run breaks: same construct re-firing), 🤝 the measured
+        # duo/pair buzzes (P2), ⚡ the 20-coin waking lane (P3). The
+        # GEN 7 best_conf / elite pools retire with their generation.
+        _DEMO_DUOS[:] = [d for d in _DEMO_DUOS
+                         if _now - d["fired_at"] <= DEMO_FIRE_TTL_S]
+        _DEMO_WAKE[:] = [d for d in _DEMO_WAKE
+                         if _now - d["fired_at"] <= DEMO_FIRE_TTL_S]
+        # 🔁 momentum re-entries from last cycle's TP1 banks
+        _dz_reo = [d for d in _DEMO_REOPEN
+                   if _now - d["fired_at"] <= 900]
+        _DEMO_REOPEN[:] = []
         _dz_pools = {
-            "strong_trigger": [f for f in _dz_fires
-                               if f["src"] == "strong_trigger"],
-            "rerun": ([f for f in _dz_fires if f["src"] == "rerun"]
-                      + _dz_requal),
-            "best_conf": _dz_best,
-            "elite_confirm": list(_ECF_FIRES),
-            "elite_conv": (_dz_elite
-                           + [f for f in _dz_fires
-                              if f["src"] == "elite_conv"
-                              and (float(f.get("score") or 0) >= 90
-                                   or float(f.get("burst") or 0)
-                                   >= 85)])}
+            "strong_trigger": ([f for f in _dz_fires
+                                if f["src"] in ("strong_trigger",
+                                                "rerun")]
+                               + [d for d in _dz_reo
+                                  if d["src"] == "strong_trigger"]),
+            "duo_band": (list(_DEMO_DUOS)
+                         + [d for d in _dz_reo
+                            if d["src"] == "duo_band"]),
+            "pw_waking": (list(_DEMO_WAKE)
+                          + [d for d in _dz_reo
+                             if d["src"] == "pw_waking"])}
         # 🔄 GEN 7 rotation input: every (coin, side) with a LIVE
         # signal this cycle — positions outside this set are the
         # rotation candidates ("a losing trade stands only while
@@ -3419,6 +3459,52 @@ def cycle() -> None:
             except Exception:
                 return None
         _dz_events = demo_account.manage(_dz, _live, _dz_kr)
+        # 🔁 GEN 8 MOMENTUM RE-ENTRY (user 2026-09-05: "let it ride
+        # to tp1 and close it. if the momentum is still there open
+        # the trade again"): every TP1 bank gets a 1h-burst check —
+        # still >= 65 on the trade's side -> the same plan geometry
+        # re-anchors at the live price and queues for the next
+        # cycle's seats. Chain-capped at 2 re-entries per trade.
+        for _ev8, _rec8 in _dz_events:
+            try:
+                if _ev8 != "close" or "TP1" not in str(
+                        _rec8.get("reason", "")):
+                    continue
+                _rp8 = _rec8.get("replan") or {}
+                if int(_rp8.get("chain") or 0) >= 2:
+                    continue
+                _d8 = binance_client.get_klines(
+                    _rec8["symbol"], "1h", limit=120)
+                _b8, _bd8, _ = _vb_w.lane_velocity_burst(_d8)
+                if not (_b8 >= 65 and (_bd8 or "").upper()
+                        == _rec8["side"]):
+                    continue
+                _px8 = float(_rec8.get("exit") or 0)
+                _sd8 = float(_rp8.get("stop_d") or 0)
+                _t18 = float(_rp8.get("tp1_d") or 0)
+                if _px8 <= 0 or _sd8 <= 0 or _t18 <= 0:
+                    continue
+                _sgn8 = 1 if _rec8["side"] == "LONG" else -1
+                _DEMO_REOPEN.append(
+                    {"symbol": _rec8["symbol"],
+                     "base": _rec8["base"], "side": _rec8["side"],
+                     "entry": _px8,
+                     "stop": _px8 - _sgn8 * _sd8,
+                     "tp1": _px8 + _sgn8 * _t18,
+                     "tp2": (_px8 + _sgn8 * float(_rp8["tp2_d"])
+                             if _rp8.get("tp2_d") else None),
+                     "score": float(_rp8.get("score") or 80),
+                     "src": (_rec8.get("src")
+                             if _rec8.get("src") in
+                             ("strong_trigger", "duo_band",
+                              "pw_waking") else "strong_trigger"),
+                     "chain": int(_rp8.get("chain") or 0) + 1,
+                     "fired_at": _now})
+                print(f"[gen8] 🔁 momentum re-entry queued "
+                      f"{_rec8['base']} {_rec8['side']} "
+                      f"(burst {_b8:.0f})", flush=True)
+            except Exception as _re8_exc:
+                print("  gen8 reopen error:", _re8_exc, flush=True)
         _dz_opened, _dz_rot = demo_account.try_open(
             _dz, demo_account.rank_candidates(_dz_pools, _dz_form),
             _live, active=_dz_active)
@@ -3434,7 +3520,7 @@ def cycle() -> None:
 
         for _rr in _dz_rot:
             ok, _ = _dz_tg(
-                f"🎮🔄 *DEMO $1500 GEN7* — ROTATED OUT "
+                f"🎮🔄 *DEMO $1500 GEN8* — ROTATED OUT "
                 f"{_rr['base']} {_rr['side']} ({_rr['reason']}) → "
                 f"{'+' if _rr['pnl'] >= 0 else ''}"
                 f"${_rr['pnl']:,.2f}\n"
@@ -3444,7 +3530,7 @@ def cycle() -> None:
         for _po in _dz_opened:
             _agr = int(_po.get("agree", 1))
             ok, _ = _dz_tg(
-                f"🎮 *DEMO $1500 GEN7* — OPENED {_po['base']} "
+                f"🎮 *DEMO $1500 GEN8* — OPENED {_po['base']} "
                 f"{_po['side']} "
                 f"({'🤝 ' + str(_agr) + ' SYSTEMS AGREE · ' if _agr > 1 else ''}"
                 f"src `{_po.get('srcs', _po['src'])}` · score "
@@ -3462,7 +3548,7 @@ def cycle() -> None:
                 # 🧠🛡 strength-aware guard — position still open, the
                 # brain gave a STRONG signal room instead of banking
                 ok, _ = _dz_tg(
-                    f"🎮🧠 *DEMO $1500 GEN7* — RIDING THROUGH THE "
+                    f"🎮🧠 *DEMO $1500 GEN8* — RIDING THROUGH THE "
                     f"FLIP {_rec['base']} {_rec['side']}\n"
                     f"{_rec['reason']}\nstop now "
                     f"`{_rec['stop']:g}` · balance "
@@ -3472,7 +3558,7 @@ def cycle() -> None:
             _tag = ("💰 TP1 half-banked" if _ev == "tp1"
                     else "CLOSED")
             ok, _ = _dz_tg(
-                f"🎮 *DEMO $1500 GEN7* — {_tag} {_rec['base']} "
+                f"🎮 *DEMO $1500 GEN8* — {_tag} {_rec['base']} "
                 f"{_rec['side']} ({_rec['reason']}) → "
                 f"{'+' if _rec['pnl'] >= 0 else ''}"
                 f"${_rec['pnl']:,.2f}\n"
@@ -4206,6 +4292,18 @@ def cycle() -> None:
                         # too. Records only; the buzz is unchanged.
                         shadow_trader.open_from_signal(
                             "personal_watch_early", _pw_sig_e, _pw_px)
+                        # 🎮 GEN 8 P3 feed (user 2026-09-05: "and the
+                        # waking on our coins"): every ⚡ waking buzz
+                        # is a demo candidate.
+                        _DEMO_WAKE.append(
+                            {"symbol": _pw_sym, "base": _pw_base,
+                             "side": "LONG", "entry": _pw_px,
+                             "stop": _pw_sl, "tp1": _pw_tp1,
+                             "tp2": _pw_tp2,
+                             "score": float(_pw_cf or 55),
+                             "src": "pw_waking",
+                             "fired_at": time.time()})
+                        del _DEMO_WAKE[:-20]
                 except Exception as _pw_exc:
                     print(f"  👁 early {_pw_sym}: {_pw_exc}",
                           flush=True)
