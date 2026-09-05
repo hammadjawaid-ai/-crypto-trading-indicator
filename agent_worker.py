@@ -232,6 +232,9 @@ _DEMO_REOPEN: list = []
 # 🎯 GEN 9: sniper fires feed demo seats (written from the 60s watch
 # thread under _TRIG_LOCK, drained by cycle()).
 _DEMO_SNIPES: list = []
+# 🎯 SNIPER v2 golden-cell cache (re-mined hourly from the ledger)
+_GOLDEN_CELLS: dict = {}
+_GOLDEN_TS: float = 0.0
 # 💎✅ ELITE CONFIRMED ENTRY watch (user 2026-08-23: "make this one
 # then... built separately, no touching the elite conviction cards,
 # and it have the buzz of its own"). The VALIDATED entry style on
@@ -2942,6 +2945,89 @@ def cycle() -> None:
                 if shadow_trader.open_from_signal(_tname, p,
                                                   _live(p.get("symbol"))):
                     n_shadow_open += 1
+        # 🎯 SNIPER v2 — THE BEST-CELL SELECTOR (user 2026-09-06:
+        # "sniper will be a board which goes both ways and its for the
+        # entire universe... the trades that hits the most in tp, be
+        # it from any system we have"). Both directions, every stream,
+        # every coin: each cycle it looks at EVERY candidate the
+        # streams produced, computes its (tier x cluster) cell, and
+        # buzzes ONLY the ones landing in GOLDEN CELLS — cells the
+        # LIVE LEDGER says hit TP the most (win >= 58%, n >= 25, net
+        # positive). The gate re-mines itself from the ledger hourly,
+        # so as records grow the board sharpens on its own. Gen-3
+        # research note: regime-gated long breakouts measured dead
+        # (30/30 cells negative) — the long side lives HERE, through
+        # the streams' live winners, not a new price pattern.
+        try:
+            global _GOLDEN_CELLS, _GOLDEN_TS
+            if _now - _GOLDEN_TS > 3600 or not _GOLDEN_CELLS:
+                _GOLDEN_CELLS = {
+                    (g["tier"], g["bucket"]): g
+                    for g in store.golden_cells(min_n=25, min_win=58)}
+                _GOLDEN_TS = _now
+                if _GOLDEN_CELLS:
+                    print(f"[sniper2] golden cells: "
+                          f"{sorted((k, v['win_pct']) for k, v in _GOLDEN_CELLS.items())}",
+                          flush=True)
+            _s2_hits = []
+            for _tname2, _sigs2 in _tiers:
+                for _p2 in _sigs2:
+                    try:
+                        if not (_p2.get("entry") and _p2.get("stop")
+                                and _p2.get("tp1")):
+                            continue
+                        _cl2 = store.live_cluster(
+                            _p2.get("symbol"), _p2.get("side"))
+                        _bk2 = ("solo" if len(_cl2) <= 1 else
+                                "duo" if len(_cl2) == 2 else "crowd")
+                        _g2 = _GOLDEN_CELLS.get((_tname2, _bk2))
+                        if _g2 is None:
+                            continue
+                        _s2_hits.append((_g2, _tname2, _bk2, _p2))
+                    except Exception:
+                        continue
+            _s2_hits.sort(key=lambda x: -x[0]["win_pct"])
+            for _g2, _tn2, _bk2, _p2 in _s2_hits[:2]:
+                _sy2 = _p2.get("symbol")
+                if _bstock_quiet(_sy2):
+                    continue
+                if not store.should_alert(
+                        f"sniper2:{_sy2}:{_p2.get('side')}",
+                        4 * 3600):
+                    continue
+                _b2 = str(_p2.get("base") or
+                          _sy2.replace("USDT", ""))
+                _t22 = (f" · TP2 `{float(_p2['tp2']):g}`"
+                        if _p2.get("tp2") else "")
+                _ht2 = _p2.get("heat")
+                tg.send(
+                    f"🎯 *SNIPER — {_b2} {_p2.get('side')}* — "
+                    f"golden cell fire\n"
+                    f"via {_tn2} ({_bk2}) — this cell hits "
+                    f"{_g2['win_pct']:.0f}% on {_g2['n']} live "
+                    f"closed trades ({_g2['net_r']:+.1f}R)\n"
+                    f"entry `{float(_p2['entry']):g}` · SL "
+                    f"`{float(_p2['stop']):g}` · TP1 "
+                    f"`{float(_p2['tp1']):g}`{_t22}"
+                    f"{' · 🌡 heat ' + str(_ht2) if _ht2 is not None else ''}\n"
+                    f"_the best-cell selector: only shots the LIVE "
+                    f"ledger says land. Cells re-mine hourly from "
+                    f"your own records._")
+                n_alerts += 1
+                try:
+                    _s2_sig = dict(_p2)
+                    _s2_sig["tier"] = f"{_tn2}/{_bk2}"
+                    store.record_signal("sniper2", _s2_sig)
+                    shadow_trader.open_from_signal(
+                        "sniper2", _p2, _live(_sy2))
+                except Exception as _s2e:
+                    print("[sniper2] record error:", _s2e,
+                          flush=True)
+                print(f"[sniper2] 🎯 {_b2} {_p2.get('side')} via "
+                      f"{_tn2}/{_bk2} ({_g2['win_pct']:.0f}%)",
+                      flush=True)
+        except Exception as _s2_exc:
+            print("  sniper2 error:", _s2_exc, flush=True)
         _open_syms = {t["symbol"] for t in store.shadow_open_trades()}
         _pxs = {s: _live(s) for s in _open_syms}
         _sh_closed = shadow_trader.manage(

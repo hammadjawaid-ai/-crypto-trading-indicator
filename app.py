@@ -3545,6 +3545,7 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "apextn": "🏆🔥 APEX×TN PAIR (proving)",
                    "sniper": "🎯 SNIPER (flagship, proving)",
                    "revival": "💀🚀 REVIVAL (post-stop, records)",
+                   "sniper2": "🎯 SNIPER v2 (golden cells, proving)",
                    "moonshot": "🚀 MOONSHOT (big-move desk)",
                    "sentry": "🎯 SENTRY (your 18-coin watch)",
                    "owl_preburst": "🦉 OWL PRE-BURST (multi-TF)",

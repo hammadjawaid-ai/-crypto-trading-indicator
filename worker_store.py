@@ -656,6 +656,65 @@ def event_flag_count(days: float = 1.0) -> int:
         c.close()
 
 
+def golden_cells(min_n: int = 25, min_win: float = 55.0) -> list[dict]:
+    """🎯 SNIPER v2 fuel (user 2026-09-06: "its main goal is to get
+    the trades that hits the most in tp... the highest win rate").
+
+    Mines the LIVE ledger — every closed shadow trade — for the cells
+    that actually hit: (tier x cluster-bucket) win rate and net R,
+    computed the same way the confluence panel proved out (kingpair
+    51%/+0.54R, apextn 52%/+0.35R, trig_strong 68% solo...). A cell
+    qualifies as GOLDEN when win >= min_win, n >= min_n and net R > 0.
+    The meta-board fires ONLY signals landing in golden cells, so its
+    gate自 updates itself as the ledger grows. Read-only."""
+    c = _open()
+    try:
+        allr = [dict(zip(("tier", "symbol", "side", "t"), r))
+                for r in c.execute(
+                    "SELECT tier, symbol, side, opened_at FROM "
+                    "shadow_trades WHERE opened_at IS NOT NULL")]
+        closed = [dict(zip(("tier", "symbol", "side", "t", "pnl"), r))
+                  for r in c.execute(
+                      "SELECT tier, symbol, side, opened_at, pnl_r "
+                      "FROM shadow_trades WHERE status != 'OPEN' "
+                      "AND pnl_r IS NOT NULL "
+                      "AND opened_at IS NOT NULL")]
+    except Exception:
+        return []
+    finally:
+        c.close()
+    by_key: dict = {}
+    for r in allr:
+        if r["tier"] in CONFLUENCE_TIERS:
+            by_key.setdefault((r["symbol"], r["side"]), []).append(r)
+
+    def _bucket(r):
+        peers = {p["tier"] for p in by_key.get((r["symbol"], r["side"]),
+                                               [])
+                 if abs(p["t"] - r["t"]) <= 1800}
+        k = len(peers)
+        return "solo" if k <= 1 else ("duo" if k == 2 else "crowd")
+
+    g: dict = {}
+    for r in closed:
+        key = (r["tier"], _bucket(r))
+        b = g.setdefault(key, {"tier": key[0], "bucket": key[1],
+                               "n": 0, "wins": 0, "net_r": 0.0})
+        b["n"] += 1
+        b["wins"] += 1 if r["pnl"] > 0 else 0
+        b["net_r"] += float(r["pnl"])
+    out = []
+    for b in g.values():
+        if b["n"] >= min_n and b["net_r"] > 0:
+            wp = b["wins"] / b["n"] * 100.0
+            if wp >= min_win:
+                b["win_pct"] = round(wp, 1)
+                b["net_r"] = round(b["net_r"], 2)
+                out.append(b)
+    out.sort(key=lambda x: -x["win_pct"])
+    return out
+
+
 def fresh_duo_clusters(window_sec: float = 1800.0) -> list[dict]:
     """🤝 (symbol, side) where EXACTLY TWO elite-family streams opened
     desk trades within the trailing window. The measured winner cell
