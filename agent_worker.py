@@ -1515,8 +1515,12 @@ def cycle() -> None:
     # floor even though the card shows 85+ on the page. The stream is
     # already self-gated by its own qualification bar (and deflation
     # double-counts form), so the floor drops to 0. Revert: min_conf=70.
+    # 2026-09-05 later: user order "best and one trade as per the
+    # confidence score previously" — BEST floor back to 70 (the Aug 29
+    # diet number). tier stays None: the form mute stays off, only the
+    # conf floor gates. Same deflation note as apex applies.
     _push([p for p in best if _in_zone(p)], "best", _fmt_best,
-          min_conf=0, tier=None)
+          min_conf=70, tier=None)
     # 2026-09-05 user order: "apex seems closed... can we have it back
     # please and best of the best and one trade as well" — same two
     # silencers as BEST: the greens gate (14d form) and the conf-70
