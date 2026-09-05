@@ -2782,6 +2782,16 @@ def cycle() -> None:
                             p.get("symbol"), p.get("side"))
                     except Exception:
                         pass
+                # 🌡 heat stamp on EVERY desk trade (user 2026-09-05:
+                # "have the confidence score on them because in this
+                # way we can measure") — klines are cycle-cached, so
+                # this is mostly a cache hit. Fail-soft.
+                if p.get("heat") is None:
+                    try:
+                        p["heat"] = _atr_heat(binance_client.get_klines(
+                            p.get("symbol"), "1h", limit=120))
+                    except Exception:
+                        pass
                 if shadow_trader.open_from_signal(_tname, p,
                                                   _live(p.get("symbol"))):
                     n_shadow_open += 1
@@ -4107,6 +4117,25 @@ def cycle() -> None:
             # VALIDATED same day on 197 resolved confirms). Computed
             # from candles via _conf_votes so it works on any coin.
             _pw_cf = _conf_votes(_pwd, "LONG")
+            # 🌡🤝 conf-rebuild chips on the watch (user 2026-09-05:
+            # "have the confidence score on them because in this way
+            # we can measure") — heat stamps into the desk records so
+            # the heat-band panel judges it; cluster shows which elite
+            # streams agree with your coin right now. Fail-soft.
+            try:
+                _pw_heat = _atr_heat(_pwd)
+            except Exception:
+                _pw_heat = None
+            _pw_chip = (f" · 🌡 heat {_pw_heat}"
+                        if _pw_heat is not None else "")
+            try:
+                _pw_cl = store.live_cluster(_pw_sym, "LONG")
+                if _pw_cl:
+                    _pw_chip += (" · 🤝 with "
+                                 + "+".join(t.replace("_", " ")
+                                            for t in _pw_cl[:3]))
+            except Exception:
+                pass
             _pw_bench = float(_pwh[-25:-1].max())
             _pw_br = (_pw_bench - _pw_px) / _pw_r if _pw_r > 0 else 0
             _lo9, _hi9 = (1.0, 2.5) if _pw_strong else (0.75, 1.25)
@@ -4149,7 +4178,8 @@ def cycle() -> None:
                             f"· TP2 `{_pw_tp2:g}`\n"
                             f"{_pw_why}\n"
                             f"🎯 conf {_pw_cf}/100"
-                            f"{' 💪 EDGE ZONE' if (_pw_cf or 0) >= 65 else ' — below the 65 line'}\n"
+                            f"{' 💪 EDGE ZONE' if (_pw_cf or 0) >= 65 else ' — below the 65 line'}"
+                            f"{_pw_chip}\n"
                             f"⚠️ early read — smaller size; 🟢 the 1h "
                             f"confirm candle is still the green light\n"
                             f"👁 personal watch")
@@ -4163,6 +4193,7 @@ def cycle() -> None:
                             "tp2": _pw_tp2,
                             "tp_r": round(float(_pw_clip), 2),
                             "conf": _pw_cf,
+                            "heat": _pw_heat,
                             "t15": round(float(_ts15)),
                             "b15": round(float(_bs15))}
                         store.record_signal("personal_watch_early",
@@ -4203,8 +4234,7 @@ def cycle() -> None:
                 f"`{_pw_tp1:g}` (+{(_pw_tp1 / _pw_px - 1) * 100:.1f}%) "
                 f"· TP2 `{_pw_tp2:g}`\n"
                 f"{_pw_why}\n"
-                f"🎯 conf {_pw_cf}/100 💪 EDGE ZONE — validated "
-                f"63.9% · +0.241R\n"
+                f"🎯 conf {_pw_cf}/100{_pw_chip}\n"
                 f"👁 personal watch")
             n_alerts += 1 if ok else 0
             if not ok:
@@ -4215,6 +4245,7 @@ def cycle() -> None:
                 "tp1": _pw_tp1, "tp2": _pw_tp2,
                 "tp_r": round(float(_pw_clip), 2),
                 "conf": _pw_cf,
+                "heat": _pw_heat,
                 "vol_x": round(float(_pw_vx), 2)}
             store.record_signal("personal_watch", _pw_sig)
             # 🧪 desk tier (user 2026-08-31): the 🟢 confirm builds

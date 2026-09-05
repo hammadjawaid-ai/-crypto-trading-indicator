@@ -192,25 +192,69 @@ def shadow_has_open(tier: str, symbol: str) -> bool:
 
 def shadow_open(tier: str, symbol: str, side: str, entry: float,
                 stop: float, tp1: float, tp2: float,
-                conf: float | None = None) -> None:
+                conf: float | None = None,
+                heat: float | None = None) -> None:
     """2026-08-28 (user: "the confidence on telegram... I want to
     know their win rates"): every shadow trade now carries the 🎯
-    confidence score at open, so win rates slice by band directly."""
+    confidence score at open, so win rates slice by band directly.
+    2026-09-05 (user: "have the confidence score on them because in
+    this way we can measure"): 🌡 heat (continuous ATR percentile —
+    the one validated candle input) stamps alongside conf, so the
+    heat-band panel can judge it the same way conf was judged."""
     c = _open()
     try:
-        try:
-            c.execute("ALTER TABLE shadow_trades ADD COLUMN conf REAL")
-            c.commit()
-        except Exception:
-            pass                       # column already exists
+        for _ddl in ("ALTER TABLE shadow_trades ADD COLUMN conf REAL",
+                     "ALTER TABLE shadow_trades ADD COLUMN heat REAL"):
+            try:
+                c.execute(_ddl)
+                c.commit()
+            except Exception:
+                pass                   # column already exists
         c.execute(
             "INSERT INTO shadow_trades (tier,symbol,side,entry,stop,stop0,"
-            "tp1,tp2,peak,opened_at,conf) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            "tp1,tp2,peak,opened_at,conf,heat) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             (tier, symbol, side, entry, stop, stop, tp1, tp2, entry,
-             time.time(), conf))
+             time.time(), conf, heat))
         c.commit()
     finally:
         c.close()
+
+
+def heat_bands() -> list[dict]:
+    """🌡 Win rate by HEAT BAND, all tiers pooled — the reader that
+    judges the ATR-percentile chip on live outcomes (2026-09-05).
+    Bands: <40 / 40-59 / 60-79 / 80+. Read-only."""
+    c = _open()
+    try:
+        cols = {r[1] for r in c.execute("PRAGMA table_info(shadow_trades)")}
+        if "heat" not in cols:
+            return []
+        rows = c.execute(
+            "SELECT heat, pnl_r FROM shadow_trades WHERE status != 'OPEN' "
+            "AND heat IS NOT NULL AND pnl_r IS NOT NULL").fetchall()
+    except Exception:
+        return []
+    finally:
+        c.close()
+
+    def _band(x):
+        return ("<40" if x < 40 else "40-59" if x < 60
+                else "60-79" if x < 80 else "80+")
+    g: dict = {}
+    for ht, r in rows:
+        b = g.setdefault(_band(float(ht)), {"band": _band(float(ht)),
+                                            "n": 0, "wins": 0,
+                                            "net_r": 0.0})
+        b["n"] += 1
+        b["wins"] += 1 if r > 0 else 0
+        b["net_r"] += float(r)
+    order = {"<40": 0, "40-59": 1, "60-79": 2, "80+": 3}
+    out = sorted(g.values(), key=lambda b: order.get(b["band"], 9))
+    for b in out:
+        b["win_pct"] = round(b["wins"] / b["n"] * 100.0, 1) if b["n"] else 0.0
+        b["net_r"] = round(b["net_r"], 2)
+    return out
 
 
 def shadow_open_trades() -> list[dict]:

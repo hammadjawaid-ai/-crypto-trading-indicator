@@ -881,6 +881,14 @@ def _confluence_conf_cached(_bust, window_min: float = 30.0):
 
 
 @st.cache_data(ttl=120, show_spinner=False)
+def _heat_bands_cached(_bust):
+    """🌡 win rate by heat band (user 2026-09-05: 'in this way we can
+    measure') — judges the ATR-percentile chip on live outcomes."""
+    import worker_store as _ws_c
+    return _ws_c.heat_bands()
+
+
+@st.cache_data(ttl=120, show_spinner=False)
 def _duo_pairs_cached(_bust, window_min: float = 30.0):
     """🤝 which exact pairs win (user 2026-09-03: 'apex + best or one
     trade can we test?')."""
@@ -3717,6 +3725,33 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                         f"<b style='color:{_c}'>{_r['exp_r']:+.3f}R"
                         f"/trade</b>{_thin}</span>",
                         unsafe_allow_html=True)
+                # 🌡 heat bands (user 2026-09-05: "in this way we can
+                # measure") — the ATR-percentile chip judged live.
+                try:
+                    _hb_rows = _heat_bands_cached(
+                        int(time.time() // 120))
+                except Exception:
+                    _hb_rows = []
+                if _hb_rows:
+                    st.markdown("<div style='margin-top:.5rem'>**🌡 "
+                                "WIN RATE BY HEAT BAND — all tiers "
+                                "pooled (stamping began 2026-09-05)**"
+                                "</div>", unsafe_allow_html=True)
+                    for _r in _hb_rows:
+                        _c = ("#2ed47a" if _r["net_r"] > 0
+                              else "#ff5c5c")
+                        _per = ((_r["net_r"] / _r["n"])
+                                if _r["n"] else 0.0)
+                        _thin = ("" if _r["n"] >= 20
+                                 else f" · ⚠️ only {_r['n']} — thin")
+                        st.markdown(
+                            f"<span style='font-size:0.8rem;color:"
+                            f"#9aa7c7'>· heat <b>{_r['band']}</b> — "
+                            f"n={_r['n']} · win <b>"
+                            f"{_r['win_pct']:.0f}%</b> · "
+                            f"<b style='color:{_c}'>{_per:+.3f}R"
+                            f"/trade</b>{_thin}</span>",
+                            unsafe_allow_html=True)
                 st.caption(
                     "🔎 The 40-vs-55 question (user, 2026-08-31): the "
                     "💎 ELITE CONVICTION row splits 40-54 vs 55-64 — "
