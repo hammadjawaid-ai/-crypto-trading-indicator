@@ -3854,8 +3854,26 @@ def cycle() -> None:
                 store.record_signal("revival", _rv_sig)
                 shadow_trader.open_from_signal("revival", _rv_sig,
                                                _rvpx)
+                # 🔊 BUZZ (user 2026-09-06: "when the coin re-enters
+                # with its momentum and its above its sl we should
+                # check and notify it") — honest label: near-miss
+                # cell, proving on its own desk tier. The blind
+                # above-SL version measured -0.25R; only this full
+                # range-reclaim earned a look.
+                ok, _ = tg.send(
+                    f"💀→🚀 *REVIVAL — {_rv_sig['base']} "
+                    f"{_rvside}* — the stopped elite coin is BACK\n"
+                    f"price reclaimed the ENTIRE fire-to-stop range "
+                    f"at `{_rvpx:g}` — the ASTER shape, caught\n"
+                    f"entry `{_rvpx:g}` · SL `{_rvsl:g}` · TP "
+                    f"`{_rvtp:g}` (1.5R fixed)\n"
+                    f"_measured on 387 real elite fires: this "
+                    f"trigger ran +0.215R / 50.7% (n=69), improving "
+                    f"through time but NOT yet thirds-green — "
+                    f"PROVING on the desk. Size small._")
+                n_alerts += 1 if ok else 0
                 print(f"[revival] 💀→🚀 {_rvs} {_rvside} extreme "
-                      f"reclaimed @ {_rvpx:g} (records only)",
+                      f"reclaimed @ {_rvpx:g} (buzzed)",
                       flush=True)
             except Exception as _rv_e2:
                 print("  revival check error:", _rv_e2, flush=True)
