@@ -1538,12 +1538,13 @@ def cycle() -> None:
     # silently kill the stream again; only the conf floor gates.
     # NOTE: with form-deflated votes, 70 is a HIGH bar in red regimes
     # — fewer apex buzzes until tier forms recover, by design.
-    # 2026-09-05 final: user order "I am not hearing... apex — make it
-    # on the telegram notification even if they are red on the decision
-    # desk" — this supersedes the 70 floor set earlier tonight (with
-    # form-deflated votes the floor was a wall, not a filter).
-    # Revert: min_conf=70.
-    _push(apex, "apex", _fmt_apex, min_conf=0, tier=None)
+    # 2026-09-06 (user: "the confidence score for apex should be above
+    # 70"): APEX floor at 70 — the measured gate (silenced a
+    # 32%/-0.228R band). tier stays None (no form mute; only the conf
+    # floor filters). Deflation note stands: 70 is a high bar in red
+    # regimes, apex buzzes will be rare until tier forms recover.
+    # Revert to audible-always: min_conf=0.
+    _push(apex, "apex", _fmt_apex, min_conf=70, tier=None)
     # 2026-08-15 user order: 🌟 EARLY ELITE buzzes ALWAYS — no greens
     # gate. Kronos disagreeing is fine ("if kronos dont agree thats
     # ok"): the 🔮 line on every buzz already spells out all three
