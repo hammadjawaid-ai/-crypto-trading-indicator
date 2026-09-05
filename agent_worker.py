@@ -4639,15 +4639,19 @@ def cycle() -> None:
                           flush=True)
             if not _pw_conf:
                 continue
-            # 🎯 CONF GATE at 65 (user 2026-08-31: "ship it with the
-            # gate at 65") — VALIDATED same day on 197 resolved
-            # confirms: conf>=65 63.9% / +0.241R, GREEN BOTH HALVES
-            # (older +0.119, recent +0.331); conf<65 50.7% /
-            # -0.035R (older +0.004, recent -0.067 — flat-to-red).
-            # Sub-65 confirms stay silent. Revert: delete this block.
-            if _pw_cf is not None and _pw_cf < 65:
+            # 🎯 CONF GATE at 45 (user 2026-09-06, the MUBARAK case:
+            # "ungate my confirms and make it 50 and above"). The
+            # score is QUANTIZED to 25/45/65/85, so a literal 50 bar
+            # behaves exactly like 65 and would have kept muting the
+            # MUBARAK-class one-vote confirms the order exists to
+            # free — 45 is the step that fulfills the intent. Only
+            # zero-vote dead-tape confirms (25) stay silent; the
+            # conf/heat/🤝 chips on the buzz do the judging now.
+            # History: the old 65 gate's 197-fire validation did not
+            # hold at year scale (48.4% at >=65). Revert: < 65.
+            if _pw_cf is not None and _pw_cf < 45:
                 print(f"  👁 {_pw_sym} confirm muted — conf "
-                      f"{_pw_cf} < 65", flush=True)
+                      f"{_pw_cf} < 45", flush=True)
                 continue
             if not store.should_alert(f"pwatch:{_pw_sym}", 6 * 3600):
                 continue
