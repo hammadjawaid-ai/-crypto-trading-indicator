@@ -23,7 +23,9 @@ from __future__ import annotations
 import best_board
 import binance_client
 
-CONF_MIN = 70
+CONF_MIN = 0   # 2026-09-05 user order: audible even in deflated
+               # regimes — ranked selection + in-zone + R:R + 
+               # anti-chase still gate; revert: 70
 ZONE_MAX = 0.25
 EXT_24H = 25.0
 EXT_6H = 18.0

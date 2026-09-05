@@ -1519,8 +1519,10 @@ def cycle() -> None:
     # confidence score previously" — BEST floor back to 70 (the Aug 29
     # diet number). tier stays None: the form mute stays off, only the
     # conf floor gates. Same deflation note as apex applies.
+    # 2026-09-05 final: same user order for BEST — audible regardless.
+    # Revert: min_conf=70.
     _push([p for p in best if _in_zone(p)], "best", _fmt_best,
-          min_conf=70, tier=None)
+          min_conf=0, tier=None)
     # 2026-09-05 user order: "apex seems closed... can we have it back
     # please and best of the best and one trade as well" — same two
     # silencers as BEST: the greens gate (14d form) and the conf-70
@@ -1536,7 +1538,12 @@ def cycle() -> None:
     # silently kill the stream again; only the conf floor gates.
     # NOTE: with form-deflated votes, 70 is a HIGH bar in red regimes
     # — fewer apex buzzes until tier forms recover, by design.
-    _push(apex, "apex", _fmt_apex, min_conf=70, tier=None)
+    # 2026-09-05 final: user order "I am not hearing... apex — make it
+    # on the telegram notification even if they are red on the decision
+    # desk" — this supersedes the 70 floor set earlier tonight (with
+    # form-deflated votes the floor was a wall, not a filter).
+    # Revert: min_conf=70.
+    _push(apex, "apex", _fmt_apex, min_conf=0, tier=None)
     # 2026-08-15 user order: 🌟 EARLY ELITE buzzes ALWAYS — no greens
     # gate. Kronos disagreeing is fine ("if kronos dont agree thats
     # ok"): the 🔮 line on every buzz already spells out all three
