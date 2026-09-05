@@ -50,6 +50,7 @@ import smart_stop as _ss_w
 import surge_radar
 import telegram_notify as tg
 import velocity_burst as _vb_w
+import sniper as _sn_w
 import early_trend as _et_w
 import derivatives as _dv_w
 import worker_store as store
@@ -253,6 +254,10 @@ _ECF_FIRES: list = []
 # fast-clock watch (3m + 5m) for 48h — falls included. Populated by
 # the cycle, scanned by the trigger daemon, shared under _TRIG_LOCK.
 _EAGLE_WATCH: dict = {}
+# 🎯 SNIPER armed levels (symbol -> {level, coil, armed_at}) — written
+# by cycle() every 5 min from sniper.arm_check, consumed by the 60s
+# clock above. _TRIG_LOCK guards it.
+_SNIPER_ARMED: dict = {}
 EAGLE_WATCH_H = 48.0
 EAGLE_MAX = 10
 # 💎🔄 RE-QUALIFICATION (user 2026-08-19, after ALICE/BANK hit
@@ -784,6 +789,57 @@ def _trigger_watch() -> None:
                           f"@ {_px9:g}", flush=True)
                 except Exception as exc:
                     print("[eagle] scan error:", exc, flush=True)
+            # 🎯 SNIPER fire check (born 2026-09-06 — the ONLY fully
+            # adversarially-confirmed construct: coiled → heated 55-90
+            # intrabar → 24h-LOW break at the level, SHORT only,
+            # verified 57.5-59.5% / +0.27-0.34R over 366d, floor
+            # +0.085R). The edge lives at the LEVEL FILL, which is
+            # exactly what this 60s clock exists for.
+            with _TRIG_LOCK:
+                _sn_items = list(_SNIPER_ARMED.items())
+            for _sk, _sa in _sn_items:
+                try:
+                    _spx = float(
+                        binance_client.get_ticker_price(_sk) or 0)
+                    if _spx <= 0 or _spx > _sa["level"] * 1.0005:
+                        continue
+                    _plan = _sn_w.fire_check(_sk, _sa["level"])
+                    if _plan is None:
+                        continue
+                    if not store.should_alert(f"sniper:{_sk}",
+                                              4 * 3600):
+                        continue
+                    _sb = _sk.replace("USDT", "")
+                    ok, _ = tg.send(
+                        f"🎯 *SNIPER — {_sb} SHORT* — the flagship "
+                        f"fire\n"
+                        f"coiled {_sa['coil']:.0f} → heated "
+                        f"{_plan['heat']:.0f} → 24h-low break at "
+                        f"`{_plan['entry']:g}` — ENTER AT THE LEVEL\n"
+                        f"entry `{_plan['entry']:g}` · SL "
+                        f"`{_plan['stop']:g}` · TP "
+                        f"`{_plan['tp1']:g}` (1.5R fixed — no BE, "
+                        f"no trail)\n"
+                        f"_the one construct that survived full "
+                        f"adversarial verification: 57.5-59.5% win · "
+                        f"+0.27-0.34R/trade (366d, all thirds green)."
+                        f" Honest floor +0.085R — size to the "
+                        f"floor._")
+                    try:
+                        _plan["base"] = _sb
+                        _plan["conf"] = None
+                        store.record_signal("sniper", _plan)
+                        shadow_trader.open_from_signal(
+                            "sniper", _plan, _spx)
+                    except Exception as exc:
+                        print("[sniper] record error:", exc,
+                              flush=True)
+                    with _TRIG_LOCK:
+                        _SNIPER_ARMED.pop(_sk, None)
+                    print(f"[sniper] 🎯 {_sb} SHORT fired @ "
+                          f"{_spx:g}", flush=True)
+                except Exception as exc:
+                    print("[sniper] fire error:", exc, flush=True)
         except Exception as exc:
             print("[trigger] loop error:", exc, flush=True)
 
@@ -3698,6 +3754,34 @@ def cycle() -> None:
                   f"arms: {_sl_n}", flush=True)
     except Exception as _tw_exc:
         print("  trigger-arm error:", _tw_exc, flush=True)
+    # 🎯 SNIPER arming pass (5-min clock): coiled midcaps get their
+    # 24h-low level armed for the 60s clock. Fail-soft per coin.
+    try:
+        _sn_now = time.time()
+        _sn_new = {}
+        for _sn_sym in _sn_w.SNIPER_COINS:
+            _sa9 = _sn_w.arm_check(_sn_sym)
+            if _sa9 is not None:
+                _sa9["armed_at"] = _sn_now
+                _sn_new[_sn_sym] = _sa9
+        with _TRIG_LOCK:
+            _SNIPER_ARMED.clear()
+            _SNIPER_ARMED.update(_sn_new)
+        if _sn_new:
+            print(f"[sniper] armed: "
+                  f"{', '.join(k.replace('USDT','') for k in _sn_new)}",
+                  flush=True)
+        try:
+            import json as _json_sn
+            with open(str(config.state_path('.sniper_armed.json')),
+                      "w", encoding="utf-8") as _f_sn:
+                _json_sn.dump({"ts": _sn_now,
+                               "armed": list(_sn_new.values())}, _f_sn)
+        except Exception:
+            pass
+    except Exception as _sn_exc:
+        print("  sniper arm error:", _sn_exc, flush=True)
+
     # 💥 THE NUMBERS (user 2026-08-23: "a point where it can burst if
     # it hit that number... that is something we need to catch") —
     # publish every armed trigger level to the page, so the exact
