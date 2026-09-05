@@ -3782,6 +3782,86 @@ def cycle() -> None:
     except Exception as _sn_exc:
         print("  sniper arm error:", _sn_exc, flush=True)
 
+    # 💀→🚀 REVIVAL WATCH (user 2026-09-06, the ASTER case — RECORDS
+    # ONLY). Study wf_a7633390 on 387 real elite fires: 173 stopped
+    # out; only 19.7% of corpses ever reached the original TP1, blind
+    # re-entry measured -0.248R (all thirds red). The ONE near-miss
+    # rule — RV-BREAK, re-enter when price takes out the entire
+    # fire-to-stop extreme — measured +0.215R / 50.7% (n=69) with
+    # thirds improving [-0.016, +0.291, +0.370] but T1 < 0, so it
+    # FAILED the thirds-green bar and ships as a silent desk tier
+    # `revival` to prove forward. NO buzz until its live record earns
+    # one. One watch per stopped trade, 72h window.
+    try:
+        _rv_now = time.time()
+        import sqlite3 as _sq_rv
+        _rvc = _sq_rv.connect(store.DB_PATH, timeout=10)
+        try:
+            _rv_rows = _rvc.execute(
+                "SELECT id, symbol, side, entry, opened_at, closed_at "
+                "FROM shadow_trades WHERE tier='elite_conv' AND "
+                "status='CLOSED' AND exit_reason LIKE '%stop%' AND "
+                "closed_at >= ?", (_rv_now - 72 * 3600,)).fetchall()
+        finally:
+            _rvc.close()
+        for _rvid, _rvs, _rvside, _rve, _rvo, _rvcl in _rv_rows[:12]:
+            try:
+                _rvd = binance_client.get_klines(_rvs, "1h", limit=160)
+                _rvh = _rvd["high"].to_numpy()
+                _rvl = _rvd["low"].to_numpy()
+                _rvts = [ts.timestamp() for ts in _rvd.index]
+                _idx = [k for k, ts in enumerate(_rvts)
+                        if _rvo - 3600 <= ts <= _rvcl]
+                if not _idx:
+                    continue
+                _lng_rv = (_rvside or "").upper() == "LONG"
+                _ext = (max(float(_rvh[k]) for k in _idx) if _lng_rv
+                        else min(float(_rvl[k]) for k in _idx))
+                _rvpx = float(
+                    binance_client.get_ticker_price(_rvs) or 0)
+                if _rvpx <= 0:
+                    continue
+                _took = (_rvpx > _ext) if _lng_rv else (_rvpx < _ext)
+                if not _took:
+                    continue          # keep watching next cycle
+                # one record per stopped trade — key consumed only on
+                # an actual trigger
+                if not store.should_alert(f"revival:{_rvid}",
+                                          96 * 3600):
+                    continue
+                _rvtr = _rvh - _rvl
+                _rvatr = float(_rvtr[-15:-1].mean())
+                if _rvatr <= 0:
+                    continue
+                if _lng_rv:
+                    _rvsl = float(_rvl[-11:-1].min()) - 0.25 * _rvatr
+                    if not (0 < _rvpx - _rvsl <= 4 * _rvatr):
+                        _rvsl = _rvpx - 1.5 * _rvatr
+                    _rvrisk = _rvpx - _rvsl
+                    _rvtp = _rvpx + 1.5 * _rvrisk
+                else:
+                    _rvsl = float(_rvh[-11:-1].max()) + 0.25 * _rvatr
+                    if not (0 < _rvsl - _rvpx <= 4 * _rvatr):
+                        _rvsl = _rvpx + 1.5 * _rvatr
+                    _rvrisk = _rvsl - _rvpx
+                    _rvtp = _rvpx - 1.5 * _rvrisk
+                if _rvrisk <= 0:
+                    continue
+                _rv_sig = {"symbol": _rvs,
+                           "base": _rvs.replace("USDT", ""),
+                           "side": _rvside, "entry": _rvpx,
+                           "stop": _rvsl, "tp1": _rvtp, "tp2": None}
+                store.record_signal("revival", _rv_sig)
+                shadow_trader.open_from_signal("revival", _rv_sig,
+                                               _rvpx)
+                print(f"[revival] 💀→🚀 {_rvs} {_rvside} extreme "
+                      f"reclaimed @ {_rvpx:g} (records only)",
+                      flush=True)
+            except Exception as _rv_e2:
+                print("  revival check error:", _rv_e2, flush=True)
+    except Exception as _rv_exc:
+        print("  revival watch error:", _rv_exc, flush=True)
+
     # 💥 THE NUMBERS (user 2026-08-23: "a point where it can burst if
     # it hit that number... that is something we need to catch") —
     # publish every armed trigger level to the page, so the exact

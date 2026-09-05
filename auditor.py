@@ -45,7 +45,7 @@ STREAM_TO_TIER = {
     "trend": "trend_rider", "eagle_heat": "eagle_heat",
     "duo85": "duo85", "kingpair": "kingpair",
     "tnelite": "tnelite", "apextn": "apextn",
-    "sniper": "sniper",
+    "sniper": "sniper", "revival": "revival",
     "personal_watch": "personal_watch",
     "personal_watch_early": "personal_watch_early",
 }
