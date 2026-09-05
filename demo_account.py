@@ -71,7 +71,11 @@ STATE_FILE = os.environ.get("DEMO_STATE") or \
 # then the confidence duo bands we measure success, and the waking on
 # our coins. no closing until risk is involved, ride to tp1, close,
 # and if the momentum is still there open the trade again").
-GEN = 8
+# GEN 9 = 2026-09-06 ("rotate signal remove it. start again with 1500
+# ... maximum 8 slots and anyone can take any place" + the named seven
+# streams). Open seating: no family caps, rotation OFF, rank floor
+# lowered so any listed stream can seat on its own merits.
+GEN = 9
 START_BAL = 1500.0
 # 6 -> 10 (user 2026-08-23 second follow-up: "instead of 6 we have
 # 10 slots now and 7 for strong triggers and 3 for elite
@@ -111,9 +115,10 @@ ELITE_FAMILY_CAP = 0
 # (its coin+side no longer active in ANY pool) may be rotated out —
 # positives banked first, then negatives cut. Healthy signals are
 # NEVER rotated, and at most this many rotations happen per cycle.
-ROTATE_MAX = 2
-SMART_EXIT_SKIP: set = {"strong_trigger", "duo_band",
-                        "pw_waking"}   # GEN 8: SL/TP1 only
+ROTATE_MAX = 0   # GEN 9 user order: rotation REMOVED
+SMART_EXIT_SKIP: set = {"strong_trigger", "duo_band", "pw_waking",
+                        "moonshot", "sniper", "pair_king",
+                        "early_best"}   # GEN 9: SL/TP1 only, all
 # 🧠 STRENGTH-AWARE SMART EXIT + TRAIL (user 2026-08-15: "smart exit
 # should have a trailing method... loosen a bit if the signal
 # strength is good... let them ride to tp and trail to tp2 if they
@@ -147,7 +152,7 @@ STOP_MAX_PCT = 0.25            # skip stops wider than 25%
 # quality floor (my call, user granted latitude 2026-08-09): an empty
 # slot is better than a mediocre trade. Rank ~100 needs either a
 # top-record system, a strong score, or multi-system agreement.
-MIN_RANK = 100.0
+MIN_RANK = 85.0  # GEN 9: anyone can take any place
 # construct-class weights — the user's chosen seven (2026-08-09:
 # "early elite, kronos approved, surge, ignition, fresh movers, top
 # conviction and moonshot — worth trying"; PRIME/others dropped from
@@ -164,12 +169,13 @@ MIN_RANK = 100.0
 # can be secondary, top priority is strong triggers and reruns...
 # nothing else should be a part of demo trading"): exactly three
 # streams, weighted by their LIVE desk records —
-CLASS_W = {"strong_trigger": 100,  # 💥⚡ P1 (68% live at scale)
-           "duo_band": 95,         # 🤝 P2: kingpair/apextn/duo85/
-                                   # tnelite — the measured pairs
-           "pw_waking": 90}        # ⚡ P3: the user's 20-coin waking
-                                   # lane (75% live at 12 closed,
-                                   # bar: >=60% at 20)
+CLASS_W = {"strong_trigger": 100,  # 1. strong triggers (+ reruns)
+           "moonshot": 99,         # 2. moonshot break fires
+           "pw_waking": 98,        # 3. waking coins, user list
+           "sniper": 97,           # 4. the flagship construct
+           "duo_band": 96,         # 5. DUO 85+
+           "pair_king": 95,        # 6. king pair + apex x tn
+           "early_best": 94}       # 7. early elite / movers, conf>=85
 # GEN 6: no conditional seats — the pool is exactly the named three.
 CONDITIONAL_SRC: set = set()
 # 2026-08-11 user call: 🚀 MOONSHOT removed from the demo menu (desk
@@ -403,9 +409,11 @@ def try_open(state: dict, cands: list, live_fn, active=None):
         margin = state["balance"] / MAX_SLOTS
         # GEN 8 ladder: strong trigger 10x, duo pairs 8x, waking 5x —
         # "maximum leverage of upto 10x per trade" is the cap.
-        lev = {"strong_trigger": LEV_MAX,
-               "duo_band": LEV_MID,
-               "pw_waking": LEV_BASE}.get(c["src"], LEV_BASE)
+        lev = {"strong_trigger": LEV_MAX, "sniper": LEV_MAX,
+               "duo_band": LEV_MID, "pair_king": LEV_MID,
+               "moonshot": LEV_MID,
+               "pw_waking": LEV_BASE,
+               "early_best": LEV_BASE}.get(c["src"], LEV_BASE)
         # real-account physics: the stop must sit well inside the
         # slot's margin — a stop past ~liquidation is not a trade.
         if stop_pct >= 0.8 / lev:
@@ -569,7 +577,7 @@ def manage(state: dict, live_fn, kr_get=None) -> list:
             # is still live next cycle with a fresh in-zone plan,
             # try_open re-enters it as a NEW trade.
             rec = _close_qty(state, p, p["qty"], p["tp1"],
-                             "TP1 — banked 100% (GEN 8); reopens if "
+                             "TP1 — banked 100% (GEN 9); reopens if "
                              "the momentum still holds")
             # GEN 8 re-entry payload (user: "if the momentum is still
             # there open the trade again") — the worker checks the 1h

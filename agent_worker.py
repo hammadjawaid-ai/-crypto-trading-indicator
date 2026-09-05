@@ -229,6 +229,9 @@ DEMO_FIRE_TTL_S = 1800
 _DEMO_DUOS: list = []
 _DEMO_WAKE: list = []
 _DEMO_REOPEN: list = []
+# 🎯 GEN 9: sniper fires feed demo seats (written from the 60s watch
+# thread under _TRIG_LOCK, drained by cycle()).
+_DEMO_SNIPES: list = []
 # 💎✅ ELITE CONFIRMED ENTRY watch (user 2026-08-23: "make this one
 # then... built separately, no touching the elite conviction cards,
 # and it have the buzz of its own"). The VALIDATED entry style on
@@ -836,6 +839,17 @@ def _trigger_watch() -> None:
                               flush=True)
                     with _TRIG_LOCK:
                         _SNIPER_ARMED.pop(_sk, None)
+                        # 🎮 GEN 9: sniper fires take demo seats
+                        _DEMO_SNIPES.append(
+                            {"symbol": _sk, "base": _sb,
+                             "side": "SHORT",
+                             "entry": _plan["entry"],
+                             "stop": _plan["stop"],
+                             "tp1": _plan["tp1"], "tp2": None,
+                             "score": float(_plan.get("heat") or 70),
+                             "src": "sniper",
+                             "fired_at": time.time()})
+                        del _DEMO_SNIPES[:-10]
                     print(f"[sniper] 🎯 {_sb} SHORT fired @ "
                           f"{_spx:g}", flush=True)
                 except Exception as exc:
@@ -3062,15 +3076,20 @@ def cycle() -> None:
                       flush=True)
             print(f"[{_du_key}] 🤝 {_du_b} {_du['side']} "
                   f"({_du_t})", flush=True)
-            # 🎮 GEN 8 P2 feed: every pair buzz is a demo candidate
-            _DEMO_DUOS.append(
-                {"symbol": _du["symbol"], "base": _du_b,
-                 "side": _du["side"], "entry": _du["entry"],
-                 "stop": _du["stop"], "tp1": _du["tp1"],
-                 "tp2": _du.get("tp2"),
-                 "score": float(_du.get("conf") or 90),
-                 "src": "duo_band", "fired_at": time.time()})
-            del _DEMO_DUOS[:-20]
+            # 🎮 GEN 9 pair feeds: duo85 -> duo_band seat class;
+            # kingpair/apextn -> pair_king; tnelite buzzes but takes
+            # no demo seat (not on the user's GEN 9 list).
+            _du_seat = {"duo85": "duo_band", "kingpair": "pair_king",
+                        "apextn": "pair_king"}.get(_du_key)
+            if _du_seat:
+                _DEMO_DUOS.append(
+                    {"symbol": _du["symbol"], "base": _du_b,
+                     "side": _du["side"], "entry": _du["entry"],
+                     "stop": _du["stop"], "tp1": _du["tp1"],
+                     "tp2": _du.get("tp2"),
+                     "score": float(_du.get("conf") or 90),
+                     "src": _du_seat, "fired_at": time.time()})
+                del _DEMO_DUOS[:-20]
     except Exception as _du_exc:
         print("  duo85 error:", _du_exc, flush=True)
 
@@ -3472,8 +3491,12 @@ def cycle() -> None:
         # form = the duo85 tier; young tiers just read ~0 = neutral).
         _dz_form = {}
         for _dt, _sh in (("strong_trigger", "trig_strong"),
+                         ("moonshot", "moonshot"),
+                         ("pw_waking", "personal_watch_early"),
+                         ("sniper", "sniper"),
                          ("duo_band", "duo85"),
-                         ("pw_waking", "personal_watch_early")):
+                         ("pair_king", "kingpair"),
+                         ("early_best", "elite_early")):
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_sh)["net_r"]
             except Exception:
@@ -3536,18 +3559,54 @@ def cycle() -> None:
         _dz_reo = [d for d in _DEMO_REOPEN
                    if _now - d["fired_at"] <= 900]
         _DEMO_REOPEN[:] = []
+        # 🎮 GEN 9 POOLS (user 2026-09-06): the named seven, open
+        # seating — no family caps, no rotation, best rank wins a
+        # free slot.
+        with _TRIG_LOCK:
+            _DEMO_SNIPES[:] = [d for d in _DEMO_SNIPES
+                               if _now - d["fired_at"]
+                               <= DEMO_FIRE_TTL_S]
+            _dz_snipes = list(_DEMO_SNIPES)
+        _dz_early = []
+        for _eb in (list(elite_early)
+                    + list(r.get("early_strong", []) or [])):
+            try:
+                if not (_eb.get("entry") and _eb.get("stop")
+                        and _eb.get("tp1")):
+                    continue
+                _eb_cf = _eb.get("conf")
+                if _eb_cf is None:
+                    _eb_cf = best_board.confidence(
+                        _eb.get("symbol"), _eb.get("side"))
+                if float(_eb_cf or 0) >= 85:
+                    _dz_early.append(dict(_eb, conf=_eb_cf,
+                                          src="early_best"))
+            except Exception:
+                continue
         _dz_pools = {
             "strong_trigger": ([f for f in _dz_fires
                                 if f["src"] in ("strong_trigger",
                                                 "rerun")]
                                + [d for d in _dz_reo
                                   if d["src"] == "strong_trigger"]),
-            "duo_band": (list(_DEMO_DUOS)
-                         + [d for d in _dz_reo
-                            if d["src"] == "duo_band"]),
+            "moonshot": [p for p in list(_moon_fires)
+                         if p.get("entry") and p.get("stop")
+                         and p.get("tp1")],
             "pw_waking": (list(_DEMO_WAKE)
                           + [d for d in _dz_reo
-                             if d["src"] == "pw_waking"])}
+                             if d["src"] == "pw_waking"]),
+            "sniper": (_dz_snipes
+                       + [d for d in _dz_reo
+                          if d["src"] == "sniper"]),
+            "duo_band": ([d for d in _DEMO_DUOS
+                          if d["src"] == "duo_band"]
+                         + [d for d in _dz_reo
+                            if d["src"] == "duo_band"]),
+            "pair_king": ([d for d in _DEMO_DUOS
+                           if d["src"] == "pair_king"]
+                          + [d for d in _dz_reo
+                             if d["src"] == "pair_king"]),
+            "early_best": _dz_early}
         # 🔄 GEN 7 rotation input: every (coin, side) with a LIVE
         # signal this cycle — positions outside this set are the
         # rotation candidates ("a losing trade stands only while
@@ -3610,8 +3669,10 @@ def cycle() -> None:
                      "score": float(_rp8.get("score") or 80),
                      "src": (_rec8.get("src")
                              if _rec8.get("src") in
-                             ("strong_trigger", "duo_band",
-                              "pw_waking") else "strong_trigger"),
+                             ("strong_trigger", "moonshot",
+                              "pw_waking", "sniper", "duo_band",
+                              "pair_king", "early_best")
+                             else "strong_trigger"),
                      "chain": int(_rp8.get("chain") or 0) + 1,
                      "fired_at": _now})
                 print(f"[gen8] 🔁 momentum re-entry queued "
@@ -3634,7 +3695,7 @@ def cycle() -> None:
 
         for _rr in _dz_rot:
             ok, _ = _dz_tg(
-                f"🎮🔄 *DEMO $1500 GEN8* — ROTATED OUT "
+                f"🎮🔄 *DEMO $1500 GEN9* — ROTATED OUT "
                 f"{_rr['base']} {_rr['side']} ({_rr['reason']}) → "
                 f"{'+' if _rr['pnl'] >= 0 else ''}"
                 f"${_rr['pnl']:,.2f}\n"
@@ -3644,7 +3705,7 @@ def cycle() -> None:
         for _po in _dz_opened:
             _agr = int(_po.get("agree", 1))
             ok, _ = _dz_tg(
-                f"🎮 *DEMO $1500 GEN8* — OPENED {_po['base']} "
+                f"🎮 *DEMO $1500 GEN9* — OPENED {_po['base']} "
                 f"{_po['side']} "
                 f"({'🤝 ' + str(_agr) + ' SYSTEMS AGREE · ' if _agr > 1 else ''}"
                 f"src `{_po.get('srcs', _po['src'])}` · score "
@@ -3662,7 +3723,7 @@ def cycle() -> None:
                 # 🧠🛡 strength-aware guard — position still open, the
                 # brain gave a STRONG signal room instead of banking
                 ok, _ = _dz_tg(
-                    f"🎮🧠 *DEMO $1500 GEN8* — RIDING THROUGH THE "
+                    f"🎮🧠 *DEMO $1500 GEN9* — RIDING THROUGH THE "
                     f"FLIP {_rec['base']} {_rec['side']}\n"
                     f"{_rec['reason']}\nstop now "
                     f"`{_rec['stop']:g}` · balance "
@@ -3672,7 +3733,7 @@ def cycle() -> None:
             _tag = ("💰 TP1 half-banked" if _ev == "tp1"
                     else "CLOSED")
             ok, _ = _dz_tg(
-                f"🎮 *DEMO $1500 GEN8* — {_tag} {_rec['base']} "
+                f"🎮 *DEMO $1500 GEN9* — {_tag} {_rec['base']} "
                 f"{_rec['side']} ({_rec['reason']}) → "
                 f"{'+' if _rec['pnl'] >= 0 else ''}"
                 f"${_rec['pnl']:,.2f}\n"
