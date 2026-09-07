@@ -450,6 +450,17 @@ def run_cycle(tier_signals: dict, live_px_fn) -> dict:
         out["killed"] = True
         return out
 
+    # 📈 equity snapshots for the board's curve (demo parity, user
+    # 2026-09-07: "the ui of live trading should be similar to demo
+    # trading"). One point per cycle, capped.
+    try:
+        _eh = s.setdefault("equity_hist", [])
+        if not _eh or now - float(_eh[-1][0]) >= 240:
+            _eh.append([now, float(s.get("balance") or 0)])
+            del _eh[:-2500]
+    except Exception:
+        pass
+
     # --- reconcile with the exchange (SL/TP may have fired) --------------
     # closes the sync detects (stop/target fired while we weren't looking)
     # are surfaced in out["closed"] so the user gets the Telegram receipt;

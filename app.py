@@ -17057,98 +17057,164 @@ if active_section == "💸 Live Trading":
             "⚠️ **REAL MONEY MODE** — every trade you open here uses real "
             "USDT on your Bybit account. The bot suggests; YOU confirm.")
 
-    # --- 🎮→💸 GEN 10 LIVE EXECUTOR BOARD (user 2026-09-07: "where can
-    # we see this live trade dashboard as we have for demo trading").
-    # Read-only mirror of the 24/7 worker's real-money state
-    # (.live_exec.json on the shared state dir) — the WORKER trades,
-    # this panel only reports. Fail-soft: any error hides the board
-    # rather than breaking the section.
+    # --- 🎮→💸 GEN 10 LIVE EXECUTOR BOARD (user 2026-09-07: "the ui of
+    # live trading should be similar to demo trading") — the demo
+    # cockpit's visual language on the real-money ledger: gradient
+    # header, equity/start/win-rate/seat tiles, equity curve, styled
+    # seat cards. Read-only mirror of .live_exec.json — the WORKER
+    # trades, this board only reports. Fail-soft everywhere.
     try:
+        import live_executor as _lxm
         _lx_on = (os.environ.get("LIVE_EXECUTOR", "").strip().lower()
                   in ("1", "true", "yes", "on"))
         _g10_on = (os.environ.get("LIVE_GEN10", "").strip().lower()
                    in ("1", "true", "yes", "on"))
+        _lx_hold = bool(getattr(_lxm, "GEN10_ENTRY_HOLD", False))
         _lx_s = lb.load_state(config.state_path(".live_exec.json"))
         _lx_open = list(_lx_s.get("open") or [])
         _lx_closed = list(_lx_s.get("closed") or [])
         if _lx_on or _g10_on or _lx_open or _lx_closed:
-            st.markdown("#### 🎮→💸 GEN 10 LIVE — the 24/7 executor, "
-                        "real money on the demo brain")
-            st.caption(
-                "Same seven streams · same conf-band gates · 8 seats · "
-                "equity/8 × 10x/8x/6x · SL-or-TP1-bank-100% · 72h "
-                "time-stop · exchange-side stops. This board mirrors "
-                "the worker's ledger; every open/close also buzzes 💸 "
-                "on Telegram.")
+            _lx_bal = float(_lx_s.get("balance") or 0)
+            _lx_st0 = float(_lx_s.get("starting_balance") or 0)
+            _lx_net = _lx_bal - _lx_st0
+            _lx_wins = sum(1 for c in _lx_closed
+                           if float(c.get("pnl_usd") or 0) > 0)
+            _lx_wr = (_lx_wins / len(_lx_closed) * 100
+                      if _lx_closed else 0.0)
+            _lx_days = max(0.0, (time.time()
+                                 - float(_lx_s.get("started_at")
+                                         or time.time())) / 86400)
+            st.markdown(
+                "<div style='background:linear-gradient(135deg,"
+                "rgba(46,212,122,0.16),rgba(255,196,64,0.08));"
+                "border:1.5px solid rgba(46,212,122,0.5);"
+                "border-radius:16px;padding:16px 22px;margin:6px 0 "
+                "12px'>"
+                "<span style='font-size:1.5rem;font-weight:900;"
+                "background:linear-gradient(90deg,#2ed47a,#ffc440);"
+                "-webkit-background-clip:text;-webkit-text-fill-color:"
+                "transparent;background-clip:text'>🎮→💸 GEN 10 LIVE "
+                "— REAL MONEY</span><br>"
+                "<span style='color:#9aa7c7;font-size:0.82rem'>The "
+                "demo brain on your Bybit account: SAME seven "
+                "streams, SAME conf-band gates (💥 strong trigger "
+                "40-54 + 65-84 · 🚀 moonshot + 🎯 sniper 55-64 · ⚡ "
+                "waking 40-54 · 🟢 confirm 40-54 + 65-84 · 🤝 DUO "
+                "85+ · 💥🔮 trig×KR 40-54 + 65-84) · 8 seats, no "
+                "rotation, margin = equity÷8 levered 10x (triggers/"
+                "sniper/moonshot) / 8x (duo/trig×KR) / 6x (my-watch "
+                "lanes) · 💰 BANK 100% AT TP1 or SL, nothing else — "
+                "no BE, no trail · 72h time-stop · SL/TP parked ON "
+                "the exchange · daily -10% halt · -15% kill switch. "
+                "Every open/close buzzes 💸 on Telegram. REAL ORDERS "
+                f"— day {_lx_days:.1f}.</span></div>",
+                unsafe_allow_html=True)
             if _lx_s.get("halted"):
                 st.error("🛑 KILL SWITCH FIRED — the executor closed "
                          "everything and is permanently halted until "
                          "you review.")
             elif not _lx_s.get("started_at"):
                 st.info(
-                    "⏳ Not armed yet — set `LIVE_EXECUTOR=1`, "
-                    "`LIVE_GEN10=1`, `BYBIT_API_KEY/SECRET` and "
-                    "`BYBIT_TESTNET=false` in the Render environment. "
-                    "It arms on the first cycle that reads non-zero "
-                    "Unified Trading equity, and buzzes 💸 ARMED.")
-            else:
-                _lx_bal = float(_lx_s.get("balance") or 0)
-                _lx_st0 = float(_lx_s.get("starting_balance") or 0) or 1.0
-                _lx_net = _lx_bal - _lx_st0
-                _lx_w = sum(1 for c in _lx_closed
-                            if float(c.get("pnl_usd") or 0) > 0)
-                _m1, _m2, _m3, _m4 = st.columns(4)
-                _m1.metric("balance", f"${_lx_bal:,.2f}",
-                           f"{_lx_net / _lx_st0 * 100:+.1f}% since start")
-                _m2.metric("net P&L", f"${_lx_net:+,.2f}")
-                _m3.metric("seats", f"{len(_lx_open)}/8 open")
-                _m4.metric(
-                    "closed",
-                    f"{len(_lx_closed)}"
-                    + (f" · {_lx_w / len(_lx_closed) * 100:.0f}% win"
-                       if _lx_closed else ""))
-                for _pl in _lx_open:
-                    _age_h = (time.time()
-                              - float(_pl.get("opened_at") or 0)) / 3600
-                    _tag = ("🎮 " + str(_pl.get("src"))
-                            if _pl.get("gen10")
-                            else str(_pl.get("tier") or "old menu"))
-                    st.markdown(
-                        f"<span style='font-size:0.85rem'>"
-                        f"· <b>{_pl.get('base')}</b> {_pl.get('side')} "
-                        f"({_tag}) — entry `{float(_pl.get('entry') or 0):g}` "
-                        f"· SL `{float(_pl.get('stop') or 0):g}` · TP1 "
-                        f"`{float(_pl.get('tp1') or _pl.get('target') or 0):g}` "
-                        f"· {_pl.get('leverage')}x · margin "
-                        f"${float(_pl.get('margin') or 0):,.2f} · "
-                        f"{_age_h:.1f}h held</span>",
-                        unsafe_allow_html=True)
-                if _lx_closed:
-                    with st.expander(
-                            f"📋 closed live trades ({len(_lx_closed)})",
-                            expanded=False):
-                        for _cl in list(reversed(_lx_closed))[:20]:
-                            _pu = float(_cl.get("pnl_usd") or 0)
-                            _cc = "#2ed47a" if _pu > 0 else "#ff5c5c"
-                            st.markdown(
-                                f"<span style='font-size:0.82rem'>"
-                                f"· {_cl.get('base')} {_cl.get('side')} — "
-                                f"{_cl.get('exit_reason')} · "
-                                f"<b style='color:{_cc}'>${_pu:+,.2f}</b> "
-                                f"({float(_cl.get('pnl_pct') or 0):+.2f}%)"
-                                f"</span>", unsafe_allow_html=True)
-            # 🔌 connection probe (2026-09-07, the $0.00 mystery): ask
-            # Bybit directly and SHOW the raw answer or error — the
-            # normal reader swallows exceptions into a silent $0, which
-            # is undiagnosable from the page.
+                    "⏳ Not armed yet — needs LIVE_EXECUTOR=1, "
+                    "LIVE_GEN10=1, BYBIT_API_KEY/SECRET and "
+                    "BYBIT_TESTNET=false in the Render environment, "
+                    "and a server region Bybit accepts. It arms on "
+                    "the first cycle that reads non-zero Unified "
+                    "Trading equity, and buzzes 💸 ARMED.")
+            elif _lx_hold:
+                st.warning("⏸ ENTRY HOLD — armed, but opening "
+                           "NOTHING until you give the word. Equity "
+                           "sync, watchdog and position management "
+                           "keep running.")
+            _t1x, _t2x, _t3x, _t4x = st.columns(4)
+            _t1x.metric("💼 Bybit equity", f"${_lx_bal:,.2f}",
+                        (f"{_lx_net:+,.2f} "
+                         f"({_lx_net / _lx_st0 * 100:+.1f}%)"
+                         if _lx_st0 > 0 else None))
+            _t2x.metric("🏁 Started with",
+                        f"${_lx_st0:,.2f}" if _lx_st0 else "—")
+            _t3x.metric("🏆 Win rate",
+                        f"{_lx_wr:.0f}%" if _lx_closed else "—",
+                        f"{_lx_wins}/{len(_lx_closed)} closed")
+            _t4x.metric("📂 Seats", f"{len(_lx_open)}/8")
+            _lx_hist = _lx_s.get("equity_hist") or []
+            if len(_lx_hist) >= 2:
+                _lx_hdf = pd.DataFrame(_lx_hist,
+                                       columns=["ts", "equity"])
+                _lx_hdf["time"] = pd.to_datetime(_lx_hdf["ts"],
+                                                 unit="s")
+                st.line_chart(_lx_hdf.set_index("time")["equity"],
+                              height=220)
+            elif _lx_s.get("started_at"):
+                st.caption("📈 Equity curve appears after the first "
+                           "worker cycles record snapshots (~5 min "
+                           "each).")
+            st.markdown("#### 📂 Open live positions")
+            if not _lx_open:
+                st.caption("· No seats filled"
+                           + (" — entry HOLD is on." if _lx_hold else
+                              " — the executor only takes in-zone "
+                              "fires inside their conf bands. 💸 "
+                              "buzzes land the moment it acts."))
+            for _p in _lx_open:
+                _lp = float(prices.get(_p.get("symbol")) or 0)
+                _upnl = ((_lp - float(_p.get("entry") or 0))
+                         * float(_p.get("qty") or 0)
+                         * (1 if _p.get("side") == "LONG" else -1)
+                         ) if _lp else 0.0
+                _ucol = "#2ed47a" if _upnl >= 0 else "#ff5c5c"
+                _age_h = (time.time()
+                          - float(_p.get("opened_at") or 0)) / 3600
+                _tagx = ("🎮 " + str(_p.get("src"))
+                         if _p.get("gen10")
+                         else str(_p.get("tier") or "manual/old"))
+                st.markdown(
+                    f"<div style='background:rgba(46,212,122,0.05);"
+                    f"border:1.5px solid rgba(46,212,122,0.4);"
+                    f"border-radius:12px;padding:10px 15px;"
+                    f"margin:5px 0'>"
+                    f"<b style='font-size:1.05rem'>{_p.get('base')}"
+                    f"</b> <span style='color:"
+                    f"{'#2ed47a' if _p.get('side') == 'LONG' else '#ff5c5c'};"
+                    f"font-weight:800'>{_p.get('side')}</span> "
+                    f"<span style='color:#8b93a7;font-size:0.72rem'>"
+                    f"· {_tagx} · {_age_h:.1f}h · "
+                    f"{_p.get('leverage')}x · margin "
+                    f"${float(_p.get('margin') or 0):,.2f} · notional "
+                    f"${float(_p.get('notional') or 0):,.2f}</span>"
+                    f"<br><span style='color:#e6e9f0;font-size:"
+                    f"0.85rem'>entry {float(_p.get('entry') or 0):g} "
+                    f"· live {_lp:g} · SL "
+                    f"{float(_p.get('stop') or 0):g} · TP1 "
+                    f"{float(_p.get('tp1') or _p.get('target') or 0):g}"
+                    f" · <b style='color:{_ucol}'>uP&L "
+                    f"${_upnl:+,.2f}</b></span></div>",
+                    unsafe_allow_html=True)
+            if _lx_closed:
+                with st.expander(
+                        f"📋 closed live trades ({len(_lx_closed)})",
+                        expanded=False):
+                    for _cl in list(reversed(_lx_closed))[:20]:
+                        _pu = float(_cl.get("pnl_usd") or 0)
+                        _cc = "#2ed47a" if _pu > 0 else "#ff5c5c"
+                        st.markdown(
+                            f"<span style='font-size:0.82rem'>"
+                            f"· {_cl.get('base')} {_cl.get('side')} "
+                            f"— {_cl.get('exit_reason')} · "
+                            f"<b style='color:{_cc}'>${_pu:+,.2f}</b>"
+                            f" ({float(_cl.get('pnl_pct') or 0):+.2f}"
+                            f"%)</span>", unsafe_allow_html=True)
+            # 🔌 connection probe (the $0.00 lesson): show Bybit's RAW
+            # answer or error — never a silent zero.
             try:
                 _pb = lb.client().get_wallet_balance(
                     accountType="UNIFIED", coin="USDT")
-                _pb_rows = ((_pb.get("result") or {}).get("list") or [])
+                _pb_rows = ((_pb.get("result") or {}).get("list")
+                            or [])
                 if _pb_rows:
                     _pb_eq = float(_pb_rows[0].get("totalEquity") or 0)
-                    st.caption(f"🔌 Bybit answers: UNIFIED totalEquity "
-                               f"= ${_pb_eq:,.2f}")
+                    st.caption(f"🔌 Bybit answers: UNIFIED "
+                               f"totalEquity = ${_pb_eq:,.2f}")
                 else:
                     st.caption("🔌 Bybit answered but the UNIFIED "
                                "account list is EMPTY — this account "
