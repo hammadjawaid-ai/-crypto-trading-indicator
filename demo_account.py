@@ -195,7 +195,8 @@ CLASS_W = {"strong_trigger": 100,  # 1. strong triggers (+ reruns)
 #   moonshot        55-64 (75% / +0.933R n=28)
 #   sniper          55-64 (sniper2 golden-cell band, 5/6 live)
 #   pw_waking       40-54 (62% / +0.584R n=26)
-#   pw_confirm      65-84 (62% / +0.446R n=29)
+#   pw_confirm      40-54 (75% / +0.823R n=12, thin — user add
+#                   2026-09-07) + 65-84 (62% / +0.446R n=29)
 #   duo_band        85+   (the DUO cell by construction)
 CONF_GATE: dict = {
     "strong_trigger": ((40.0, 55.0), (65.0, 85.0)),
@@ -203,7 +204,7 @@ CONF_GATE: dict = {
     "moonshot": ((55.0, 65.0),),
     "sniper": ((55.0, 65.0),),
     "pw_waking": ((40.0, 55.0),),
-    "pw_confirm": ((65.0, 85.0),),
+    "pw_confirm": ((40.0, 55.0), (65.0, 85.0)),
     "duo_band": ((85.0, 1000.0),),
 }
 # GEN 6: no conditional seats — the pool is exactly the named three.
