@@ -413,6 +413,14 @@ def run_cycle(tier_signals: dict, live_px_fn) -> dict:
         out["notes"].append(f"ARMED — starting equity ${eq:,.2f}")
     elif eq and eq > 0:
         s["balance"] = float(eq)
+    elif s.get("started_at"):
+        # ⚠️ ARMED but the equity read failed — an expired/revoked key
+        # or a Bybit API outage looks EXACTLY like this. Surface it so
+        # the worker can buzz (the silent-death gap, user 2026-09-07:
+        # "so I am aware of everything?").
+        out["notes"].append(
+            "cannot read Bybit equity — key expired/revoked or API "
+            "down; no live trades until this clears")
 
     # --- permanent halt / kill switch ------------------------------------
     if s.get("halted"):

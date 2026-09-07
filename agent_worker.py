@@ -3285,6 +3285,19 @@ def cycle() -> None:
                                            12 * 3600)):
                 ok, _ = tg.send(f"👀 *LIVE* — {_note}")
                 n_alerts += 1 if ok else 0
+            # ⚠️ the executor lost its Bybit connection (expired key,
+            # revoked key, API outage) — buzz at most once per 20h so
+            # a dead key can never die silently for days.
+            if ("cannot read bybit equity" in _note.lower()
+                    and store.should_alert("live_dry", 20 * 3600)):
+                ok, _ = tg.send(
+                    "⚠️ *LIVE EXECUTOR CAN'T REACH BYBIT* — the "
+                    "equity read is failing (expired/revoked API key "
+                    "or Bybit outage). NO live trades are being "
+                    "placed while this lasts; open positions keep "
+                    "their exchange-side SL/TP. Check "
+                    "BYBIT_API_KEY/SECRET in the Render environment.")
+                n_alerts += 1 if ok else 0
             if "ARMED" in _note:
                 if live_executor.GEN10:
                     ok, _ = tg.send(
