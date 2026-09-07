@@ -90,9 +90,9 @@ MAX_SLOTS_HOT = 8
 # 50-200 dollars per trade... notions as per 1500 in the bank
 # accordingly"): per-slot margin = balance / MAX_SLOTS, leverage
 # graded by the validated quality tells — never a flat max.
-LEV_BASE = 5.0                 # GEN 8: ⚡ pw_waking
-LEV_MID = 8.0                  # GEN 8: 🤝 duo_band pairs
-LEV_MAX = 10.0                 # GEN 8: 💥 strong trigger (the cap)
+LEV_BASE = 5.0                 # GEN 10: 🎯 sniper (size to the floor)
+LEV_MID = 8.0                  # GEN 10: the proven-green middle
+LEV_MAX = 10.0                 # GEN 10: strong@65-84 + moonshot (cap)
                                # (validated 64.7% · +0.288R)
 FEE = 0.00055                  # Bybit taker, per side
 TIME_STOP_H = 72     # GEN 8: seat hygiene only — the
@@ -117,8 +117,8 @@ ELITE_FAMILY_CAP = 0
 # NEVER rotated, and at most this many rotations happen per cycle.
 ROTATE_MAX = 0   # GEN 9 user order: rotation REMOVED
 SMART_EXIT_SKIP: set = {"strong_trigger", "duo_band", "pw_waking",
-                        "moonshot", "sniper", "pair_king",
-                        "early_best"}   # GEN 9: SL/TP1 only, all
+                        "moonshot", "sniper", "pw_confirm",
+                        "strig_kr"}     # GEN 10: SL/TP1 only, all
 # 🧠 STRENGTH-AWARE SMART EXIT + TRAIL (user 2026-08-15: "smart exit
 # should have a trailing method... loosen a bit if the signal
 # strength is good... let them ride to tp and trail to tp2 if they
@@ -169,13 +169,42 @@ MIN_RANK = 85.0  # GEN 9: anyone can take any place
 # can be secondary, top priority is strong triggers and reruns...
 # nothing else should be a part of demo trading"): exactly three
 # streams, weighted by their LIVE desk records —
+# GEN 10 RULES (user 2026-09-07: "remove king pair and early best...
+# dont change the current standing just update for what we are doing
+# ahead"): GEN stays 9 ON PURPOSE — bumping it would reset the
+# balance and history, and the order was rules-forward-only. The
+# roster is the user's five picks off the live conf chart, each
+# stream seated ONLY in its measured-green confidence band(s) — see
+# CONF_GATE below. pair_king and early_best lose their seats (king
+# pair 33%/-0.355R live; early elite 85+ 19%/-0.514R).
 CLASS_W = {"strong_trigger": 100,  # 1. strong triggers (+ reruns)
-           "moonshot": 99,         # 2. moonshot break fires
-           "pw_waking": 98,        # 3. waking coins, user list
-           "sniper": 97,           # 4. the flagship construct
-           "duo_band": 96,         # 5. DUO 85+
-           "pair_king": 95,        # 6. king pair + apex x tn
-           "early_best": 94}       # 7. early elite / movers, conf>=85
+           "moonshot": 99,         # 2a. moonshot break fires
+           "sniper": 98,           # 2b. sniper family fires
+           "pw_waking": 97,        # 3a. waking coins, user list
+           "pw_confirm": 96,       # 3b. my-watch 1h confirms
+           "duo_band": 95,         # 4. DUO 85+
+           "strig_kr": 94}         # 5. strong trigger x kronos
+# 🎯 CONF-BAND SEAT GATES (user 2026-09-07, read off the live desk
+# ledger): a stream's candidate takes a seat ONLY when its conf falls
+# in a band that measured green on its own closed trades. Bands are
+# half-open [lo, hi). Momentum re-entries (chain > 0) are exempt —
+# they qualified at original entry and re-arm on the burst gate.
+#   strong_trigger  40-54 (69% n=70) + 65-84 (83% n=48)
+#   strig_kr        40-54 + 65-84 (mirrors its parent; thin, proving)
+#   moonshot        55-64 (75% / +0.933R n=28)
+#   sniper          55-64 (sniper2 golden-cell band, 5/6 live)
+#   pw_waking       40-54 (62% / +0.584R n=26)
+#   pw_confirm      65-84 (62% / +0.446R n=29)
+#   duo_band        85+   (the DUO cell by construction)
+CONF_GATE: dict = {
+    "strong_trigger": ((40.0, 55.0), (65.0, 85.0)),
+    "strig_kr": ((40.0, 55.0), (65.0, 85.0)),
+    "moonshot": ((55.0, 65.0),),
+    "sniper": ((55.0, 65.0),),
+    "pw_waking": ((40.0, 55.0),),
+    "pw_confirm": ((65.0, 85.0),),
+    "duo_band": ((85.0, 1000.0),),
+}
 # GEN 6: no conditional seats — the pool is exactly the named three.
 CONDITIONAL_SRC: set = set()
 # 2026-08-11 user call: 🚀 MOONSHOT removed from the demo menu (desk
@@ -232,6 +261,19 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
             if sym in getattr(config, "TOKENIZED_STOCKS", ()) \
                     and not getattr(config, "BSTOCK_VALIDATED", False):
                 continue
+            # 🎯 GEN 10 conf-band seat gate (user 2026-09-07): each
+            # stream trades ONLY in its measured-green band(s). A
+            # candidate with no conf can't prove its band — no seat.
+            # chain > 0 = momentum re-entry, exempt by design.
+            _bands = CONF_GATE.get(name)
+            if _bands is not None and not p.get("chain"):
+                try:
+                    _gcf = float(p.get("conf"))
+                except (TypeError, ValueError):
+                    _gcf = None
+                if _gcf is None or not any(
+                        lo <= _gcf < hi for lo, hi in _bands):
+                    continue
             try:
                 e = float(p.get("entry") or 0)
                 st = float(p.get("stop") or 0)
@@ -407,13 +449,21 @@ def try_open(state: dict, cands: list, live_fn, active=None):
         # signal quality — 10x needs the validated A-grade burst.
         # GEN 7: 🎯 best-of-best seats size with the top streams.
         margin = state["balance"] / MAX_SLOTS
-        # GEN 8 ladder: strong trigger 10x, duo pairs 8x, waking 5x —
-        # "maximum leverage of upto 10x per trade" is the cap.
-        lev = {"strong_trigger": LEV_MAX, "sniper": LEV_MAX,
-               "duo_band": LEV_MID, "pair_king": LEV_MID,
-               "moonshot": LEV_MID,
-               "pw_waking": LEV_BASE,
-               "early_best": LEV_BASE}.get(c["src"], LEV_BASE)
+        # GEN 10 ladder (user 2026-09-07 "set the leverage
+        # accordingly" — graded by each seat-cell's LIVE record):
+        # 10x = the two elite cells (strong trigger @65-84 83%,
+        # moonshot @55-64 75%/+0.93R); 8x = the proven-green middle
+        # (strong @40-54 69%, waking 62%, confirm 62%, duo, trig×kr);
+        # 5x = sniper (thin cell + the standing "size to the floor"
+        # honesty rule on the sniper construct).
+        lev = {"strong_trigger": (LEV_MAX
+                                  if float(c.get("conf") or 0) >= 65
+                                  else LEV_MID),
+               "moonshot": LEV_MAX,
+               "sniper": LEV_BASE,
+               "duo_band": LEV_MID, "strig_kr": LEV_MID,
+               "pw_waking": LEV_MID,
+               "pw_confirm": LEV_MID}.get(c["src"], LEV_BASE)
         # real-account physics: the stop must sit well inside the
         # slot's margin — a stop past ~liquidation is not a trade.
         if stop_pct >= 0.8 / lev:

@@ -229,6 +229,9 @@ DEMO_FIRE_TTL_S = 1800
 _DEMO_DUOS: list = []
 _DEMO_WAKE: list = []
 _DEMO_REOPEN: list = []
+# 🎮 GEN 10 (user 2026-09-07): 🟢 my-watch confirms get demo seats
+# (65-84 conf band only, gated in demo_account). Cycle-thread only.
+_DEMO_CONFIRMS: list = []
 # 🎯 GEN 9: sniper fires feed demo seats (written from the 60s watch
 # thread under _TRIG_LOCK, drained by cycle()).
 _DEMO_SNIPES: list = []
@@ -603,6 +606,7 @@ def _trigger_watch() -> None:
                              "tp2": a.get("tp2"),
                              "score": float(a.get("score") or 80),
                              "burst": float(a.get("burst") or 0),
+                             "conf": a.get("conf"),
                              "src": _dsrc, "fired_at": _now})
                         del _DEMO_FIRES[:-40]
                 try:
@@ -691,6 +695,26 @@ def _trigger_watch() -> None:
                                                 _sig_t)
                             shadow_trader.open_from_signal(
                                 "trig_strong_kr", _sig_t, px)
+                            # 🎮 GEN 10 seat feed (user 2026-09-07
+                            # order 5): the kronos-agreeing subset of
+                            # ⚡ strong fires is its own demo stream —
+                            # conf gate 40-54 / 65-84 in demo_account.
+                            with _TRIG_LOCK:
+                                _DEMO_FIRES.append(
+                                    {"symbol": a["symbol"],
+                                     "base": a["base"],
+                                     "side": a["side"], "entry": px,
+                                     "stop": a["stop"],
+                                     "tp1": a["tp1"],
+                                     "tp2": a.get("tp2"),
+                                     "score": float(
+                                         a.get("score") or 80),
+                                     "burst": float(
+                                         a.get("burst") or 0),
+                                     "conf": a.get("conf"),
+                                     "src": "strig_kr",
+                                     "fired_at": time.time()})
+                                del _DEMO_FIRES[:-40]
                     except Exception as exc:
                         print("[trigger] desk-proof error:", exc,
                               flush=True)
@@ -833,7 +857,15 @@ def _trigger_watch() -> None:
                         f"floor._")
                     try:
                         _plan["base"] = _sb
-                        _plan["conf"] = None
+                        # 🎯 GEN 10: stamp the board conf like every
+                        # other desk tier (was None) — the demo's
+                        # 55-64 seat gate and the conf panel both
+                        # need the number. Fail-soft.
+                        try:
+                            _plan["conf"] = best_board.confidence(
+                                _sk, "SHORT")
+                        except Exception:
+                            _plan["conf"] = None
                         store.record_signal("sniper", _plan)
                         shadow_trader.open_from_signal(
                             "sniper", _plan, _spx)
@@ -850,6 +882,7 @@ def _trigger_watch() -> None:
                              "stop": _plan["stop"],
                              "tp1": _plan["tp1"], "tp2": None,
                              "score": float(_plan.get("heat") or 70),
+                             "conf": _plan.get("conf"),
                              "src": "sniper",
                              "fired_at": time.time()})
                         del _DEMO_SNIPES[:-10]
@@ -3020,6 +3053,23 @@ def cycle() -> None:
                     store.record_signal("sniper2", _s2_sig)
                     shadow_trader.open_from_signal(
                         "sniper2", _p2, _live(_sy2))
+                    # 🎮 GEN 10 (user 2026-09-07 order 2): sniper
+                    # golden-cell fires join the demo sniper seat —
+                    # the 55-64 conf gate in demo_account is exactly
+                    # this family's measured-green band (5/6 live).
+                    with _TRIG_LOCK:
+                        _DEMO_SNIPES.append(
+                            {"symbol": _sy2, "base": _b2,
+                             "side": (_p2.get("side") or "").upper(),
+                             "entry": _p2.get("entry"),
+                             "stop": _p2.get("stop"),
+                             "tp1": _p2.get("tp1"),
+                             "tp2": _p2.get("tp2"),
+                             "score": float(_g2.get("win_pct") or 70),
+                             "conf": _p2.get("conf"),
+                             "src": "sniper",
+                             "fired_at": time.time()})
+                        del _DEMO_SNIPES[:-10]
                 except Exception as _s2e:
                     print("[sniper2] record error:", _s2e,
                           flush=True)
@@ -3162,11 +3212,12 @@ def cycle() -> None:
                       flush=True)
             print(f"[{_du_key}] 🤝 {_du_b} {_du['side']} "
                   f"({_du_t})", flush=True)
-            # 🎮 GEN 9 pair feeds: duo85 -> duo_band seat class;
-            # kingpair/apextn -> pair_king; tnelite buzzes but takes
-            # no demo seat (not on the user's GEN 9 list).
-            _du_seat = {"duo85": "duo_band", "kingpair": "pair_king",
-                        "apextn": "pair_king"}.get(_du_key)
+            # 🎮 GEN 10 pair feeds (user 2026-09-07: "remove king
+            # pair"): ONLY duo85 takes a demo seat now. kingpair /
+            # apextn / tnelite keep their buzzes and desk records —
+            # no demo money. Revert: restore the kingpair/apextn ->
+            # pair_king mapping.
+            _du_seat = {"duo85": "duo_band"}.get(_du_key)
             if _du_seat:
                 _DEMO_DUOS.append(
                     {"symbol": _du["symbol"], "base": _du_b,
@@ -3174,6 +3225,7 @@ def cycle() -> None:
                      "stop": _du["stop"], "tp1": _du["tp1"],
                      "tp2": _du.get("tp2"),
                      "score": float(_du.get("conf") or 90),
+                     "conf": _du.get("conf"),
                      "src": _du_seat, "fired_at": time.time()})
                 del _DEMO_DUOS[:-20]
     except Exception as _du_exc:
@@ -3579,10 +3631,10 @@ def cycle() -> None:
         for _dt, _sh in (("strong_trigger", "trig_strong"),
                          ("moonshot", "moonshot"),
                          ("pw_waking", "personal_watch_early"),
+                         ("pw_confirm", "personal_watch"),
                          ("sniper", "sniper"),
                          ("duo_band", "duo85"),
-                         ("pair_king", "kingpair"),
-                         ("early_best", "elite_early")):
+                         ("strig_kr", "trig_strong_kr")):
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_sh)["net_r"]
             except Exception:
@@ -3653,22 +3705,12 @@ def cycle() -> None:
                                if _now - d["fired_at"]
                                <= DEMO_FIRE_TTL_S]
             _dz_snipes = list(_DEMO_SNIPES)
-        _dz_early = []
-        for _eb in (list(elite_early)
-                    + list(r.get("early_strong", []) or [])):
-            try:
-                if not (_eb.get("entry") and _eb.get("stop")
-                        and _eb.get("tp1")):
-                    continue
-                _eb_cf = _eb.get("conf")
-                if _eb_cf is None:
-                    _eb_cf = best_board.confidence(
-                        _eb.get("symbol"), _eb.get("side"))
-                if float(_eb_cf or 0) >= 85:
-                    _dz_early.append(dict(_eb, conf=_eb_cf,
-                                          src="early_best"))
-            except Exception:
-                continue
+        # 🎮 GEN 10 (user 2026-09-07): early_best and pair_king lose
+        # their seats — their pool builders retire with them. The 🟢
+        # confirm feed drains on the same TTL as the wake feed.
+        _DEMO_CONFIRMS[:] = [d for d in _DEMO_CONFIRMS
+                             if _now - d["fired_at"]
+                             <= DEMO_FIRE_TTL_S]
         _dz_pools = {
             "strong_trigger": ([f for f in _dz_fires
                                 if f["src"] in ("strong_trigger",
@@ -3681,6 +3723,9 @@ def cycle() -> None:
             "pw_waking": (list(_DEMO_WAKE)
                           + [d for d in _dz_reo
                              if d["src"] == "pw_waking"]),
+            "pw_confirm": (list(_DEMO_CONFIRMS)
+                           + [d for d in _dz_reo
+                              if d["src"] == "pw_confirm"]),
             "sniper": (_dz_snipes
                        + [d for d in _dz_reo
                           if d["src"] == "sniper"]),
@@ -3688,11 +3733,10 @@ def cycle() -> None:
                           if d["src"] == "duo_band"]
                          + [d for d in _dz_reo
                             if d["src"] == "duo_band"]),
-            "pair_king": ([d for d in _DEMO_DUOS
-                           if d["src"] == "pair_king"]
-                          + [d for d in _dz_reo
-                             if d["src"] == "pair_king"]),
-            "early_best": _dz_early}
+            "strig_kr": ([f for f in _dz_fires
+                          if f["src"] == "strig_kr"]
+                         + [d for d in _dz_reo
+                            if d["src"] == "strig_kr"])}
         # 🔄 GEN 7 rotation input: every (coin, side) with a LIVE
         # signal this cycle — positions outside this set are the
         # rotation candidates ("a losing trade stands only while
@@ -3756,8 +3800,8 @@ def cycle() -> None:
                      "src": (_rec8.get("src")
                              if _rec8.get("src") in
                              ("strong_trigger", "moonshot",
-                              "pw_waking", "sniper", "duo_band",
-                              "pair_king", "early_best")
+                              "pw_waking", "pw_confirm", "sniper",
+                              "duo_band", "strig_kr")
                              else "strong_trigger"),
                      "chain": int(_rp8.get("chain") or 0) + 1,
                      "fired_at": _now})
@@ -4717,6 +4761,7 @@ def cycle() -> None:
                              "stop": _pw_sl, "tp1": _pw_tp1,
                              "tp2": _pw_tp2,
                              "score": float(_pw_cf or 55),
+                             "conf": _pw_cf,
                              "src": "pw_waking",
                              "fired_at": time.time()})
                         del _DEMO_WAKE[:-20]
@@ -4773,6 +4818,17 @@ def cycle() -> None:
             # forward with real forward prices. Records only.
             shadow_trader.open_from_signal("personal_watch",
                                            _pw_sig, _pw_px)
+            # 🎮 GEN 10 seat feed (user 2026-09-07 order 3): 🟢 my
+            # watch confirms are demo candidates — the 65-84 conf
+            # gate in demo_account seats only the measured-green
+            # band (62% / +0.446R live).
+            _DEMO_CONFIRMS.append(
+                {"symbol": _pw_sym, "base": _pw_base,
+                 "side": "LONG", "entry": _pw_px,
+                 "stop": _pw_sl, "tp1": _pw_tp1, "tp2": _pw_tp2,
+                 "score": float(_pw_cf or 55), "conf": _pw_cf,
+                 "src": "pw_confirm", "fired_at": time.time()})
+            del _DEMO_CONFIRMS[:-20]
         except Exception as _pw_exc:
             print(f"  👁 watch {_pw_sym}: {_pw_exc}", flush=True)
 
