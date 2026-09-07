@@ -75,6 +75,11 @@ GEN10_HOLD_H = float(demo_account.TIME_STOP_H)     # 72h — demo parity
 # full stop-outs in 24h — that's a real "bad day, stand down" line.
 GEN10_DAILY_LOSS_PCT = float(
     os.environ.get("LIVE_DAILY_LOSS_PCT", "10") or 10)
+# ⏸ ENTRY HOLD (user 2026-09-07: "dont put or open any trade until I
+# say so"): arming, equity sync, the dead-key watchdog and management
+# of any existing positions ALL keep running — only NEW entries are
+# held. Flip to False on the user's explicit word and redeploy.
+GEN10_ENTRY_HOLD = True
 
 STATE_PATH = config.state_path(".live_exec.json")
 
@@ -296,6 +301,10 @@ def run_gen10(cands: list, live_px_fn) -> dict:
     if not s.get("started_at") or s.get("halted"):
         return out
     out["armed"] = True
+    if GEN10_ENTRY_HOLD:
+        out["notes"].append("entry HOLD — armed but not opening "
+                            "(waiting for the user's go)")
+        return out
     bal = float(s.get("balance") or 0)
     if bal <= 0:
         return out

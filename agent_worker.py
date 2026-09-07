@@ -3300,6 +3300,10 @@ def cycle() -> None:
                 n_alerts += 1 if ok else 0
             if "ARMED" in _note:
                 if live_executor.GEN10:
+                    _hold_line = (
+                        "\n⏸ ENTRY HOLD is ON — no trades will open "
+                        "until you give the word."
+                        if live_executor.GEN10_ENTRY_HOLD else "")
                     ok, _ = tg.send(
                         f"🤖💸 *LIVE EXECUTOR {_note}* — 🎮→💸 GEN 10 "
                         f"MODE: trading the demo's seven streams in "
@@ -3310,7 +3314,7 @@ def cycle() -> None:
                         f"time-stop · daily "
                         f"-{live_executor.GEN10_DAILY_LOSS_PCT:g}% "
                         f"halt · -{live_executor.KILL_PCT:g}% kill "
-                        f"switch.")
+                        f"switch.{_hold_line}")
                 else:
                     ok, _ = tg.send(
                         f"🤖💸 *LIVE EXECUTOR {_note}* — trading the "
