@@ -343,12 +343,21 @@ def preflight(state: dict, alert: dict,
     if side == "SHORT" and (stop <= entry or target >= entry):
         return False, "SHORT: stop must be above entry, target below.", {}
 
-    # Leverage
+    # Leverage. force_leverage (💸 GEN 10 executor, 2026-09-07) is an
+    # explicit per-trade override for constructs whose leverage is set
+    # by their OWN measured ladder, not the conf map (GEN 10 trades at
+    # conf 45/65 by design — the conf map would refuse them). Always
+    # clamped by the account's leverage_cap.
     conf = float(alert.get("confidence") or 0)
     aligned = bool(alert.get("forecast_aligned"))
     disagrees = bool(alert.get("forecast_disagrees"))
     cap = int(settings.get("leverage_cap") or 20)
-    lev = leverage_for_signal(conf, aligned, disagrees, cap)
+    try:
+        _flev = int(float(alert.get("force_leverage") or 0))
+    except (TypeError, ValueError):
+        _flev = 0
+    lev = (min(_flev, cap) if _flev > 0
+           else leverage_for_signal(conf, aligned, disagrees, cap))
     if lev <= 0:
         return False, "Signal too weak (confidence < 70).", {}
 

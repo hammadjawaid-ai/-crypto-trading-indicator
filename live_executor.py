@@ -42,6 +42,7 @@ import os
 import time
 
 import config
+import demo_account
 import live_broker as lb
 import shadow_trader
 
@@ -53,6 +54,27 @@ DAILY_LOSS_PCT = float(os.environ.get("LIVE_DAILY_LOSS_PCT", "3") or 3)
 KILL_PCT = float(os.environ.get("LIVE_KILL_PCT", "15") or 15)
 LEV_CAP = int(os.environ.get("LIVE_LEV_CAP", "5") or 5)
 MAX_HOLD_H = float(os.environ.get("LIVE_MAX_HOLD_H", "48") or 48)
+
+# ── 💸 GEN 10 LIVE MODE (user 2026-09-07: "move from demo trading to
+# my real money with the same gen 10 demo... same guidelines and
+# parameters", $1,500, full GEN 10 sizing by explicit choice) ──
+# LIVE_GEN10=1 switches the executor's BRAIN wholesale: the old
+# green-tier menu stops opening, and entries come from the exact
+# ranked candidate list the demo seats eat — same seven streams, same
+# conf-band gates, same 8 seats, same margin/leverage physics
+# (equity/8 per seat × the demo_account.lev_for ladder), same
+# SL-or-TP1-full-bank exit, 72h time-stop. The kill switch, daily
+# halt and exchange-side SL/TP rails all stay on top.
+GEN10 = (os.environ.get("LIVE_GEN10", "") or "").strip().lower() \
+    in ("1", "true", "yes", "on")
+GEN10_SLOTS = int(demo_account.MAX_SLOTS)          # 8 — demo parity
+GEN10_HOLD_H = float(demo_account.TIME_STOP_H)     # 72h — demo parity
+# GEN 10 daily-loss default is 10% (env-overridable): at full GEN 10
+# sizing ONE normal stop-out ≈ 2-3% of the account, so the old 3%
+# default would freeze the system after a single loss. 10% ≈ three
+# full stop-outs in 24h — that's a real "bad day, stand down" line.
+GEN10_DAILY_LOSS_PCT = float(
+    os.environ.get("LIVE_DAILY_LOSS_PCT", "10") or 10)
 
 STATE_PATH = config.state_path(".live_exec.json")
 
@@ -76,6 +98,19 @@ def _load() -> dict:
     s = lb.load_state(STATE_PATH)
     s["settings"].update(_SETTINGS)
     s["risk_per_trade_pct"] = RISK_PCT
+    if GEN10:
+        # Demo-parity sizing THROUGH the existing preflight guards:
+        # notional cap = 100/slots % of balance ON MARGIN, and an
+        # intentionally huge risk% so the cap ALWAYS binds — margin
+        # lands at exactly equity/8, notional = margin × lev, which
+        # is the demo seat formula to the cent.
+        s["settings"].update({
+            "leverage_cap": max(LEV_CAP, 10),
+            "max_concurrent": GEN10_SLOTS,
+            "notional_cap_pct": 100.0 / GEN10_SLOTS,
+            "daily_loss_pct": GEN10_DAILY_LOSS_PCT,
+        })
+        s["risk_per_trade_pct"] = 1000.0
     return s
 
 
@@ -108,6 +143,48 @@ def _ladder(s: dict, prices: dict) -> list[dict]:
         # Managing them here could close the user's own manual trade at
         # our 48h rule — never. They still occupy slots (conservative).
         if p.get("imported_from_exchange"):
+            continue
+        # 💸 GEN 10 positions live by the DEMO exit law: SL or TP1
+        # full bank, NOTHING else — no BE move, no TP1 lock, no trail
+        # (the ladder below would betray the proof). Exchange-side
+        # SL/TP does the real work; this is the local backup + the
+        # 72h time-stop.
+        if p.get("gen10"):
+            _gpx = prices.get(p["symbol"])
+            _gexp = (now - float(p.get("opened_at") or now)
+                     >= GEN10_HOLD_H * 3600)
+            if not _gpx:
+                if _gexp:
+                    try:
+                        cl = lb.close_position_at(
+                            s, p["symbol"], float(p["entry"]),
+                            reason="TIME")
+                        if cl:
+                            closed.append(cl)
+                    except Exception:
+                        pass
+                continue
+            _gpx = float(_gpx)
+            _glng = p["side"] == "LONG"
+            _gtp1 = float(p.get("tp1") or p.get("target") or 0)
+            _gstop = float(p["stop"])
+            _gstopped = (_gpx <= _gstop) if _glng else (_gpx >= _gstop)
+            _ghit = _gtp1 > 0 and ((_gpx >= _gtp1) if _glng
+                                   else (_gpx <= _gtp1))
+            if _gstopped or _ghit or _gexp:
+                if _ghit:
+                    _gxp, _grsn = _gtp1, "TP1_BANK"
+                elif _gstopped:
+                    _gxp, _grsn = _gstop, "stop"
+                else:
+                    _gxp, _grsn = _gpx, "TIME"
+                try:
+                    cl = lb.close_position_at(s, p["symbol"], _gxp,
+                                              reason=_grsn)
+                    if cl:
+                        closed.append(cl)
+                except Exception:
+                    pass
             continue
         px = prices.get(p["symbol"])
         expired = (now - float(p.get("opened_at") or now)
@@ -188,12 +265,120 @@ def status() -> dict:
     s = _load()
     return {
         "enabled": ENABLED, "ready": ok, "mode": mode,
+        "gen10": GEN10,
         "halted": bool(s.get("halted")),
         "balance": float(s.get("balance") or 0),
         "starting": float(s.get("starting_balance") or 0),
         "open": len(s.get("open") or []),
         "closed": len(s.get("closed") or []),
     }
+
+
+def run_gen10(cands: list, live_px_fn) -> dict:
+    """💸 GEN 10 LIVE entries — the demo seat law with real Bybit money.
+
+    `cands` is the EXACT ranked list demo_account.try_open consumed this
+    cycle (conf-band gates already applied inside rank_candidates), so
+    live entries can never diverge from the demo's brain. Demo physics
+    mirrored 1:1: rank floor 85, 8 seats, one per coin, in-zone <= 25%,
+    stop-vs-liquidation guard, margin = equity/8, lev = the GEN 10.1
+    ladder (demo_account.lev_for), exchange-side SL + FULL take-profit
+    at TP1 (the bank-100%-at-TP1 law). run_cycle already armed/synced/
+    killed/managed this cycle — this pass only opens.
+    """
+    out: dict = {"opened": [], "closed": [], "notes": [], "armed": False}
+    if not (ENABLED and GEN10):
+        return out
+    ok, _mode = lb.is_ready()
+    if not ok:
+        return out
+    s = _load()
+    if not s.get("started_at") or s.get("halted"):
+        return out
+    out["armed"] = True
+    bal = float(s.get("balance") or 0)
+    if bal <= 0:
+        return out
+    for c in cands or []:
+        if len(s.get("open") or []) >= GEN10_SLOTS:
+            break
+        if float(c.get("rank") or 0) < demo_account.MIN_RANK:
+            continue
+        sym = c.get("symbol")
+        side = (c.get("side") or "").upper()
+        if not sym or side not in ("LONG", "SHORT"):
+            continue
+        if any(o["symbol"] == sym for o in s.get("open") or []):
+            continue
+        if not lb.is_tradeable_on_bybit(sym):
+            continue
+        try:
+            live = float(live_px_fn(sym) or 0)
+        except Exception:
+            live = 0.0
+        if live <= 0:
+            continue
+        try:
+            entry = float(c.get("entry") or 0)
+            stop = float(c.get("stop") or 0)
+            tp1 = float(c.get("tp1") or 0)
+        except (TypeError, ValueError):
+            continue
+        if min(entry, stop, tp1) <= 0 or tp1 == entry:
+            continue
+        lng = side == "LONG"
+        prog = ((live - entry) / (tp1 - entry) if lng
+                else (entry - live) / (entry - tp1))
+        dead = live <= stop if lng else live >= stop
+        if dead or prog > demo_account.ZONE_MAX:
+            continue
+        stop_pct = abs(live - stop) / live
+        if stop_pct <= 0.001 or stop_pct > demo_account.STOP_MAX_PCT:
+            continue
+        lev = float(demo_account.lev_for(c.get("src"), c.get("conf")))
+        # real-account physics (demo parity): the stop must sit well
+        # inside the seat's margin — a stop past ~liquidation is not
+        # a trade.
+        if stop_pct >= 0.8 / lev:
+            continue
+        alert = {
+            "symbol": sym,
+            "base": c.get("base") or sym.replace("USDT", ""),
+            "side": side, "entry_low": entry, "stop": stop,
+            # GEN 10 exit law: the exchange TP is TP1, FULL position —
+            # bank 100% there, no runner.
+            "target": tp1, "target_2": None,
+            "confidence": int(float(c.get("conf") or c.get("score")
+                                    or 0)),
+            "force_leverage": int(lev),
+            "rr": 0.0,
+        }
+        ok2, why = lb.auto_trade_gate(s, alert)
+        if not ok2:
+            out["notes"].append(f"{sym}: {why}")
+            if "loss limit" in why.lower():
+                lb.save_state(STATE_PATH, s)
+                return out           # daily halt — stop trying
+            continue
+        try:
+            pos = lb.open_position(s, alert, live, confirmed=True)
+        except Exception as exc:
+            out["notes"].append(f"{sym}: {exc}")
+            continue
+        if pos:
+            pos["gen10"] = True
+            pos["src"] = c.get("src")
+            pos["tier"] = f"gen10:{c.get('src')}"
+            pos["tp1"] = tp1
+            pos["tp2"] = None
+            pos["original_stop"] = stop
+            pos["peak"] = float(pos.get("entry") or entry)
+            out["opened"].append(dict(pos))
+            # save IMMEDIATELY — a crash between open and end-of-cycle
+            # must never orphan a live position from local state.
+            lb.save_state(STATE_PATH, s)
+    lb.save_state(STATE_PATH, s)
+    return out
 
 
 def run_cycle(tier_signals: dict, live_px_fn) -> dict:
@@ -279,6 +464,14 @@ def run_cycle(tier_signals: dict, live_px_fn) -> dict:
         except Exception:
             pass
     out["closed"] += _ladder(s, prices)
+
+    # --- 💸 GEN 10 MODE: the old green-tier menu STOPS opening — the
+    # brain is the demo's ranked list, consumed later in the cycle by
+    # run_gen10() (arming, kill switch, sync and position management
+    # above all still ran).
+    if GEN10:
+        lb.save_state(STATE_PATH, s)
+        return out
 
     # --- entries: proven tiers only, deduped, in-zone --------------------
     # DYNAMIC PRIORITY (2026-07-25, the slot-scarcity fix): the account

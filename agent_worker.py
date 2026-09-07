@@ -3286,13 +3286,27 @@ def cycle() -> None:
                 ok, _ = tg.send(f"👀 *LIVE* — {_note}")
                 n_alerts += 1 if ok else 0
             if "ARMED" in _note:
-                ok, _ = tg.send(
-                    f"🤖💸 *LIVE EXECUTOR {_note}* — trading the proven "
-                    f"tiers (early-lane, apex, fresh, early movers) at "
-                    f"{live_executor.RISK_PCT:g}% risk/trade, max "
-                    f"{live_executor.MAX_CONCURRENT} open, daily "
-                    f"-{live_executor.DAILY_LOSS_PCT:g}% halt, "
-                    f"-{live_executor.KILL_PCT:g}% kill switch.")
+                if live_executor.GEN10:
+                    ok, _ = tg.send(
+                        f"🤖💸 *LIVE EXECUTOR {_note}* — 🎮→💸 GEN 10 "
+                        f"MODE: trading the demo's seven streams in "
+                        f"their conf bands, real money. "
+                        f"{live_executor.GEN10_SLOTS} seats · "
+                        f"equity/{live_executor.GEN10_SLOTS} per seat "
+                        f"× 10x/8x/6x · SL-or-TP1-bank · 72h "
+                        f"time-stop · daily "
+                        f"-{live_executor.GEN10_DAILY_LOSS_PCT:g}% "
+                        f"halt · -{live_executor.KILL_PCT:g}% kill "
+                        f"switch.")
+                else:
+                    ok, _ = tg.send(
+                        f"🤖💸 *LIVE EXECUTOR {_note}* — trading the "
+                        f"proven "
+                        f"tiers (early-lane, apex, fresh, early movers) at "
+                        f"{live_executor.RISK_PCT:g}% risk/trade, max "
+                        f"{live_executor.MAX_CONCURRENT} open, daily "
+                        f"-{live_executor.DAILY_LOSS_PCT:g}% halt, "
+                        f"-{live_executor.KILL_PCT:g}% kill switch.")
                 n_alerts += 1 if ok else 0
             print(f"  live_exec: {_note}", flush=True)
     except Exception as exc:
@@ -3810,10 +3824,35 @@ def cycle() -> None:
                       f"(burst {_b8:.0f})", flush=True)
             except Exception as _re8_exc:
                 print("  gen8 reopen error:", _re8_exc, flush=True)
+        _dz_ranked = demo_account.rank_candidates(_dz_pools, _dz_form)
         _dz_opened, _dz_rot = demo_account.try_open(
-            _dz, demo_account.rank_candidates(_dz_pools, _dz_form),
-            _live, active=_dz_active)
+            _dz, _dz_ranked, _live, active=_dz_active)
         demo_account.save(_dz)
+        # 💸 GEN 10 LIVE (user 2026-09-07: "move from demo trading to
+        # my real money with the same gen 10 demo", $1,500, full
+        # sizing by explicit choice): the SAME ranked list the demo
+        # just ate goes to the real-money executor — armed only when
+        # LIVE_EXECUTOR=1 + LIVE_GEN10=1 + Bybit keys are set in the
+        # Render dashboard. Every open buzzes a receipt.
+        try:
+            _g10 = live_executor.run_gen10(_dz_ranked, _live)
+            for _po in _g10.get("opened", []):
+                ok, _ = tg.send(
+                    f"💸 *GEN10 LIVE OPENED* — {_po.get('base')} "
+                    f"{_po.get('side')} via {_po.get('src')}\n"
+                    f"entry `{float(_po.get('entry') or 0):g}` · SL "
+                    f"`{float(_po.get('stop') or 0):g}` · TP1 "
+                    f"`{float(_po.get('tp1') or 0):g}` (bank 100%)\n"
+                    f"{_po.get('leverage')}x · margin "
+                    f"${float(_po.get('margin') or 0):,.2f} · notional "
+                    f"${float(_po.get('notional') or 0):,.2f}\n"
+                    f"_real money, demo law: SL or TP1, 72h "
+                    f"time-stop, exchange-side stops._")
+                n_alerts += 1 if ok else 0
+            for _nt in _g10.get("notes", []):
+                print(f"  gen10 live: {_nt}", flush=True)
+        except Exception as _g10_exc:
+            print("  gen10 live error:", _g10_exc, flush=True)
         # 📵 GEN7 demo buzzes OFF (user 2026-08-31: "remove gen7
         # notifications from my telegram notifications"). The demo
         # keeps trading and its ledger + board keep updating — only

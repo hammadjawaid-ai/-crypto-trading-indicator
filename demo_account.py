@@ -215,6 +215,18 @@ CONDITIONAL_SRC: set = set()
 # they return only when their OWN live record turns green.
 
 
+def lev_for(src: str, conf=None) -> float:
+    """GEN 10.1 leverage ladder — the ONE source of truth, shared by the
+    demo seats and the 💸 GEN 10 live executor (real money must size
+    exactly like the proof). conf reserved for future band grading."""
+    return {"strong_trigger": LEV_MAX,
+            "moonshot": LEV_MAX,
+            "sniper": LEV_MAX,
+            "duo_band": LEV_MID, "strig_kr": LEV_MID,
+            "pw_waking": LEV_WATCH,
+            "pw_confirm": LEV_WATCH}.get(src, LEV_BASE)
+
+
 def load() -> dict:
     try:
         with open(STATE_FILE, encoding="utf-8") as f:
@@ -454,13 +466,9 @@ def try_open(state: dict, cands: list, live_fn, active=None):
         # leverage, 40-54 — it to 10x; my watch waking and my watch
         # confirm — leverage it to 6x"): 10x = both strong-trigger
         # bands + sniper + moonshot; 8x = duo + trig×kr; 6x = the
-        # two my-watch lanes.
-        lev = {"strong_trigger": LEV_MAX,
-               "moonshot": LEV_MAX,
-               "sniper": LEV_MAX,
-               "duo_band": LEV_MID, "strig_kr": LEV_MID,
-               "pw_waking": LEV_WATCH,
-               "pw_confirm": LEV_WATCH}.get(c["src"], LEV_BASE)
+        # two my-watch lanes. Ladder lives in lev_for() — shared
+        # with the 💸 GEN 10 live executor.
+        lev = lev_for(c["src"], c.get("conf"))
         # real-account physics: the stop must sit well inside the
         # slot's margin — a stop past ~liquidation is not a trade.
         if stop_pct >= 0.8 / lev:
