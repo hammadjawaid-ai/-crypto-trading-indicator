@@ -90,9 +90,10 @@ MAX_SLOTS_HOT = 8
 # 50-200 dollars per trade... notions as per 1500 in the bank
 # accordingly"): per-slot margin = balance / MAX_SLOTS, leverage
 # graded by the validated quality tells — never a flat max.
-LEV_BASE = 5.0                 # GEN 10: 🎯 sniper (size to the floor)
-LEV_MID = 8.0                  # GEN 10: the proven-green middle
-LEV_MAX = 10.0                 # GEN 10: strong@65-84 + moonshot (cap)
+LEV_BASE = 5.0                 # fallback for anything unmapped
+LEV_WATCH = 6.0                # GEN 10.1: ⚡🟢 my-watch lanes (user)
+LEV_MID = 8.0                  # GEN 10: duo + trig×kr
+LEV_MAX = 10.0                 # GEN 10.1: triggers + sniper + moonshot
                                # (validated 64.7% · +0.288R)
 FEE = 0.00055                  # Bybit taker, per side
 TIME_STOP_H = 72     # GEN 8: seat hygiene only — the
@@ -449,21 +450,17 @@ def try_open(state: dict, cands: list, live_fn, active=None):
         # signal quality — 10x needs the validated A-grade burst.
         # GEN 7: 🎯 best-of-best seats size with the top streams.
         margin = state["balance"] / MAX_SLOTS
-        # GEN 10 ladder (user 2026-09-07 "set the leverage
-        # accordingly" — graded by each seat-cell's LIVE record):
-        # 10x = the two elite cells (strong trigger @65-84 83%,
-        # moonshot @55-64 75%/+0.93R); 8x = the proven-green middle
-        # (strong @40-54 69%, waking 62%, confirm 62%, duo, trig×kr);
-        # 5x = sniper (thin cell + the standing "size to the floor"
-        # honesty rule on the sniper construct).
-        lev = {"strong_trigger": (LEV_MAX
-                                  if float(c.get("conf") or 0) >= 65
-                                  else LEV_MID),
+        # GEN 10.1 ladder (user 2026-09-07 follow-up: "Sniper
+        # leverage, 40-54 — it to 10x; my watch waking and my watch
+        # confirm — leverage it to 6x"): 10x = both strong-trigger
+        # bands + sniper + moonshot; 8x = duo + trig×kr; 6x = the
+        # two my-watch lanes.
+        lev = {"strong_trigger": LEV_MAX,
                "moonshot": LEV_MAX,
-               "sniper": LEV_BASE,
+               "sniper": LEV_MAX,
                "duo_band": LEV_MID, "strig_kr": LEV_MID,
-               "pw_waking": LEV_MID,
-               "pw_confirm": LEV_MID}.get(c["src"], LEV_BASE)
+               "pw_waking": LEV_WATCH,
+               "pw_confirm": LEV_WATCH}.get(c["src"], LEV_BASE)
         # real-account physics: the stop must sit well inside the
         # slot's margin — a stop past ~liquidation is not a trade.
         if stop_pct >= 0.8 / lev:
