@@ -7391,6 +7391,133 @@ st.query_params["tf"] = timeframe
 st.query_params["mode"] = trade_mode_label
 st.query_params["section"] = active_section
 
+# ===========================================================================
+# 🧰 STATE MIGRATION (2026-09-07, the Bybit-region move): token-gated
+# backup/restore of the persistent state dir so the service can move
+# regions WITHOUT losing a single record. Visible ONLY when the URL
+# carries ?admin=<MIGRATE_TOKEN> and that env var is set. Download makes
+# a CONSISTENT snapshot (sqlite backup API for .db files — safe while
+# the worker writes); restore extracts into STATE_DIR (path-safe) and
+# the inventory lets old-vs-new be verified side by side.
+# ===========================================================================
+_mig_token = (os.environ.get("MIGRATE_TOKEN") or "").strip()
+if _mig_token and _qp.get("admin") == _mig_token:
+    import io as _mio
+    import sqlite3 as _msq
+    import tempfile as _mtmp
+    import zipfile as _mzip
+
+    st.markdown("## 🧰 STATE MIGRATION — backup / restore")
+    _mig_dir = Path((config.STATE_DIR or "").strip()
+                    or Path(__file__).resolve().parent)
+    st.caption(f"state dir: `{_mig_dir}`")
+
+    def _mig_inventory() -> list[str]:
+        rows = []
+        try:
+            _db9 = config.state_path(".worker.db")
+            if _db9.exists():
+                _c9 = _msq.connect(f"file:{_db9}?mode=ro", uri=True)
+                for _q9, _lbl9 in (
+                        ("SELECT COUNT(*) FROM signals", "signals"),
+                        ("SELECT COUNT(*) FROM shadow_trades",
+                         "shadow trades"),
+                        ("SELECT COUNT(*) FROM shadow_trades "
+                         "WHERE status='CLOSED'", "shadow CLOSED"),
+                        ("SELECT COUNT(*) FROM alerts_sent",
+                         "alerts sent"),
+                ):
+                    try:
+                        rows.append(f"{_lbl9}: "
+                                    f"{_c9.execute(_q9).fetchone()[0]:,}")
+                    except Exception:
+                        pass
+                _c9.close()
+            else:
+                rows.append("worker.db: none")
+        except Exception as _e9:
+            rows.append(f"worker.db unreadable: {_e9}")
+        for _nm9, _lbl9 in ((".demo_account.json", "demo"),
+                            (".live_exec.json", "live exec")):
+            try:
+                _st9 = json.load(open(config.state_path(_nm9),
+                                      encoding="utf-8"))
+                rows.append(
+                    f"{_lbl9}: bal "
+                    f"${float(_st9.get('balance') or 0):,.2f} · open "
+                    f"{len(_st9.get('open') or [])} · closed "
+                    f"{len(_st9.get('closed') or [])}")
+            except Exception:
+                rows.append(f"{_lbl9} state: none")
+        return rows
+
+    st.markdown("**Inventory (verify these match after restore):**")
+    for _r9 in _mig_inventory():
+        st.markdown(f"- {_r9}")
+
+    if st.button("📦 Build backup zip"):
+        _buf9 = _mio.BytesIO()
+        _nf9 = 0
+        with _mzip.ZipFile(_buf9, "w", _mzip.ZIP_DEFLATED) as _zf9:
+            for _f9 in sorted(_mig_dir.rglob("*")):
+                if not _f9.is_file():
+                    continue
+                _rel9 = _f9.relative_to(_mig_dir).as_posix()
+                try:
+                    if _f9.suffix == ".db":
+                        # consistent snapshot while the worker writes
+                        _tf9 = _mtmp.NamedTemporaryFile(
+                            suffix=".db", delete=False)
+                        _tf9.close()
+                        _src9 = _msq.connect(str(_f9))
+                        _dst9 = _msq.connect(_tf9.name)
+                        _src9.backup(_dst9)
+                        _dst9.close()
+                        _src9.close()
+                        _zf9.write(_tf9.name, _rel9)
+                        os.unlink(_tf9.name)
+                    else:
+                        _zf9.write(_f9, _rel9)
+                    _nf9 += 1
+                except Exception as _ze9:
+                    st.warning(f"skipped {_rel9}: {_ze9}")
+        _buf9.seek(0)
+        st.session_state["_mig_zip"] = _buf9.getvalue()
+        st.success(f"backup ready — {_nf9} files, "
+                   f"{len(st.session_state['_mig_zip']) / 1e6:.1f} MB")
+    if st.session_state.get("_mig_zip"):
+        st.download_button(
+            "⬇️ Download state backup",
+            data=st.session_state["_mig_zip"],
+            file_name=(f"state-backup-"
+                       f"{datetime.now(timezone.utc):%Y%m%d-%H%M}.zip"),
+            mime="application/zip")
+
+    _up9 = st.file_uploader("⬆️ Restore a backup zip into THIS "
+                            "service's state dir", type=["zip"])
+    if _up9 is not None and st.button(
+            "🚨 RESTORE NOW (overwrites this service's state)"):
+        _nr9 = 0
+        with _mzip.ZipFile(_up9) as _zf9:
+            for _zi9 in _zf9.infolist():
+                if _zi9.is_dir():
+                    continue
+                _rel9 = _zi9.filename
+                if _rel9.startswith("/") or ".." in _rel9.split("/"):
+                    continue
+                _tgt9 = _mig_dir / _rel9
+                _tgt9.parent.mkdir(parents=True, exist_ok=True)
+                with _zf9.open(_zi9) as _sf9, \
+                        open(_tgt9, "wb") as _df9:
+                    _df9.write(_sf9.read())
+                _nr9 += 1
+        st.success(f"restored {_nr9} files — now RESTART the service "
+                   f"(Render → Manual Deploy) so the worker reopens "
+                   f"the restored state, then reload this page and "
+                   f"check the inventory above matches the old "
+                   f"service.")
+    st.divider()
+
 # default 100 (user 2026-08-09: "make it 100 match") — the page's
 # universe now EXACTLY matches the 24/7 worker's WORKER_SCAN_N=100,
 # so the screen shows precisely what the engine hunts. Slider still
