@@ -7418,7 +7418,11 @@ if _mig_token and _qp.get("admin") == _mig_token:
     def _mig_inventory() -> list[str]:
         rows = []
         try:
-            _db9 = config.state_path(".worker.db")
+            # server name is worker.db (no dot) when STATE_DIR is
+            # set; local dev uses .worker.db — check both.
+            _db9 = _mig_dir / "worker.db"
+            if not _db9.exists():
+                _db9 = config.state_path(".worker.db")
             if _db9.exists():
                 _c9 = _msq.connect(f"file:{_db9}?mode=ro", uri=True)
                 for _q9, _lbl9 in (
