@@ -3827,6 +3827,103 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                 st.caption(f"second-chance board unavailable: "
                            f"{_sc_exc}")
 
+        # 💎⭐ ELITE STAR BOARD (user 2026-09-09: "we can have a
+        # separate board for it built on the lanes and notification
+        # of elite conviction but its more advance") — elite itself
+        # untouched; this is the measured winner-profile lens with
+        # its own forward ledger.
+        with st.expander("💎⭐ ELITE STAR — elite's measured winner "
+                         "profile (65% / +1.12R, proving forward)",
+                         expanded=False):
+            st.caption(
+                "The autopsy of 164 closed elite fires found the "
+                "profile that actually hits TP: **🚀 approved + HIGH "
+                "(not MAX) + score 80-85 + burst <85 + TP1 within "
+                "1.2R** — measured **65.3% / +1.123R per trade "
+                "(n=49, all thirds green)** on elite's own live "
+                "record. The killers, for contrast: MAX fires 22% "
+                "win, score-90+ 15%, TP1 asked ≥1.2R away 5%→0%. "
+                "Elite conviction is UNCHANGED — star fires carry a "
+                "💎⭐ headline on their buzz and record here to earn "
+                "the track record forward.")
+            try:
+                import sqlite3 as _sq_es
+                _esc = _sq_es.connect(
+                    f"file:{_ws_c.DB_PATH}?mode=ro", uri=True)
+                try:
+                    _es_rec = _esc.execute(
+                        "SELECT COUNT(*), "
+                        "SUM(CASE WHEN status='CLOSED' THEN 1 ELSE 0 "
+                        "END), "
+                        "SUM(CASE WHEN status='CLOSED' AND pnl_r>0 "
+                        "THEN 1 ELSE 0 END), "
+                        "COALESCE(SUM(CASE WHEN status='CLOSED' THEN "
+                        "pnl_r ELSE 0 END),0) FROM shadow_trades "
+                        "WHERE tier='elite_star'").fetchone()
+                    _es_open = _esc.execute(
+                        "SELECT symbol, side, entry, stop, tp1, "
+                        "opened_at, conf, heat FROM shadow_trades "
+                        "WHERE status='OPEN' AND tier='elite_star' "
+                        "ORDER BY opened_at DESC LIMIT 10").fetchall()
+                    _es_sig = _esc.execute(
+                        "SELECT ts, base, side, entry, tp1 FROM "
+                        "signals WHERE stream='elite_star' "
+                        "ORDER BY ts DESC LIMIT 10").fetchall()
+                finally:
+                    _esc.close()
+                _es_tot, _es_cl, _es_w, _es_net = (
+                    int(_es_rec[0] or 0), int(_es_rec[1] or 0),
+                    int(_es_rec[2] or 0), float(_es_rec[3] or 0))
+                if _es_cl:
+                    _es_c9 = ("#2ed47a" if _es_net > 0
+                              else "#ff5c5c")
+                    st.markdown(
+                        f"**forward ledger (the judge):** "
+                        f"{_es_cl} closed · win "
+                        f"{_es_w / _es_cl * 100:.0f}% · <b style="
+                        f"'color:{_es_c9}'>{_es_net:+.2f}R</b> · "
+                        f"{_es_tot - _es_cl} open"
+                        + (" · ⚠️ needs ~20 closed for the verdict"
+                           if _es_cl < 20 else
+                           " · verdict-ready — compare to the "
+                           "measured 65%")
+                        + "", unsafe_allow_html=True)
+                else:
+                    st.markdown(
+                        "**forward ledger:** no ⭐ closes yet — the "
+                        "lens went live 2026-09-09; star fires "
+                        "record here from now. ~20 closed = the "
+                        "verdict vs the measured 65%.")
+                if _es_open:
+                    st.markdown("**📂 open ⭐ trades:**")
+                    for (_s9, _sd9, _e9, _sl9, _tp9, _o9, _cf9x,
+                         _ht9x) in _es_open:
+                        _age9 = (time.time() - float(_o9)) / 3600
+                        st.markdown(
+                            f"<span style='font-size:0.8rem;color:"
+                            f"#9aa7c7'>· <b>"
+                            f"{str(_s9).replace('USDT', '')}</b> "
+                            f"{_sd9} — entry {float(_e9):g} · SL "
+                            f"{float(_sl9):g} · TP1 {float(_tp9):g} "
+                            f"· {_age9:.1f}h"
+                            + (f" · 🎯 {int(_cf9x)}" if _cf9x else "")
+                            + (f" · 🌡 {int(_ht9x)}" if _ht9x else "")
+                            + "</span>", unsafe_allow_html=True)
+                if _es_sig:
+                    st.markdown("**🔔 recent ⭐ fires:**")
+                    for _ts9, _b9, _sd9, _e9, _tp9 in _es_sig:
+                        _ago9 = (time.time() - float(_ts9)) / 3600
+                        st.markdown(
+                            f"<span style='font-size:0.8rem;color:"
+                            f"#9aa7c7'>· <b>{_b9}</b> {_sd9} @ "
+                            f"{float(_e9 or 0):g} → TP1 "
+                            f"{float(_tp9 or 0):g} · "
+                            f"{_ago9:.1f}h ago</span>",
+                            unsafe_allow_html=True)
+            except Exception as _es_exc:
+                st.caption(f"elite star board unavailable: "
+                           f"{_es_exc}")
+
         # 🎯 WIN RATE BY CONFIDENCE BAND (user 2026-08-31: "build the
         # reader panel on paper trading decision desk so we have the
         # backlog of this data"). Every shadow trade has carried its

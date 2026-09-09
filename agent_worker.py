@@ -1452,13 +1452,23 @@ def cycle() -> None:
                                   and _rr9 < 1.2)
                     except Exception:
                         _star9 = False
-                    if _star9:
-                        _cbits.append("⭐ STAR CELL — this profile "
-                                      "runs 65% / +1.12R live "
-                                      "(n=49, all thirds green)")
                     if _cbits and "\n" in _msg9:
                         _msg9 = _msg9.replace(
                             "\n", " · " + " · ".join(_cbits) + "\n", 1)
+                    # ⭐ the STAR buzz (user 2026-09-09: "I want this
+                    # on my telegram notifications... more advance"):
+                    # same single buzz per fire — a star fire's
+                    # message leads with the measured-profile
+                    # headline so it stands apart on the phone.
+                    if _star9:
+                        _msg9 = (
+                            "💎⭐ *ELITE STAR — the measured winner "
+                            "profile*\n"
+                            "_approved · HIGH · score<85 · calm "
+                            "burst · TP1 within 1.2R = 65% / "
+                            "+1.12R live (n=49, all thirds green). "
+                            "Desk tier ⭐ tracks it forward._\n"
+                            + _msg9)
                     ok, _m9 = tg.send(_msg9)
                     n_alerts += 1 if ok else 0
                     if _star9:
