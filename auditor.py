@@ -48,6 +48,7 @@ STREAM_TO_TIER = {
     "sniper": "sniper", "revival": "revival",
     "sniper2": "sniper2", "comeback": "comeback",
     "comeback_g": "comeback_g", "comeback_f": "comeback_f",
+    "elite_star": "elite_star",
     "personal_watch": "personal_watch",
     "personal_watch_early": "personal_watch_early",
 }

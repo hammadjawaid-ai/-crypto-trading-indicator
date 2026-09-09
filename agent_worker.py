@@ -1419,11 +1419,77 @@ def cycle() -> None:
                                  else " hot — may be late"
                                  if _eg9 >= 85 else "")
                         _cbits.append(f"⚡ edge {_eg9}/100{_etag}")
+                    # 💎⭐ STAR CELL (user 2026-09-09: "how can we
+                    # advance elite conviction" — MEASURED on the
+                    # fresh full-history backup, .elite_star_check:
+                    # 🚀 approved + HIGH + score<85 + burst<85 +
+                    # plan TP1 within 1.2R = 65.3% / +1.123R n=49,
+                    # ALL THIRDS GREEN. MAX/90+/wide-TP fires are
+                    # the measured losers). Elite geometry is
+                    # UNTOUCHED — the star is a lens: a chip on the
+                    # buzz + its own derived desk tier `elite_star`
+                    # to earn a forward record.
+                    _star9 = False
+                    try:
+                        _e9s = float(_pmx.get("entry") or 0)
+                        _s9s = float(_pmx.get("stop") or 0)
+                        _t9s = float(_pmx.get("tp1") or 0)
+                        _rr9 = None
+                        if _e9s and _s9s and _t9s:
+                            _rr9 = (abs(_t9s - _e9s)
+                                    / max(1e-12, abs(_e9s - _s9s)))
+                        _b9v = _pmx.get("burst_live",
+                                        _pmx.get("burst"))
+                        _b9v = float(_b9v) if _b9v is not None \
+                            else 999.0
+                        _star9 = (bool(_pmx.get("appr"))
+                                  and str(_pmx.get("tier") or ""
+                                          ).upper() == "HIGH"
+                                  and float(_pmx.get("score") or 0)
+                                  < 85
+                                  and _b9v < 85
+                                  and _rr9 is not None
+                                  and _rr9 < 1.2)
+                    except Exception:
+                        _star9 = False
+                    if _star9:
+                        _cbits.append("⭐ STAR CELL — this profile "
+                                      "runs 65% / +1.12R live "
+                                      "(n=49, all thirds green)")
                     if _cbits and "\n" in _msg9:
                         _msg9 = _msg9.replace(
                             "\n", " · " + " · ".join(_cbits) + "\n", 1)
                     ok, _m9 = tg.send(_msg9)
                     n_alerts += 1 if ok else 0
+                    if _star9:
+                        try:
+                            _st_sig = {
+                                "symbol": _pmx.get("symbol"),
+                                "base": _pmx.get("base")
+                                or str(_pmx.get("symbol")
+                                       ).replace("USDT", ""),
+                                "side": _pmx.get("side"),
+                                "entry": _pmx.get("entry"),
+                                "stop": _pmx.get("stop"),
+                                "tp1": _pmx.get("tp1"),
+                                "tp2": _pmx.get("tp2"),
+                                "conf": _cf9,
+                                "heat": _pmx.get("heat"),
+                                "tier": "HIGH"}
+                            store.record_signal("elite_star",
+                                                _st_sig)
+                            _st_px = None
+                            try:
+                                _st_px = binance_client.\
+                                    get_ticker_price(
+                                        _pmx.get("symbol"))
+                            except Exception:
+                                _st_px = None
+                            shadow_trader.open_from_signal(
+                                "elite_star", _st_sig, _st_px)
+                        except Exception as _st_exc:
+                            print("  elite_star record error:",
+                                  _st_exc, flush=True)
             except Exception as _mx_exc:
                 print("  elite buzz error:", _mx_exc, flush=True)
 
