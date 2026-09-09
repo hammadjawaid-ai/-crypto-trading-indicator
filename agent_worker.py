@@ -4196,6 +4196,148 @@ def cycle() -> None:
     except Exception as _rv_exc:
         print("  revival watch error:", _rv_exc, flush=True)
 
+    # 🪂 COMEBACK WATCH (user 2026-09-09, the NEAR case: "near was
+    # giving signals of 2.44 and above but market fell short and it
+    # went to somewhere close around 2.2, now this was the time when
+    # to enter"). MEASURED FIRST (.launchpad_study/.launchpad_study2,
+    # 242 coins · 183d · ~4,000 events): the GENERIC buy-the-dip-
+    # reclaim after a breakout fire is DEAD — -0.09..-0.22R in every
+    # dressing (shelf quality, spring wick, volume reclaim, depth,
+    # TP-at-the-top all negative; chasing the fire close was -0.04R).
+    # The ONE version that measured green is anchored to OUR OWN
+    # fires: the revival study's reclaim-with-momentum on real elite
+    # signals (+0.215R / 50.7% n=69, thirds improving). This block
+    # generalizes THAT form: a watched-tier desk trade that FADED
+    # >=1 ATR below its entry WITHOUT stopping (still OPEN = still
+    # above its SL) and now trades back ABOVE the original entry
+    # with the 15m momentum gates -> one 🪂 buzz + its own proving
+    # tier `comeback`. No demo/live seats until the ledger earns it.
+    try:
+        _cb_now = time.time()
+        import sqlite3 as _sq_cb
+        _cbc = _sq_cb.connect(store.DB_PATH, timeout=10)
+        try:
+            _cb_rows = _cbc.execute(
+                "SELECT id, tier, symbol, side, entry, opened_at "
+                "FROM shadow_trades WHERE status='OPEN' AND tier IN "
+                "('apex','best_board','one_trade','takenow_hot',"
+                "'elite_conv','trig_strong') AND opened_at BETWEEN "
+                "? AND ?",
+                (_cb_now - 72 * 3600, _cb_now - 6 * 3600)).fetchall()
+        finally:
+            _cbc.close()
+        _cb_checked = 0
+        for _cbid, _cbt, _cbs, _cbside, _cbe, _cbo in _cb_rows:
+            if _cb_checked >= 12:
+                break
+            try:
+                _cbe = float(_cbe or 0)
+                if _cbe <= 0:
+                    continue
+                _lng_cb = (_cbside or "").upper() == "LONG"
+                _cbpx = float(
+                    binance_client.get_ticker_price(_cbs) or 0)
+                if _cbpx <= 0:
+                    continue
+                # cheap price screen first: reclaimed, but FRESHLY —
+                # past the entry yet within ~1 ATR of it (no chasing
+                # a comeback that already ran away). ATR needs the
+                # klines, so screen roughly by % first (0-4%).
+                _cb_gain = ((_cbpx / _cbe - 1) if _lng_cb
+                            else (1 - _cbpx / _cbe))
+                if not (0 < _cb_gain <= 0.04):
+                    continue
+                _cb_checked += 1
+                _cbd = binance_client.get_klines(_cbs, "1h",
+                                                 limit=160)
+                _cbh = _cbd["high"].to_numpy()
+                _cbl = _cbd["low"].to_numpy()
+                _cbts = [ts.timestamp() for ts in _cbd.index]
+                _cbtr = _cbh - _cbl
+                _cbatr = float(_cbtr[-15:-1].mean())
+                if _cbatr <= 0:
+                    continue
+                _idx_cb = [k for k, ts in enumerate(_cbts)
+                           if ts >= _cbo - 3600]
+                if not _idx_cb:
+                    continue
+                # the dip: >=1 ATR beyond the entry, against the trade
+                _dip = (min(float(_cbl[k]) for k in _idx_cb)
+                        if _lng_cb
+                        else max(float(_cbh[k]) for k in _idx_cb))
+                _faded = ((_cbe - _dip) >= 1.0 * _cbatr if _lng_cb
+                          else (_dip - _cbe) >= 1.0 * _cbatr)
+                if not _faded:
+                    continue
+                # freshness in ATR terms too
+                if abs(_cbpx - _cbe) > 1.0 * _cbatr:
+                    continue
+                # the momentum gates (same as revival — the user's
+                # validated trigger form)
+                try:
+                    _cbd15 = binance_client.get_klines(_cbs, "15m",
+                                                       limit=120)
+                    _cbtv, _cbtd, _ = _et_w.detect(_cbd15)
+                    _cbbv, _cbbd, _ = _vb_w.lane_velocity_burst(
+                        _cbd15)
+                except Exception:
+                    continue
+                _cb_want = "LONG" if _lng_cb else "SHORT"
+                if not (_cbtv >= 55 and _cbtd == _cb_want
+                        and _cbbv >= 65
+                        and (_cbbd or "").upper() == _cb_want):
+                    continue
+                if not store.should_alert(f"comeback:{_cbid}",
+                                          96 * 3600):
+                    continue
+                if _lng_cb:
+                    _cbsl = _dip - 0.25 * _cbatr
+                    if not (0 < _cbpx - _cbsl <= 4 * _cbatr):
+                        _cbsl = _cbpx - 1.5 * _cbatr
+                    _cbrisk = _cbpx - _cbsl
+                    _cbtp = _cbpx + 1.5 * _cbrisk
+                else:
+                    _cbsl = _dip + 0.25 * _cbatr
+                    if not (0 < _cbsl - _cbpx <= 4 * _cbatr):
+                        _cbsl = _cbpx + 1.5 * _cbatr
+                    _cbrisk = _cbsl - _cbpx
+                    _cbtp = _cbpx - 1.5 * _cbrisk
+                if _cbrisk <= 0:
+                    continue
+                _cb_sig = {"symbol": _cbs,
+                           "base": _cbs.replace("USDT", ""),
+                           "side": _cbside, "entry": _cbpx,
+                           "stop": _cbsl, "tp1": _cbtp, "tp2": None,
+                           "tier": _cbt}
+                store.record_signal("comeback", _cb_sig)
+                shadow_trader.open_from_signal("comeback", _cb_sig,
+                                               _cbpx)
+                ok, _ = tg.send(
+                    f"🪂 *COMEBACK — {_cb_sig['base']} "
+                    f"{_cbside}* — the panic dip is over\n"
+                    f"the {_cbt} fire faded "
+                    f"{abs(_cbe - _dip) / _cbatr:.1f} ATR below its "
+                    f"entry WITHOUT stopping, and just reclaimed it "
+                    f"with momentum\n"
+                    f"original entry `{_cbe:g}` · dip `{_dip:g}` · "
+                    f"live `{_cbpx:g}` · 15m trend {_cbtv:.0f} · "
+                    f"burst {_cbbv:.0f}\n"
+                    f"entry `{_cbpx:g}` · SL `{_cbsl:g}` (under the "
+                    f"dip) · TP `{_cbtp:g}` (1.5R)\n"
+                    f"_the NEAR shape. Honest: generic dip-buying "
+                    f"measured DEAD (242 coins); this reclaim form "
+                    f"measured +0.215R/51% on our own stopped elite "
+                    f"fires (n=69). This lane is PROVING — size "
+                    f"small._")
+                n_alerts += 1 if ok else 0
+                print(f"[comeback] 🪂 {_cbs} {_cbside} reclaimed "
+                      f"{_cbe:g} after {abs(_cbe - _dip) / _cbatr:.1f}"
+                      f" ATR dip (buzzed)", flush=True)
+            except Exception as _cb_e2:
+                print("  comeback check error:", _cb_e2, flush=True)
+    except Exception as _cb_exc:
+        print("  comeback watch error:", _cb_exc, flush=True)
+
     # 💥 THE NUMBERS (user 2026-08-23: "a point where it can burst if
     # it hit that number... that is something we need to catch") —
     # publish every armed trigger level to the page, so the exact

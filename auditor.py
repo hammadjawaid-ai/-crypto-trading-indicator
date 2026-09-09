@@ -46,7 +46,7 @@ STREAM_TO_TIER = {
     "duo85": "duo85", "kingpair": "kingpair",
     "tnelite": "tnelite", "apextn": "apextn",
     "sniper": "sniper", "revival": "revival",
-    "sniper2": "sniper2",
+    "sniper2": "sniper2", "comeback": "comeback",
     "personal_watch": "personal_watch",
     "personal_watch_early": "personal_watch_early",
 }
