@@ -4159,10 +4159,19 @@ def cycle() -> None:
                     _rvtp = _rvpx - 1.5 * _rvrisk
                 if _rvrisk <= 0:
                     continue
+                try:
+                    _rv_conf = best_board.confidence(_rvs, _rvside)
+                except Exception:
+                    _rv_conf = None
+                try:
+                    _rv_heat = _atr_heat(_rvd)
+                except Exception:
+                    _rv_heat = None
                 _rv_sig = {"symbol": _rvs,
                            "base": _rvs.replace("USDT", ""),
                            "side": _rvside, "entry": _rvpx,
-                           "stop": _rvsl, "tp1": _rvtp, "tp2": None}
+                           "stop": _rvsl, "tp1": _rvtp, "tp2": None,
+                           "conf": _rv_conf, "heat": _rv_heat}
                 store.record_signal("revival", _rv_sig)
                 shadow_trader.open_from_signal("revival", _rv_sig,
                                                _rvpx)
@@ -4422,10 +4431,24 @@ def cycle() -> None:
                     _cbtp = _cbpx - 1.5 * _cbrisk
                 if _cbrisk <= 0:
                     continue
+                # 🎯 conf + 🌡 heat stamps (user 2026-09-09: "history
+                # record and confidence score etc everything should
+                # be intact with it") — same stamps every desk tier
+                # carries, so the conf/heat panels price these lanes
+                # too. Fail-soft.
+                try:
+                    _cb_conf = best_board.confidence(_cbs, _cbside)
+                except Exception:
+                    _cb_conf = None
+                try:
+                    _cb_heat = _atr_heat(_cbd)
+                except Exception:
+                    _cb_heat = None
                 _cb_sig = {"symbol": _cbs,
                            "base": _cbs.replace("USDT", ""),
                            "side": _cbside, "entry": _cbpx,
                            "stop": _cbsl, "tp1": _cbtp, "tp2": None,
+                           "conf": _cb_conf, "heat": _cb_heat,
                            "tier": _cbt}
                 store.record_signal(_cb_tier2, _cb_sig)
                 shadow_trader.open_from_signal(_cb_tier2, _cb_sig,
