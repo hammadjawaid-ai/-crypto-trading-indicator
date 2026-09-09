@@ -4324,11 +4324,12 @@ def cycle() -> None:
                     f"burst {_cbbv:.0f}\n"
                     f"entry `{_cbpx:g}` · SL `{_cbsl:g}` (under the "
                     f"dip) · TP `{_cbtp:g}` (1.5R)\n"
-                    f"_the NEAR shape. Honest: generic dip-buying "
-                    f"measured DEAD (242 coins); this reclaim form "
-                    f"measured +0.215R/51% on our own stopped elite "
-                    f"fires (n=69). This lane is PROVING — size "
-                    f"small._")
+                    f"_the NEAR shape. Honest record: +0.215R/51% on "
+                    f"stopped-elite reclaims (n=69) but the July "
+                    f"faded-fires replay was thin and RED (n=14, "
+                    f"-0.16R), and generic dip-buying measured dead. "
+                    f"Treat as a WATCHLIST ping, not a money call, "
+                    f"until this tier's own ledger proves._")
                 n_alerts += 1 if ok else 0
                 print(f"[comeback] 🪂 {_cbs} {_cbside} reclaimed "
                       f"{_cbe:g} after {abs(_cbe - _dip) / _cbatr:.1f}"
