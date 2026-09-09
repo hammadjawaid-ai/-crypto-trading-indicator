@@ -4308,22 +4308,57 @@ def cycle() -> None:
                     continue
                 # 🛡 THE GUARD (user 2026-09-09: "that is where elite
                 # conviction is effecting because it have lanes that
-                # guard it"): is a live 💎 elite MAX/HIGH card still
-                # standing on this coin+side AT THE RECLAIM MOMENT?
-                # A comeback with the thesis still guarded is a
-                # different cell than one on a dead signal — the two
-                # get SEPARATE desk tiers so the ledger answers which
-                # one earns the money buzz.
+                # guard it" + follow-up "not only elite... any other
+                # stream that we measure have a best success and win
+                # rate ratios"): at the RECLAIM MOMENT, is the coin
+                # still held by (a) a live 💎 elite MAX/HIGH card, or
+                # (b) a candidate from any tier that is GREEN on the
+                # desk (>=20 closed, >=+2R net — the proven-stream
+                # bar)? A guarded comeback is a different cell than
+                # one on a dead signal — separate desk tiers, the
+                # ledger decides which earns the money buzz.
                 _cb_guard = None
+                _cb_glabel = ""
                 try:
                     for _eg in _ec_mh:
                         if (_eg.get("symbol") == _cbs
                                 and (_eg.get("side") or "").upper()
                                 == _cb_want):
                             _cb_guard = _eg
+                            _cb_glabel = (
+                                f"💎 elite {_eg.get('tier')} "
+                                f"{float(_eg.get('score') or 0):.0f}"
+                                + (" · 🚀 approved"
+                                   if _eg.get("appr") else "")
+                                + (f" · {int(_eg.get('lanes') or 0)}"
+                                   f" lanes"
+                                   if _eg.get("lanes") else ""))
                             break
                 except Exception:
                     _cb_guard = None
+                if _cb_guard is None:
+                    # (b) any GREEN-tier live candidate on coin+side
+                    try:
+                        _cb_greens = {
+                            _r.get("tier")
+                            for _r in shadow_trader.tier_records()
+                            if _r.get("green")}
+                        for _tn9, _sg9 in _tiers:
+                            if _tn9 not in _cb_greens:
+                                continue
+                            for _p9g in _sg9 or []:
+                                if (_p9g.get("symbol") == _cbs
+                                        and (_p9g.get("side") or "")
+                                        .upper() == _cb_want):
+                                    _cb_guard = _p9g
+                                    _cb_glabel = (
+                                        f"{_tn9} still firing — "
+                                        f"tier GREEN on the desk")
+                                    break
+                            if _cb_guard is not None:
+                                break
+                    except Exception:
+                        pass
                 _cb_tier2 = "comeback_g" if _cb_guard else "comeback"
                 if _lng_cb:
                     _cbsl = _dip - 0.25 * _cbatr
@@ -4348,13 +4383,6 @@ def cycle() -> None:
                 shadow_trader.open_from_signal(_cb_tier2, _cb_sig,
                                                _cbpx)
                 if _cb_guard:
-                    _gl = (f"💎 {_cb_guard.get('tier')} "
-                           f"{float(_cb_guard.get('score') or 0):.0f}"
-                           + (" · 🚀 approved"
-                              if _cb_guard.get("appr") else "")
-                           + (f" · {int(_cb_guard.get('lanes') or 0)}"
-                              f" lanes"
-                              if _cb_guard.get("lanes") else ""))
                     ok, _ = tg.send(
                         f"🛡🪂 *GUARDED COMEBACK — {_cb_sig['base']} "
                         f"{_cbside}* — the dip is over and the "
@@ -4362,8 +4390,8 @@ def cycle() -> None:
                         f"the {_cbt} fire faded "
                         f"{abs(_cbe - _dip) / _cbatr:.1f} ATR below "
                         f"entry WITHOUT stopping, reclaimed it with "
-                        f"momentum, AND the elite card is still "
-                        f"LIVE: {_gl}\n"
+                        f"momentum, AND the thesis is still "
+                        f"LIVE: {_cb_glabel}\n"
                         f"original entry `{_cbe:g}` · dip `{_dip:g}` "
                         f"· live `{_cbpx:g}` · 15m trend "
                         f"{_cbtv:.0f} · burst {_cbbv:.0f}\n"
