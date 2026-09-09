@@ -4172,10 +4172,26 @@ def cycle() -> None:
                 # cell, proving on its own desk tier. The blind
                 # above-SL version measured -0.25R; only this full
                 # range-reclaim earned a look.
+                # 🛡 guard chip (user 2026-09-09): is an elite card
+                # still live on this coin+side at the revival moment?
+                _rv_guard = ""
+                try:
+                    for _eg2 in _ec_mh:
+                        if (_eg2.get("symbol") == _rvs
+                                and (_eg2.get("side") or "").upper()
+                                == _rv_want):
+                            _rv_guard = (
+                                f"🛡 elite {_eg2.get('tier')} "
+                                f"{float(_eg2.get('score') or 0):.0f}"
+                                f" still LIVE — lanes guard it\n")
+                            break
+                except Exception:
+                    _rv_guard = ""
                 ok, _ = tg.send(
                     f"💀→🚀 *REVIVAL — {_rv_sig['base']} "
                     f"{_rvside}* — back through the ELITE ENTRY "
                     f"with momentum\n"
+                    f"{_rv_guard}"
                     f"the stopped elite coin reclaimed its original "
                     f"entry `{float(_rve):g}` · live `{_rvpx:g}` · "
                     f"15m trend {_rvt:.0f} · burst {_rvb:.0f}\n"
@@ -4290,6 +4306,25 @@ def cycle() -> None:
                 if not store.should_alert(f"comeback:{_cbid}",
                                           96 * 3600):
                     continue
+                # 🛡 THE GUARD (user 2026-09-09: "that is where elite
+                # conviction is effecting because it have lanes that
+                # guard it"): is a live 💎 elite MAX/HIGH card still
+                # standing on this coin+side AT THE RECLAIM MOMENT?
+                # A comeback with the thesis still guarded is a
+                # different cell than one on a dead signal — the two
+                # get SEPARATE desk tiers so the ledger answers which
+                # one earns the money buzz.
+                _cb_guard = None
+                try:
+                    for _eg in _ec_mh:
+                        if (_eg.get("symbol") == _cbs
+                                and (_eg.get("side") or "").upper()
+                                == _cb_want):
+                            _cb_guard = _eg
+                            break
+                except Exception:
+                    _cb_guard = None
+                _cb_tier2 = "comeback_g" if _cb_guard else "comeback"
                 if _lng_cb:
                     _cbsl = _dip - 0.25 * _cbatr
                     if not (0 < _cbpx - _cbsl <= 4 * _cbatr):
@@ -4309,27 +4344,55 @@ def cycle() -> None:
                            "side": _cbside, "entry": _cbpx,
                            "stop": _cbsl, "tp1": _cbtp, "tp2": None,
                            "tier": _cbt}
-                store.record_signal("comeback", _cb_sig)
-                shadow_trader.open_from_signal("comeback", _cb_sig,
+                store.record_signal(_cb_tier2, _cb_sig)
+                shadow_trader.open_from_signal(_cb_tier2, _cb_sig,
                                                _cbpx)
-                ok, _ = tg.send(
-                    f"🪂 *COMEBACK — {_cb_sig['base']} "
-                    f"{_cbside}* — the panic dip is over\n"
-                    f"the {_cbt} fire faded "
-                    f"{abs(_cbe - _dip) / _cbatr:.1f} ATR below its "
-                    f"entry WITHOUT stopping, and just reclaimed it "
-                    f"with momentum\n"
-                    f"original entry `{_cbe:g}` · dip `{_dip:g}` · "
-                    f"live `{_cbpx:g}` · 15m trend {_cbtv:.0f} · "
-                    f"burst {_cbbv:.0f}\n"
-                    f"entry `{_cbpx:g}` · SL `{_cbsl:g}` (under the "
-                    f"dip) · TP `{_cbtp:g}` (1.5R)\n"
-                    f"_the NEAR shape. Honest record: +0.215R/51% on "
-                    f"stopped-elite reclaims (n=69) but the July "
-                    f"faded-fires replay was thin and RED (n=14, "
-                    f"-0.16R), and generic dip-buying measured dead. "
-                    f"Treat as a WATCHLIST ping, not a money call, "
-                    f"until this tier's own ledger proves._")
+                if _cb_guard:
+                    _gl = (f"💎 {_cb_guard.get('tier')} "
+                           f"{float(_cb_guard.get('score') or 0):.0f}"
+                           + (" · 🚀 approved"
+                              if _cb_guard.get("appr") else "")
+                           + (f" · {int(_cb_guard.get('lanes') or 0)}"
+                              f" lanes"
+                              if _cb_guard.get("lanes") else ""))
+                    ok, _ = tg.send(
+                        f"🛡🪂 *GUARDED COMEBACK — {_cb_sig['base']} "
+                        f"{_cbside}* — the dip is over and the "
+                        f"lanes still guard it\n"
+                        f"the {_cbt} fire faded "
+                        f"{abs(_cbe - _dip) / _cbatr:.1f} ATR below "
+                        f"entry WITHOUT stopping, reclaimed it with "
+                        f"momentum, AND the elite card is still "
+                        f"LIVE: {_gl}\n"
+                        f"original entry `{_cbe:g}` · dip `{_dip:g}` "
+                        f"· live `{_cbpx:g}` · 15m trend "
+                        f"{_cbtv:.0f} · burst {_cbbv:.0f}\n"
+                        f"entry `{_cbpx:g}` · SL `{_cbsl:g}` (under "
+                        f"the dip) · TP `{_cbtp:g}` (1.5R)\n"
+                        f"_the NEAR/CHIP shape WITH the thesis "
+                        f"intact — your hypothesis, now measuring on "
+                        f"its own tier. Unguarded comebacks ping "
+                        f"separately; whichever cell proves green "
+                        f"earns the money call._")
+                else:
+                    ok, _ = tg.send(
+                        f"🪂 *COMEBACK — {_cb_sig['base']} "
+                        f"{_cbside}* — the panic dip is over "
+                        f"(unguarded)\n"
+                        f"the {_cbt} fire faded "
+                        f"{abs(_cbe - _dip) / _cbatr:.1f} ATR below "
+                        f"its entry WITHOUT stopping, and just "
+                        f"reclaimed it with momentum — but no elite "
+                        f"card guards it right now\n"
+                        f"original entry `{_cbe:g}` · dip `{_dip:g}` "
+                        f"· live `{_cbpx:g}` · 15m trend "
+                        f"{_cbtv:.0f} · burst {_cbbv:.0f}\n"
+                        f"entry `{_cbpx:g}` · SL `{_cbsl:g}` (under "
+                        f"the dip) · TP `{_cbtp:g}` (1.5R)\n"
+                        f"_watchlist ping, not a money call: the "
+                        f"July replay of unguarded reclaims was thin "
+                        f"and RED (n=14, -0.16R). The guarded cell "
+                        f"is the one being hunted._")
                 n_alerts += 1 if ok else 0
                 print(f"[comeback] 🪂 {_cbs} {_cbside} reclaimed "
                       f"{_cbe:g} after {abs(_cbe - _dip) / _cbatr:.1f}"

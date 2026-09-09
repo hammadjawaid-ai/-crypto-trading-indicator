@@ -3547,6 +3547,8 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "sniper": "🎯 SNIPER (flagship, proving)",
                    "revival": "💀🚀 REVIVAL (post-stop, records)",
                    "comeback": "🪂 COMEBACK (dip reclaimed, proving)",
+                   "comeback_g": "🛡🪂 GUARDED COMEBACK (elite "
+                                 "lanes live, proving)",
                    "sniper2": "🎯 SNIPER v2 (golden cells, proving)",
                    "moonshot": "🚀 MOONSHOT (big-move desk)",
                    "sentry": "🎯 SENTRY (your 18-coin watch)",
