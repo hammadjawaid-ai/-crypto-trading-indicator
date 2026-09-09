@@ -4084,14 +4084,27 @@ def cycle() -> None:
         import sqlite3 as _sq_rv
         _rvc = _sq_rv.connect(store.DB_PATH, timeout=10)
         try:
+            # 2026-09-09 EXTENSION (user: "not only elite... apex or
+            # any other one trade... strong trigger as well; some
+            # coin that hit sl but now its moving back again")
+            # VALIDATED FIRST on the full-history backup
+            # (.rv_split_study.py, 1,364 stop-outs -> 524 reclaims):
+            # entry-reclaim-after-stop is GREEN across ALL these
+            # tiers and ALL dip causes — coin-alone +0.341R n=189
+            # (all thirds green), BTC-flush +0.247R n=72. Once a
+            # coin fully stops and still comes back through its
+            # entry, the round trip itself is the proof.
             _rv_rows = _rvc.execute(
-                "SELECT id, symbol, side, entry, opened_at, closed_at "
-                "FROM shadow_trades WHERE tier='elite_conv' AND "
+                "SELECT id, symbol, side, entry, opened_at, closed_at,"
+                " tier FROM shadow_trades WHERE tier IN "
+                "('apex','best_board','one_trade','takenow_hot',"
+                "'elite_conv','trig_strong') AND "
                 "status='CLOSED' AND exit_reason LIKE '%stop%' AND "
                 "closed_at >= ?", (_rv_now - 72 * 3600,)).fetchall()
         finally:
             _rvc.close()
-        for _rvid, _rvs, _rvside, _rve, _rvo, _rvcl in _rv_rows[:12]:
+        for (_rvid, _rvs, _rvside, _rve, _rvo, _rvcl,
+             _rvtier) in _rv_rows[:12]:
             try:
                 _rvd = binance_client.get_klines(_rvs, "1h", limit=160)
                 _rvh = _rvd["high"].to_numpy()
@@ -4171,7 +4184,8 @@ def cycle() -> None:
                            "base": _rvs.replace("USDT", ""),
                            "side": _rvside, "entry": _rvpx,
                            "stop": _rvsl, "tp1": _rvtp, "tp2": None,
-                           "conf": _rv_conf, "heat": _rv_heat}
+                           "conf": _rv_conf, "heat": _rv_heat,
+                           "tier": _rvtier}
                 store.record_signal("revival", _rv_sig)
                 shadow_trader.open_from_signal("revival", _rv_sig,
                                                _rvpx)
@@ -4198,20 +4212,22 @@ def cycle() -> None:
                     _rv_guard = ""
                 ok, _ = tg.send(
                     f"💀→🚀 *REVIVAL — {_rv_sig['base']} "
-                    f"{_rvside}* — back through the ELITE ENTRY "
+                    f"{_rvside}* — back through the ORIGINAL ENTRY "
                     f"with momentum\n"
                     f"{_rv_guard}"
-                    f"the stopped elite coin reclaimed its original "
+                    f"the stopped {_rvtier} coin reclaimed its "
+                    f"original "
                     f"entry `{float(_rve):g}` · live `{_rvpx:g}` · "
                     f"15m trend {_rvt:.0f} · burst {_rvb:.0f}\n"
                     f"entry `{_rvpx:g}` · SL `{_rvsl:g}` · TP "
                     f"`{_rvtp:g}` (1.5R) · full-range confirm above "
                     f"at `{_ext:g}`\n"
-                    f"_the ASTER catcher — earliest valid re-entry "
-                    f"(elite plan level + momentum). PROVING on the "
-                    f"desk; the range-high `{_ext:g}` breaking adds "
-                    f"the measured +0.215R confirmation. Size "
-                    f"small._")
+                    f"_the round trip is the proof: on the full "
+                    f"desk history, entry-reclaim-after-stop "
+                    f"measured +0.341R / 52% (n=189, all thirds "
+                    f"green) even without a BTC flush. The ADA/WLD "
+                    f"shape. Proving tier `revival` keeps the "
+                    f"forward score — size small._")
                 n_alerts += 1 if ok else 0
                 print(f"[revival] 💀→🚀 {_rvs} {_rvside} extreme "
                       f"reclaimed @ {_rvpx:g} (buzzed)",
