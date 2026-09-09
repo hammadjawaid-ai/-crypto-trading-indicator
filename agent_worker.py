@@ -4228,6 +4228,16 @@ def cycle() -> None:
     # above its SL) and now trades back ABOVE the original entry
     # with the 15m momentum gates -> one 🪂 buzz + its own proving
     # tier `comeback`. No demo/live seats until the ledger earns it.
+    # 🌊 THE FLUSH DISCRIMINATOR (user 2026-09-09: "btc movements are
+    # impt too" — VALIDATED on the fresh full-history DB backup,
+    # .cb_btc_split.py, 2,300 pooled events -> 373 bottom-turns):
+    # dips caused by a REAL BTC flush (BTC <= -1.5% over the coin's
+    # fire->dip window) reclaim profitably — 55.8% / +0.252R at 1.5R,
+    # n=43, ALL THIRDS GREEN [+0.11, +0.16, +0.50]. Coin-alone dips
+    # are the measured trap (n=292, red in all thirds), and a mild
+    # -1.0..-1.5% drag is still red — the threshold is real panic.
+    # Tier map: comeback_f (flush, THE measured cell) > comeback_g
+    # (guarded, hypothesis) > comeback (plain watchlist).
     try:
         _cb_now = time.time()
         import sqlite3 as _sq_cb
@@ -4242,6 +4252,16 @@ def cycle() -> None:
                 (_cb_now - 72 * 3600, _cb_now - 6 * 3600)).fetchall()
         finally:
             _cbc.close()
+        _cb_btc_ts, _cb_btc_cl = None, None
+        if _cb_rows:
+            try:
+                _cb_btcd = binance_client.get_klines("BTCUSDT", "1h",
+                                                     limit=160)
+                _cb_btc_cl = _cb_btcd["close"].to_numpy()
+                _cb_btc_ts = [ts.timestamp()
+                              for ts in _cb_btcd.index]
+            except Exception:
+                _cb_btc_ts = None
         _cb_checked = 0
         for _cbid, _cbt, _cbs, _cbside, _cbe, _cbo in _cb_rows:
             if _cb_checked >= 12:
@@ -4278,9 +4298,12 @@ def cycle() -> None:
                 if not _idx_cb:
                     continue
                 # the dip: >=1 ATR beyond the entry, against the trade
-                _dip = (min(float(_cbl[k]) for k in _idx_cb)
-                        if _lng_cb
-                        else max(float(_cbh[k]) for k in _idx_cb))
+                if _lng_cb:
+                    _dip_k = min(_idx_cb, key=lambda k: float(_cbl[k]))
+                    _dip = float(_cbl[_dip_k])
+                else:
+                    _dip_k = max(_idx_cb, key=lambda k: float(_cbh[k]))
+                    _dip = float(_cbh[_dip_k])
                 _faded = ((_cbe - _dip) >= 1.0 * _cbatr if _lng_cb
                           else (_dip - _cbe) >= 1.0 * _cbatr)
                 if not _faded:
@@ -4359,7 +4382,32 @@ def cycle() -> None:
                                 break
                     except Exception:
                         pass
-                _cb_tier2 = "comeback_g" if _cb_guard else "comeback"
+                # 🌊 flush classification: BTC's move from the fire
+                # to the coin's dip bar (side-mirrored)
+                _cb_flush = False
+                _cb_btcmv = None
+                try:
+                    if _cb_btc_ts:
+                        import bisect as _bi_cb
+                        _b_i0 = max(0, min(
+                            len(_cb_btc_cl) - 1,
+                            _bi_cb.bisect_left(_cb_btc_ts, _cbo)))
+                        _b_i1 = max(0, min(
+                            len(_cb_btc_cl) - 1,
+                            _bi_cb.bisect_left(_cb_btc_ts,
+                                               _cbts[_dip_k])))
+                        if _b_i1 > _b_i0:
+                            _cb_btcmv = (float(_cb_btc_cl[_b_i1])
+                                         / float(_cb_btc_cl[_b_i0])
+                                         - 1)
+                            _cb_flush = ((_cb_btcmv <= -0.015)
+                                         if _lng_cb
+                                         else (_cb_btcmv >= 0.015))
+                except Exception:
+                    _cb_flush = False
+                _cb_tier2 = ("comeback_f" if _cb_flush
+                             else "comeback_g" if _cb_guard
+                             else "comeback")
                 if _lng_cb:
                     _cbsl = _dip - 0.25 * _cbatr
                     if not (0 < _cbpx - _cbsl <= 4 * _cbatr):
@@ -4382,7 +4430,31 @@ def cycle() -> None:
                 store.record_signal(_cb_tier2, _cb_sig)
                 shadow_trader.open_from_signal(_cb_tier2, _cb_sig,
                                                _cbpx)
-                if _cb_guard:
+                if _cb_flush:
+                    _fg = (f"\n🛡 plus: {_cb_glabel}"
+                           if _cb_guard else "")
+                    ok, _ = tg.send(
+                        f"🌊🪂 *FLUSH COMEBACK — {_cb_sig['base']} "
+                        f"{_cbside}* — BTC dragged it down, and the "
+                        f"dip is over\n"
+                        f"BTC fell {abs(_cb_btcmv or 0) * 100:.1f}% "
+                        f"during this coin's fade — a MARKET flush, "
+                        f"not coin weakness — and the coin just "
+                        f"reclaimed its entry with momentum{_fg}\n"
+                        f"original entry `{_cbe:g}` · dip `{_dip:g}` "
+                        f"· live `{_cbpx:g}` · 15m trend "
+                        f"{_cbtv:.0f} · burst {_cbbv:.0f}\n"
+                        f"entry `{_cbpx:g}` · SL `{_cbsl:g}` (under "
+                        f"the dip) · TP `{_cbtp:g}` (1.5R — the "
+                        f"measured peak)\n"
+                        f"_THE measured cell (your BTC hypothesis, "
+                        f"validated on the full desk history): "
+                        f"55.8% / +0.252R per trade, n=43, all "
+                        f"thirds green. Coin-alone dips measured the "
+                        f"trap — this is not one of them. Proving "
+                        f"tier `comeback_f` keeps the forward "
+                        f"score._")
+                elif _cb_guard:
                     ok, _ = tg.send(
                         f"🛡🪂 *GUARDED COMEBACK — {_cb_sig['base']} "
                         f"{_cbside}* — the dip is over and the "

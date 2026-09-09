@@ -3549,6 +3549,8 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "comeback": "🪂 COMEBACK (dip reclaimed, proving)",
                    "comeback_g": "🛡🪂 GUARDED COMEBACK (elite "
                                  "lanes live, proving)",
+                   "comeback_f": "🌊🪂 FLUSH COMEBACK (BTC-flush "
+                                 "dip, the measured cell)",
                    "sniper2": "🎯 SNIPER v2 (golden cells, proving)",
                    "moonshot": "🚀 MOONSHOT (big-move desk)",
                    "sentry": "🎯 SENTRY (your 18-coin watch)",
