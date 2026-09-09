@@ -3678,6 +3678,153 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                             f"{_thin}</span>", unsafe_allow_html=True)
             except Exception as _em_exc:
                 st.caption(f"edge miner unavailable: {_em_exc}")
+        # 💀🪂 SECOND CHANCE BOARD (user 2026-09-09: "have a board for
+        # this one on paper trading") — the revival + comeback family:
+        # live tier records, open second-chance trades, the current
+        # fade watchlist, and recent triggers. Validated numbers in
+        # the caption; the forward ledgers grow here.
+        with st.expander("💀🪂 SECOND CHANCE — revivals & comebacks "
+                         "(the round-trip and flush-dip re-entries)",
+                         expanded=False):
+            st.caption(
+                "Validated on the full desk history (Jul-Sep, 2,300 "
+                "pooled fires): 💀→🚀 REVIVAL (stopped, then reclaimed "
+                "its entry) **+0.341R / 52% n=189, all thirds green — "
+                "cause-agnostic**. 🌊🪂 FLUSH COMEBACK (faded ≥1 ATR "
+                "without stopping WHILE BTC fell ≥1.5%, then "
+                "reclaimed) **+0.252R / 56% n=43, all thirds green**. "
+                "Coin-alone comebacks measured the trap (n=292 red) — "
+                "they buzz as information only. 🛡 guarded = the "
+                "live-lanes hypothesis, proving forward. Every trigger "
+                "buzzes 💀→🚀 / 🌊🪂 / 🛡🪂 / 🪂 on Telegram and "
+                "records below with conf + heat stamps.")
+            try:
+                import sqlite3 as _sq_sc
+                _scc = _sq_sc.connect(
+                    f"file:{_ws_c.DB_PATH}?mode=ro", uri=True)
+                try:
+                    _sc_rec = _scc.execute(
+                        "SELECT tier, COUNT(*), "
+                        "SUM(CASE WHEN status='CLOSED' THEN 1 ELSE 0 "
+                        "END), "
+                        "SUM(CASE WHEN status='CLOSED' AND pnl_r>0 "
+                        "THEN 1 ELSE 0 END), "
+                        "COALESCE(SUM(CASE WHEN status='CLOSED' THEN "
+                        "pnl_r ELSE 0 END),0) "
+                        "FROM shadow_trades WHERE tier IN ('revival',"
+                        "'comeback_f','comeback_g','comeback') "
+                        "GROUP BY tier").fetchall()
+                    _sc_open = _scc.execute(
+                        "SELECT tier, symbol, side, entry, stop, tp1, "
+                        "opened_at, conf, heat FROM shadow_trades "
+                        "WHERE status='OPEN' AND tier IN ('revival',"
+                        "'comeback_f','comeback_g','comeback') "
+                        "ORDER BY opened_at DESC LIMIT 12").fetchall()
+                    _sc_sig = _scc.execute(
+                        "SELECT ts, stream, base, side, entry FROM "
+                        "signals WHERE stream IN ('revival',"
+                        "'comeback_f','comeback_g','comeback') "
+                        "ORDER BY ts DESC LIMIT 10").fetchall()
+                    _sc_watch = _scc.execute(
+                        "SELECT tier, symbol, side, entry, opened_at "
+                        "FROM shadow_trades WHERE status='OPEN' AND "
+                        "tier IN ('apex','best_board','one_trade',"
+                        "'takenow_hot','elite_conv','trig_strong') "
+                        "AND opened_at BETWEEN ? AND ?",
+                        (time.time() - 72 * 3600,
+                         time.time() - 6 * 3600)).fetchall()
+                finally:
+                    _scc.close()
+                _sc_names = {"revival": "💀→🚀 REVIVAL",
+                             "comeback_f": "🌊🪂 FLUSH COMEBACK",
+                             "comeback_g": "🛡🪂 GUARDED COMEBACK",
+                             "comeback": "🪂 comeback (plain)"}
+                st.markdown("**forward ledgers (the judge):**")
+                _sc_by = {r[0]: r for r in _sc_rec}
+                for _t9 in ("revival", "comeback_f", "comeback_g",
+                            "comeback"):
+                    _r9 = _sc_by.get(_t9)
+                    if not _r9:
+                        st.markdown(
+                            f"<span style='font-size:0.8rem;color:"
+                            f"#9aa7c7'>· {_sc_names[_t9]} — no "
+                            f"records yet (watch armed)</span>",
+                            unsafe_allow_html=True)
+                        continue
+                    _tot9, _cl9, _w9, _net9 = (_r9[1], int(_r9[2]),
+                                               int(_r9[3]),
+                                               float(_r9[4]))
+                    _wp9 = _w9 / _cl9 * 100 if _cl9 else 0.0
+                    _c9x = "#2ed47a" if _net9 > 0 else "#ff5c5c"
+                    st.markdown(
+                        f"<span style='font-size:0.8rem;color:"
+                        f"#9aa7c7'>· {_sc_names[_t9]} — {_cl9} "
+                        f"closed · win {_wp9:.0f}% · <b style="
+                        f"'color:{_c9x}'>{_net9:+.2f}R</b> · "
+                        f"{_tot9 - _cl9} open"
+                        + (" · ⚠️ thin" if _cl9 < 20 else "")
+                        + "</span>", unsafe_allow_html=True)
+                if _sc_open:
+                    st.markdown("**📂 open second-chance trades:**")
+                    for (_t9, _s9, _sd9, _e9, _sl9, _tp9, _o9,
+                         _cf9x, _ht9x) in _sc_open:
+                        _age9 = (time.time() - float(_o9)) / 3600
+                        st.markdown(
+                            f"<span style='font-size:0.8rem;color:"
+                            f"#9aa7c7'>· {_sc_names.get(_t9, _t9)} "
+                            f"<b>{str(_s9).replace('USDT', '')}</b> "
+                            f"{_sd9} — entry {float(_e9):g} · SL "
+                            f"{float(_sl9):g} · TP {float(_tp9):g} · "
+                            f"{_age9:.1f}h"
+                            + (f" · 🎯 {int(_cf9x)}" if _cf9x else "")
+                            + (f" · 🌡 {int(_ht9x)}" if _ht9x else "")
+                            + "</span>", unsafe_allow_html=True)
+                # 🔭 fade watchlist: watched-tier open trades now
+                # UNDER their entry (candidates the worker checks
+                # every cycle; deep fades >= 2% are the armed ones)
+                _wl9 = []
+                _px_map9 = globals().get("prices") or {}
+                for _t9, _s9, _sd9, _e9, _o9 in _sc_watch:
+                    _lp9 = float(_px_map9.get(_s9) or 0)
+                    _e9 = float(_e9 or 0)
+                    if _lp9 <= 0 or _e9 <= 0:
+                        continue
+                    _dd9 = ((_lp9 / _e9 - 1) * 100
+                            if (_sd9 or "").upper() == "LONG"
+                            else (1 - _lp9 / _e9) * 100)
+                    if _dd9 < 0:
+                        _wl9.append((_dd9, _t9, _s9, _sd9, _e9,
+                                     _lp9))
+                if _wl9:
+                    _wl9.sort()
+                    st.markdown("**🔭 fade watchlist — under entry, "
+                                "not stopped (the worker re-checks "
+                                "every cycle):**")
+                    for _dd9, _t9, _s9, _sd9, _e9, _lp9 in _wl9[:12]:
+                        _deep9 = " · 💤 shallow" if _dd9 > -2 else \
+                            " · 🔥 DEEP FADE — reclaim watch armed"
+                        st.markdown(
+                            f"<span style='font-size:0.8rem;color:"
+                            f"#9aa7c7'>· "
+                            f"<b>{str(_s9).replace('USDT', '')}</b> "
+                            f"{_sd9} ({_t9}) — {_dd9:.1f}% under its "
+                            f"entry {float(_e9):g}, now {_lp9:g}"
+                            f"{_deep9}</span>",
+                            unsafe_allow_html=True)
+                if _sc_sig:
+                    st.markdown("**🔔 recent triggers:**")
+                    for _ts9, _st9, _b9, _sd9, _e9 in _sc_sig:
+                        _ago9 = (time.time() - float(_ts9)) / 3600
+                        st.markdown(
+                            f"<span style='font-size:0.8rem;color:"
+                            f"#9aa7c7'>· {_sc_names.get(_st9, _st9)} "
+                            f"<b>{_b9}</b> {_sd9} @ "
+                            f"{float(_e9 or 0):g} · {_ago9:.1f}h ago"
+                            f"</span>", unsafe_allow_html=True)
+            except Exception as _sc_exc:
+                st.caption(f"second-chance board unavailable: "
+                           f"{_sc_exc}")
+
         # 🎯 WIN RATE BY CONFIDENCE BAND (user 2026-08-31: "build the
         # reader panel on paper trading decision desk so we have the
         # backlog of this data"). Every shadow trade has carried its
