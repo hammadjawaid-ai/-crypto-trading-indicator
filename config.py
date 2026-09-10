@@ -460,4 +460,7 @@ PERSONAL_WATCH = ["INJUSDT", "ENAUSDT", "ZECUSDT", "VIRTUALUSDT",
                   "ETHFIUSDT", "UNIUSDT", "LINKUSDT", "SUIUSDT",
                   "CHIPUSDT",
                   # user 2026-09-03 (CHIP + UNI were already on the list)
-                  "XPLUSDT", "ARBUSDT", "PROMUSDT"]
+                  "XPLUSDT", "ARBUSDT", "PROMUSDT",
+                  # user 2026-09-09: OPN (listed 2026-07-30, ~6wk of
+                  # 1h history — enough for heat/trend/burst tools)
+                  "OPNUSDT"]
