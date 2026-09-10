@@ -75,14 +75,24 @@ STATE_FILE = os.environ.get("DEMO_STATE") or \
 # ... maximum 8 slots and anyone can take any place" + the named seven
 # streams). Open seating: no family caps, rotation OFF, rank floor
 # lowered so any listed stream can seat on its own merits.
-GEN = 9
+GEN = 11
 START_BAL = 1500.0
+# 🎮 GEN 11 (user 2026-09-10: "restart from 1500 dollars and from now
+# only this trades will be taken"): FOUR streams by priority —
+# elite_star > pw_confirm (conf>=45) > prime (conf>=55) >
+# strong_trigger (conf>=65, incl 🔥 re-runs). Daily rails: no NEW
+# trades after +$500 earned or -$150 lost in 24h (open positions
+# keep their SL/TP). Seats: 10 on winning days with rich signal
+# flow, trimmed to 6 otherwise. Lev cap 10x, star on top.
+DAY_MAX_GAIN = 500.0
+DAY_MAX_LOSS = 150.0
+MIN_SLOTS = 6
 # 6 -> 10 (user 2026-08-23 second follow-up: "instead of 6 we have
 # 10 slots now and 7 for strong triggers and 3 for elite
 # conviction"). A CEILING, not a quota — the MIN_RANK floor still
 # gates every slot. Elite's 3-seat cap below guarantees the top
 # streams (strong triggers + re-runs) always keep >= 7 seats.
-MAX_SLOTS = 8
+MAX_SLOTS = 10
 # The earlier 6->8 good-day overflow is absorbed by the 10-slot
 # base; no seats beyond 10.
 MAX_SLOTS_HOT = 8
@@ -117,9 +127,10 @@ ELITE_FAMILY_CAP = 0
 # positives banked first, then negatives cut. Healthy signals are
 # NEVER rotated, and at most this many rotations happen per cycle.
 ROTATE_MAX = 0   # GEN 9 user order: rotation REMOVED
-SMART_EXIT_SKIP: set = {"strong_trigger", "duo_band", "pw_waking",
-                        "moonshot", "sniper", "pw_confirm",
-                        "strig_kr"}     # GEN 10: SL/TP1 only, all
+SMART_EXIT_SKIP: set = {"strong_trigger", "pw_confirm", "prime",
+                        "elite_star"}   # GEN 11: SL/TP1 only —
+# except elite_star's own ⭐ NEAR-TP BANK rule in manage() (user:
+# "if its near tp... and think its going to reverse... close it").
 # 🧠 STRENGTH-AWARE SMART EXIT + TRAIL (user 2026-08-15: "smart exit
 # should have a trailing method... loosen a bit if the signal
 # strength is good... let them ride to tp and trail to tp2 if they
@@ -178,13 +189,12 @@ MIN_RANK = 85.0  # GEN 9: anyone can take any place
 # stream seated ONLY in its measured-green confidence band(s) — see
 # CONF_GATE below. pair_king and early_best lose their seats (king
 # pair 33%/-0.355R live; early elite 85+ 19%/-0.514R).
-CLASS_W = {"strong_trigger": 100,  # 1. strong triggers (+ reruns)
-           "moonshot": 99,         # 2a. moonshot break fires
-           "sniper": 98,           # 2b. sniper family fires
-           "pw_waking": 97,        # 3a. waking coins, user list
-           "pw_confirm": 96,       # 3b. my-watch 1h confirms
-           "duo_band": 95,         # 4. DUO 85+
-           "strig_kr": 94}         # 5. strong trigger x kronos
+# GEN 11 priority (user 2026-09-10): star first, confirm second,
+# prime + strong trigger after.
+CLASS_W = {"elite_star": 100,      # 1. the measured winner profile
+           "pw_confirm": 99,       # 2. my-watch 1h confirms
+           "prime": 98,            # 3. the winners board
+           "strong_trigger": 97}   # 4. strong triggers (+ 🔥 re-runs)
 # 🎯 CONF-BAND SEAT GATES (user 2026-09-07, read off the live desk
 # ledger): a stream's candidate takes a seat ONLY when its conf falls
 # in a band that measured green on its own closed trades. Bands are
@@ -198,14 +208,13 @@ CLASS_W = {"strong_trigger": 100,  # 1. strong triggers (+ reruns)
 #   pw_confirm      40-54 (75% / +0.823R n=12, thin — user add
 #                   2026-09-07) + 65-84 (62% / +0.446R n=29)
 #   duo_band        85+   (the DUO cell by construction)
+# GEN 11 gates (user 2026-09-10, floors only): confirm >=45,
+# prime >=55, strong trigger >=65; elite_star ungated (the star
+# profile IS its gate).
 CONF_GATE: dict = {
-    "strong_trigger": ((40.0, 55.0), (65.0, 85.0)),
-    "strig_kr": ((40.0, 55.0), (65.0, 85.0)),
-    "moonshot": ((55.0, 65.0),),
-    "sniper": ((55.0, 65.0),),
-    "pw_waking": ((40.0, 55.0),),
-    "pw_confirm": ((40.0, 55.0), (65.0, 85.0)),
-    "duo_band": ((85.0, 1000.0),),
+    "pw_confirm": ((45.0, 1000.0),),
+    "prime": ((55.0, 1000.0),),
+    "strong_trigger": ((65.0, 1000.0),),
 }
 # GEN 6: no conditional seats — the pool is exactly the named three.
 CONDITIONAL_SRC: set = set()
@@ -217,15 +226,12 @@ CONDITIONAL_SRC: set = set()
 
 
 def lev_for(src: str, conf=None) -> float:
-    """GEN 10.1 leverage ladder — the ONE source of truth, shared by the
-    demo seats and the 💸 GEN 10 live executor (real money must size
-    exactly like the proof). conf reserved for future band grading."""
-    return {"strong_trigger": LEV_MAX,
-            "moonshot": LEV_MAX,
-            "sniper": LEV_MAX,
-            "duo_band": LEV_MID, "strig_kr": LEV_MID,
-            "pw_waking": LEV_WATCH,
-            "pw_confirm": LEV_WATCH}.get(src, LEV_BASE)
+    """GEN 11 leverage ladder (cap 10x, star on top) — the ONE source
+    of truth, shared by the demo seats and the 💸 live executor."""
+    return {"elite_star": LEV_MAX,       # the 65%/+1.12R profile
+            "pw_confirm": LEV_MID,       # the 82% close-TP lane
+            "strong_trigger": LEV_MID,   # the 83% band
+            "prime": LEV_WATCH}.get(src, LEV_BASE)
 
 
 def load() -> dict:
@@ -374,6 +380,22 @@ def try_open(state: dict, cands: list, live_fn, active=None):
     at most ROTATE_MAX rotations per cycle.
     Returns (opened, rotated)."""
     opened, rotated = [], []
+    # 🚧 GEN 11 DAILY RAILS (user 2026-09-10: "cap of 500 dollars
+    # daily maximum earn and 150 dollars maximum per day lost — no
+    # trades to be taken if that hits"): realized P&L over the last
+    # 24h decides whether NEW seats open. Open positions always keep
+    # their SL/TP — the rails stop entries, never management.
+    _day0 = time.time() - 24 * 3600
+    _day_pnl = sum(float(c9.get("pnl") or 0)
+                   for c9 in state.get("closed") or []
+                   if float(c9.get("closed_at") or 0) >= _day0)
+    if _day_pnl >= DAY_MAX_GAIN or _day_pnl <= -DAY_MAX_LOSS:
+        return [], []
+    # 🪑 dynamic seats (user: "10 slots at the best days of winning
+    # ... when the signals are low we can trim down to 5 or 6"):
+    # full 10 only on a non-losing day WITH rich signal flow; else 6.
+    _slot_cap = (MAX_SLOTS if (_day_pnl >= 0 and len(cands) >= 6)
+                 else MIN_SLOTS)
     held = {p["symbol"] for p in state["open"]}
     src_n: dict = {}
     for p in state["open"]:
@@ -423,7 +445,7 @@ def try_open(state: dict, cands: list, live_fn, active=None):
                                 # cards sorted after it
         if c["symbol"] in held:
             continue
-        if len(state["open"]) >= MAX_SLOTS and not _rotate():
+        if len(state["open"]) >= _slot_cap and not _rotate():
             continue            # board full, nothing rotatable
         _cap = MAX_PER_SRC.get(c["src"])
         if _cap is not None and src_n.get(c["src"], 0) >= _cap:
@@ -546,6 +568,27 @@ def manage(state: dict, live_fn, kr_get=None) -> list:
                          else min(p["stop"], _cand))
         hit_stop = live <= p["stop"] if lng else live >= p["stop"]
         hit_tp1 = live >= p["tp1"] if lng else live <= p["tp1"]
+        # ⭐ GEN 11 NEAR-TP BANK (user 2026-09-10: "priority will be
+        # given to elite star — if its near tp you can close the
+        # trade more or less on numbers and think its going to
+        # reverse near or its up having profits"): elite_star only.
+        # Once the trade has PRINTED >=85% of the way to TP1 and
+        # gives back to <=60% while still in profit, bank at market.
+        # Pure numbers, no external reads.
+        if (p.get("src") == "elite_star" and not hit_stop
+                and not hit_tp1 and p["qty"] > 0):
+            _tpd = abs(p["tp1"] - p["entry"]) or 1e-12
+            _pk_pr = abs(_pk - p["entry"]) / _tpd
+            _now_pr = ((live - p["entry"])
+                       * (1 if lng else -1)) / _tpd
+            if _pk_pr >= 0.85 and 0 < _now_pr <= 0.60:
+                rec = _close_qty(
+                    state, p, p["qty"], live,
+                    f"⭐ near-TP bank — printed {_pk_pr * 100:.0f}% "
+                    f"of the way to TP1, reversing; profit taken")
+                state["closed"].append(rec)
+                events.append(("close", rec))
+                continue
         t2 = p.get("tp2")
         hit_tp2 = (t2 is not None
                    and (live >= t2 if lng else live <= t2))

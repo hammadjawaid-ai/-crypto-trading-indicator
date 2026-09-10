@@ -241,6 +241,9 @@ _DEMO_REOPEN: list = []
 # 🎮 GEN 10 (user 2026-09-07): 🟢 my-watch confirms get demo seats
 # (65-84 conf band only, gated in demo_account). Cycle-thread only.
 _DEMO_CONFIRMS: list = []
+# 🎮 GEN 11 (user 2026-09-10): 💎⭐ elite star fires are the demo's
+# TOP priority seat. Cycle-thread only; TTL-drained like the rest.
+_DEMO_STARS: list = []
 # 🎯 GEN 9: sniper fires feed demo seats (written from the 60s watch
 # thread under _TRIG_LOCK, drained by cycle()).
 _DEMO_SNIPES: list = []
@@ -1532,6 +1535,22 @@ def cycle() -> None:
                                 _st_px = None
                             shadow_trader.open_from_signal(
                                 "elite_star", _st_sig, _st_px)
+                            # 🎮 GEN 11 seat feed (user 2026-09-10):
+                            # star fires take the demo's top seat.
+                            _DEMO_STARS.append(
+                                {"symbol": _st_sig["symbol"],
+                                 "base": _st_sig["base"],
+                                 "side": _st_sig["side"],
+                                 "entry": _st_sig["entry"],
+                                 "stop": _st_sig["stop"],
+                                 "tp1": _st_sig["tp1"],
+                                 "tp2": _st_sig.get("tp2"),
+                                 "score": float(
+                                     _pmx.get("score") or 80),
+                                 "conf": _cf9,
+                                 "src": "elite_star",
+                                 "fired_at": time.time()})
+                            del _DEMO_STARS[:-12]
                         except Exception as _st_exc:
                             print("  elite_star record error:",
                                   _st_exc, flush=True)
@@ -3795,13 +3814,10 @@ def cycle() -> None:
         # GEN 8 form boosts: each pool's own live desk ledger (duo
         # form = the duo85 tier; young tiers just read ~0 = neutral).
         _dz_form = {}
-        for _dt, _sh in (("strong_trigger", "trig_strong"),
-                         ("moonshot", "moonshot"),
-                         ("pw_waking", "personal_watch_early"),
+        for _dt, _sh in (("elite_star", "elite_star"),
                          ("pw_confirm", "personal_watch"),
-                         ("sniper", "sniper"),
-                         ("duo_band", "duo85"),
-                         ("strig_kr", "trig_strong_kr")):
+                         ("prime", "prime"),
+                         ("strong_trigger", "trig_strong")):
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_sh)["net_r"]
             except Exception:
@@ -3872,38 +3888,45 @@ def cycle() -> None:
                                if _now - d["fired_at"]
                                <= DEMO_FIRE_TTL_S]
             _dz_snipes = list(_DEMO_SNIPES)
-        # 🎮 GEN 10 (user 2026-09-07): early_best and pair_king lose
-        # their seats — their pool builders retire with them. The 🟢
-        # confirm feed drains on the same TTL as the wake feed.
+        # 🎮 GEN 11 POOLS (user 2026-09-10: "from now only this
+        # trades will be taken"): the four, by priority — ⭐ star,
+        # 🟢 confirm, 🥇 prime, 💥 strong trigger. The retired GEN 10
+        # feeds (wake/duo/snipes/moonshot/strig_kr) keep filling for
+        # their own records — they just hold no demo seat.
         _DEMO_CONFIRMS[:] = [d for d in _DEMO_CONFIRMS
                              if _now - d["fired_at"]
                              <= DEMO_FIRE_TTL_S]
+        _DEMO_STARS[:] = [d for d in _DEMO_STARS
+                          if _now - d["fired_at"] <= DEMO_FIRE_TTL_S]
+        _dz_prime = []
+        for _pp11 in list(_prime):
+            try:
+                if not (_pp11.get("entry") and _pp11.get("stop")
+                        and _pp11.get("tp1")):
+                    continue
+                _pc11 = _pp11.get("conf")
+                if _pc11 is None:
+                    _pc11 = best_board.confidence(
+                        _pp11.get("symbol"), _pp11.get("side"))
+                _dz_prime.append(dict(_pp11, conf=_pc11,
+                                      src="prime"))
+            except Exception:
+                continue
         _dz_pools = {
+            "elite_star": (list(_DEMO_STARS)
+                           + [d for d in _dz_reo
+                              if d["src"] == "elite_star"]),
+            "pw_confirm": (list(_DEMO_CONFIRMS)
+                           + [d for d in _dz_reo
+                              if d["src"] == "pw_confirm"]),
+            "prime": (_dz_prime
+                      + [d for d in _dz_reo
+                         if d["src"] == "prime"]),
             "strong_trigger": ([f for f in _dz_fires
                                 if f["src"] in ("strong_trigger",
                                                 "rerun")]
                                + [d for d in _dz_reo
-                                  if d["src"] == "strong_trigger"]),
-            "moonshot": [p for p in list(_moon_fires)
-                         if p.get("entry") and p.get("stop")
-                         and p.get("tp1")],
-            "pw_waking": (list(_DEMO_WAKE)
-                          + [d for d in _dz_reo
-                             if d["src"] == "pw_waking"]),
-            "pw_confirm": (list(_DEMO_CONFIRMS)
-                           + [d for d in _dz_reo
-                              if d["src"] == "pw_confirm"]),
-            "sniper": (_dz_snipes
-                       + [d for d in _dz_reo
-                          if d["src"] == "sniper"]),
-            "duo_band": ([d for d in _DEMO_DUOS
-                          if d["src"] == "duo_band"]
-                         + [d for d in _dz_reo
-                            if d["src"] == "duo_band"]),
-            "strig_kr": ([f for f in _dz_fires
-                          if f["src"] == "strig_kr"]
-                         + [d for d in _dz_reo
-                            if d["src"] == "strig_kr"])}
+                                  if d["src"] == "strong_trigger"])}
         # 🔄 GEN 7 rotation input: every (coin, side) with a LIVE
         # signal this cycle — positions outside this set are the
         # rotation candidates ("a losing trade stands only while
@@ -3966,9 +3989,8 @@ def cycle() -> None:
                      "score": float(_rp8.get("score") or 80),
                      "src": (_rec8.get("src")
                              if _rec8.get("src") in
-                             ("strong_trigger", "moonshot",
-                              "pw_waking", "pw_confirm", "sniper",
-                              "duo_band", "strig_kr")
+                             ("elite_star", "pw_confirm", "prime",
+                              "strong_trigger")
                              else "strong_trigger"),
                      "chain": int(_rp8.get("chain") or 0) + 1,
                      "fired_at": _now})
