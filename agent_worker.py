@@ -221,6 +221,15 @@ SECOND_LEG_DAYS = 7.0
 # _TRIG_LOCK (written from the watch thread, read from the cycle).
 _DEMO_FIRES: list = []
 DEMO_FIRE_TTL_S = 1800
+# 📵 ROSTER-9 (user 2026-09-10: "have those on my telegram buzz
+# nothing else"): the chosen nine — apex×4/5 conf70+, moonshot
+# conf 55-64, elite conviction approved-only (+⭐ star), my watch
+# confirm+waking, strong trigger conf65+, prime conf55+, second
+# chance family, discount ladder, reports. Everything else buzzes
+# through _MUTE_R9 (silent; records/desks continue untouched).
+# A muted stream that proves its ledger can earn its voice back on
+# the user's word. Revert any site: _MUTE_R9 -> tg.send.
+_MUTE_R9 = lambda *_a, **_k: (False, "roster9-muted")
 # 🎮 GEN 8 feeds (user 2026-09-05): the duo-pair buzzes and the ⚡
 # waking lane get demo seats. Cycle-thread only; TTL-drained like
 # _DEMO_FIRES. _DEMO_REOPEN holds TP1-banked winners whose momentum
@@ -526,7 +535,7 @@ def _trigger_watch() -> None:
                                     f"{a['side']}", 2 * 3600) \
                                     and not _bstock_quiet(
                                         a["symbol"]):
-                                tg.send(_fmt_momentum(a, px))
+                                _MUTE_R9(_fmt_momentum(a, px))
                         except Exception as exc:
                             print("[trigger] mom-buzz error:", exc,
                                   flush=True)
@@ -613,7 +622,13 @@ def _trigger_watch() -> None:
                     if store.should_alert(
                             f"trig:{a['symbol']}:{a['side']}",
                             6 * 3600):
-                        if not _bstock_quiet(a["symbol"]):
+                        # 📵 ROSTER-9 (2026-09-10): "strong trigger
+                        # only on 65 confidence score and above" —
+                        # conf 45/25 breaks record + desk + demo
+                        # feeds, phone silent. Revert: drop the gate.
+                        if (not _bstock_quiet(a["symbol"])
+                                and a.get("conf") is not None
+                                and float(a.get("conf")) >= 65):
                             tg.send(_fmt_trigger(a, px, vk))
                         store.record_signal("trigger_fire", a)
                         print(f"[trigger] 💥 {a['base']} {a['side']} "
@@ -785,7 +800,7 @@ def _trigger_watch() -> None:
                             else f"5m burst {_b5:.0f}")
                     _t29 = (f" · TP2 `{float(_ea['tp2']):g}`"
                             if _ea.get("tp2") else "")
-                    ok, _ = tg.send(
+                    ok, _ = _MUTE_R9(  # 📵 ROSTER-9 mute 2026-09-10
                         f"🦅 *EAGLE EYE — {_ea['base']} {_eside} "
                         f"HEATING NOW* (card {_ea.get('tier')} "
                         f"{float(_ea.get('score') or 0):.0f} · 🎯 "
@@ -840,7 +855,7 @@ def _trigger_watch() -> None:
                                               4 * 3600):
                         continue
                     _sb = _sk.replace("USDT", "")
-                    ok, _ = tg.send(
+                    ok, _ = _MUTE_R9(  # 📵 ROSTER-9 mute 2026-09-10
                         f"🎯 *SNIPER — {_sb} SHORT* — the flagship "
                         f"fire\n"
                         f"coiled {_sa['coil']:.0f} → heated "
@@ -1314,8 +1329,14 @@ def cycle() -> None:
         _greens_alert = None
 
     def _push(items, key_prefix, fmt, conf_gated=True, min_conf=None,
-              tier=None):
+              tier=None, max_conf=None):
         nonlocal n_alerts
+        # 📵 ROSTER-9 (2026-09-10): _push streams allowed to speak
+        # are ONLY apex / moon / prime — best, one trade, early
+        # lanes, ignition, true signal etc. record + desk as always
+        # but stay off the phone. Revert: delete this gate.
+        if key_prefix not in ("apex", "moon", "prime"):
+            return
         for p in items:
             if (tier is not None and _greens_alert is not None
                     and tier not in _greens_alert):
@@ -1335,6 +1356,10 @@ def cycle() -> None:
                 p["_conf"] = _cf
                 _floor = ALERT_CONF_MIN if min_conf is None else min_conf
                 if _cf < _floor:
+                    continue
+                # 📵 ROSTER-9 conf CEILING (moonshot 55-64 only —
+                # the measured 75%/+0.933R cell)
+                if max_conf is not None and _cf > max_conf:
                     continue
             if store.should_alert(f"{key_prefix}:{p['symbol']}:{p['side']}",
                                   COOLDOWN):
@@ -1395,6 +1420,12 @@ def cycle() -> None:
                 # discriminator stays the 🚀 approval chip (65.5% vs
                 # 48.5%). Revert: change the 40 below.
                 if _cf9 is not None and _cf9 < 40:
+                    continue
+                # 📵 ROSTER-9 (user 2026-09-10): "only approved" —
+                # the validated 65.5%-vs-48.5% chip becomes the
+                # gate. Unapproved MAX/HIGH keep boards + records.
+                # Revert: delete this gate.
+                if not _pmx.get("appr"):
                     continue
                 if store.should_alert(
                         f"eliteconv:{_pmx['symbol']}:{_pmx['side']}",
@@ -1698,8 +1729,12 @@ def cycle() -> None:
     # 📵 diet amendment (user 2026-08-29: "dont remove... prime") —
     # restored to its pre-diet form: the tier gate keeps it silent
     # until its desk record turns green, then it speaks by itself.
-    _push(list(_prime), "prime", _fmt_prime_board, min_conf=0,
-          tier="prime")
+    # 📵 ROSTER-9 (2026-09-10): "prime only confidence score of 55
+    # and above" — conf floor 55, greens gate off (the roster is the
+    # user's chosen list, proving decides later). Revert: min_conf=0,
+    # tier="prime".
+    _push(list(_prime), "prime", _fmt_prime_board, min_conf=55,
+          tier=None)
     # 📡 SURGE RADAR (user 2026-07-26, LPT case): whole-market fresh-
     # pump ignition — fires only in a pump's first ~2h, refuses
     # extended chases. Unproven: labeled stream + desk tier proving.
@@ -1766,7 +1801,11 @@ def cycle() -> None:
     # floor filters). Deflation note stands: 70 is a high bar in red
     # regimes, apex buzzes will be rare until tier forms recover.
     # Revert to audible-always: min_conf=0.
-    _push(apex, "apex", _fmt_apex, min_conf=70, tier=None)
+    # 📵 ROSTER-9 (2026-09-10): "apex only with x4 and x5 lanes with
+    # 70+ confidence nothing else" — the ×N stack count gates the
+    # buzz. Revert: drop the filter.
+    _push([p for p in apex if int(p.get("apex") or 0) >= 4],
+          "apex", _fmt_apex, min_conf=70, tier=None)
     # 2026-08-15 user order: 🌟 EARLY ELITE buzzes ALWAYS — no greens
     # gate. Kronos disagreeing is fine ("if kronos dont agree thats
     # ok"): the 🔮 line on every buzz already spells out all three
@@ -2498,7 +2537,7 @@ def cycle() -> None:
                              if _gr[0] == "⚪" else "")
                     _grl = (f"\n{_gr[0]} this coin's record on this "
                             f"signal: {_gr[1]}{_hint}")
-                ok, _ = tg.send(
+                ok, _ = _MUTE_R9(  # 📵 ROSTER-9 mute 2026-09-10
                     f"🎯🔥 *ENTRY — {_b_s} {_sd_s}* · confidence "
                     f"{_sc_s:.0f}/100{_hot_s}\n"
                     f"entry `{_epx:g}` · SL `{_stp:g}` · TP1 "
@@ -2571,8 +2610,12 @@ def cycle() -> None:
     for p in _moon_watch:
         store.record_signal("moon_watch", p)
     # 2026-08-15 user order 7: MOONSHOT buzz muted until GREEN.
-    _push(list(_moon_fires), "moon", _fmt_moonshot, min_conf=0,
-          tier="moonshot")
+    # 📵 ROSTER-9 (2026-09-10): "moonshot — audible even when
+    # desk-red, only conf 55-64" (the measured 75%/+0.933R n=28
+    # cell). tier=None removes the greens gate; the band does the
+    # judging. Revert: min_conf=0, tier="moonshot".
+    _push(list(_moon_fires), "moon", _fmt_moonshot, min_conf=55,
+          max_conf=64, tier=None)
 
     # 🔮 KRONOS APPROVED desk tier (user 2026-08-03: "can the 86% be
     # treated separately?") — every elite-stream signal where Kronos
@@ -2900,7 +2943,7 @@ def cycle() -> None:
         _green = set()
     for _gt in _green:
         if store.should_alert(f"green:{_gt}", 30 * 24 * 3600):
-            ok, _ = tg.send(f"🟢 *GREEN LIGHT* — `{_gt}` is now PROVEN "
+            ok, _ = _MUTE_R9(f"🟢 GREEN LIGHT — `{_gt}` "  # 📵 R9 mute
                             f"profitable after fees in its live forward "
                             f"record on the Decision Desk.")
             n_alerts += 1 if ok else 0
@@ -3109,7 +3152,7 @@ def cycle() -> None:
                 _t22 = (f" · TP2 `{float(_p2['tp2']):g}`"
                         if _p2.get("tp2") else "")
                 _ht2 = _p2.get("heat")
-                tg.send(
+                _MUTE_R9(  # 📵 ROSTER-9 mute 2026-09-10
                     f"🎯 *SNIPER — {_b2} {_p2.get('side')}* — "
                     f"golden cell fire\n"
                     f"via {_tn2} ({_bk2}) — this cell hits "
@@ -3267,7 +3310,7 @@ def cycle() -> None:
                     f"_2 streams + conf 85+ = 50% / +0.218R live "
                     f"(n=28). A 3rd stream joining downgrades the "
                     f"cell — don't chase re-fires._")
-            ok, _ = tg.send(_du_msg)
+            ok, _ = _MUTE_R9(_du_msg)  # 📵 ROSTER-9 mute 2026-09-10
             n_alerts += 1 if ok else 0
             try:
                 _du_sig = {"symbol": _du["symbol"], "base": _du_b,
