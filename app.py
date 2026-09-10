@@ -3735,6 +3735,12 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                         "AND opened_at BETWEEN ? AND ?",
                         (time.time() - 72 * 3600,
                          time.time() - 6 * 3600)).fetchall()
+                    _sc_cb = _scc.execute(
+                        "SELECT conf, pnl_r FROM shadow_trades "
+                        "WHERE tier IN ('revival','comeback_f',"
+                        "'comeback_g','comeback') AND "
+                        "status='CLOSED' AND conf IS NOT NULL AND "
+                        "pnl_r IS NOT NULL").fetchall()
                 finally:
                     _scc.close()
                 _sc_names = {"revival": "💀→🚀 REVIVAL",
@@ -3766,6 +3772,40 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                         f"{_tot9 - _cl9} open"
                         + (" · ⚠️ thin" if _cl9 < 20 else "")
                         + "</span>", unsafe_allow_html=True)
+                # 🎯 conf-band split, family pooled (user 2026-09-09)
+                if _sc_cb:
+                    _sc_agg: dict = {}
+                    for _cf9x, _pr9x in _sc_cb:
+                        _cf9v = float(_cf9x)
+                        _b9x = ("<40" if _cf9v < 40 else
+                                "40-54" if _cf9v < 55 else
+                                "55-64" if _cf9v < 65 else
+                                "65-84" if _cf9v < 85 else "85+")
+                        _a9x = _sc_agg.setdefault(
+                            _b9x, {"n": 0, "w": 0, "r": 0.0})
+                        _a9x["n"] += 1
+                        _a9x["w"] += 1 if float(_pr9x) > 0 else 0
+                        _a9x["r"] += float(_pr9x)
+                    st.markdown("**🎯 win rate by confidence band "
+                                "(family pooled):**")
+                    for _b9x in ("<40", "40-54", "55-64", "65-84",
+                                 "85+"):
+                        _a9x = _sc_agg.get(_b9x)
+                        if not _a9x:
+                            continue
+                        _c9x2 = ("#2ed47a" if _a9x["r"] > 0
+                                 else "#ff5c5c")
+                        st.markdown(
+                            f"<span style='font-size:0.8rem;color:"
+                            f"#9aa7c7'>· conf <b>{_b9x}</b> — "
+                            f"n={_a9x['n']} · win "
+                            f"{_a9x['w'] / _a9x['n'] * 100:.0f}% · "
+                            f"<b style='color:{_c9x2}'>"
+                            f"{_a9x['r'] / _a9x['n']:+.3f}R/trade"
+                            f"</b>"
+                            + (" · ⚠️ thin" if _a9x["n"] < 20
+                               else "")
+                            + "</span>", unsafe_allow_html=True)
                 if _sc_open:
                     st.markdown("**📂 open second-chance trades:**")
                     for (_t9, _s9, _sd9, _e9, _sl9, _tp9, _o9,
@@ -3869,6 +3909,11 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                         "SELECT ts, base, side, entry, tp1 FROM "
                         "signals WHERE stream='elite_star' "
                         "ORDER BY ts DESC LIMIT 10").fetchall()
+                    _es_cb = _esc.execute(
+                        "SELECT conf, pnl_r FROM shadow_trades "
+                        "WHERE tier='elite_star' AND "
+                        "status='CLOSED' AND conf IS NOT NULL AND "
+                        "pnl_r IS NOT NULL").fetchall()
                 finally:
                     _esc.close()
                 _es_tot, _es_cl, _es_w, _es_net = (
@@ -3894,6 +3939,43 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                         "lens went live 2026-09-09; star fires "
                         "record here from now. ~20 closed = the "
                         "verdict vs the measured 65%.")
+                # 🎯 win rate by confidence band (user 2026-09-09:
+                # "also have the confidence score split as we have
+                # for others in the system")
+                if _es_cb:
+                    def _es_band(cf):
+                        return ("<40" if cf < 40 else
+                                "40-54" if cf < 55 else
+                                "55-64" if cf < 65 else
+                                "65-84" if cf < 85 else "85+")
+                    _es_agg: dict = {}
+                    for _cf9x, _pr9x in _es_cb:
+                        _b9x = _es_band(float(_cf9x))
+                        _a9x = _es_agg.setdefault(
+                            _b9x, {"n": 0, "w": 0, "r": 0.0})
+                        _a9x["n"] += 1
+                        _a9x["w"] += 1 if float(_pr9x) > 0 else 0
+                        _a9x["r"] += float(_pr9x)
+                    st.markdown("**🎯 win rate by confidence band "
+                                "(⭐ closes):**")
+                    for _b9x in ("<40", "40-54", "55-64", "65-84",
+                                 "85+"):
+                        _a9x = _es_agg.get(_b9x)
+                        if not _a9x:
+                            continue
+                        _c9x2 = ("#2ed47a" if _a9x["r"] > 0
+                                 else "#ff5c5c")
+                        st.markdown(
+                            f"<span style='font-size:0.8rem;color:"
+                            f"#9aa7c7'>· conf <b>{_b9x}</b> — "
+                            f"n={_a9x['n']} · win "
+                            f"{_a9x['w'] / _a9x['n'] * 100:.0f}% · "
+                            f"<b style='color:{_c9x2}'>"
+                            f"{_a9x['r'] / _a9x['n']:+.3f}R/trade"
+                            f"</b>"
+                            + (" · ⚠️ thin" if _a9x["n"] < 20
+                               else "")
+                            + "</span>", unsafe_allow_html=True)
                 if _es_open:
                     st.markdown("**📂 open ⭐ trades:**")
                     for (_s9, _sd9, _e9, _sl9, _tp9, _o9, _cf9x,
