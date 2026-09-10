@@ -1335,7 +1335,8 @@ def cycle() -> None:
         # are ONLY apex / moon / prime — best, one trade, early
         # lanes, ignition, true signal etc. record + desk as always
         # but stay off the phone. Revert: delete this gate.
-        if key_prefix not in ("apex", "moon", "prime"):
+        if key_prefix not in ("apex", "moon", "prime", "em",
+                              "emrest"):
             return
         for p in items:
             if (tier is not None and _greens_alert is not None
@@ -2259,12 +2260,19 @@ def cycle() -> None:
     # 📵 diet amendment (user same day: "dont remove... early lane
     # and early movers") — 🚀 EARLY-LANE (the 81.3% cell) + ⚡ EARLY
     # MOVERS restored to their pre-diet ALWAYS forms.
+    # 📵 ROSTER-9 update (user 2026-09-10: "add these as well —
+    # early movers conf 55-64 and conf 85+, early lane conf 85+"):
+    # 🚀 EARLY-LANE speaks at 85+ only; ⚡ EARLY MOVERS speaks in its
+    # two chosen bands (the 65-84 middle stays silent — measured
+    # weakest). Revert: min_conf=0, single calls.
     _push([p for p in em_big if _in_zone(p)], "em", _fmt_prime,
-          min_conf=0)
+          min_conf=85)
     _em_rest = [p for p in r.get("early_strong", [])
                 if not p.get("early_lanes")]
     _push([p for p in _em_rest if _in_zone(p)], "emrest",
-          _fmt_early_rest, min_conf=0)
+          _fmt_early_rest, min_conf=55, max_conf=64)
+    _push([p for p in _em_rest if _in_zone(p)], "emrest",
+          _fmt_early_rest, min_conf=85)
     # 🌊 TREND RIDER buzz MUTED AGAIN same day (user 2026-08-06 after
     # the honest 25%-win framing: "not effective for me") — the 3-of-4
     # loser cadence doesn't fit how he trades, even net-positive.
