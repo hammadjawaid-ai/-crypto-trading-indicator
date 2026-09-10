@@ -5164,21 +5164,25 @@ def cycle() -> None:
             _lo9, _hi9 = (1.0, 2.5) if _pw_strong else (0.75, 1.25)
             _pw_clip = min(max(_pw_br, _lo9), _hi9) \
                 if _pw_br > 0 else _lo9
-            # 🎯 THE 1R CAP (user 2026-09-09: "improve and advance to
-            # hit more accurately towards tp" — measured on these
-            # lanes' OWN ledgers, .pw_autopsy/.pw_thirds: TP1 under
-            # 1R = 82.4%/+0.870R confirm (n=51) and 75.0%/+0.781R
-            # waking (n=36), ALL thirds green; TP1 asking >=1R =
-            # 12.5%/-0.704R, all thirds red. The stretchy benchmark
-            # race was exactly where the harvest died. TP2 stays the
-            # runner for the ride. Revert: delete the cap line.
-            _pw_clip = min(_pw_clip, 0.95)
+            # (1R cap REVERTED same day it shipped — user: "it
+            # depends on the movements... my watch is proving
+            # itself, we don't need to change anything on it." The
+            # geometry stays the user's benchmark race, UNTOUCHED.
+            # The measured TP1-distance law (.pw_autopsy: <1R =
+            # 82.4%/75.0% all-thirds-green; >=1R = 12.5% all red)
+            # rides the buzz as an honest CHIP below instead of a
+            # change to the plans.)
             _pw_tp1 = _pw_px + _pw_clip * _pw_r
             _pw_tp2 = _pw_px + max(2.0, _pw_clip + 0.5) * _pw_r
             _pw_why = (f"🎯 racing the benchmark `{_pw_bench:g}` "
                        f"(24h high) → TP1 at {_pw_clip:.2f}R · "
                        + (f"💪 STRONG ({_pw_tell})" if _pw_strong
-                          else "quiet confirm — tight race"))
+                          else "quiet confirm — tight race")
+                       + (" · 🎯 close TP1 — the 82% band"
+                          if _pw_clip < 1.0 else
+                          " · ⚠️ far TP1 — this shape measured "
+                          "12.5% win live; +1R is the measured "
+                          "bank"))
             # ⚡ EARLY lane (user 2026-08-29: "on the go... instead of
             # waiting 1h"): fire when the turn is already MOVING —
             # price reclaims the 1h ema20 intra-candle while the 15m
