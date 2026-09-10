@@ -855,7 +855,10 @@ def _trigger_watch() -> None:
                                               4 * 3600):
                         continue
                     _sb = _sk.replace("USDT", "")
-                    ok, _ = _MUTE_R9(  # 📵 ROSTER-9 mute 2026-09-10
+                    # 🔊 UNMUTED (user 2026-09-10: "unmute the sniper
+                    # ... only for shorts" — gen-1 is SHORT-only by
+                    # construction, the validated regime weapon)
+                    ok, _ = tg.send(
                         f"🎯 *SNIPER — {_sb} SHORT* — the flagship "
                         f"fire\n"
                         f"coiled {_sa['coil']:.0f} → heated "
@@ -3160,20 +3163,26 @@ def cycle() -> None:
                 _t22 = (f" · TP2 `{float(_p2['tp2']):g}`"
                         if _p2.get("tp2") else "")
                 _ht2 = _p2.get("heat")
-                _MUTE_R9(  # 📵 ROSTER-9 mute 2026-09-10
-                    f"🎯 *SNIPER — {_b2} {_p2.get('side')}* — "
-                    f"golden cell fire\n"
-                    f"via {_tn2} ({_bk2}) — this cell hits "
-                    f"{_g2['win_pct']:.0f}% on {_g2['n']} live "
-                    f"closed trades ({_g2['net_r']:+.1f}R)\n"
-                    f"entry `{float(_p2['entry']):g}` · SL "
-                    f"`{float(_p2['stop']):g}` · TP1 "
-                    f"`{float(_p2['tp1']):g}`{_t22}"
-                    f"{' · 🌡 heat ' + str(_ht2) if _ht2 is not None else ''}\n"
-                    f"_the best-cell selector: only shots the LIVE "
-                    f"ledger says land. Cells re-mine hourly from "
-                    f"your own records._")
-                n_alerts += 1
+                # 🔊 UNMUTED FOR SHORTS ONLY (user 2026-09-10:
+                # "unmute the sniper and sniper v2 but only for
+                # shorts") — LONG golden-cell fires keep recording
+                # + desk + demo feeds, phone silent. Revert to both
+                # ways: drop the side check.
+                if (_p2.get("side") or "").upper() == "SHORT":
+                    tg.send(
+                        f"🎯 *SNIPER — {_b2} {_p2.get('side')}* — "
+                        f"golden cell fire\n"
+                        f"via {_tn2} ({_bk2}) — this cell hits "
+                        f"{_g2['win_pct']:.0f}% on {_g2['n']} live "
+                        f"closed trades ({_g2['net_r']:+.1f}R)\n"
+                        f"entry `{float(_p2['entry']):g}` · SL "
+                        f"`{float(_p2['stop']):g}` · TP1 "
+                        f"`{float(_p2['tp1']):g}`{_t22}"
+                        f"{' · 🌡 heat ' + str(_ht2) if _ht2 is not None else ''}\n"
+                        f"_the best-cell selector: only shots the "
+                        f"LIVE ledger says land. Cells re-mine "
+                        f"hourly from your own records._")
+                    n_alerts += 1
                 try:
                     _s2_sig = dict(_p2)
                     _s2_sig["tier"] = f"{_tn2}/{_bk2}"
