@@ -90,9 +90,11 @@ START_BAL = 1500.0
 # expectancy re-greens) · sniper2 (golden cells, both ways).
 # Rails: +$500 / -$150 per 24h stop NEW entries. Slots 7 max, trim
 # to 5 on red/thin days. Frozen for 30 closed before any verdict.
-DAY_MAX_GAIN = 500.0
-DAY_MAX_LOSS = 150.0
-MIN_SLOTS = 5
+# GEN 12.2 (user 2026-09-13: "increase the demo slots to 10 and
+# losing per day to 250 dollar and earning to 500+")
+DAY_MAX_GAIN = 750.0
+DAY_MAX_LOSS = 250.0
+MIN_SLOTS = 6
 # 💎🔮 RIDE EXITS (elite_kr only): the +1.14R record was earned by
 # RIDING — half-bank at TP1, stop to BE, trail toward TP2. Banking
 # 100% at TP1 would cut the exact riders that make the cell.
@@ -102,7 +104,7 @@ RIDE_SRC: set = {"elite_kr"}
 # conviction"). A CEILING, not a quota — the MIN_RANK floor still
 # gates every slot. Elite's 3-seat cap below guarantees the top
 # streams (strong triggers + re-runs) always keep >= 7 seats.
-MAX_SLOTS = 7
+MAX_SLOTS = 10
 # The earlier 6->8 good-day overflow is absorbed by the 10-slot
 # base; no seats beyond 10.
 MAX_SLOTS_HOT = 8
