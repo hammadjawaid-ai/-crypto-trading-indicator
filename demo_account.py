@@ -75,24 +75,34 @@ STATE_FILE = os.environ.get("DEMO_STATE") or \
 # ... maximum 8 slots and anyone can take any place" + the named seven
 # streams). Open seating: no family caps, rotation OFF, rank floor
 # lowered so any listed stream can seat on its own merits.
-GEN = 11
+GEN = 12
 START_BAL = 1500.0
-# 🎮 GEN 11 (user 2026-09-10: "restart from 1500 dollars and from now
-# only this trades will be taken"): FOUR streams by priority —
-# elite_star > pw_confirm (conf>=45) > prime (conf>=55) >
-# strong_trigger (conf>=65, incl 🔥 re-runs). Daily rails: no NEW
-# trades after +$500 earned or -$150 lost in 24h (open positions
-# keep their SL/TP). Seats: 10 on winning days with rich signal
-# flow, trimmed to 6 otherwise. Lev cap 10x, star on top.
+# 🎮 GEN 12 (user 2026-09-12 "gen 12 do the changes but edit the
+# slots accordingly by yourself; elite star every band; add kr agree
+# and elite star or elite conviction"): ONE SEAT PER MEASURED FAMILY,
+# each in its proven band — built from the full-history scorecard +
+# the Kronos×conf map. Sources: elite_star (every band) · elite_kr
+# (💎🔮 elite fire + KR-STRONG/TRIG×KR backing, conf 40-54 — the
+# +1.141R n=21 cell — RIDE exits, see RIDE_SRC) · my-watch confirm
+# (>=45) + waking (40-54) · moonshot (55-64) · kr_strong (55-64,
+# its native band) · strig_kr (TRIG×KR, the trigger family's
+# form-green half; plain trigger benched from money until its 14d
+# expectancy re-greens) · sniper2 (golden cells, both ways).
+# Rails: +$500 / -$150 per 24h stop NEW entries. Slots 7 max, trim
+# to 5 on red/thin days. Frozen for 30 closed before any verdict.
 DAY_MAX_GAIN = 500.0
 DAY_MAX_LOSS = 150.0
-MIN_SLOTS = 6
+MIN_SLOTS = 5
+# 💎🔮 RIDE EXITS (elite_kr only): the +1.14R record was earned by
+# RIDING — half-bank at TP1, stop to BE, trail toward TP2. Banking
+# 100% at TP1 would cut the exact riders that make the cell.
+RIDE_SRC: set = {"elite_kr"}
 # 6 -> 10 (user 2026-08-23 second follow-up: "instead of 6 we have
 # 10 slots now and 7 for strong triggers and 3 for elite
 # conviction"). A CEILING, not a quota — the MIN_RANK floor still
 # gates every slot. Elite's 3-seat cap below guarantees the top
 # streams (strong triggers + re-runs) always keep >= 7 seats.
-MAX_SLOTS = 10
+MAX_SLOTS = 7
 # The earlier 6->8 good-day overflow is absorbed by the 10-slot
 # base; no seats beyond 10.
 MAX_SLOTS_HOT = 8
@@ -127,10 +137,13 @@ ELITE_FAMILY_CAP = 0
 # positives banked first, then negatives cut. Healthy signals are
 # NEVER rotated, and at most this many rotations happen per cycle.
 ROTATE_MAX = 0   # GEN 9 user order: rotation REMOVED
-SMART_EXIT_SKIP: set = {"strong_trigger", "pw_confirm", "prime",
-                        "elite_star"}   # GEN 11: SL/TP1 only —
-# except elite_star's own ⭐ NEAR-TP BANK rule in manage() (user:
-# "if its near tp... and think its going to reverse... close it").
+SMART_EXIT_SKIP: set = {"elite_star", "elite_kr", "pw_confirm",
+                        "pw_waking", "moonshot", "kr_strong",
+                        "strig_kr", "sniper2"}
+# GEN 12: kronos smart-exit off for all. Exits: SL-or-TP1-bank-100%
+# everywhere EXCEPT ⭐ elite_star's near-TP bank (own block) and
+# 💎🔮 elite_kr's RIDE (half-bank TP1 + BE + trail, in the TP1
+# branch) — each matching how its record was earned.
 # 🧠 STRENGTH-AWARE SMART EXIT + TRAIL (user 2026-08-15: "smart exit
 # should have a trailing method... loosen a bit if the signal
 # strength is good... let them ride to tp and trail to tp2 if they
@@ -189,12 +202,16 @@ MIN_RANK = 85.0  # GEN 9: anyone can take any place
 # stream seated ONLY in its measured-green confidence band(s) — see
 # CONF_GATE below. pair_king and early_best lose their seats (king
 # pair 33%/-0.355R live; early elite 85+ 19%/-0.514R).
-# GEN 11 priority (user 2026-09-10): star first, confirm second,
-# prime + strong trigger after.
-CLASS_W = {"elite_star": 100,      # 1. the measured winner profile
-           "pw_confirm": 99,       # 2. my-watch 1h confirms
-           "prime": 98,            # 3. the winners board
-           "strong_trigger": 97}   # 4. strong triggers (+ 🔥 re-runs)
+# GEN 12 priority: star, the KR-elite rider cell, my watch, then
+# the volume machines.
+CLASS_W = {"elite_star": 100,   # 1. the winner profile, every band
+           "elite_kr": 99,      # 2. 💎🔮 the +1.14R rider cell
+           "pw_confirm": 98,    # 3a. my-watch confirms
+           "pw_waking": 97,     # 3b. my-watch waking
+           "moonshot": 96,      # 4. the big-n workhorse
+           "kr_strong": 95,     # 5. the KR volume machine
+           "strig_kr": 94,      # 6. TRIG×KR (trigger family seat)
+           "sniper2": 93}       # 7. golden cells, both ways
 # 🎯 CONF-BAND SEAT GATES (user 2026-09-07, read off the live desk
 # ledger): a stream's candidate takes a seat ONLY when its conf falls
 # in a band that measured green on its own closed trades. Bands are
@@ -208,13 +225,15 @@ CLASS_W = {"elite_star": 100,      # 1. the measured winner profile
 #   pw_confirm      40-54 (75% / +0.823R n=12, thin — user add
 #                   2026-09-07) + 65-84 (62% / +0.446R n=29)
 #   duo_band        85+   (the DUO cell by construction)
-# GEN 11 gates (user 2026-09-10, floors only): confirm >=45,
-# prime >=55, strong trigger >=65; elite_star ungated (the star
-# profile IS its gate).
+# GEN 12 gates — each stream in its MEASURED band. elite_star
+# ungated ("every band", user 2026-09-12); strig_kr ungated (green
+# in every band, thin per-band); sniper2 self-gated by golden cells.
 CONF_GATE: dict = {
+    "elite_kr": ((40.0, 55.0),),      # the +1.141R band; 55+ is red
     "pw_confirm": ((45.0, 1000.0),),
-    "prime": ((55.0, 1000.0),),
-    "strong_trigger": ((65.0, 1000.0),),
+    "pw_waking": ((40.0, 55.0),),
+    "moonshot": ((55.0, 65.0),),
+    "kr_strong": ((55.0, 65.0),),     # its native band (n=242)
 }
 # GEN 6: no conditional seats — the pool is exactly the named three.
 CONDITIONAL_SRC: set = set()
@@ -226,12 +245,15 @@ CONDITIONAL_SRC: set = set()
 
 
 def lev_for(src: str, conf=None) -> float:
-    """GEN 11 leverage ladder (cap 10x, star on top) — the ONE source
-    of truth, shared by the demo seats and the 💸 live executor."""
-    return {"elite_star": LEV_MAX,       # the 65%/+1.12R profile
-            "pw_confirm": LEV_MID,       # the 82% close-TP lane
-            "strong_trigger": LEV_MID,   # the 83% band
-            "prime": LEV_WATCH}.get(src, LEV_BASE)
+    """GEN 12 ladder — sized so a normal losing streak stays boring
+    (the variance-drag law): 5x top, 3x floor. ONE source of truth,
+    shared by the demo seats and the 💸 live executor."""
+    return {"elite_star": 5.0,
+            "elite_kr": 4.0,     # 28.6% win, fat riders — streaky
+            "pw_confirm": 4.0, "pw_waking": 4.0,
+            "moonshot": 4.0,
+            "kr_strong": 3.0, "strig_kr": 3.0,
+            "sniper2": 3.0}.get(src, 3.0)
 
 
 def load() -> dict:
@@ -668,6 +690,24 @@ def manage(state: dict, live_fn, kr_get=None) -> list:
             events.append(("close", rec))
             continue
         if hit_tp1 and not p["be_set"]:
+            # 💎🔮 GEN 12 RIDE (elite_kr only): the +1.141R cell was
+            # earned by RIDING — bank HALF at TP1, stop to entry
+            # (BE), trail machinery takes the rest toward TP2.
+            if p.get("src") in RIDE_SRC and p.get("tp2"):
+                _half = p["qty"] / 2.0
+                rec = _close_qty(state, p, _half, p["tp1"],
+                                 "TP1 — banked 50%, riding the "
+                                 "rest to TP2 (💎🔮 ride law)")
+                p["qty"] -= _half
+                p["tp1_banked"] = _half
+                p["be_set"] = True
+                p["stop"] = max(p["stop"], p["entry"]) \
+                    if p["side"] == "LONG" \
+                    else min(p["stop"], p["entry"])
+                state["closed"].append(rec)
+                events.append(("tp1", rec))
+                keep.append(p)
+                continue
             # GEN 7 (user 2026-08-28: "bank full at tp1 and start
             # trade again if the signals hold with confidence"):
             # 100% banked AT TP1 — the GEN 6 half-bank geometry lost
