@@ -252,7 +252,10 @@ def lev_for(src: str, conf=None) -> float:
             "elite_kr": 4.0,     # 28.6% win, fat riders — streaky
             "pw_confirm": 4.0, "pw_waking": 4.0,
             "moonshot": 4.0,
-            "kr_strong": 3.0, "strig_kr": 3.0,
+            "kr_strong": 4.0,     # GEN 12.1: seat gated to the
+                                  # validated rr 1.0-1.5 cell
+                                  # (76%/+0.76R n=225) — earns 4x
+            "strig_kr": 3.0,
             "sniper2": 3.0}.get(src, 3.0)
 
 

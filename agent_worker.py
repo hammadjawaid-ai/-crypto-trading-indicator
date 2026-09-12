@@ -2850,6 +2850,55 @@ def cycle() -> None:
                 _kr_strong.append(_sp2)
         for _sp2 in _kr_strong:
             store.record_signal("kr_strong", _sp2)
+        # ⚡🔮 KR-STRONG PREMIUM bell (user 2026-09-13, VALIDATED
+        # .krs_cell_validate): TP1 at 1.0-1.5R + calm kronos read
+        # (|exp| < 3%) + LONG = 83.1% / +1.072R live (n=83), thirds
+        # all green, drop-3-best still 80.8%/+0.936R. ~3-4 fires/day
+        # — buzz-worthy. Cap 2/cycle, 4h per coin.
+        try:
+            _kp_sent = 0
+            for _sp2 in _kr_strong:
+                if _kp_sent >= 2:
+                    break
+                try:
+                    if (_sp2.get("side") or "").upper() != "LONG":
+                        continue
+                    _kp_e = float(_sp2.get("entry") or 0)
+                    _kp_s = float(_sp2.get("stop") or 0)
+                    _kp_t = float(_sp2.get("tp1") or 0)
+                    if min(_kp_e, _kp_s, _kp_t) <= 0:
+                        continue
+                    _kp_rr = (abs(_kp_t - _kp_e)
+                              / max(1e-12, abs(_kp_e - _kp_s)))
+                    _kp_x = abs(float(_sp2.get("kr_exp") or 99))
+                    if not (1.0 <= _kp_rr < 1.5 and _kp_x < 3):
+                        continue
+                    if _bstock_quiet(_sp2.get("symbol")):
+                        continue
+                    if not store.should_alert(
+                            f"krsprem:{_sp2['symbol']}:LONG",
+                            4 * 3600):
+                        continue
+                    _kp_t2 = (f" · TP2 `{float(_sp2['tp2']):g}`"
+                              if _sp2.get("tp2") else "")
+                    ok, _ = tg.send(
+                        f"⚡🔮 *KR-STRONG PREMIUM — "
+                        f"{_sp2.get('base')} LONG*\n"
+                        f"strong setup · calm kronos wind "
+                        f"({_sp2.get('kr_dir')} {_kp_x:+.1f}%/24h) "
+                        f"· TP1 in the goldilocks zone "
+                        f"({_kp_rr:.2f}R away)\n"
+                        f"entry `{_kp_e:g}` · SL `{_kp_s:g}` · TP1 "
+                        f"`{_kp_t:g}`{_kp_t2}\n"
+                        f"_the validated premium cell: 83.1% / "
+                        f"+1.07R live (n=83, all thirds green). "
+                        f"Bank at TP1._")
+                    n_alerts += 1 if ok else 0
+                    _kp_sent += 1
+                except Exception:
+                    continue
+        except Exception as _kp_exc:
+            print("  krs-premium buzz error:", _kp_exc, flush=True)
         # 🔮✅ buzz (user 2026-08-05: "kronos with apex / take now /
         # fresh mover / early elite approved should be on telegram") —
         # the live face of the validated agree bucket (86%/+0.34R,
@@ -4003,10 +4052,26 @@ def cycle() -> None:
                                     src="elite_kr"))
             except Exception:
                 continue
-        # ⚡🔮 kr_strong candidates (desk loop already stamped conf)
-        _dz_krs = [dict(p, src="kr_strong") for p in list(_kr_strong)
-                   if p.get("entry") and p.get("stop")
-                   and p.get("tp1")]
+        # ⚡🔮 kr_strong candidates (desk loop already stamped conf).
+        # GEN 12.1 (user 2026-09-13 "this is solid", VALIDATED
+        # .krs_cell_validate: rr 1.0-1.5 = 76.4%/+0.764R n=225, ALL
+        # thirds green, drop-3-best +0.689R still green, 79/97 coins
+        # positive): the seat takes ONLY plans whose TP1 sits
+        # 1.0-1.5R away — under 1R measured 30%/-0.09R, over 1.5R
+        # measured 11%/-0.58R.
+        _dz_krs = []
+        for p in list(_kr_strong):
+            try:
+                if not (p.get("entry") and p.get("stop")
+                        and p.get("tp1")):
+                    continue
+                _rr13 = (abs(float(p["tp1"]) - float(p["entry"]))
+                         / max(1e-12, abs(float(p["entry"])
+                                          - float(p["stop"]))))
+                if 1.0 <= _rr13 < 1.5:
+                    _dz_krs.append(dict(p, src="kr_strong"))
+            except Exception:
+                continue
         _dz_pools = {
             "elite_star": (list(_DEMO_STARS)
                            + [d for d in _dz_reo
