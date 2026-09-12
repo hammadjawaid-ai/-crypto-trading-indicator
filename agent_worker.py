@@ -3982,7 +3982,9 @@ def cycle() -> None:
                          ("pw_waking", "personal_watch_early"),
                          ("moonshot", "moonshot"),
                          ("kr_strong", "kr_strong"),
+                         ("kr_premium", "kr_strong"),      # GEN 13
                          ("strig_kr", "trig_strong_kr"),
+                         ("strong_trigger", "trig_strong"),  # GEN 13
                          ("sniper2", "sniper2")):
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_sh)["net_r"]
@@ -4091,6 +4093,13 @@ def cycle() -> None:
         # 1.0-1.5R away — under 1R measured 30%/-0.09R, over 1.5R
         # measured 11%/-0.58R.
         _dz_krs = []
+        # ⚡🔮 GEN 13 KR-STRONG PREMIUM seat (user 2026-09-13): the
+        # bell's exact cell — LONG + TP1 1.0-1.5R + calm kronos read
+        # (|exp| < 3%) = 83.1% / +1.07R n=83. Top of the ladder, the
+        # biggest risk share (RISK_PCT). A coin qualifying for both
+        # premium and plain kr_strong seats once — premium ranks
+        # first, one-per-coin in try_open drops the twin.
+        _dz_krp = []
         for p in list(_kr_strong):
             try:
                 if not (p.get("entry") and p.get("stop")
@@ -4101,9 +4110,16 @@ def cycle() -> None:
                                           - float(p["stop"]))))
                 if 1.0 <= _rr13 < 1.5:
                     _dz_krs.append(dict(p, src="kr_strong"))
+                    if ((p.get("side") or "").upper() == "LONG"
+                            and abs(float(p.get("kr_exp") or 99))
+                            < 3):
+                        _dz_krp.append(dict(p, src="kr_premium"))
             except Exception:
                 continue
         _dz_pools = {
+            "kr_premium": (_dz_krp
+                           + [d for d in _dz_reo
+                              if d["src"] == "kr_premium"]),
             "elite_star": (list(_DEMO_STARS)
                            + [d for d in _dz_reo
                               if d["src"] == "elite_star"]),
@@ -4122,6 +4138,12 @@ def cycle() -> None:
                           if f["src"] == "strig_kr"]
                          + [d for d in _dz_reo
                             if d["src"] == "strig_kr"]),
+            # 💥 GEN 13: plain strong trigger rejoins — seat gated to
+            # conf >= 65 in demo_account.CONF_GATE (its 83% band).
+            "strong_trigger": ([f for f in _dz_fires
+                                if f["src"] == "strong_trigger"]
+                               + [d for d in _dz_reo
+                                  if d["src"] == "strong_trigger"]),
             "sniper2": (_dz_snipes
                         + [d for d in _dz_reo
                            if d["src"] == "sniper2"])}
@@ -4189,7 +4211,8 @@ def cycle() -> None:
                              if _rec8.get("src") in
                              ("elite_star", "elite_kr", "pw_confirm",
                               "pw_waking", "moonshot", "kr_strong",
-                              "strig_kr", "sniper2")
+                              "strig_kr", "sniper2", "kr_premium",
+                              "strong_trigger")
                              else "pw_confirm"),
                      "chain": int(_rp8.get("chain") or 0) + 1,
                      "fired_at": _now})

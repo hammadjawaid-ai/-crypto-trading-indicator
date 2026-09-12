@@ -75,8 +75,33 @@ STATE_FILE = os.environ.get("DEMO_STATE") or \
 # ... maximum 8 slots and anyone can take any place" + the named seven
 # streams). Open seating: no family caps, rotation OFF, rank floor
 # lowered so any listed stream can seat on its own merits.
-GEN = 12
+GEN = 13
 START_BAL = 1500.0
+# 🎮 GEN 13 (user 2026-09-13: "add KR-STRONG PREMIUM and STRONG
+# TRIGGER to the family... make me 1500 to 3000 dollars in 5 days...
+# pick the trades whichever you want no matter how many slots... goal
+# is 3000 in 5 to 10 days"): the TARGET generation. Ten streams, and
+# the sizing is ENGINEERED to the goal instead of a flat margin —
+# risk-per-trade by stream = 0.20 x each stream's own Kelly fraction
+# on its last-45d closed ledger (.gen13_size.py), floor 2% / cap 10%
+# of equity, notional = risk / stop distance, 10x collateral so the
+# seats fit. Portfolio HEAT cap 35% (sum of open risk) so one BTC
+# flush can't take the account; daily loss rail 15% of equity stops
+# NEW entries; no gain cap. Haircut Monte Carlo (.gen13_haircut.py:
+# edges halved, 6 fills/day, 15% flush days): P(3k<=10d) ~43%,
+# median day-10 ~$2.1k, P(50% drawdown) ~19% — the honest odds.
+# Rosy model (full edges, every fire filled): ~97% — not believed.
+RISK_PCT: dict = {"kr_premium": 0.10, "kr_strong": 0.10,
+                  "moonshot": 0.075, "strong_trigger": 0.07,
+                  "pw_waking": 0.065, "elite_star": 0.055,
+                  "pw_confirm": 0.055, "sniper2": 0.04,
+                  "elite_kr": 0.025, "strig_kr": 0.02}
+RISK_PCT_DEFAULT = 0.02
+RISK_MIN = 0.01              # below this the seat isn't worth a fee
+HEAT_CAP = 0.35              # open risk (sum of risk_usd) / equity
+LEV_GEN13 = 10.0             # collateral efficiency, not size —
+                             # size is the risk fraction above
+DAY_MAX_LOSS_PCT = 0.15      # of day-start equity; stops NEW seats
 # 🎮 GEN 12 (user 2026-09-12 "gen 12 do the changes but edit the
 # slots accordingly by yourself; elite star every band; add kr agree
 # and elite star or elite conviction"): ONE SEAT PER MEASURED FAMILY,
@@ -92,9 +117,12 @@ START_BAL = 1500.0
 # to 5 on red/thin days. Frozen for 30 closed before any verdict.
 # GEN 12.2 (user 2026-09-13: "increase the demo slots to 10 and
 # losing per day to 250 dollar and earning to 500+")
-DAY_MAX_GAIN = 750.0
+# GEN 13: gain cap OFF (a winning day keeps trading toward the
+# target); loss rail is DAY_MAX_LOSS_PCT of equity, computed in
+# try_open — DAY_MAX_LOSS below is only the legacy floor.
+DAY_MAX_GAIN = float("inf")
 DAY_MAX_LOSS = 250.0
-MIN_SLOTS = 6
+MIN_SLOTS = 14
 # 💎🔮 RIDE EXITS (elite_kr only): the +1.14R record was earned by
 # RIDING — half-bank at TP1, stop to BE, trail toward TP2. Banking
 # 100% at TP1 would cut the exact riders that make the cell.
@@ -104,7 +132,9 @@ RIDE_SRC: set = {"elite_kr"}
 # conviction"). A CEILING, not a quota — the MIN_RANK floor still
 # gates every slot. Elite's 3-seat cap below guarantees the top
 # streams (strong triggers + re-runs) always keep >= 7 seats.
-MAX_SLOTS = 10
+# GEN 13: 14 seats flat ("no matter how many slots") — the HEAT cap
+# and margin physics decide how many actually fill, not a quota.
+MAX_SLOTS = 14
 # The earlier 6->8 good-day overflow is absorbed by the 10-slot
 # base; no seats beyond 10.
 MAX_SLOTS_HOT = 8
@@ -128,7 +158,8 @@ TIME_STOP_BY_SRC: dict = {}
 # by plan-winning source.
 MAX_PER_SRC: dict = {}   # GEN 8: the priority ladder decides
 # 💥 TOP FAMILY: strong triggers + re-runs share 5 seats.
-TOP_FAMILY = {"strong_trigger"}
+# GEN 13: family cap OFF — open seating, best rank wins.
+TOP_FAMILY: set = set()
 TOP_FAMILY_CAP = 8
 # 💎 ELITE FAMILY: raw elite cream + confirmed/re-entry share 2.
 ELITE_FAMILY: set = set()
@@ -141,7 +172,8 @@ ELITE_FAMILY_CAP = 0
 ROTATE_MAX = 0   # GEN 9 user order: rotation REMOVED
 SMART_EXIT_SKIP: set = {"elite_star", "elite_kr", "pw_confirm",
                         "pw_waking", "moonshot", "kr_strong",
-                        "strig_kr", "sniper2"}
+                        "strig_kr", "sniper2",
+                        "kr_premium", "strong_trigger"}   # GEN 13
 # GEN 12: kronos smart-exit off for all. Exits: SL-or-TP1-bank-100%
 # everywhere EXCEPT ⭐ elite_star's near-TP bank (own block) and
 # 💎🔮 elite_kr's RIDE (half-bank TP1 + BE + trail, in the TP1
@@ -206,14 +238,16 @@ MIN_RANK = 85.0  # GEN 9: anyone can take any place
 # pair 33%/-0.355R live; early elite 85+ 19%/-0.514R).
 # GEN 12 priority: star, the KR-elite rider cell, my watch, then
 # the volume machines.
-CLASS_W = {"elite_star": 100,   # 1. the winner profile, every band
+CLASS_W = {"kr_premium": 101,   # 0. ⚡🔮 the 83%/+1.07R premium cell
+           "elite_star": 100,   # 1. the winner profile, every band
            "elite_kr": 99,      # 2. 💎🔮 the +1.14R rider cell
            "pw_confirm": 98,    # 3a. my-watch confirms
            "pw_waking": 97,     # 3b. my-watch waking
            "moonshot": 96,      # 4. the big-n workhorse
            "kr_strong": 95,     # 5. the KR volume machine
            "strig_kr": 94,      # 6. TRIG×KR (trigger family seat)
-           "sniper2": 93}       # 7. golden cells, both ways
+           "strong_trigger": 93,  # 7. ⚡ plain breaks, conf>=65 band
+           "sniper2": 92}       # 8. golden cells, both ways
 # 🎯 CONF-BAND SEAT GATES (user 2026-09-07, read off the live desk
 # ledger): a stream's candidate takes a seat ONLY when its conf falls
 # in a band that measured green on its own closed trades. Bands are
@@ -236,6 +270,12 @@ CONF_GATE: dict = {
     "pw_waking": ((40.0, 55.0),),
     "moonshot": ((55.0, 65.0),),
     "kr_strong": ((55.0, 65.0),),     # its native band (n=242)
+    # user 2026-09-13: ⚡ plain strong trigger rejoins the money —
+    # seated in its MEASURED band only (conf 65-84 = 83% win /
+    # +0.326R n=48; below 65 it is the flat half).
+    "strong_trigger": ((65.0, 1000.0),),
+    # kr_premium is UNGATED by conf — its profile (rr 1.0-1.5 +
+    # calm kronos + LONG) IS the gate: 83.1% / +1.072R n=83.
 }
 # GEN 6: no conditional seats — the pool is exactly the named three.
 CONDITIONAL_SRC: set = set()
@@ -377,7 +417,10 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
         # elite-only candidate, no matter the rank it stacked. The
         # A-grade burst (>=85, validated) orders top-stream cards
         # among themselves.
-        _top6 = c["srcs"] & {"strong_trigger", "rerun"}
+        # GEN 13: the hard top-sort is OFF — CLASS_W is the whole
+        # priority ladder now (premium > star > rider > my-watch >
+        # moonshot > kr_strong > trig×kr > plain trigger > sniper).
+        _top6 = set()
         if _top6:
             bonus += 80
         if float(c.get("burst") or 0) >= 85:
@@ -389,7 +432,13 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
         c["rank"] += bonus
         c["top"] = 1 if _top6 else 0
         c["srcs"] = ",".join(sorted(c["srcs"]))
-    out.sort(key=lambda x: (-x.get("top", 0), -x["rank"]))
+    # GEN 13: HARD class ladder — the plan-winning stream's CLASS_W
+    # sorts first (premium > star > rider > ...), score/agreement
+    # order candidates only within a class. Heat and collateral go
+    # to the best-measured stream first.
+    out.sort(key=lambda x: (-x.get("top", 0),
+                            -CLASS_W.get(x.get("src"), 30),
+                            -x["rank"]))
     return out
 
 
@@ -416,7 +465,11 @@ def try_open(state: dict, cands: list, live_fn, active=None):
     _day_pnl = sum(float(c9.get("pnl") or 0)
                    for c9 in state.get("closed") or []
                    if float(c9.get("closed_at") or 0) >= _day0)
-    if _day_pnl >= DAY_MAX_GAIN or _day_pnl <= -DAY_MAX_LOSS:
+    # GEN 13: the loss rail scales with the account (15% of the
+    # day-start equity) so it means the same thing at $1.5k and $3k.
+    _eq_day0 = max(1.0, float(state["balance"]) - _day_pnl)
+    _loss_rail = DAY_MAX_LOSS_PCT * _eq_day0
+    if _day_pnl >= DAY_MAX_GAIN or _day_pnl <= -_loss_rail:
         return [], []
     # 🪑 dynamic seats (user: "10 slots at the best days of winning
     # ... when the signals are low we can trim down to 5 or 6"):
@@ -508,28 +561,51 @@ def try_open(state: dict, cands: list, live_fn, active=None):
         stop_pct = abs(live - c["stop"]) / live
         if stop_pct <= 0.001 or stop_pct > STOP_MAX_PCT:
             continue
-        # WILD SIZING: slot margin = balance/10, leverage graded by
-        # signal quality — 10x needs the validated A-grade burst.
-        # GEN 7: 🎯 best-of-best seats size with the top streams.
-        margin = state["balance"] / MAX_SLOTS
-        # GEN 10.1 ladder (user 2026-09-07 follow-up: "Sniper
-        # leverage, 40-54 — it to 10x; my watch waking and my watch
-        # confirm — leverage it to 6x"): 10x = both strong-trigger
-        # bands + sniper + moonshot; 8x = duo + trig×kr; 6x = the
-        # two my-watch lanes. Ladder lives in lev_for() — shared
-        # with the 💸 GEN 10 live executor.
-        lev = lev_for(c["src"], c.get("conf"))
+        # 🎯 GEN 13 RISK-BASED SIZING: the trade risks a fixed share
+        # of equity (RISK_PCT by stream — 0.20 x its own Kelly), so
+        # a stop costs the same whether it sits 1.5% or 4% away.
+        # notional = risk / stop distance; 10x collateral keeps the
+        # margin small so the seats fit. Two portfolio limits:
+        # HEAT_CAP (open risk / equity) and free margin.
+        lev = LEV_GEN13
         # real-account physics: the stop must sit well inside the
         # slot's margin — a stop past ~liquidation is not a trade.
         if stop_pct >= 0.8 / lev:
             continue
-        notional = margin * lev
+        _bal = max(1.0, float(state["balance"]))
+        _heat = 0.0
+        _m_used = 0.0
+        for _op in state["open"]:
+            try:
+                _d = ((float(_op["entry"]) - float(_op["stop"]))
+                      if _op.get("side") == "LONG"
+                      else (float(_op["stop"]) - float(_op["entry"])))
+                _heat += float(_op.get("qty") or 0) * max(0.0, _d)
+                _m_used += float(_op.get("margin") or 0)
+            except Exception:
+                continue
+        _room = HEAT_CAP - _heat / _bal
+        _rp = min(RISK_PCT.get(c["src"], RISK_PCT_DEFAULT), _room)
+        if _rp < RISK_MIN:
+            continue            # portfolio already carrying its heat
+        risk_usd = _bal * _rp
+        notional = risk_usd / stop_pct
+        margin = notional / lev
+        _free_m = _bal - _m_used
+        if margin > _free_m:
+            margin = _free_m
+            notional = margin * lev
+            risk_usd = notional * stop_pct
+            if risk_usd < RISK_MIN * _bal:
+                continue        # not enough collateral left
         fee_in = notional * FEE
         pos = {"symbol": c["symbol"], "base": c["base"],
                "side": c["side"], "entry": live, "stop": c["stop"],
                "tp1": c["tp1"], "tp2": c["tp2"],
                "qty": notional / live, "notional": notional,
                "lev": round(lev, 1), "margin": round(margin, 2),
+               "risk_usd": round(risk_usd, 2),
+               "risk_pct": round(risk_usd / _bal, 4),
                "burst": float(c.get("burst") or 0),
                "risk0": abs(live - c["stop"]),
                "src": c["src"], "score": c["score"],
