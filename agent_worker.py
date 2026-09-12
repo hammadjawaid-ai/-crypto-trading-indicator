@@ -246,6 +246,24 @@ _DEMO_CONFIRMS: list = []
 _DEMO_STARS: list = []
 
 
+def _kr_cache_agree(sym: str, side: str) -> bool:
+    """🔮 cached-forecast agreement (no API cost): the fresh cached
+    kronos read points the trade's way. Used as the buzz gate for
+    elite + early lanes (user roster 2026-09-13)."""
+    try:
+        _h = _KR_CACHE.get(sym)
+        _s = (_h["s"] if _h and time.time() - _h["t"] <= KR_TTL
+              else None)
+        if not _s:
+            return False
+        return ((_s.get("direction") == "UP"
+                 and (side or "").upper() == "LONG")
+                or (_s.get("direction") == "DOWN"
+                    and (side or "").upper() == "SHORT"))
+    except Exception:
+        return False
+
+
 def _kr_recent(sym: str, side: str, window_s: float = 45 * 60) -> bool:
     """🔮 KR backing (GEN 12): a KR-STRONG or TRIG×KR fire on the same
     coin+side within the window. kr_approved is EXCLUDED — measured
@@ -1401,8 +1419,9 @@ def cycle() -> None:
         # are ONLY apex / moon / prime — best, one trade, early
         # lanes, ignition, true signal etc. record + desk as always
         # but stay off the phone. Revert: delete this gate.
-        if key_prefix not in ("apex", "moon", "prime", "em",
-                              "emrest"):
+        # (user roster 2026-09-13: apex + prime dropped from the
+        # phone — records/boards/desk continue.)
+        if key_prefix not in ("moon", "em", "emrest"):
             return
         for p in items:
             if (tier is not None and _greens_alert is not None
@@ -1487,6 +1506,16 @@ def cycle() -> None:
                 # discriminator stays the 🚀 approval chip (65.5% vs
                 # 48.5%). Revert: change the 40 below.
                 if _cf9 is not None and _cf9 < 40:
+                    continue
+                # 🔮 KRONOS-AGREE GATE (user roster 2026-09-13:
+                # "remove elite conviction alone — fire elite
+                # conviction and kronos"): the buzz requires the
+                # cached forecast pointing the card's way. Measured:
+                # agree +0.622R n=35 · conflict/flat ~0 · no-read
+                # -0.289R. Cards without an agreeing read stay
+                # board+desk only. Revert: delete this gate.
+                if not _kr_cache_agree(_pmx.get("symbol"),
+                                       _pmx.get("side")):
                     continue
                 # 📵 ROSTER-9 (user 2026-09-10): "only approved" —
                 # the validated 65.5%-vs-48.5% chip becomes the
@@ -2240,12 +2269,10 @@ def cycle() -> None:
                         for _dt8, _df8, _l8, _n8 in _dtiers:
                             if _dt8 <= _dt9:
                                 _w9[_df8] = True
-                        # 🔊 RESTORED (user 2026-09-04: "discount and
-                        # deep discount should be a buzz... remove the
-                        # running one") — the discount ladder is the
-                        # one buzz class that improves entry price
-                        # instead of chasing; RUNNING stays muted.
-                        ok, _ = tg.send(
+                        # 📵 MUTED (user roster 2026-09-13: "Drop —
+                        # Discount Ladder"). Revert: _MUTE_R9 ->
+                        # tg.send.
+                        ok, _ = _MUTE_R9(
                             f"💎🔻 *{_lb9}* — {_w9['base']} "
                             f"{_w9['side']} now {abs(_mv9):.1f}% "
                             f"BELOW the buzz entry "
@@ -2364,19 +2391,22 @@ def cycle() -> None:
     # 📵 diet amendment (user same day: "dont remove... early lane
     # and early movers") — 🚀 EARLY-LANE (the 81.3% cell) + ⚡ EARLY
     # MOVERS restored to their pre-diet ALWAYS forms.
-    # 📵 ROSTER-9 update (user 2026-09-10: "add these as well —
-    # early movers conf 55-64 and conf 85+, early lane conf 85+"):
-    # 🚀 EARLY-LANE speaks at 85+ only; ⚡ EARLY MOVERS speaks in its
-    # two chosen bands (the 65-84 middle stays silent — measured
-    # weakest). Revert: min_conf=0, single calls.
-    _push([p for p in em_big if _in_zone(p)], "em", _fmt_prime,
-          min_conf=85)
+    # 🔮 EARLY LANES — KRONOS-AGREE ONLY (user roster 2026-09-13:
+    # "early movers and early lane only when kronos agree thats it
+    # no limit"): conf bands dropped, the cached-forecast agreement
+    # is the whole gate. Measured: agree = 55-58% win; note the
+    # conflict cell (+0.366R rides) goes silent by this choice —
+    # user informed. Revert: restore the band calls.
+    _push([p for p in em_big
+           if _in_zone(p) and _kr_cache_agree(p.get("symbol"),
+                                              p.get("side"))],
+          "em", _fmt_prime, min_conf=0)
     _em_rest = [p for p in r.get("early_strong", [])
                 if not p.get("early_lanes")]
-    _push([p for p in _em_rest if _in_zone(p)], "emrest",
-          _fmt_early_rest, min_conf=55, max_conf=64)
-    _push([p for p in _em_rest if _in_zone(p)], "emrest",
-          _fmt_early_rest, min_conf=85)
+    _push([p for p in _em_rest
+           if _in_zone(p) and _kr_cache_agree(p.get("symbol"),
+                                              p.get("side"))],
+          "emrest", _fmt_early_rest, min_conf=0)
     # 🌊 TREND RIDER buzz MUTED AGAIN same day (user 2026-08-06 after
     # the honest 25%-win framing: "not effective for me") — the 3-of-4
     # loser cadence doesn't fit how he trades, even net-positive.
@@ -3321,7 +3351,10 @@ def cycle() -> None:
                 # + desk + demo feeds, phone silent. Revert to both
                 # ways: drop the side check.
                 if (_p2.get("side") or "").upper() == "SHORT":
-                    tg.send(
+                    # 📵 MUTED (user roster 2026-09-13: "Drop —
+                    # Sniper v2"); gen-1 sniper bell stays. Revert:
+                    # _MUTE_R9 -> tg.send.
+                    _MUTE_R9(
                         f"🎯 *SNIPER — {_b2} {_p2.get('side')}* — "
                         f"golden cell fire\n"
                         f"via {_tn2} ({_bk2}) — this cell hits "
@@ -4538,7 +4571,10 @@ def cycle() -> None:
                             break
                 except Exception:
                     _rv_guard = ""
-                ok, _ = tg.send(
+                # 📵 MUTED (user roster 2026-09-13: "Drop —
+                # revival"). Records + desk tier continue; revert:
+                # _MUTE_R9 -> tg.send.
+                ok, _ = _MUTE_R9(
                     f"💀→🚀 *REVIVAL — {_rv_sig['base']} "
                     f"{_rvside}* — back through the ORIGINAL ENTRY "
                     f"with momentum\n"
