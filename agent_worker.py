@@ -5369,6 +5369,44 @@ def cycle() -> None:
     # (green close above prev close + ema20 on 1.2x volume), and only
     # after a real dip so there is actually a pullback to be over.
     # Additive stream — touches nothing else. 6h cooldown per coin.
+    # 🔬 SILENT FORWARD TAGS (user 2026-09-13: "do it if its not
+    # changing anything"): the 26-agent waking/confirm study's two
+    # survivors + three split cells ride the RECORDS as leg values so
+    # the forward ledger can score them in DAYS. ZERO behaviour
+    # change — no buzz, no gate, no seat, nothing reads these. Units
+    # match the study harness: 1h ATR14 = the live _pw_atr slice;
+    # 4h/1d ema20 on CLOSED bars carried one step with the live px.
+    #   uq   waking union_quiet: ((tf4h<-0.5 & tf1d>=-4) or
+    #        (tf4h_above==0 & tf1d>=1)) & quiet — 71.7%/+0.37R n=99
+    #   c4   confirm: uw>=0.731 & runex>=0.466 — 65%/+0.19R n=181
+    #   s5   waking: clip>=1 & uw>=0.149 & lw<0.298 & b15<90 &
+    #        btc6h>=-0.4% — 65%/+0.32R n=130 (split verdict)
+    #   c1   confirm: vacc>=3.131 & runex>=0.594 — 62%/+0.15R (split)
+    #   htfq confirm: tf4h<-0.5 & tf1d>=-4 & quiet (split)
+    # Promotion law (pre-registered): info chip after 60 fire-days
+    # with day-weighted exp > 0 AND drop-3-best-days > 0; a demo seat
+    # only after ~120. Scored offline from signals.extra["fx"].
+    _fx_btc6 = [None]          # BTC 6h change, fetched once per cycle
+
+    def _fx_htf(sym, px, atr):
+        """(tf4h_dist_atr, tf1d_dist_atr, tf4h_above) — Nones on any
+        failure. Fetched lazily, only when a lane actually fires."""
+        out = [None, None, None]
+        try:
+            for k, tf in ((0, "4h"), (1, "1d")):
+                d = binance_client.get_klines(sym, tf, limit=80)
+                if d is None or len(d) < 25 or not atr or atr <= 0:
+                    continue
+                e = float(d["close"].iloc[:-1]           # closed only
+                          .ewm(span=20, adjust=False).mean().iloc[-1])
+                e = e + (2.0 / 21.0) * (float(px) - e)   # carry 1 step
+                out[k] = round((float(px) - e) / float(atr), 3)
+                if k == 0:
+                    out[2] = 1 if float(px) > e else 0
+        except Exception:
+            pass
+        return out
+
     for _pw_sym in list(getattr(config, "PERSONAL_WATCH", [])):
         try:
             _pwd = binance_client.get_klines(_pw_sym, "1h", limit=160)
@@ -5540,6 +5578,53 @@ def cycle() -> None:
                             "heat": _pw_heat,
                             "t15": round(float(_ts15)),
                             "b15": round(float(_bs15))}
+                        # 🔬 forward tags (waking): partial-bar shape
+                        # at the cut + HTF context + BTC 6h. Fail-soft.
+                        try:
+                            _fx4, _fxd, _fxa = _fx_htf(
+                                _pw_sym, _pw_px, _pw_atr)
+                            _fx_uw = ((float(_pwh[-1])
+                                       - max(float(_po[-1]),
+                                             float(_pc[-1])))
+                                      / _pw_atr)
+                            _fx_lw = ((min(float(_po[-1]),
+                                           float(_pc[-1]))
+                                       - float(_pwl[-1])) / _pw_atr)
+                            if _fx_btc6[0] is None:
+                                _bd6 = binance_client.get_klines(
+                                    "BTCUSDT", "1h", limit=12)
+                                _bc6 = _bd6["close"].to_numpy()
+                                _fx_btc6[0] = float(
+                                    _bc6[-2] / _bc6[-8] - 1)
+                            _fx_b6 = _fx_btc6[0]
+                            _fx_q = not _pw_strong
+                            _pw_sig_e["fx"] = {
+                                "tf4h": _fx4, "tf1d": _fxd,
+                                "tf4h_above": _fxa,
+                                "strong": int(bool(_pw_strong)),
+                                "clip": round(float(_pw_clip), 3),
+                                "uw": round(_fx_uw, 3),
+                                "lw": round(_fx_lw, 3),
+                                "b15": round(float(_bs15)),
+                                "btc6h": (round(_fx_b6, 4)
+                                          if _fx_b6 is not None
+                                          else None),
+                                "uq": (int(_fx_q and (
+                                    (_fx4 < -0.5 and _fxd >= -4)
+                                    or (_fxa == 0 and _fxd >= 1)))
+                                       if (_fx4 is not None
+                                           and _fxd is not None)
+                                       else None),
+                                "s5": (int(_pw_clip >= 1.0
+                                           and _fx_uw >= 0.149
+                                           and _fx_lw < 0.298
+                                           and float(_bs15) < 90
+                                           and _fx_b6 >= -0.004)
+                                       if _fx_b6 is not None
+                                       else None)}
+                        except Exception as _fx_exc:
+                            print(f"  🔬 fx tag {_pw_sym}: {_fx_exc}",
+                                  flush=True)
                         store.record_signal("personal_watch_early",
                                             _pw_sig_e)
                         # 🧪 desk tier (user 2026-08-31: "have this on
@@ -5608,6 +5693,44 @@ def cycle() -> None:
                 "conf": _pw_cf,
                 "heat": _pw_heat,
                 "vol_x": round(float(_pw_vx), 2)}
+            # 🔬 forward tags (confirm): the confirm bar is index -2
+            # (the last CLOSED 1h bar); shape + prior run + volume
+            # shape + HTF context. Fail-soft.
+            try:
+                # the study's ATR = the 14 bars BEFORE the confirm bar
+                # (frame[-16:-2]); the live _pw_atr slice includes the
+                # confirm bar and runs ~3-10% larger, which would put
+                # the tags on the wrong side of the fitted thresholds
+                # (.fx_tag_check parity). Plan geometry untouched.
+                _fx_atr = float((_pwh[-16:-2] - _pwl[-16:-2]).mean())
+                _fx4, _fxd, _fxa = _fx_htf(_pw_sym, _pw_px, _fx_atr)
+                _fx_uw = ((float(_pwh[-2])
+                           - max(float(_po[-2]), float(_pc[-2])))
+                          / _fx_atr)
+                _fx_body = (float(_pc[-2]) - float(_po[-2])) / _fx_atr
+                _fx_ru3 = (float(_pc[-2]) - float(_pc[-5])) / _fx_atr
+                _fx_rex = _fx_ru3 - _fx_body
+                _fx_vmp = float(_pv[-22:-2].mean())
+                _fx_vxp = (float(_pv[-3]) / _fx_vmp
+                           if _fx_vmp > 0 else 0.0)
+                _fx_vacc = ((float(_pw_vx) / _fx_vxp)
+                            if _fx_vxp > 0 else None)
+                _pw_sig["fx"] = {
+                    "tf4h": _fx4, "tf1d": _fxd, "tf4h_above": _fxa,
+                    "strong": int(bool(_pw_strong)),
+                    "uw": round(_fx_uw, 3),
+                    "runex": round(_fx_rex, 3),
+                    "vacc": (round(_fx_vacc, 3)
+                             if _fx_vacc is not None else None),
+                    "c4": int(_fx_uw >= 0.731 and _fx_rex >= 0.466),
+                    "c1": (int(_fx_vacc >= 3.131 and _fx_rex >= 0.594)
+                           if _fx_vacc is not None else None),
+                    "htfq": (int(_fx4 < -0.5 and _fxd >= -4
+                                 and not _pw_strong)
+                             if (_fx4 is not None and _fxd is not None)
+                             else None)}
+            except Exception as _fx_exc:
+                print(f"  🔬 fx tag {_pw_sym}: {_fx_exc}", flush=True)
             store.record_signal("personal_watch", _pw_sig)
             # 🧪 desk tier (user 2026-08-31): the 🟢 confirm builds
             # its own live record on the Decision Desk, carrying its

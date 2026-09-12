@@ -467,4 +467,8 @@ PERSONAL_WATCH = ["INJUSDT", "ENAUSDT", "ZECUSDT", "VIRTUALUSDT",
                   # user 2026-09-10: NEWT (same listing era as OPN)
                   "NEWTUSDT",
                   # user 2026-09-10: EGLD
-                  "EGLDUSDT"]
+                  "EGLDUSDT",
+                  # user 2026-09-13: BTC + ETH join the watch (the
+                  # same LONG-only confirm + waking lanes; BTC's own
+                  # tape also feeds the comeback flush read, untouched)
+                  "BTCUSDT", "ETHUSDT"]
