@@ -1505,26 +1505,59 @@ def cycle() -> None:
                 # agreement) + ⚡ edge (candle heat). The validated
                 # discriminator stays the 🚀 approval chip (65.5% vs
                 # 48.5%). Revert: change the 40 below.
-                if _cf9 is not None and _cf9 < 40:
-                    continue
-                # 🔮 KRONOS-AGREE GATE (user roster 2026-09-13:
-                # "remove elite conviction alone — fire elite
-                # conviction and kronos"): the buzz requires the
-                # cached forecast pointing the card's way. Measured:
-                # agree +0.622R n=35 · conflict/flat ~0 · no-read
-                # -0.289R. Cards without an agreeing read stay
-                # board+desk only. Revert: delete this gate.
-                if not _kr_cache_agree(_pmx.get("symbol"),
-                                       _pmx.get("side")):
-                    continue
-                # 📵 ROSTER-9 (user 2026-09-10): "only approved" —
-                # the validated 65.5%-vs-48.5% chip becomes the
-                # gate. Unapproved MAX/HIGH keep boards + records.
-                # Revert: delete this gate.
-                if not _pmx.get("appr"):
-                    continue
+                # 💎⭐ STAR DETECTION FIRST (user 2026-09-13: "elite
+                # star can be separate, it should fire on its own").
+                # Measured profile (.elite_star_check): 🚀 approved +
+                # HIGH + score<85 + burst<85 + TP1 within 1.2R =
+                # 65.3% / +1.123R n=49, all thirds green. The star
+                # is its OWN stream now: it skips the elite buzz
+                # gates entirely (conf floor, kronos-agree, approved
+                # — approval is already inside its profile), carries
+                # its own alert key, and always records to the
+                # elite_star desk tier + the GEN 12 demo seat.
+                # (Bug this fixes: the 2026-09-13 kronos gate was
+                # silently suppressing star buzzes AND starving the
+                # demo's #1 seat.)
+                _star9 = False
+                try:
+                    _e9s = float(_pmx.get("entry") or 0)
+                    _s9s = float(_pmx.get("stop") or 0)
+                    _t9s = float(_pmx.get("tp1") or 0)
+                    _rr9 = None
+                    if _e9s and _s9s and _t9s:
+                        _rr9 = (abs(_t9s - _e9s)
+                                / max(1e-12, abs(_e9s - _s9s)))
+                    _b9v = _pmx.get("burst_live", _pmx.get("burst"))
+                    _b9v = float(_b9v) if _b9v is not None else 999.0
+                    _star9 = (bool(_pmx.get("appr"))
+                              and str(_pmx.get("tier") or ""
+                                      ).upper() == "HIGH"
+                              and float(_pmx.get("score") or 0) < 85
+                              and _b9v < 85
+                              and _rr9 is not None and _rr9 < 1.2)
+                except Exception:
+                    _star9 = False
+                if not _star9:
+                    # ── the PLAIN elite buzz gates (stars exempt) ──
+                    if _cf9 is not None and _cf9 < 40:
+                        continue
+                    # 🔮 KRONOS-AGREE GATE (user roster 2026-09-13:
+                    # "remove elite conviction alone — fire elite
+                    # conviction and kronos"): the plain buzz needs
+                    # the cached forecast pointing the card's way.
+                    # Measured: agree +0.622R n=35 · conflict/flat
+                    # ~0 · no-read -0.289R. Revert: delete.
+                    if not _kr_cache_agree(_pmx.get("symbol"),
+                                           _pmx.get("side")):
+                        continue
+                    # 📵 ROSTER-9 (user 2026-09-10): "only approved"
+                    # — the validated 65.5%-vs-48.5% chip becomes
+                    # the gate. Revert: delete this gate.
+                    if not _pmx.get("appr"):
+                        continue
+                _key9 = ("elitestar" if _star9 else "eliteconv")
                 if store.should_alert(
-                        f"eliteconv:{_pmx['symbol']}:{_pmx['side']}",
+                        f"{_key9}:{_pmx['symbol']}:{_pmx['side']}",
                         2 * 3600):
                     _msg9 = _fmt_elite_conv(_pmx)
                     # 🎯 board-conf + ⚡ edge-conf side by side on
@@ -1546,39 +1579,6 @@ def cycle() -> None:
                                  else " hot — may be late"
                                  if _eg9 >= 85 else "")
                         _cbits.append(f"⚡ edge {_eg9}/100{_etag}")
-                    # 💎⭐ STAR CELL (user 2026-09-09: "how can we
-                    # advance elite conviction" — MEASURED on the
-                    # fresh full-history backup, .elite_star_check:
-                    # 🚀 approved + HIGH + score<85 + burst<85 +
-                    # plan TP1 within 1.2R = 65.3% / +1.123R n=49,
-                    # ALL THIRDS GREEN. MAX/90+/wide-TP fires are
-                    # the measured losers). Elite geometry is
-                    # UNTOUCHED — the star is a lens: a chip on the
-                    # buzz + its own derived desk tier `elite_star`
-                    # to earn a forward record.
-                    _star9 = False
-                    try:
-                        _e9s = float(_pmx.get("entry") or 0)
-                        _s9s = float(_pmx.get("stop") or 0)
-                        _t9s = float(_pmx.get("tp1") or 0)
-                        _rr9 = None
-                        if _e9s and _s9s and _t9s:
-                            _rr9 = (abs(_t9s - _e9s)
-                                    / max(1e-12, abs(_e9s - _s9s)))
-                        _b9v = _pmx.get("burst_live",
-                                        _pmx.get("burst"))
-                        _b9v = float(_b9v) if _b9v is not None \
-                            else 999.0
-                        _star9 = (bool(_pmx.get("appr"))
-                                  and str(_pmx.get("tier") or ""
-                                          ).upper() == "HIGH"
-                                  and float(_pmx.get("score") or 0)
-                                  < 85
-                                  and _b9v < 85
-                                  and _rr9 is not None
-                                  and _rr9 < 1.2)
-                    except Exception:
-                        _star9 = False
                     # 🔮 KR-BACKED chip + the 💎🔮 cell headline
                     # (user 2026-09-12, from the Kronos×conf map):
                     # backing = KR-STRONG/TRIG×KR fire same coin+side
@@ -1604,11 +1604,10 @@ def cycle() -> None:
                             "28% win, the winners ride 3-10R. Few "
                             "hit, hits are huge — size for that._\n"
                             + _msg9)
-                    # ⭐ the STAR buzz (user 2026-09-09: "I want this
-                    # on my telegram notifications... more advance"):
-                    # same single buzz per fire — a star fire's
-                    # message leads with the measured-profile
-                    # headline so it stands apart on the phone.
+                    # ⭐ the STAR buzz — its OWN bell (user
+                    # 2026-09-13: "elite star can be separate, it
+                    # should fire on its own"). Fires on every star
+                    # profile regardless of the plain lane's gates.
                     if _star9:
                         _msg9 = (
                             "💎⭐ *ELITE STAR — the measured winner "
@@ -1616,7 +1615,8 @@ def cycle() -> None:
                             "_approved · HIGH · score<85 · calm "
                             "burst · TP1 within 1.2R = 65% / "
                             "+1.12R live (n=49, all thirds green). "
-                            "Desk tier ⭐ tracks it forward._\n"
+                            "Fires on its own — no kronos/conf gate. "
+                            "Desk tier ⭐ + demo seat #1 track it._\n"
                             + _msg9)
                     ok, _m9 = tg.send(_msg9)
                     n_alerts += 1 if ok else 0
