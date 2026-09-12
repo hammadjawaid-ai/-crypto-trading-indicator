@@ -2856,10 +2856,12 @@ def cycle() -> None:
         # all green, drop-3-best still 80.8%/+0.936R. ~3-4 fires/day
         # — buzz-worthy. Cap 2/cycle, 4h per coin.
         try:
+            # (per-cycle cap REMOVED, user 2026-09-13: "can be more
+            # as per needed" — every qualifying premium fire buzzes
+            # immediately; the 4h per-coin cooldown stays so one
+            # coin can't spam re-fires of the same trade.)
             _kp_sent = 0
             for _sp2 in _kr_strong:
-                if _kp_sent >= 2:
-                    break
                 try:
                     if (_sp2.get("side") or "").upper() != "LONG":
                         continue
