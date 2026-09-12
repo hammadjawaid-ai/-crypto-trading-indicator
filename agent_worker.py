@@ -2391,22 +2391,18 @@ def cycle() -> None:
     # 📵 diet amendment (user same day: "dont remove... early lane
     # and early movers") — 🚀 EARLY-LANE (the 81.3% cell) + ⚡ EARLY
     # MOVERS restored to their pre-diet ALWAYS forms.
-    # 🔮 EARLY LANES — KRONOS-AGREE ONLY (user roster 2026-09-13:
-    # "early movers and early lane only when kronos agree thats it
-    # no limit"): conf bands dropped, the cached-forecast agreement
-    # is the whole gate. Measured: agree = 55-58% win; note the
-    # conflict cell (+0.366R rides) goes silent by this choice —
-    # user informed. Revert: restore the band calls.
-    _push([p for p in em_big
-           if _in_zone(p) and _kr_cache_agree(p.get("symbol"),
-                                              p.get("side"))],
-          "em", _fmt_prime, min_conf=0)
+    # ⚡🚀 EARLY LANES — UNGATED (user 2026-09-13 amendment: "early
+    # lanes as it is, kronos conflict flat or dont agree it buzzes
+    # even"). Every in-zone early fire speaks, whatever the forecast
+    # says — which also keeps the measured CONFLICT cell audible
+    # (+0.366R n=554, the reversal rides). No conf bands, no kronos
+    # gate. Revert to the agree-only form: re-add _kr_cache_agree.
+    _push([p for p in em_big if _in_zone(p)], "em", _fmt_prime,
+          min_conf=0)
     _em_rest = [p for p in r.get("early_strong", [])
                 if not p.get("early_lanes")]
-    _push([p for p in _em_rest
-           if _in_zone(p) and _kr_cache_agree(p.get("symbol"),
-                                              p.get("side"))],
-          "emrest", _fmt_early_rest, min_conf=0)
+    _push([p for p in _em_rest if _in_zone(p)], "emrest",
+          _fmt_early_rest, min_conf=0)
     # 🌊 TREND RIDER buzz MUTED AGAIN same day (user 2026-08-06 after
     # the honest 25%-win framing: "not effective for me") — the 3-of-4
     # loser cadence doesn't fit how he trades, even net-positive.
