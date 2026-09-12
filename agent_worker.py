@@ -646,14 +646,53 @@ def _trigger_watch() -> None:
                     if store.should_alert(
                             f"trig:{a['symbol']}:{a['side']}",
                             6 * 3600):
-                        # 📵 ROSTER-9 (2026-09-10): "strong trigger
-                        # only on 65 confidence score and above" —
-                        # conf 45/25 breaks record + desk + demo
-                        # feeds, phone silent. Revert: drop the gate.
-                        if (not _bstock_quiet(a["symbol"])
-                                and a.get("conf") is not None
-                                and float(a.get("conf")) >= 65):
-                            tg.send(_fmt_trigger(a, px, vk))
+                        # 💥🔮 TRIG×KR BELL (user 2026-09-13: "this i
+                        # want"): an ⚡ strong break whose CACHED
+                        # kronos read agrees at fire time sends the
+                        # co-signed message at ANY conf (the
+                        # construct is green in every band — 71.7%
+                        # live, the system's best win rate). A break
+                        # WITHOUT the co-sign keeps the plain 💥 buzz
+                        # at conf>=65 (Roster-9 gate). One buzz per
+                        # break, never two.
+                        _kx_h = _KR_CACHE.get(a["symbol"])
+                        _kx_s = (_kx_h["s"] if _kx_h and
+                                 time.time() - _kx_h["t"] <= KR_TTL
+                                 else None)
+                        _kx_cosign = bool(
+                            str(a.get("src", "")).startswith("⚡")
+                            and _kx_s and (
+                                (_kx_s.get("direction") == "UP"
+                                 and a["side"] == "LONG")
+                                or (_kx_s.get("direction") == "DOWN"
+                                    and a["side"] == "SHORT")))
+                        if not _bstock_quiet(a["symbol"]):
+                            if _kx_cosign:
+                                _kx_e = float(
+                                    _kx_s.get("exp_move_pct") or 0)
+                                _kx_t2 = (
+                                    f" · TP2 `{float(a['tp2']):g}`"
+                                    if a.get("tp2") else "")
+                                tg.send(
+                                    f"💥🔮 *TRIG×KR — {a['base']} "
+                                    f"{a['side']}* — strong break, "
+                                    f"Kronos co-signed\n"
+                                    f"🔮 {_kx_s.get('direction')} "
+                                    f"{_kx_e:+.1f}%/24h behind the "
+                                    f"break · 🎯 conf "
+                                    f"{a.get('conf')}\n"
+                                    f"entry `{px:g}` · SL "
+                                    f"`{float(a['stop']):g}` · TP1 "
+                                    f"`{float(a['tp1']):g}`"
+                                    f"{_kx_t2}\n"
+                                    f"_the system's best win rate: "
+                                    f"71.7% live (n=76, improving). "
+                                    f"Payoffs are modest — bank at "
+                                    f"TP1, no greed._")
+                            elif (a.get("conf") is not None
+                                    and float(a.get("conf")) >= 65):
+                                # 📵 ROSTER-9 gate for plain breaks
+                                tg.send(_fmt_trigger(a, px, vk))
                         store.record_signal("trigger_fire", a)
                         print(f"[trigger] 💥 {a['base']} {a['side']} "
                               f"@ {px:g}", flush=True)
