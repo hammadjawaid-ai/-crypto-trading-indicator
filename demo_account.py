@@ -126,8 +126,8 @@ def risk_for(src: str, conf=None) -> float:
     return RISK_PCT.get(src, RISK_PCT_DEFAULT)
 RISK_MIN = 0.01              # below this the seat isn't worth a fee
 HEAT_CAP = 0.35              # open risk (sum of risk_usd) / equity
-LEV_GEN13 = 10.0             # collateral efficiency, not size —
-                             # size is the risk fraction above
+LEV_GEN13 = 10.0             # fallback only; the GEN 14 per-stream
+                             # ladder lives in lev_for() below
 DAY_MAX_LOSS_PCT = 0.15      # of day-start equity; stops NEW seats
 # 🎮 GEN 12 (user 2026-09-12 "gen 12 do the changes but edit the
 # slots accordingly by yourself; elite star every band; add kr agree
@@ -314,18 +314,31 @@ CONDITIONAL_SRC: set = set()
 
 
 def lev_for(src: str, conf=None) -> float:
-    """GEN 12 ladder — sized so a normal losing streak stays boring
-    (the variance-drag law): 5x top, 3x floor. ONE source of truth,
-    shared by the demo seats and the 💸 live executor."""
-    return {"elite_star": 5.0,
-            "elite_kr": 4.0,     # 28.6% win, fat riders — streaky
-            "pw_confirm": 4.0, "pw_waking": 4.0,
-            "moonshot": 4.0,
-            "kr_strong": 4.0,     # GEN 12.1: seat gated to the
-                                  # validated rr 1.0-1.5 cell
-                                  # (76%/+0.76R n=225) — earns 4x
-            "strig_kr": 3.0,
-            "sniper2": 3.0}.get(src, 3.0)
+    """GEN 14 leverage ladder (user 2026-09-13): strong trigger up to
+    10x · elite star 6-8x · KR-STRONG premium 10x · TRIG×KR 8x.
+
+    WHAT LEVERAGE DOES IN THIS ENGINE — it is NOT position size.
+    Since GEN 13 the size of a trade is set by RISK_PCT (risk ÷ stop
+    distance), so a 10x and a 6x seat with the same risk share lose
+    exactly the same dollars at the stop. Leverage sets two other
+    real things:
+      1. COLLATERAL — margin = notional / lev, so a 6x seat locks
+         ~1.7x the margin of a 10x one and fewer positions fit.
+      2. MAX STOP WIDTH — try_open refuses stop_pct >= 0.8 / lev, so
+         10x admits stops up to 8% and 6x up to 13.3%. Lower leverage
+         therefore lets a WIDER-stopped trade in, not a bigger one.
+    ⭐ the star's 6-8x range is read off its own confidence: the
+    calmer read (conf < 65) takes 6x and the hot one 8x.
+    ONE source of truth — the 💸 live executor calls this too."""
+    if src == "elite_star":
+        try:
+            _c = float(conf)
+        except (TypeError, ValueError):
+            _c = None
+        return 8.0 if (_c is not None and _c >= 65) else 6.0
+    return {"strong_trigger": 10.0,
+            "kr_premium": 10.0,
+            "strig_kr": 8.0}.get(src, LEV_GEN13)
 
 
 def load() -> dict:
@@ -606,7 +619,7 @@ def try_open(state: dict, cands: list, live_fn, active=None):
         # notional = risk / stop distance; 10x collateral keeps the
         # margin small so the seats fit. Two portfolio limits:
         # HEAT_CAP (open risk / equity) and free margin.
-        lev = LEV_GEN13
+        lev = lev_for(c["src"], c.get("conf"))
         # real-account physics: the stop must sit well inside the
         # slot's margin — a stop past ~liquidation is not a trade.
         if stop_pct >= 0.8 / lev:
