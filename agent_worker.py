@@ -1604,19 +1604,17 @@ def cycle() -> None:
                     if _cf9 is not None and _cf9 < 40:
                         continue
                     # 🔮 KRONOS GATE — UNAPPROVED ONLY (user
-                    # 2026-09-13 fix order: "elite conviction
-                    # approved, all of them are not reaching my
-                    # telegram — fix it... we shouldn't cap it").
-                    # The old gate silenced APPROVED fires too
-                    # whenever kronos had no cached read (the
-                    # common case), read flat, or conflicted.
-                    # Now: 🚀 APPROVED fires buzz UNCONDITIONALLY
-                    # at conf>=40; an UNAPPROVED fire still needs
-                    # the cached forecast pointing its way to earn
-                    # the phone (its solo record is 48.5% — kronos
-                    # agreement is its entry ticket, per the
-                    # earlier roster order). Chips unchanged.
-                    # Revert to all-gated: drop the appr check.
+                    # 2026-09-13 night, two messages: "uncapped
+                    # approved high and max, even kronos conflicts,
+                    # buzz all of them" + the immediate refinement
+                    # "elite conviction unapproved only when kronos
+                    # agree"). FINAL LAW: 🚀 APPROVED fires buzz
+                    # UNCONDITIONALLY at conf>=40 — agree, conflict,
+                    # flat or no-read alike; an UNAPPROVED fire
+                    # needs the cached forecast pointing its way
+                    # (solo unapproved runs 48.5% — kronos agreement
+                    # is its entry ticket). Chips unchanged.
+                    # Revert to all-buzz: delete this gate.
                     if not _pmx.get("appr") and not _kr_cache_agree(
                             _pmx.get("symbol"), _pmx.get("side")):
                         continue
@@ -1683,20 +1681,17 @@ def cycle() -> None:
                             "Fires on its own — no kronos/conf gate. "
                             "Desk tier ⭐ + demo seat #1 track it._\n"
                             + _msg9)
-                    # 📵 ELITE ROSTER (user 2026-09-13 evening:
-                    # "elite convictions stores at the back, it
-                    # don't display to telegram"): the plain 💎 fire
-                    # buzz is BACKEND-ONLY now — records, desk tier,
-                    # boards and the ignition watch all continue.
-                    # The phone keeps ⭐ STAR (own bell, item 3) and
-                    # the 💎🔮 ELITE×KRONOS rider headline (item 5);
-                    # the ⏱ 1H VERDICT bell below is the elite
-                    # lane's phone voice now (item 2). Revert:
-                    # tg.send unconditionally.
-                    _snd9 = (tg.send if (_star9 or (
-                        _krb9 and _cf9 is not None
-                        and 40 <= _cf9 < 55)) else _MUTE_R9)
-                    ok, _m9 = _snd9(_msg9)
+                    # 🔊 PLAIN ELITE BACK ON THE PHONE (user
+                    # 2026-09-13 night: "have elite conviction
+                    # notifications as well, as it was before —
+                    # uncapped, approved, high and max, even kronos
+                    # conflicts, buzz all of them"). The
+                    # backend-only hour is over; the ⏱ 1H VERDICT
+                    # and ⭐GO bells now ride ALONGSIDE the fire
+                    # buzz instead of replacing it. Revert to
+                    # backend-only: gate this send on
+                    # (_star9 or rider) via _MUTE_R9.
+                    ok, _m9 = tg.send(_msg9)
                     n_alerts += 1 if ok else 0
                     if _star9:
                         try:
