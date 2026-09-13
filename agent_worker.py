@@ -1943,7 +1943,9 @@ def cycle() -> None:
     # 📵 ROSTER-9 (2026-09-10): "apex only with x4 and x5 lanes with
     # 70+ confidence nothing else" — the ×N stack count gates the
     # buzz. Revert: drop the filter.
-    _push([p for p in apex if int(p.get("apex") or 0) >= 4],
+    # (user 2026-09-13: "×3/×4/×5 stacks only" — the floor drops to 3,
+    # so a three-lane stack at conf>=70 speaks too. Revert: >= 4.)
+    _push([p for p in apex if int(p.get("apex") or 0) >= 3],
           "apex", _fmt_apex, min_conf=70, tier=None)
     # 2026-08-15 user order: 🌟 EARLY ELITE buzzes ALWAYS — no greens
     # gate. Kronos disagreeing is fine ("if kronos dont agree thats
