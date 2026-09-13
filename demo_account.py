@@ -75,7 +75,7 @@ STATE_FILE = os.environ.get("DEMO_STATE") or \
 # ... maximum 8 slots and anyone can take any place" + the named seven
 # streams). Open seating: no family caps, rotation OFF, rank floor
 # lowered so any listed stream can seat on its own merits.
-GEN = 14
+GEN = 15
 START_BAL = 1500.0
 # 🎮 GEN 14 (user 2026-09-13: "restart demo trading to 1500 — now it
 # will only take trades on the following: 1. STRONG TRIGGER plain, all
@@ -92,10 +92,19 @@ START_BAL = 1500.0
 #   ELITE STAR (fwd)    n= 17  52.9%  +0.062R  0.38/day  kelly  5.9%
 # The user first ordered the trigger at ALL bands, then revised to
 # ≥65 ONLY in the same message once the sub-65 number (-0.101R over
-# 199 trades) was on the table — CONF_GATE enforces that. Star is cut
-# to the 2% floor: its live forward record (52.9% / +0.062R, n=17) is
-# nothing like the 65.3% backtest profile, so it sizes on what it has
-# actually done, not on what it was measured at.
+# 199 trades) was on the table — CONF_GATE enforces that.
+# 🎮 GEN 15 = the same four streams, SIZING ENGINE SWAPPED (user
+# 2026-09-13: "leverage to drive size — bigger positions at 10x, the
+# way GEN 10-12 worked... yes thats what i want"). Fresh ledger so one
+# ledger measures one engine. Size now = (balance / MAX_SLOTS) x the
+# stream's leverage; dollar risk is the by-product of that notional
+# and the stop width. On a $1,500 bank with 10 seats that is $150
+# margin a seat: 10x -> $1,500 notional, 8x -> $1,200, 6x -> $900.
+# Using each stream's MEDIAN stop from the table above, the resulting
+# risk per trade lands at: trigger 2.5% · premium 2.6% · trig×kr 1.8%
+# · star 2.7% at 6x / 3.6% at 8x — the star is the biggest risk on
+# the board despite the lowest leverage, because its stops are twice
+# as wide (4.55% median) as everything else's.
 # 🎮 GEN 13 (user 2026-09-13: "add KR-STRONG PREMIUM and STRONG
 # TRIGGER to the family... make me 1500 to 3000 dollars in 5 days...
 # pick the trades whichever you want no matter how many slots... goal
@@ -110,21 +119,13 @@ START_BAL = 1500.0
 # edges halved, 6 fills/day, 15% flush days): P(3k<=10d) ~43%,
 # median day-10 ~$2.1k, P(50% drawdown) ~19% — the honest odds.
 # Rosy model (full edges, every fire filled): ~97% — not believed.
-RISK_PCT: dict = {"kr_premium": 0.08,      # the one strong cell
-                  "strong_trigger": 0.04,  # its ≥65 half; see below
-                  "strig_kr": 0.02,
-                  "elite_star": 0.02}      # live fwd, not the profile
-RISK_PCT_DEFAULT = 0.02
 TRIG_CONF_PRIORITY = 65.0     # the CONF_GATE floor, kept named
-
-
-def risk_for(src: str, conf=None) -> float:
-    """GEN 14 per-FIRE risk as a share of equity. conf is accepted so
-    a band-aware size can be reinstated without touching try_open —
-    today the conf gate admits only the ≥65 trigger half, so the flat
-    per-stream number is the whole rule."""
-    return RISK_PCT.get(src, RISK_PCT_DEFAULT)
-RISK_MIN = 0.01              # below this the seat isn't worth a fee
+# ⚠️ GEN 15: RISK_PCT / risk_for are GONE — leverage drives size again
+# (user 2026-09-13). Dollar risk is now an OUTPUT of leverage x stop
+# width, recorded on every position as risk_usd / risk_pct so the
+# HEAT_CAP guard and the boards can still read it. To go back to
+# risk-first sizing, restore RISK_PCT and the GEN 13 block in
+# try_open — both are in git history at commit 3023f10.
 HEAT_CAP = 0.35              # open risk (sum of risk_usd) / equity
 LEV_GEN13 = 10.0             # fallback only; the GEN 14 per-stream
                              # ladder lives in lev_for() below
@@ -149,7 +150,7 @@ DAY_MAX_LOSS_PCT = 0.15      # of day-start equity; stops NEW seats
 # try_open — DAY_MAX_LOSS below is only the legacy floor.
 DAY_MAX_GAIN = float("inf")
 DAY_MAX_LOSS = 250.0
-MIN_SLOTS = 14
+MIN_SLOTS = 10
 # 💎🔮 RIDE EXITS (elite_kr only): the +1.14R record was earned by
 # RIDING — half-bank at TP1, stop to BE, trail toward TP2. Banking
 # 100% at TP1 would cut the exact riders that make the cell.
@@ -162,9 +163,12 @@ RIDE_SRC: set = set()
 # conviction"). A CEILING, not a quota — the MIN_RANK floor still
 # gates every slot. Elite's 3-seat cap below guarantees the top
 # streams (strong triggers + re-runs) always keep >= 7 seats.
-# GEN 13: 14 seats flat ("no matter how many slots") — the HEAT cap
-# and margin physics decide how many actually fill, not a quota.
-MAX_SLOTS = 14
+# GEN 15: 10 seats. MAX_SLOTS is the SIZE DIVISOR again now that
+# leverage drives size — margin = balance / 10 = $150 on a $1,500
+# bank, so a 10x seat carries $1,500 notional and a 6x seat $900.
+# Lowering this number makes every position bigger; raising it makes
+# them smaller. Full deployment = the whole bank as margin.
+MAX_SLOTS = 10
 # The earlier 6->8 good-day overflow is absorbed by the 10-slot
 # base; no seats beyond 10.
 MAX_SLOTS_HOT = 8
@@ -317,16 +321,13 @@ def lev_for(src: str, conf=None) -> float:
     """GEN 14 leverage ladder (user 2026-09-13): strong trigger up to
     10x · elite star 6-8x · KR-STRONG premium 10x · TRIG×KR 8x.
 
-    WHAT LEVERAGE DOES IN THIS ENGINE — it is NOT position size.
-    Since GEN 13 the size of a trade is set by RISK_PCT (risk ÷ stop
-    distance), so a 10x and a 6x seat with the same risk share lose
-    exactly the same dollars at the stop. Leverage sets two other
-    real things:
-      1. COLLATERAL — margin = notional / lev, so a 6x seat locks
-         ~1.7x the margin of a 10x one and fewer positions fit.
-      2. MAX STOP WIDTH — try_open refuses stop_pct >= 0.8 / lev, so
-         10x admits stops up to 8% and 6x up to 13.3%. Lower leverage
-         therefore lets a WIDER-stopped trade in, not a bigger one.
+    GEN 15: leverage DRIVES SIZE again. Every seat margins
+    balance / MAX_SLOTS and this number multiplies it into the
+    position, so a 10x seat carries two-thirds more notional than a
+    6x one and loses proportionally more at its stop. (Between GEN 13
+    and GEN 14 leverage only set collateral — that engine is gone.)
+    It still also caps stop width: try_open refuses stop_pct >=
+    0.8 / lev, so 10x admits stops up to 8% and 6x up to 13.3%.
     ⭐ the star's 6-8x range is read off its own confidence: the
     calmer read (conf < 65) takes 6x and the hot one 8x.
     ONE source of truth — the 💸 live executor calls this too."""
@@ -613,12 +614,19 @@ def try_open(state: dict, cands: list, live_fn, active=None):
         stop_pct = abs(live - c["stop"]) / live
         if stop_pct <= 0.001 or stop_pct > STOP_MAX_PCT:
             continue
-        # 🎯 GEN 13 RISK-BASED SIZING: the trade risks a fixed share
-        # of equity (RISK_PCT by stream — 0.20 x its own Kelly), so
-        # a stop costs the same whether it sits 1.5% or 4% away.
-        # notional = risk / stop distance; 10x collateral keeps the
-        # margin small so the seats fit. Two portfolio limits:
-        # HEAT_CAP (open risk / equity) and free margin.
+        # 💪 GEN 15 LEVERAGE-DRIVEN SIZING (user 2026-09-13: "leverage
+        # to drive size — bigger positions at 10x, the way GEN 10-12
+        # worked... yes thats what i want"). The SEAT is a fixed slice
+        # of the bank and LEVERAGE decides how big the position on it
+        # is; the dollar risk is then whatever the stop happens to
+        # cost, recorded rather than chosen. This is the GEN 10-12
+        # engine restored verbatim.
+        #   margin   = balance / MAX_SLOTS
+        #   notional = margin x lev_for(src, conf)
+        #   risk     = notional x stop distance   (an OUTPUT now)
+        # The two GEN 13 portfolio guards are KEPT, because they are
+        # what stops a wide-stopped seat from quietly betting the
+        # account: HEAT_CAP on total open risk, and free collateral.
         lev = lev_for(c["src"], c.get("conf"))
         # real-account physics: the stop must sit well inside the
         # slot's margin — a stop past ~liquidation is not a trade.
@@ -636,20 +644,13 @@ def try_open(state: dict, cands: list, live_fn, active=None):
                 _m_used += float(_op.get("margin") or 0)
             except Exception:
                 continue
-        _room = HEAT_CAP - _heat / _bal
-        _rp = min(risk_for(c["src"], c.get("conf")), _room)
-        if _rp < RISK_MIN:
+        margin = _bal / MAX_SLOTS
+        if margin > _bal - _m_used:
+            continue            # collateral spent — no seat
+        notional = margin * lev
+        risk_usd = notional * stop_pct
+        if (_heat + risk_usd) / _bal > HEAT_CAP:
             continue            # portfolio already carrying its heat
-        risk_usd = _bal * _rp
-        notional = risk_usd / stop_pct
-        margin = notional / lev
-        _free_m = _bal - _m_used
-        if margin > _free_m:
-            margin = _free_m
-            notional = margin * lev
-            risk_usd = notional * stop_pct
-            if risk_usd < RISK_MIN * _bal:
-                continue        # not enough collateral left
         fee_in = notional * FEE
         pos = {"symbol": c["symbol"], "base": c["base"],
                "side": c["side"], "entry": live, "stop": c["stop"],
