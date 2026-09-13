@@ -1557,21 +1557,23 @@ def cycle() -> None:
                     # ── the PLAIN elite buzz gates (stars exempt) ──
                     if _cf9 is not None and _cf9 < 40:
                         continue
-                    # 🔮 KRONOS-AGREE GATE (user roster 2026-09-13:
-                    # "remove elite conviction alone — fire elite
-                    # conviction and kronos"): the plain buzz needs
-                    # the cached forecast pointing the card's way.
-                    # Measured: agree +0.622R n=35 · conflict/flat
-                    # ~0 · no-read -0.289R. Revert: delete.
-                    if not _kr_cache_agree(_pmx.get("symbol"),
-                                           _pmx.get("side")):
+                    # 🔮 KRONOS GATE — UNAPPROVED ONLY (user
+                    # 2026-09-13 fix order: "elite conviction
+                    # approved, all of them are not reaching my
+                    # telegram — fix it... we shouldn't cap it").
+                    # The old gate silenced APPROVED fires too
+                    # whenever kronos had no cached read (the
+                    # common case), read flat, or conflicted.
+                    # Now: 🚀 APPROVED fires buzz UNCONDITIONALLY
+                    # at conf>=40; an UNAPPROVED fire still needs
+                    # the cached forecast pointing its way to earn
+                    # the phone (its solo record is 48.5% — kronos
+                    # agreement is its entry ticket, per the
+                    # earlier roster order). Chips unchanged.
+                    # Revert to all-gated: drop the appr check.
+                    if not _pmx.get("appr") and not _kr_cache_agree(
+                            _pmx.get("symbol"), _pmx.get("side")):
                         continue
-                    # (approved-only gate from ROSTER-9 REMOVED —
-                    # user 2026-09-13: "elite conviction 40 and above,
-                    # approved + unapproved, but kronos agrees to it".
-                    # The 🚀 approval chip still rides the buzz as the
-                    # measured 65.5%-vs-48.5% tell. Revert: re-add
-                    # `if not _pmx.get("appr"): continue` here.)
                 _key9 = ("elitestar" if _star9 else "eliteconv")
                 if store.should_alert(
                         f"{_key9}:{_pmx['symbol']}:{_pmx['side']}",

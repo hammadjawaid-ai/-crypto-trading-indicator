@@ -136,6 +136,12 @@ HEAT_CAP = 0.35              # open risk (sum of risk_usd) / equity
 # raising FADE; make it rarer by raising PEAK.
 NEAR_TP_PEAK = 0.85          # how far it must have travelled
 NEAR_TP_FADE = 0.60          # how far it has given back
+# 📐 rr re-checked at the LIVE entry for streams whose edge IS an rr
+# law — (lo, hi) half-open, None = unbounded on that side. The star
+# profile was measured at TP1 within 1.2R; the premium cell at
+# 1.0-1.5R (under 1R = 30%/-0.09R, over 1.5R = 11%/-0.58R).
+RR_OPEN_BOUNDS: dict = {"elite_star": (None, 1.2),
+                        "kr_premium": (1.0, 1.5)}
 LEV_GEN13 = 10.0             # fallback only; the GEN 14 per-stream
                              # ladder lives in lev_for() below
 DAY_MAX_LOSS_PCT = 0.15      # of day-start equity; stops NEW seats
@@ -636,6 +642,23 @@ def try_open(state: dict, cands: list, live_fn, active=None):
         stop_pct = abs(live - c["stop"]) / live
         if stop_pct <= 0.001 or stop_pct > STOP_MAX_PCT:
             continue
+        # 📐 RR-AT-OPEN GUARD (GEN 15, from the 09-13 star autopsy):
+        # seats open at the LIVE price with the plan's stop/TP1, so
+        # the traded reward:risk drifts off the profile that earned
+        # the stream its seat — star losers PUMP (rr 1.81) and CHIP
+        # (1.22) were both outside the <1.2R profile by the time
+        # they opened, and both stopped out. Streams whose EDGE IS
+        # an rr law re-check it here against the live entry; a plan
+        # that drifted outside its measured band is not the trade
+        # that was validated, so it takes no seat.
+        _rrb = RR_OPEN_BOUNDS.get(c["src"])
+        if _rrb is not None:
+            _rr_live = (abs(c["tp1"] - live)
+                        / max(1e-12, abs(live - c["stop"])))
+            _rlo, _rhi = _rrb
+            if ((_rlo is not None and _rr_live < _rlo)
+                    or (_rhi is not None and _rr_live >= _rhi)):
+                continue
         # 💪 GEN 15 LEVERAGE-DRIVEN SIZING (user 2026-09-13: "leverage
         # to drive size — bigger positions at 10x, the way GEN 10-12
         # worked... yes thats what i want"). The SEAT is a fixed slice
