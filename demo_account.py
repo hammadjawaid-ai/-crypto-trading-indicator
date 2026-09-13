@@ -127,6 +127,15 @@ TRIG_CONF_PRIORITY = 65.0     # the CONF_GATE floor, kept named
 # risk-first sizing, restore RISK_PCT and the GEN 13 block in
 # try_open — both are in git history at commit 3023f10.
 HEAT_CAP = 0.35              # open risk (sum of risk_usd) / equity
+# 🎯 GEN 15 NEAR-TP BANK — the ONLY exit that is neither SL nor TP
+# (user 2026-09-13: "just a smart exit when its close to tp and you
+# sense momentum is dropping"). Applies to EVERY stream now; it was
+# elite_star-only from GEN 11. Pure price geometry, no outside feed:
+# the trade printed NEAR_TP_PEAK of the way to TP1, then rolled back
+# to NEAR_TP_FADE or less while still in profit. Loosen the bank by
+# raising FADE; make it rarer by raising PEAK.
+NEAR_TP_PEAK = 0.85          # how far it must have travelled
+NEAR_TP_FADE = 0.60          # how far it has given back
 LEV_GEN13 = 10.0             # fallback only; the GEN 14 per-stream
                              # ladder lives in lev_for() below
 DAY_MAX_LOSS_PCT = 0.15      # of day-start equity; stops NEW seats
@@ -317,7 +326,7 @@ CONDITIONAL_SRC: set = set()
 # they return only when their OWN live record turns green.
 
 
-def lev_for(src: str, conf=None) -> float:
+def lev_for(src: str, conf=None, burst=None) -> float:
     """GEN 14 leverage ladder (user 2026-09-13): strong trigger up to
     10x · elite star 6-8x · KR-STRONG premium 10x · TRIG×KR 8x.
 
@@ -328,11 +337,24 @@ def lev_for(src: str, conf=None) -> float:
     and GEN 14 leverage only set collateral — that engine is gone.)
     It still also caps stop width: try_open refuses stop_pct >=
     0.8 / lev, so 10x admits stops up to 8% and 6x up to 13.3%.
-    ⭐ the star's 6-8x range is read off its own confidence: the
-    calmer read (conf < 65) takes 6x and the hot one 8x.
+    ⭐ the star's 6-8x is read off its STRENGTH (user 2026-09-13:
+    "any band with 6 or 8x leverage depending on the strength").
+    Strength here is the system's own bar — the 1h velocity burst at
+    65, the same threshold the my-watch lanes and the momentum
+    re-entry use. The star profile already caps burst under 85, so
+    the live split is burst 65-85 -> 8x and under 65 -> 6x. If a card
+    reaches us without a burst reading, confidence stands in at the
+    same 65 line. Confidence itself does NOT gate the seat — the star
+    trades every band.
     ONE source of truth — the 💸 live executor calls this too."""
     if src == "elite_star":
         try:
+            _b = float(burst)
+        except (TypeError, ValueError):
+            _b = None
+        if _b:                       # a real burst reading decides
+            return 8.0 if _b >= 65 else 6.0
+        try:                         # else fall back to confidence
             _c = float(conf)
         except (TypeError, ValueError):
             _c = None
@@ -627,7 +649,7 @@ def try_open(state: dict, cands: list, live_fn, active=None):
         # The two GEN 13 portfolio guards are KEPT, because they are
         # what stops a wide-stopped seat from quietly betting the
         # account: HEAT_CAP on total open risk, and free collateral.
-        lev = lev_for(c["src"], c.get("conf"))
+        lev = lev_for(c["src"], c.get("conf"), c.get("burst"))
         # real-account physics: the stop must sit well inside the
         # slot's margin — a stop past ~liquidation is not a trade.
         if stop_pct >= 0.8 / lev:
@@ -689,12 +711,23 @@ def _close_qty(state, p, qty, px, reason) -> dict:
 
 
 def manage(state: dict, live_fn, kr_get=None) -> list:
-    """TP1 half-bank + BE, then a TRAIL toward TP2 (stop ratchets to
-    lock TRAIL_LOCK of the peak open gain — user 2026-08-15), TP2/
-    stop/time-stop closes, plus the STRENGTH-AWARE SMART EXIT: a hard
-    kronos flip against a weak signal banks the trade (validated); a
-    strong signal (💎/🔮✅ source, 2+ agreeing systems, or score>=85)
-    gets room instead — scratch-stop before TP1, tighter trail after.
+    """GEN 15 EXIT LAW (user 2026-09-13: "its sl and tp that should be
+    set with it nothing less, just a smart exit when its close to tp
+    and you sense momentum is dropping"). A position can close for
+    exactly THREE reasons:
+        1. its STOP is hit          (the original SL — stops never
+                                     move in GEN 15: nothing sets
+                                     be_set, so the BE/trail ratchet
+                                     below is dormant)
+        2. its TP1 is hit           (banked 100%, seat freed, the
+                                     worker may re-enter on momentum)
+        3. the NEAR-TP BANK         (printed >=85% of the way to TP1
+                                     then rolled back to <=60% while
+                                     still in profit)
+    No time stop, no breakeven stop-out, no trail, and the kronos
+    smart exit is off for every GEN 15 stream (SMART_EXIT_SKIP).
+    The dormant TRAIL / RIDE / kronos machinery is kept below as the
+    revert path for earlier generations.
     Returns events: (close|tp1|guard, rec)."""
     events = []
     keep = []
@@ -724,24 +757,26 @@ def manage(state: dict, live_fn, kr_get=None) -> list:
                          else min(p["stop"], _cand))
         hit_stop = live <= p["stop"] if lng else live >= p["stop"]
         hit_tp1 = live >= p["tp1"] if lng else live <= p["tp1"]
-        # ⭐ GEN 11 NEAR-TP BANK (user 2026-09-10: "priority will be
-        # given to elite star — if its near tp you can close the
-        # trade more or less on numbers and think its going to
-        # reverse near or its up having profits"): elite_star only.
-        # Once the trade has PRINTED >=85% of the way to TP1 and
-        # gives back to <=60% while still in profit, bank at market.
-        # Pure numbers, no external reads.
-        if (p.get("src") == "elite_star" and not hit_stop
-                and not hit_tp1 and p["qty"] > 0):
+        # 🎯 NEAR-TP BANK — GEN 15: EVERY STREAM (user 2026-09-13:
+        # "its sl and tp that should be set with it nothing less,
+        # just a smart exit when its close to tp and you sense
+        # momentum is dropping"). Was elite_star-only from GEN 11.
+        # The momentum read is pure price geometry, no external
+        # feed: the trade PRINTED >=85% of the way to TP1 and has
+        # since given back to <=60% of it while still in profit —
+        # i.e. it went for the target, stalled, and is rolling over.
+        # This is the ONLY exit in GEN 15 that is neither SL nor TP.
+        if not hit_stop and not hit_tp1 and p["qty"] > 0:
             _tpd = abs(p["tp1"] - p["entry"]) or 1e-12
             _pk_pr = abs(_pk - p["entry"]) / _tpd
             _now_pr = ((live - p["entry"])
                        * (1 if lng else -1)) / _tpd
-            if _pk_pr >= 0.85 and 0 < _now_pr <= 0.60:
+            if _pk_pr >= NEAR_TP_PEAK and 0 < _now_pr <= NEAR_TP_FADE:
                 rec = _close_qty(
                     state, p, p["qty"], live,
-                    f"⭐ near-TP bank — printed {_pk_pr * 100:.0f}% "
-                    f"of the way to TP1, reversing; profit taken")
+                    f"🎯 near-TP bank — printed {_pk_pr * 100:.0f}% "
+                    f"of the way to TP1, momentum rolling over at "
+                    f"{_now_pr * 100:.0f}%; profit taken")
                 state["closed"].append(rec)
                 events.append(("close", rec))
                 continue
@@ -867,13 +902,28 @@ def manage(state: dict, live_fn, kr_get=None) -> list:
             state["closed"].append(rec)
             events.append(("close", rec))
             continue
-        if p["qty"] > 0 and (hit_tp2 or expired):
-            px = t2 if hit_tp2 and t2 else live
-            rec = _close_qty(state, p, p["qty"], px,
-                             "TP2" if hit_tp2 else "48h time-stop")
+        # 🚫 GEN 15: THE TIME STOP IS GONE (user 2026-09-13: "its sl
+        # and tp that should be set with it nothing less"). A trade
+        # now resolves at its stop, at its target, or on the near-TP
+        # momentum bank above — never on a clock. `expired` is still
+        # computed and surfaced as a stale-seat note so a position
+        # that stalls forever is visible rather than silently closed.
+        # Revert the clock: restore `or expired` here.
+        if p["qty"] > 0 and hit_tp2:
+            px = t2 if t2 else live
+            rec = _close_qty(state, p, p["qty"], px, "TP2")
             state["closed"].append(rec)
             events.append(("close", rec))
             continue
+        if expired and not p.get("stale_flag"):
+            p["stale_flag"] = True
+            events.append(("guard", {
+                "base": p["base"], "side": p["side"],
+                "symbol": p["symbol"], "stop": p["stop"],
+                "reason": (f"held {_tsh:.0f}h without reaching SL or "
+                           f"TP1 — the clock no longer closes trades "
+                           f"(GEN 15), so this seat stays taken until "
+                           f"the plan resolves")}))
         keep.append(p)
     state["open"] = keep
     # equity snapshot (balance + unrealized)

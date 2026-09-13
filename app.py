@@ -8113,8 +8113,16 @@ if active_section == "🎮 Demo $1,500":
         "🪑 10 seats, per-stream caps (trigger 6 · premium 4 · star "
         "3 · trig×kr 3) so the 18.8-fires/day trigger can't hold the "
         "whole board · 🚧 loss rail: no NEW trades after −15% of "
-        "equity in 24h, no gain cap · SL-or-bank-100%-at-TP1 except "
-        "⭐'s near-TP bank · 72h time-stop · re-entry chain≤2. "
+        "equity in 24h, no gain cap. 🎯 <b>EXIT LAW — SL or TP, "
+        "nothing less</b>: a trade closes at its stop, at TP1 "
+        "(banked 100%, seat freed, may re-enter on momentum), or on "
+        "the <b>near-TP bank</b> — it printed ≥85% of the way to TP1 "
+        "then rolled back to ≤60% while still in profit. That last "
+        "one now applies to <b>every</b> stream (it was ⭐-only). No "
+        "time stop, no breakeven stop-out, no trail: the stop never "
+        "moves off the original SL. A trade that stalls between SL "
+        "and TP holds its seat and raises a stale-seat note instead "
+        "of being closed on a clock. Re-entry chain≤2. "
         "Simulated — zero real orders. "
         f"Day {_days:.1f}.</span></div>",
         unsafe_allow_html=True)

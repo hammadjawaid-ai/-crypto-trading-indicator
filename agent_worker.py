@@ -1676,6 +1676,15 @@ def cycle() -> None:
                                  "score": float(
                                      _pmx.get("score") or 80),
                                  "conf": _cf9,
+                                 # 💪 the star's own STRENGTH read —
+                                 # demo_account.lev_for sizes the
+                                 # seat 8x vs 6x off this (user
+                                 # 2026-09-13). The star profile
+                                 # already caps it under 85, so the
+                                 # live split is burst 65-85 = 8x,
+                                 # under 65 = 6x.
+                                 "burst": (_b9v if _b9v < 900
+                                           else 0.0),
                                  "src": "elite_star",
                                  "fired_at": time.time()})
                             del _DEMO_STARS[:-12]
