@@ -220,6 +220,52 @@ SECOND_LEG_DAYS = 7.0
 # one-per-coin rule in demo_account do the rest. Guarded by
 # _TRIG_LOCK (written from the watch thread, read from the cycle).
 _DEMO_FIRES: list = []
+# 🔬 ELITE IGNITION FIRE-WATCH (user 2026-09-13 "wire it on decision
+# desk" + telegram roster the same hour). Every elite desk fire is
+# watched after it fires; grades from the certified ignition study
+# are stamped as signal records and, per the user's roster, buzzed:
+#   elite_1h  tier LIVE/DEAD — >= +10% of the entry->TP1 path at the
+#             60m mark (LIVE measured 60.9%/+0.485R FROM FIRE ENTRY;
+#             DEAD ~zero forward). Buzzes for APPROVED fires, no cap.
+#   star_go   tier FAST/LATE — +25% of path, <=4h / after (FAST
+#             measured 71.6%/+0.335R hold law; silent stars 2.2%).
+#             Buzzes; FAST also opens the star_go_chase control tier
+#             AT the ignition price to forward-test that chasing
+#             measured worthless (+0.05R).
+# HONESTY LAW carried on every bell: these are HOLD/grade signals for
+# a seat taken AT THE FIRE — entering at the bell measured negative.
+# Main-cycle thread only — no lock.
+_EGO_WATCH: list = []
+
+
+def _ego_add(p, star=False):
+    """Queue a fired elite card for ignition grading. entry0 fills
+    with the first live price the checker sees (<=5 min after fire —
+    the same fill timing the desk trade got)."""
+    try:
+        sym = p.get("symbol")
+        side = (p.get("side") or "").upper()
+        if not sym or not (p.get("stop") and p.get("tp1")):
+            return
+        _t9 = time.time()
+        for w in _EGO_WATCH:
+            if (w["symbol"] == sym and w["side"] == side
+                    and _t9 - w["fired_at"] < 2 * 3600):
+                w["star"] = w["star"] or bool(star)
+                w["appr"] = w["appr"] or bool(p.get("appr"))
+                return
+        _EGO_WATCH.append(
+            {"symbol": sym,
+             "base": p.get("base") or sym.replace("USDT", ""),
+             "side": side, "stop": float(p["stop"]),
+             "tp1": float(p["tp1"]), "tp2": p.get("tp2"),
+             "tier": str(p.get("tier") or "HIGH"),
+             "star": bool(star), "appr": bool(p.get("appr")),
+             "entry0": None, "go": None, "oneh": None,
+             "froze": False, "fired_at": _t9})
+        del _EGO_WATCH[:-80]
+    except Exception:
+        pass
 DEMO_FIRE_TTL_S = 1800
 # 📵 ROSTER-9 (user 2026-09-10: "have those on my telegram buzz
 # nothing else"): the chosen nine — apex×4/5 conf70+, moonshot
@@ -1637,7 +1683,20 @@ def cycle() -> None:
                             "Fires on its own — no kronos/conf gate. "
                             "Desk tier ⭐ + demo seat #1 track it._\n"
                             + _msg9)
-                    ok, _m9 = tg.send(_msg9)
+                    # 📵 ELITE ROSTER (user 2026-09-13 evening:
+                    # "elite convictions stores at the back, it
+                    # don't display to telegram"): the plain 💎 fire
+                    # buzz is BACKEND-ONLY now — records, desk tier,
+                    # boards and the ignition watch all continue.
+                    # The phone keeps ⭐ STAR (own bell, item 3) and
+                    # the 💎🔮 ELITE×KRONOS rider headline (item 5);
+                    # the ⏱ 1H VERDICT bell below is the elite
+                    # lane's phone voice now (item 2). Revert:
+                    # tg.send unconditionally.
+                    _snd9 = (tg.send if (_star9 or (
+                        _krb9 and _cf9 is not None
+                        and 40 <= _cf9 < 55)) else _MUTE_R9)
+                    ok, _m9 = _snd9(_msg9)
                     n_alerts += 1 if ok else 0
                     if _star9:
                         try:
@@ -1690,6 +1749,8 @@ def cycle() -> None:
                                  "src": "elite_star",
                                  "fired_at": time.time()})
                             del _DEMO_STARS[:-12]
+                            _ego_add(dict(_st_sig,
+                                          appr=True), star=True)
                         except Exception as _st_exc:
                             print("  elite_star record error:",
                                   _st_exc, flush=True)
@@ -1968,8 +2029,17 @@ def cycle() -> None:
     # buzz. Revert: drop the filter.
     # (user 2026-09-13: "×3/×4/×5 stacks only" — the floor drops to 3,
     # so a three-lane stack at conf>=70 speaks too. Revert: >= 4.)
-    _push([p for p in apex if int(p.get("apex") or 0) >= 3],
-          "apex", _fmt_apex, min_conf=70, tier=None)
+    # (user 2026-09-13 evening: "apex isn't buzzing — it should buzz
+    # no matter its red on decision desk". MEASURED: 742 stack>=3
+    # fires in 7d, only 42 reached the deflated conf-70 bar — the
+    # form-deflated votes were the desk-red channel muting the
+    # stream. His "70 above score" now reads the card's own SCORE
+    # (all 742 pass — apex scores start at 78 by construction), and
+    # the 🎯 conf rides the buzz as a chip, never a gate.
+    # Revert: min_conf=70 and drop the score filter.)
+    _push([p for p in apex if int(p.get("apex") or 0) >= 3
+           and float(p.get("score") or 0) >= 70],
+          "apex", _fmt_apex, min_conf=0, tier=None)
     # 2026-08-15 user order: 🌟 EARLY ELITE buzzes ALWAYS — no greens
     # gate. Kronos disagreeing is fine ("if kronos dont agree thats
     # ok"): the 🔮 line on every buzz already spells out all three
@@ -2884,6 +2954,7 @@ def cycle() -> None:
             except Exception:
                 pass
             store.record_signal("elite_conv", _pe)
+            _ego_add(_pe)          # 🔬 ignition grading watch
         _push_elite(list(_ec_buzz))
         # ⚡🔮 KR-STRONG proving tier (user 2026-08-15: "testing
         # strong elite convictions with kronos") — SILENT: no buzz,
@@ -2978,6 +3049,7 @@ def cycle() -> None:
             except Exception:
                 pass
             store.record_signal("elite_conv", _pe)
+            _ego_add(_pe)          # 🔬 ignition grading watch
         _push_elite(list(_ec_buzz))
 
     # 💯 CONVICTION v2 (user 2026-08-23: "remove kronos its not even
@@ -4144,6 +4216,147 @@ def cycle() -> None:
                         _dz_krp.append(dict(p, src="kr_premium"))
             except Exception:
                 continue
+        # 🔬⏱ ELITE IGNITION GRADER (user 2026-09-13: "wire it on
+        # decision desk" + the same evening's roster). Runs every
+        # cycle (~5 min) over _EGO_WATCH; stamps SILENT signal
+        # records for the boards and rings the two certified bells.
+        # 5-min close-only sampling slightly undercounts intrabar
+        # touches vs the study's 15m highs — consistent and
+        # conservative. Watch drops at stop-cross or 24h. Nothing
+        # here touches a trade: SL/TP stay the only exits.
+        try:
+            _ew_now = time.time()
+            for _ew in list(_EGO_WATCH):
+                try:
+                    _ew_px = _live(_ew["symbol"])
+                    if not _ew_px or float(_ew_px) <= 0:
+                        continue
+                    _ew_px = float(_ew_px)
+                    if _ew.get("entry0") is None:
+                        _ew["entry0"] = _ew_px
+                        continue
+                    _sgn = 1 if _ew["side"] == "LONG" else -1
+                    _e0 = float(_ew["entry0"])
+                    _pth = (float(_ew["tp1"]) - _e0) * _sgn
+                    if _pth <= 0:
+                        _EGO_WATCH.remove(_ew)
+                        continue
+                    _prg = (_ew_px - _e0) * _sgn / _pth
+                    _age = _ew_now - _ew["fired_at"]
+                    _stopped = ((_ew_px <= float(_ew["stop"]))
+                                if _sgn == 1 else
+                                (_ew_px >= float(_ew["stop"])))
+                    # ⏱ 1H VERDICT — certified grading law: LIVE
+                    # (>= +10% of path at 60m) finishes 60.9% /
+                    # +0.485R FROM FIRE ENTRY; DEAD ~zero forward.
+                    if _ew.get("oneh") is None and _age >= 3600:
+                        _ew["oneh"] = ("LIVE" if _prg >= 0.10
+                                       else "DEAD")
+                        store.record_signal("elite_1h", {
+                            "symbol": _ew["symbol"],
+                            "base": _ew["base"],
+                            "side": _ew["side"],
+                            "tier": _ew["oneh"],
+                            "score": round(max(-99.0, min(
+                                _prg * 100, 999.0)), 1),
+                            "entry": _e0, "stop": _ew["stop"],
+                            "tp1": _ew["tp1"]})
+                        # buzz: approved fires, HIGH and MAX, no
+                        # cap (user item 2). One verdict per fire
+                        # by construction — no cooldown needed.
+                        if _ew.get("appr"):
+                            if _ew["oneh"] == "LIVE":
+                                tg.send(
+                                    f"⏱💎 *{_ew['base']} "
+                                    f"{_ew['side']} — 1H VERDICT: "
+                                    f"🟢 LIVE* ({_ew['tier']})\n"
+                                    f"covered {_prg * 100:.0f}% of "
+                                    f"the path to TP1 in the first "
+                                    f"hour.\n"
+                                    f"_this grade finishes 61% / "
+                                    f"+0.49R measured — FROM THE "
+                                    f"FIRE PRICE. In from the fire? "
+                                    f"Ride the plan. Not in? Late "
+                                    f"entry here measured NEGATIVE "
+                                    f"— don't chase._")
+                            else:
+                                tg.send(
+                                    f"⏱💎 *{_ew['base']} "
+                                    f"{_ew['side']} — 1H VERDICT: "
+                                    f"🔴 DEAD* ({_ew['tier']})\n"
+                                    f"flat/under water at the hour "
+                                    f"({_prg * 100:+.0f}% of "
+                                    f"path).\n"
+                                    f"_remaining value ≈ zero "
+                                    f"measured. Capital parked "
+                                    f"here is doing nothing; the "
+                                    f"plan's SL/TP stay in "
+                                    f"charge._")
+                            n_alerts += 1
+                    # ⭐ GO — certified HOLD bell: +25% of path,
+                    # FAST <=4h (71.6%/+0.335R) or LATE after
+                    # (+0.10R measured, weaker).
+                    if (_ew.get("star") and _ew.get("go") is None
+                            and not _stopped and _prg >= 0.25):
+                        _ew["go"] = ("FAST" if _age <= 4 * 3600
+                                     else "LATE")
+                        store.record_signal("star_go", {
+                            "symbol": _ew["symbol"],
+                            "base": _ew["base"],
+                            "side": _ew["side"],
+                            "tier": _ew["go"],
+                            "score": round(_age / 60.0, 1),
+                            "entry": _e0, "stop": _ew["stop"],
+                            "tp1": _ew["tp1"]})
+                        _go_tag = ("" if _ew["go"] == "FAST" else
+                                   " (LATE — after 4h: the weaker "
+                                   "+0.10R cell)")
+                        tg.send(
+                            f"⭐🚀 *GO — {_ew['base']} star is "
+                            f"PERFORMING*{_go_tag}\n"
+                            f"+25% of the way to TP1, "
+                            f"{_age / 60:.0f} min after fire.\n"
+                            f"_rung stars measured 72% / +0.34R — "
+                            f"HOLD to the plan, no early profit. "
+                            f"Not in from the ⭐ fire? Entering "
+                            f"HERE measured +0.05R — don't "
+                            f"chase._")
+                        n_alerts += 1
+                        if _ew["go"] == "FAST":
+                            # control tier: forward-test that the
+                            # chase really is worthless.
+                            _ch9 = {"symbol": _ew["symbol"],
+                                    "base": _ew["base"],
+                                    "side": _ew["side"],
+                                    "entry": _ew_px,
+                                    "stop": _ew["stop"],
+                                    "tp1": _ew["tp1"],
+                                    "tp2": _ew.get("tp2"),
+                                    "tier": "FAST"}
+                            store.record_signal("star_go_chase",
+                                                _ch9)
+                            shadow_trader.open_from_signal(
+                                "star_go_chase", _ch9, _ew_px)
+                    # ⭐❄️ freeze note — silent star at 4h (2.2%
+                    # win measured). Informational; never a cut.
+                    if (_ew.get("star") and _ew.get("go") is None
+                            and not _ew.get("froze")
+                            and _age >= 4 * 3600 and not _stopped):
+                        _ew["froze"] = True
+                        tg.send(
+                            f"⭐❄️ *{_ew['base']} star — 4h, no "
+                            f"ignition.*\n"
+                            f"_freeze: no adds, expectations down "
+                            f"(silent stars measured 2% win). Not "
+                            f"cut — 4 in 10 still come back; the "
+                            f"SL keeps the risk._")
+                        n_alerts += 1
+                    if _stopped or _age > 24 * 3600:
+                        _EGO_WATCH.remove(_ew)
+                except Exception:
+                    continue
+        except Exception as _ew_exc:
+            print("  ignition-watch error:", _ew_exc, flush=True)
         # 🎮 GEN 14 POOLS (user 2026-09-13: "restart demo trading to
         # 1500 — now it will only take trades on the following"):
         # FOUR streams, in the user's own order. Everything else

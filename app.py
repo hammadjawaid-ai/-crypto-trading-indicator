@@ -3551,6 +3551,9 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                                  "lanes live, proving)",
                    "comeback_f": "🌊🪂 FLUSH COMEBACK (BTC-flush "
                                  "dip, the measured cell)",
+                   "star_go_chase": "⭐🏃 GO CHASE (control — enter "
+                                    "AT ignition; measured +0.05R, "
+                                    "expected to bleed)",
                    "elite_star": "💎⭐ ELITE STAR (the measured "
                                  "winner profile)",
                    "sniper2": "🎯 SNIPER v2 (golden cells, proving)",
@@ -3976,6 +3979,102 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                             + (" · ⚠️ thin" if _a9x["n"] < 20
                                else "")
                             + "</span>", unsafe_allow_html=True)
+                # 🔬 IGNITION GRADES — forward test of the certified
+                # study cells (wired 2026-09-13; grades are silent
+                # signal stamps, trades untouched). Study said:
+                # rung GO 71.6%/+0.335R · silent stars 2.2%/-0.995R
+                # · 1h LIVE 60.9%/+0.485R · 1h DEAD ~0. The desk now
+                # proves those forward, split here.
+                try:
+                    _gwc = _sq_es.connect(
+                        f"file:{_ws_c.DB_PATH}?mode=ro", uri=True)
+                    try:
+                        _gw0 = _gwc.execute(
+                            "SELECT MIN(ts) FROM signals WHERE "
+                            "stream IN ('star_go','elite_1h')"
+                        ).fetchone()[0]
+                        if not _gw0:
+                            st.caption(
+                                "🔬 ignition grading armed — the "
+                                "first ⏱/⭐GO stamps land on the "
+                                "next fires; splits appear here.")
+                        else:
+                            def _gw_split(tier, stream, ok_tiers,
+                                          label):
+                                _tr = _gwc.execute(
+                                    "SELECT symbol, opened_at, "
+                                    "pnl_r FROM shadow_trades "
+                                    "WHERE tier=? AND "
+                                    "status='CLOSED' AND pnl_r IS "
+                                    "NOT NULL AND opened_at>=?",
+                                    (tier, _gw0 - 3600)).fetchall()
+                                _sg = _gwc.execute(
+                                    "SELECT symbol, ts, tier FROM "
+                                    "signals WHERE stream=?",
+                                    (stream,)).fetchall()
+                                _in9, _out9 = [], []
+                                for _sy9, _oa9, _pr9 in _tr:
+                                    _hit = any(
+                                        _gs == _sy9
+                                        and _oa9 - 900 <= _gt
+                                        <= _oa9 + 86400
+                                        and (_gtier in ok_tiers)
+                                        for _gs, _gt, _gtier
+                                        in _sg)
+                                    (_in9 if _hit
+                                     else _out9).append(_pr9)
+                                for _nm9, _v9 in (
+                                        (f"{label} ✓", _in9),
+                                        (f"{label} ✗", _out9)):
+                                    if not _v9:
+                                        continue
+                                    _w9 = sum(1 for x in _v9
+                                              if x > 0)
+                                    _c9g = ("#2ed47a" if
+                                            sum(_v9) > 0
+                                            else "#ff5c5c")
+                                    st.markdown(
+                                        f"<span style='font-size:"
+                                        f"0.8rem;color:#9aa7c7'>· "
+                                        f"{_nm9} — n={len(_v9)} · "
+                                        f"win {100 * _w9 / len(_v9):.0f}%"
+                                        f" · <b style='color:{_c9g}'>"
+                                        f"{sum(_v9) / len(_v9):+.3f}"
+                                        f"R/trade</b></span>",
+                                        unsafe_allow_html=True)
+                            st.markdown(
+                                "**🔬 ignition grades — forward vs "
+                                "the study:**")
+                            _gw_split("elite_star", "star_go",
+                                      ("FAST",),
+                                      "⭐ rung GO(fast) vs silent")
+                            _gw_split("elite_conv", "elite_1h",
+                                      ("LIVE",),
+                                      "⏱ 1h LIVE vs DEAD")
+                            _ch9 = _gwc.execute(
+                                "SELECT COUNT(*), SUM(CASE WHEN "
+                                "pnl_r>0 THEN 1 ELSE 0 END), "
+                                "COALESCE(SUM(pnl_r),0) FROM "
+                                "shadow_trades WHERE "
+                                "tier='star_go_chase' AND "
+                                "status='CLOSED' AND pnl_r IS NOT "
+                                "NULL").fetchone()
+                            if _ch9 and int(_ch9[0] or 0) > 0:
+                                st.markdown(
+                                    f"<span style='font-size:0.8rem"
+                                    f";color:#9aa7c7'>· ⭐🏃 GO "
+                                    f"CHASE control — n={_ch9[0]} "
+                                    f"· win {100 * (_ch9[1] or 0) / _ch9[0]:.0f}% · "
+                                    f"{(_ch9[2] or 0) / _ch9[0]:+.3f}"
+                                    f"R/trade _(entering at the "
+                                    f"bell — measured +0.05R, "
+                                    f"expected to bleed)_</span>",
+                                    unsafe_allow_html=True)
+                    finally:
+                        _gwc.close()
+                except Exception as _gw_exc:
+                    st.caption(f"ignition grades unavailable: "
+                               f"{_gw_exc}")
                 if _es_open:
                     st.markdown("**📂 open ⭐ trades:**")
                     for (_s9, _sd9, _e9, _sl9, _tp9, _o9, _cf9x,
