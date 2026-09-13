@@ -75,8 +75,27 @@ STATE_FILE = os.environ.get("DEMO_STATE") or \
 # ... maximum 8 slots and anyone can take any place" + the named seven
 # streams). Open seating: no family caps, rotation OFF, rank floor
 # lowered so any listed stream can seat on its own merits.
-GEN = 13
+GEN = 14
 START_BAL = 1500.0
+# 🎮 GEN 14 (user 2026-09-13: "restart demo trading to 1500 — now it
+# will only take trades on the following: 1. STRONG TRIGGER plain, all
+# confidence scorings but prioritising conf>=65 · 2. ELITE STAR ·
+# 3. KR-STRONG PREMIUM · 4. TRIG×KR any conf"). FOUR streams, fresh
+# ledger. Two of them (plain trigger, TRIG×KR) are MUTED on Telegram
+# by the same order — buzz and money are separate here by design.
+# MEASURED on the 2026-09-13 backup, last 45d closed (.state_backup_
+# 0913), which is what the risk sizes below are built from:
+#   KR-STRONG PREMIUM   n= 91  78.0%  +0.887R  2.02/day  kelly 61.4%
+#   STRONG TRIG >=65    n=110  69.1%  +0.117R  2.44/day  kelly 21.0%
+#   STRONG TRIG  <65    n=199  64.8%  -0.101R  4.42/day  kelly  0.0%
+#   TRIG×KR             n= 94  68.1%  +0.047R  2.09/day  kelly  9.6%
+#   ELITE STAR (fwd)    n= 17  52.9%  +0.062R  0.38/day  kelly  5.9%
+# The user first ordered the trigger at ALL bands, then revised to
+# ≥65 ONLY in the same message once the sub-65 number (-0.101R over
+# 199 trades) was on the table — CONF_GATE enforces that. Star is cut
+# to the 2% floor: its live forward record (52.9% / +0.062R, n=17) is
+# nothing like the 65.3% backtest profile, so it sizes on what it has
+# actually done, not on what it was measured at.
 # 🎮 GEN 13 (user 2026-09-13: "add KR-STRONG PREMIUM and STRONG
 # TRIGGER to the family... make me 1500 to 3000 dollars in 5 days...
 # pick the trades whichever you want no matter how many slots... goal
@@ -91,12 +110,20 @@ START_BAL = 1500.0
 # edges halved, 6 fills/day, 15% flush days): P(3k<=10d) ~43%,
 # median day-10 ~$2.1k, P(50% drawdown) ~19% — the honest odds.
 # Rosy model (full edges, every fire filled): ~97% — not believed.
-RISK_PCT: dict = {"kr_premium": 0.10, "kr_strong": 0.10,
-                  "moonshot": 0.075, "strong_trigger": 0.07,
-                  "pw_waking": 0.065, "elite_star": 0.055,
-                  "pw_confirm": 0.055, "sniper2": 0.04,
-                  "elite_kr": 0.025, "strig_kr": 0.02}
+RISK_PCT: dict = {"kr_premium": 0.08,      # the one strong cell
+                  "strong_trigger": 0.04,  # its ≥65 half; see below
+                  "strig_kr": 0.02,
+                  "elite_star": 0.02}      # live fwd, not the profile
 RISK_PCT_DEFAULT = 0.02
+TRIG_CONF_PRIORITY = 65.0     # the CONF_GATE floor, kept named
+
+
+def risk_for(src: str, conf=None) -> float:
+    """GEN 14 per-FIRE risk as a share of equity. conf is accepted so
+    a band-aware size can be reinstated without touching try_open —
+    today the conf gate admits only the ≥65 trigger half, so the flat
+    per-stream number is the whole rule."""
+    return RISK_PCT.get(src, RISK_PCT_DEFAULT)
 RISK_MIN = 0.01              # below this the seat isn't worth a fee
 HEAT_CAP = 0.35              # open risk (sum of risk_usd) / equity
 LEV_GEN13 = 10.0             # collateral efficiency, not size —
@@ -126,7 +153,10 @@ MIN_SLOTS = 14
 # 💎🔮 RIDE EXITS (elite_kr only): the +1.14R record was earned by
 # RIDING — half-bank at TP1, stop to BE, trail toward TP2. Banking
 # 100% at TP1 would cut the exact riders that make the cell.
-RIDE_SRC: set = {"elite_kr"}
+# GEN 14: no RIDE seats — the rider cell (elite_kr) is out of the
+# roster. Exits are SL-or-bank-100%-at-TP1 everywhere except ⭐
+# elite_star's near-TP bank, which keeps its own block in manage().
+RIDE_SRC: set = set()
 # 6 -> 10 (user 2026-08-23 second follow-up: "instead of 6 we have
 # 10 slots now and 7 for strong triggers and 3 for elite
 # conviction"). A CEILING, not a quota — the MIN_RANK floor still
@@ -156,7 +186,13 @@ TIME_STOP_BY_SRC: dict = {}
 # GEN 7 seat map (user 2026-08-26): 5 top-stream · 3 best-of-best ·
 # 2 elite family. Per-src and family caps below enforce it; counted
 # by plan-winning source.
-MAX_PER_SRC: dict = {}   # GEN 8: the priority ladder decides
+# GEN 14 per-stream seat caps: the plain trigger fires 18.8x/day
+# against the premium cell's 2.0x, and it sits ABOVE it in the user's
+# ladder — without a cap it would hold every seat and spend the whole
+# 35% heat budget before a premium fire ever arrived. Caps keep each
+# stream's lane open. Revert to open seating: {}.
+MAX_PER_SRC: dict = {"strong_trigger": 6, "elite_star": 3,
+                     "kr_premium": 4, "strig_kr": 3}
 # 💥 TOP FAMILY: strong triggers + re-runs share 5 seats.
 # GEN 13: family cap OFF — open seating, best rank wins.
 TOP_FAMILY: set = set()
@@ -170,10 +206,8 @@ ELITE_FAMILY_CAP = 0
 # positives banked first, then negatives cut. Healthy signals are
 # NEVER rotated, and at most this many rotations happen per cycle.
 ROTATE_MAX = 0   # GEN 9 user order: rotation REMOVED
-SMART_EXIT_SKIP: set = {"elite_star", "elite_kr", "pw_confirm",
-                        "pw_waking", "moonshot", "kr_strong",
-                        "strig_kr", "sniper2",
-                        "kr_premium", "strong_trigger"}   # GEN 13
+SMART_EXIT_SKIP: set = {"strong_trigger", "elite_star",
+                        "kr_premium", "strig_kr"}          # GEN 14
 # GEN 12: kronos smart-exit off for all. Exits: SL-or-TP1-bank-100%
 # everywhere EXCEPT ⭐ elite_star's near-TP bank (own block) and
 # 💎🔮 elite_kr's RIDE (half-bank TP1 + BE + trail, in the TP1
@@ -238,16 +272,14 @@ MIN_RANK = 85.0  # GEN 9: anyone can take any place
 # pair 33%/-0.355R live; early elite 85+ 19%/-0.514R).
 # GEN 12 priority: star, the KR-elite rider cell, my watch, then
 # the volume machines.
-CLASS_W = {"kr_premium": 101,   # 0. ⚡🔮 the 83%/+1.07R premium cell
-           "elite_star": 100,   # 1. the winner profile, every band
-           "elite_kr": 99,      # 2. 💎🔮 the +1.14R rider cell
-           "pw_confirm": 98,    # 3a. my-watch confirms
-           "pw_waking": 97,     # 3b. my-watch waking
-           "moonshot": 96,      # 4. the big-n workhorse
-           "kr_strong": 95,     # 5. the KR volume machine
-           "strig_kr": 94,      # 6. TRIG×KR (trigger family seat)
-           "strong_trigger": 93,  # 7. ⚡ plain breaks, conf>=65 band
-           "sniper2": 92}       # 8. golden cells, both ways
+# GEN 14 ladder = the user's own numbering (2026-09-13). The measured
+# ranking would be premium first by a wide margin, so MAX_PER_SRC caps
+# below stop the 18.8-fires/day trigger firehose from eating the heat
+# budget before the premium cell can seat.
+CLASS_W = {"strong_trigger": 104,  # 1. plain breaks, all bands
+           "elite_star": 103,      # 2.
+           "kr_premium": 102,      # 3.
+           "strig_kr": 101}        # 4. TRIG×KR
 # 🎯 CONF-BAND SEAT GATES (user 2026-09-07, read off the live desk
 # ledger): a stream's candidate takes a seat ONLY when its conf falls
 # in a band that measured green on its own closed trades. Bands are
@@ -264,19 +296,14 @@ CLASS_W = {"kr_premium": 101,   # 0. ⚡🔮 the 83%/+1.07R premium cell
 # GEN 12 gates — each stream in its MEASURED band. elite_star
 # ungated ("every band", user 2026-09-12); strig_kr ungated (green
 # in every band, thin per-band); sniper2 self-gated by golden cells.
-CONF_GATE: dict = {
-    "elite_kr": ((40.0, 55.0),),      # the +1.141R band; 55+ is red
-    "pw_confirm": ((45.0, 1000.0),),
-    "pw_waking": ((40.0, 55.0),),
-    "moonshot": ((55.0, 65.0),),
-    "kr_strong": ((55.0, 65.0),),     # its native band (n=242)
-    # user 2026-09-13: ⚡ plain strong trigger rejoins the money —
-    # seated in its MEASURED band only (conf 65-84 = 83% win /
-    # +0.326R n=48; below 65 it is the flat half).
-    "strong_trigger": ((65.0, 1000.0),),
-    # kr_premium is UNGATED by conf — its profile (rr 1.0-1.5 +
-    # calm kronos + LONG) IS the gate: 83.1% / +1.072R n=83.
-}
+# GEN 14 gates. Star "every band" and TRIG×KR "any conf" stay open;
+# the premium cell is gated by its own profile (LONG + TP1 1.0-1.5R
+# + calm kronos) upstream in the worker.
+# user 2026-09-13 (revised same message): the plain trigger takes
+# conf >= 65 ONLY — the all-bands version was measured at +0.006R
+# because its sub-65 half runs -0.101R (n=199). Revert to all bands:
+# delete the strong_trigger line.
+CONF_GATE: dict = {"strong_trigger": ((65.0, 1000.0),)}
 # GEN 6: no conditional seats — the pool is exactly the named three.
 CONDITIONAL_SRC: set = set()
 # 2026-08-11 user call: 🚀 MOONSHOT removed from the demo menu (desk
@@ -334,7 +361,13 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
     """
     agg: dict = {}
     for name, sigs in pools.items():
-        w = CLASS_W.get(name, 30)
+        # 🎮 GEN 14 ROSTER GUARD: CLASS_W *is* the roster. A stream
+        # that is not on it takes no seat, no matter what a caller
+        # puts in the pools — previously an unlisted name inherited a
+        # default weight and could seat on rank alone.
+        if name not in CLASS_W:
+            continue
+        w = CLASS_W[name]
         form = max(-10.0, min(float(tier_form.get(name, 0.0) or 0.0),
                               10.0))
         for p in sigs or []:
@@ -425,6 +458,12 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
             bonus += 80
         if float(c.get("burst") or 0) >= 85:
             bonus += 40
+        # 🎯 GEN 14: inside the plain-trigger lane the hottest conf
+        # seats first (the gate already admits only ≥65, so this
+        # orders 85s above 65s when heat is scarce).
+        if (c.get("src") == "strong_trigger"
+                and float(c.get("conf") or 0) >= 85):
+            bonus += 25
         # GEN 7: 🎯 98+ confidence = the true best-of-best — outranks
         # everything inside its 3-seat lane
         if "best_conf" in c["srcs"] and float(c.get("conf") or 0) >= 98:
@@ -585,7 +624,7 @@ def try_open(state: dict, cands: list, live_fn, active=None):
             except Exception:
                 continue
         _room = HEAT_CAP - _heat / _bal
-        _rp = min(RISK_PCT.get(c["src"], RISK_PCT_DEFAULT), _room)
+        _rp = min(risk_for(c["src"], c.get("conf")), _room)
         if _rp < RISK_MIN:
             continue            # portfolio already carrying its heat
         risk_usd = _bal * _rp

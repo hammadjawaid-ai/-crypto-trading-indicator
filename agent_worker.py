@@ -691,7 +691,11 @@ def _trigger_watch() -> None:
                                 _kx_t2 = (
                                     f" · TP2 `{float(a['tp2']):g}`"
                                     if a.get("tp2") else "")
-                                tg.send(
+                                # 📵 MUTED (user 2026-09-13): TRIG×KR
+                                # off the phone; it KEEPS its GEN 14
+                                # demo seat and its desk record.
+                                # Revert: _MUTE_R9 -> tg.send.
+                                _MUTE_R9(
                                     f"💥🔮 *TRIG×KR — {a['base']} "
                                     f"{a['side']}* — strong break, "
                                     f"Kronos co-signed\n"
@@ -709,8 +713,12 @@ def _trigger_watch() -> None:
                                     f"TP1, no greed._")
                             elif (a.get("conf") is not None
                                     and float(a.get("conf")) >= 65):
-                                # 📵 ROSTER-9 gate for plain breaks
-                                tg.send(_fmt_trigger(a, px, vk))
+                                # 📵 MUTED (user 2026-09-13): the
+                                # plain 💥 break is off the phone.
+                                # It remains the GEN 14 money seat
+                                # (all bands, ≥65 prioritised).
+                                # Revert: _MUTE_R9 -> tg.send.
+                                _MUTE_R9(_fmt_trigger(a, px, vk))
                         store.record_signal("trigger_fire", a)
                         print(f"[trigger] 💥 {a['base']} {a['side']} "
                               f"@ {px:g}", flush=True)
@@ -936,10 +944,9 @@ def _trigger_watch() -> None:
                                               4 * 3600):
                         continue
                     _sb = _sk.replace("USDT", "")
-                    # 🔊 UNMUTED (user 2026-09-10: "unmute the sniper
-                    # ... only for shorts" — gen-1 is SHORT-only by
-                    # construction, the validated regime weapon)
-                    ok, _ = tg.send(
+                    # 📵 MUTED AGAIN (user 2026-09-13) — records and
+                    # desk tier continue. Revert: _MUTE_R9 -> tg.send.
+                    ok, _ = _MUTE_R9(
                         f"🎯 *SNIPER — {_sb} SHORT* — the flagship "
                         f"fire\n"
                         f"coiled {_sa['coil']:.0f} → heated "
@@ -3515,7 +3522,11 @@ def cycle() -> None:
                     f"_2 streams + conf 85+ = 50% / +0.218R live "
                     f"(n=28). A 3rd stream joining downgrades the "
                     f"cell — don't chase re-fires._")
-            ok, _ = _MUTE_R9(_du_msg)  # 📵 ROSTER-9 mute 2026-09-10
+            # 🔊 UNMUTED (user 2026-09-13: "duo 85+ bring it back") —
+            # the conf>=85 duo cell only (named pairs stay silent via
+            # their own keys). Revert: tg.send -> _MUTE_R9.
+            ok, _ = (tg.send(_du_msg) if _du_key == "duo85"
+                     else _MUTE_R9(_du_msg))
             n_alerts += 1 if ok else 0
             try:
                 _du_sig = {"symbol": _du["symbol"], "base": _du_b,
@@ -3983,16 +3994,10 @@ def cycle() -> None:
         # GEN 8 form boosts: each pool's own live desk ledger (duo
         # form = the duo85 tier; young tiers just read ~0 = neutral).
         _dz_form = {}
-        for _dt, _sh in (("elite_star", "elite_star"),
-                         ("elite_kr", "elite_conv"),
-                         ("pw_confirm", "personal_watch"),
-                         ("pw_waking", "personal_watch_early"),
-                         ("moonshot", "moonshot"),
-                         ("kr_strong", "kr_strong"),
-                         ("kr_premium", "kr_strong"),      # GEN 13
-                         ("strig_kr", "trig_strong_kr"),
-                         ("strong_trigger", "trig_strong"),  # GEN 13
-                         ("sniper2", "sniper2")):
+        for _dt, _sh in (("strong_trigger", "trig_strong"),
+                         ("elite_star", "elite_star"),
+                         ("kr_premium", "kr_strong"),
+                         ("strig_kr", "trig_strong_kr")):
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_sh)["net_r"]
             except Exception:
@@ -4123,37 +4128,28 @@ def cycle() -> None:
                         _dz_krp.append(dict(p, src="kr_premium"))
             except Exception:
                 continue
+        # 🎮 GEN 14 POOLS (user 2026-09-13: "restart demo trading to
+        # 1500 — now it will only take trades on the following"):
+        # FOUR streams, in the user's own order. Everything else
+        # (my-watch x2, moonshot, kr_strong, elite_kr, sniper2) keeps
+        # its buzz, board and desk record but spends no demo money.
+        # 💥 plain trigger is conf>=65 ONLY (user's revision — the
+        # sub-65 half measured -0.101R over 199 trades).
         _dz_pools = {
-            "kr_premium": (_dz_krp
-                           + [d for d in _dz_reo
-                              if d["src"] == "kr_premium"]),
-            "elite_star": (list(_DEMO_STARS)
-                           + [d for d in _dz_reo
-                              if d["src"] == "elite_star"]),
-            "elite_kr": _dz_ekr,
-            "pw_confirm": (list(_DEMO_CONFIRMS)
-                           + [d for d in _dz_reo
-                              if d["src"] == "pw_confirm"]),
-            "pw_waking": (list(_DEMO_WAKE)
-                          + [d for d in _dz_reo
-                             if d["src"] == "pw_waking"]),
-            "moonshot": [p for p in list(_moon_fires)
-                         if p.get("entry") and p.get("stop")
-                         and p.get("tp1")],
-            "kr_strong": _dz_krs,
-            "strig_kr": ([f for f in _dz_fires
-                          if f["src"] == "strig_kr"]
-                         + [d for d in _dz_reo
-                            if d["src"] == "strig_kr"]),
-            # 💥 GEN 13: plain strong trigger rejoins — seat gated to
-            # conf >= 65 in demo_account.CONF_GATE (its 83% band).
             "strong_trigger": ([f for f in _dz_fires
                                 if f["src"] == "strong_trigger"]
                                + [d for d in _dz_reo
                                   if d["src"] == "strong_trigger"]),
-            "sniper2": (_dz_snipes
-                        + [d for d in _dz_reo
-                           if d["src"] == "sniper2"])}
+            "elite_star": (list(_DEMO_STARS)
+                           + [d for d in _dz_reo
+                              if d["src"] == "elite_star"]),
+            "kr_premium": (_dz_krp
+                           + [d for d in _dz_reo
+                              if d["src"] == "kr_premium"]),
+            "strig_kr": ([f for f in _dz_fires
+                          if f["src"] == "strig_kr"]
+                         + [d for d in _dz_reo
+                            if d["src"] == "strig_kr"])}
         # 🔄 GEN 7 rotation input: every (coin, side) with a LIVE
         # signal this cycle — positions outside this set are the
         # rotation candidates ("a losing trade stands only while
@@ -4216,11 +4212,9 @@ def cycle() -> None:
                      "score": float(_rp8.get("score") or 80),
                      "src": (_rec8.get("src")
                              if _rec8.get("src") in
-                             ("elite_star", "elite_kr", "pw_confirm",
-                              "pw_waking", "moonshot", "kr_strong",
-                              "strig_kr", "sniper2", "kr_premium",
-                              "strong_trigger")
-                             else "pw_confirm"),
+                             ("strong_trigger", "elite_star",
+                              "kr_premium", "strig_kr")
+                             else "strong_trigger"),   # GEN 14
                      "chain": int(_rp8.get("chain") or 0) + 1,
                      "fired_at": _now})
                 print(f"[gen8] 🔁 momentum re-entry queued "
