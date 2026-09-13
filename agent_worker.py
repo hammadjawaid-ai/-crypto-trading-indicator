@@ -1421,7 +1421,11 @@ def cycle() -> None:
         # but stay off the phone. Revert: delete this gate.
         # (user roster 2026-09-13: apex + prime dropped from the
         # phone — records/boards/desk continue.)
-        if key_prefix not in ("moon", "em", "emrest"):
+        # (user 2026-09-13 later, "bring back": 🏆 APEX ×4/×5 conf>=70
+        # · 🥇 PRIME conf>=55 · 💎 BEST OF THE BEST with its 🎯 conf
+        # chip — all three back on the phone, gates as they were.)
+        if key_prefix not in ("moon", "em", "emrest",
+                              "apex", "prime", "best"):
             return
         for p in items:
             if (tier is not None and _greens_alert is not None
@@ -1550,11 +1554,12 @@ def cycle() -> None:
                     if not _kr_cache_agree(_pmx.get("symbol"),
                                            _pmx.get("side")):
                         continue
-                    # 📵 ROSTER-9 (user 2026-09-10): "only approved"
-                    # — the validated 65.5%-vs-48.5% chip becomes
-                    # the gate. Revert: delete this gate.
-                    if not _pmx.get("appr"):
-                        continue
+                    # (approved-only gate from ROSTER-9 REMOVED —
+                    # user 2026-09-13: "elite conviction 40 and above,
+                    # approved + unapproved, but kronos agrees to it".
+                    # The 🚀 approval chip still rides the buzz as the
+                    # measured 65.5%-vs-48.5% tell. Revert: re-add
+                    # `if not _pmx.get("appr"): continue` here.)
                 _key9 = ("elitestar" if _star9 else "eliteconv")
                 if store.should_alert(
                         f"{_key9}:{_pmx['symbol']}:{_pmx['side']}",
