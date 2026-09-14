@@ -4077,9 +4077,9 @@ def cycle() -> None:
         # GEN 8 form boosts: each pool's own live desk ledger (duo
         # form = the duo85 tier; young tiers just read ~0 = neutral).
         _dz_form = {}
-        for _dt, _sh in (("strong_trigger", "trig_strong"),
-                         ("elite_star", "elite_star"),
-                         ("kr_premium", "kr_strong"),
+        for _dt, _sh in (("early_lane", "early_lane"),
+                         ("early_movers", "early_movers"),
+                         ("best_zone", "best_board"),
                          ("strig_kr", "trig_strong_kr")):
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_sh)["net_r"]
@@ -4352,24 +4352,44 @@ def cycle() -> None:
                     continue
         except Exception as _ew_exc:
             print("  ignition-watch error:", _ew_exc, flush=True)
-        # 🎮 GEN 14 POOLS (user 2026-09-13: "restart demo trading to
-        # 1500 — now it will only take trades on the following"):
-        # FOUR streams, in the user's own order. Everything else
-        # (my-watch x2, moonshot, kr_strong, elite_kr, sniper2) keeps
-        # its buzz, board and desk record but spends no demo money.
-        # 💥 plain trigger is conf>=65 ONLY (user's revision — the
-        # sub-65 half measured -0.101R over 199 trades).
+        # 🎮 GEN 16 POOLS (user 2026-09-14: "we are taking trades
+        # only on the following: 1. Early Lanes and Early Movers ·
+        # 2. Best Zone · 3. TRIG×KR"). The desk's three highest-
+        # volume POSITIVE tiers plus the kronos-co-signed break.
+        # early_lane = early_strong carrying the lanes flag (desk
+        # tier early_lane); early_movers = the rest of early_strong
+        # (desk tier early_movers); best_zone = the 💎 BEST TRADE
+        # ZONE board. All plans come straight from the scanner rows
+        # the desk already trades — no new geometry anywhere.
+        def _g16(rows, src):
+            out = []
+            for _p16 in (rows or []):
+                try:
+                    if not (_p16.get("entry") and _p16.get("stop")
+                            and _p16.get("tp1")):
+                        continue
+                    _c16 = _p16.get("conf")
+                    if _c16 is None:
+                        try:
+                            _c16 = best_board.confidence(
+                                _p16.get("symbol"), _p16.get("side"))
+                        except Exception:
+                            _c16 = None
+                    out.append(dict(_p16, conf=_c16, src=src))
+                except Exception:
+                    continue
+            return out
+
         _dz_pools = {
-            "strong_trigger": ([f for f in _dz_fires
-                                if f["src"] == "strong_trigger"]
-                               + [d for d in _dz_reo
-                                  if d["src"] == "strong_trigger"]),
-            "elite_star": (list(_DEMO_STARS)
+            "early_lane": (_g16(em_big, "early_lane")
                            + [d for d in _dz_reo
-                              if d["src"] == "elite_star"]),
-            "kr_premium": (_dz_krp
-                           + [d for d in _dz_reo
-                              if d["src"] == "kr_premium"]),
+                              if d["src"] == "early_lane"]),
+            "early_movers": (_g16(_em_rest, "early_movers")
+                             + [d for d in _dz_reo
+                                if d["src"] == "early_movers"]),
+            "best_zone": (_g16(best, "best_zone")
+                          + [d for d in _dz_reo
+                             if d["src"] == "best_zone"]),
             "strig_kr": ([f for f in _dz_fires
                           if f["src"] == "strig_kr"]
                          + [d for d in _dz_reo
@@ -4436,9 +4456,9 @@ def cycle() -> None:
                      "score": float(_rp8.get("score") or 80),
                      "src": (_rec8.get("src")
                              if _rec8.get("src") in
-                             ("strong_trigger", "elite_star",
-                              "kr_premium", "strig_kr")
-                             else "strong_trigger"),   # GEN 14
+                             ("early_lane", "early_movers",
+                              "best_zone", "strig_kr")
+                             else "early_lane"),       # GEN 16
                      "chain": int(_rp8.get("chain") or 0) + 1,
                      "fired_at": _now})
                 print(f"[gen8] 🔁 momentum re-entry queued "

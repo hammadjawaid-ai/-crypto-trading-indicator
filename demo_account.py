@@ -75,8 +75,28 @@ STATE_FILE = os.environ.get("DEMO_STATE") or \
 # ... maximum 8 slots and anyone can take any place" + the named seven
 # streams). Open seating: no family caps, rotation OFF, rank floor
 # lowered so any listed stream can seat on its own merits.
-GEN = 15
-START_BAL = 1500.0
+GEN = 16
+START_BAL = 2000.0
+# 🎮 GEN 16 (user 2026-09-14: "Demo Trading Start Again now. We will
+# have only this and no limit on slots can be 20 at a time depending
+# on the signals with leverage of 10x of our total account 2000
+# dollars. We are taking trades only on the following: 1. Early Lanes
+# and Early Movers · 2. Best Zone · 3. TRIG×KR"). Fresh $2,000 ledger,
+# 20 seats, flat 10x, OPEN SEATING (no per-stream caps — his words).
+# MEASURED on .state_backup_0913, last 45d closed desk ledgers — the
+# three new streams are the desk's highest-volume POSITIVE tiers:
+#   early_movers  n=639  43.0%  +0.154R  14.2/day  stop 3.25%
+#   early_lane    n=604  42.5%  +0.151R  13.4/day  stop 3.25%
+#   best_board    n=657  40.8%  +0.122R  14.6/day  stop 3.34%
+#   trig_strong_kr n=94  68.1%  +0.047R   2.1/day  stop 2.21%
+# Note the shape: these are LOW win-rate / POSITIVE expectancy lanes
+# (the opposite of GEN 15's roster) — ~42% win is normal and healthy
+# here, the money comes from the winners running past 1R. Judge this
+# generation on R, never on win%.
+# SIZING: margin = 2000/20 = $100 a seat, x10 = $1,000 notional; at
+# each lane's median stop that is ~$32 risk (1.6% of equity) per
+# trade, so a full 20-seat board carries ~32% heat — just inside the
+# 35% cap, and 20 x $100 = the whole bank as collateral by design.
 # 🎮 GEN 14 (user 2026-09-13: "restart demo trading to 1500 — now it
 # will only take trades on the following: 1. STRONG TRIGGER plain, all
 # confidence scorings but prioritising conf>=65 · 2. ELITE STAR ·
@@ -140,8 +160,10 @@ NEAR_TP_FADE = 0.60          # how far it has given back
 # law — (lo, hi) half-open, None = unbounded on that side. The star
 # profile was measured at TP1 within 1.2R; the premium cell at
 # 1.0-1.5R (under 1R = 30%/-0.09R, over 1.5R = 11%/-0.58R).
-RR_OPEN_BOUNDS: dict = {"elite_star": (None, 1.2),
-                        "kr_premium": (1.0, 1.5)}
+# GEN 16: the two rr-law streams (star, premium) are out of the
+# roster, so no seat re-checks rr at open. Restore their bounds here
+# if either ever returns.
+RR_OPEN_BOUNDS: dict = {}
 LEV_GEN13 = 10.0             # fallback only; the GEN 14 per-stream
                              # ladder lives in lev_for() below
 DAY_MAX_LOSS_PCT = 0.15      # of day-start equity; stops NEW seats
@@ -165,7 +187,7 @@ DAY_MAX_LOSS_PCT = 0.15      # of day-start equity; stops NEW seats
 # try_open — DAY_MAX_LOSS below is only the legacy floor.
 DAY_MAX_GAIN = float("inf")
 DAY_MAX_LOSS = 250.0
-MIN_SLOTS = 10
+MIN_SLOTS = 20
 # 💎🔮 RIDE EXITS (elite_kr only): the +1.14R record was earned by
 # RIDING — half-bank at TP1, stop to BE, trail toward TP2. Banking
 # 100% at TP1 would cut the exact riders that make the cell.
@@ -178,12 +200,11 @@ RIDE_SRC: set = set()
 # conviction"). A CEILING, not a quota — the MIN_RANK floor still
 # gates every slot. Elite's 3-seat cap below guarantees the top
 # streams (strong triggers + re-runs) always keep >= 7 seats.
-# GEN 15: 10 seats. MAX_SLOTS is the SIZE DIVISOR again now that
-# leverage drives size — margin = balance / 10 = $150 on a $1,500
-# bank, so a 10x seat carries $1,500 notional and a 6x seat $900.
-# Lowering this number makes every position bigger; raising it makes
-# them smaller. Full deployment = the whole bank as margin.
-MAX_SLOTS = 10
+# GEN 16: 20 seats ("no limit on slots, can be 20 at a time depending
+# on the signals"). MAX_SLOTS is also the SIZE DIVISOR — margin =
+# balance / 20 = $100 on a $2,000 bank, x10 leverage = $1,000
+# notional a seat. Lowering this number makes every position bigger.
+MAX_SLOTS = 20
 # The earlier 6->8 good-day overflow is absorbed by the 10-slot
 # base; no seats beyond 10.
 MAX_SLOTS_HOT = 8
@@ -210,8 +231,12 @@ TIME_STOP_BY_SRC: dict = {}
 # ladder — without a cap it would hold every seat and spend the whole
 # 35% heat budget before a premium fire ever arrived. Caps keep each
 # stream's lane open. Revert to open seating: {}.
-MAX_PER_SRC: dict = {"strong_trigger": 6, "elite_star": 3,
-                     "kr_premium": 4, "strig_kr": 3}
+# GEN 16: OPEN SEATING — the user asked for "no limit on slots", so
+# no per-stream caps; best rank wins a free seat. CONSEQUENCE HE WAS
+# TOLD: early lanes/movers/best fire ~14/day each against TRIG×KR's
+# ~2/day, so on a busy board TRIG×KR may rarely seat. Restore caps
+# here if that lane goes dark.
+MAX_PER_SRC: dict = {}
 # 💥 TOP FAMILY: strong triggers + re-runs share 5 seats.
 # GEN 13: family cap OFF — open seating, best rank wins.
 TOP_FAMILY: set = set()
@@ -225,8 +250,8 @@ ELITE_FAMILY_CAP = 0
 # positives banked first, then negatives cut. Healthy signals are
 # NEVER rotated, and at most this many rotations happen per cycle.
 ROTATE_MAX = 0   # GEN 9 user order: rotation REMOVED
-SMART_EXIT_SKIP: set = {"strong_trigger", "elite_star",
-                        "kr_premium", "strig_kr"}          # GEN 14
+SMART_EXIT_SKIP: set = {"early_lane", "early_movers",
+                        "best_zone", "strig_kr"}           # GEN 16
 # GEN 12: kronos smart-exit off for all. Exits: SL-or-TP1-bank-100%
 # everywhere EXCEPT ⭐ elite_star's near-TP bank (own block) and
 # 💎🔮 elite_kr's RIDE (half-bank TP1 + BE + trail, in the TP1
@@ -295,10 +320,10 @@ MIN_RANK = 85.0  # GEN 9: anyone can take any place
 # ranking would be premium first by a wide margin, so MAX_PER_SRC caps
 # below stop the 18.8-fires/day trigger firehose from eating the heat
 # budget before the premium cell can seat.
-CLASS_W = {"strong_trigger": 104,  # 1. plain breaks, all bands
-           "elite_star": 103,      # 2.
-           "kr_premium": 102,      # 3.
-           "strig_kr": 101}        # 4. TRIG×KR
+CLASS_W = {"early_lane": 104,     # 1a. the user's first pick
+           "early_movers": 103,   # 1b. its non-lane half
+           "best_zone": 102,      # 2. 💎 BEST TRADE ZONE
+           "strig_kr": 101}       # 3. 💥🔮 TRIG×KR
 # 🎯 CONF-BAND SEAT GATES (user 2026-09-07, read off the live desk
 # ledger): a stream's candidate takes a seat ONLY when its conf falls
 # in a band that measured green on its own closed trades. Bands are
@@ -322,7 +347,9 @@ CLASS_W = {"strong_trigger": 104,  # 1. plain breaks, all bands
 # conf >= 65 ONLY — the all-bands version was measured at +0.006R
 # because its sub-65 half runs -0.101R (n=199). Revert to all bands:
 # delete the strong_trigger line.
-CONF_GATE: dict = {"strong_trigger": ((65.0, 1000.0),)}
+# GEN 16: no conf gates — none of the four lanes has a measured
+# conf law, and the user named no bands.
+CONF_GATE: dict = {}
 # GEN 6: no conditional seats — the pool is exactly the named three.
 CONDITIONAL_SRC: set = set()
 # 2026-08-11 user call: 🚀 MOONSHOT removed from the demo menu (desk
@@ -333,41 +360,18 @@ CONDITIONAL_SRC: set = set()
 
 
 def lev_for(src: str, conf=None, burst=None) -> float:
-    """GEN 14 leverage ladder (user 2026-09-13): strong trigger up to
-    10x · elite star 6-8x · KR-STRONG premium 10x · TRIG×KR 8x.
-
-    GEN 15: leverage DRIVES SIZE again. Every seat margins
-    balance / MAX_SLOTS and this number multiplies it into the
-    position, so a 10x seat carries two-thirds more notional than a
-    6x one and loses proportionally more at its stop. (Between GEN 13
-    and GEN 14 leverage only set collateral — that engine is gone.)
-    It still also caps stop width: try_open refuses stop_pct >=
-    0.8 / lev, so 10x admits stops up to 8% and 6x up to 13.3%.
-    ⭐ the star's 6-8x is read off its STRENGTH (user 2026-09-13:
-    "any band with 6 or 8x leverage depending on the strength").
-    Strength here is the system's own bar — the 1h velocity burst at
-    65, the same threshold the my-watch lanes and the momentum
-    re-entry use. The star profile already caps burst under 85, so
-    the live split is burst 65-85 -> 8x and under 65 -> 6x. If a card
-    reaches us without a burst reading, confidence stands in at the
-    same 65 line. Confidence itself does NOT gate the seat — the star
-    trades every band.
-    ONE source of truth — the 💸 live executor calls this too."""
-    if src == "elite_star":
-        try:
-            _b = float(burst)
-        except (TypeError, ValueError):
-            _b = None
-        if _b:                       # a real burst reading decides
-            return 8.0 if _b >= 65 else 6.0
-        try:                         # else fall back to confidence
-            _c = float(conf)
-        except (TypeError, ValueError):
-            _c = None
-        return 8.0 if (_c is not None and _c >= 65) else 6.0
-    return {"strong_trigger": 10.0,
-            "kr_premium": 10.0,
-            "strig_kr": 8.0}.get(src, LEV_GEN13)
+    """GEN 16 leverage (user 2026-09-14: "leverage of 10x"): a flat
+    10x on all four lanes. Leverage DRIVES SIZE in this engine —
+    margin = balance / MAX_SLOTS, notional = margin x this number —
+    so 10x on a $100 seat is a $1,000 position, and the dollar risk
+    that follows is notional x the stop distance.
+    It also caps stop width: try_open refuses stop_pct >= 0.8 / lev,
+    i.e. stops wider than 8% at 10x. The early lanes' median stop is
+    3.25%, so that guard bites only on the genuinely wild plans.
+    ONE source of truth — the 💸 live executor calls this too.
+    (The GEN 15 star 6x/8x-by-burst ladder is in git at 2a56c58.)"""
+    return {"early_lane": 10.0, "early_movers": 10.0,
+            "best_zone": 10.0, "strig_kr": 10.0}.get(src, LEV_GEN13)
 
 
 def load() -> dict:
@@ -500,12 +504,6 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
             bonus += 80
         if float(c.get("burst") or 0) >= 85:
             bonus += 40
-        # 🎯 GEN 14: inside the plain-trigger lane the hottest conf
-        # seats first (the gate already admits only ≥65, so this
-        # orders 85s above 65s when heat is scarce).
-        if (c.get("src") == "strong_trigger"
-                and float(c.get("conf") or 0) >= 85):
-            bonus += 25
         # GEN 7: 🎯 98+ confidence = the true best-of-best — outranks
         # everything inside its 3-seat lane
         if "best_conf" in c["srcs"] and float(c.get("conf") or 0) >= 98:
