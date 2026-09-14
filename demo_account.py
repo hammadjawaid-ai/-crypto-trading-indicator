@@ -250,8 +250,8 @@ ELITE_FAMILY_CAP = 0
 # positives banked first, then negatives cut. Healthy signals are
 # NEVER rotated, and at most this many rotations happen per cycle.
 ROTATE_MAX = 0   # GEN 9 user order: rotation REMOVED
-SMART_EXIT_SKIP: set = {"early_lane", "early_movers", "best_zone",
-                        "strong_trigger", "strig_kr"}      # GEN 16
+SMART_EXIT_SKIP: set = {"strong_trigger", "early_movers",
+                        "early_lane", "strig_kr"}          # GEN 16.2
 # GEN 12: kronos smart-exit off for all. Exits: SL-or-TP1-bank-100%
 # everywhere EXCEPT ⭐ elite_star's near-TP bank (own block) and
 # 💎🔮 elite_kr's RIDE (half-bank TP1 + BE + trail, in the TP1
@@ -320,11 +320,15 @@ MIN_RANK = 85.0  # GEN 9: anyone can take any place
 # ranking would be premium first by a wide margin, so MAX_PER_SRC caps
 # below stop the 18.8-fires/day trigger firehose from eating the heat
 # budget before the premium cell can seat.
-CLASS_W = {"early_lane": 105,     # 1a. the user's first pick
-           "early_movers": 104,   # 1b. its non-lane half
-           "best_zone": 103,      # 2. 💎 BEST TRADE ZONE
-           "strong_trigger": 102,  # 3. 💥 added 2026-09-14
-           "strig_kr": 101}       # 4. 💥🔮 TRIG×KR
+# GEN 16.2 (user 2026-09-14 later: "gen 9 works the best so I will
+# change it to gen 9 — strong trigger as a priority... just have
+# these and nothing else"): the GEN-9-shaped roster. BEST ZONE is
+# OUT of the money (buzz/board/desk continue); 💥 STRONG TRIGGER
+# leads the ladder.
+CLASS_W = {"strong_trigger": 104,  # 1. THE priority (his words)
+           "early_movers": 103,   # 2. conf 55-64 or 85+
+           "early_lane": 102,     # 3. conf >=85
+           "strig_kr": 101}       # 4. 💥🔮 TRIG×KR conf >=40
 # 🎯 CONF-BAND SEAT GATES (user 2026-09-07, read off the live desk
 # ledger): a stream's candidate takes a seat ONLY when its conf falls
 # in a band that measured green on its own closed trades. Bands are
@@ -361,8 +365,6 @@ CLASS_W = {"early_lane": 105,     # 1a. the user's first pick
 # The early lanes' edge is spread across every band, so gating at 85
 # cuts volume ~4x AND expectancy ~40%. His call, his system; revert
 # by deleting the two early_* lines.
-# best_zone stays UNGATED — he did not name a band for it, and its
-# fires carry conf 85-98 natively so a gate would be inert anyway.
 CONF_GATE: dict = {
     "early_lane": ((85.0, 1000.0),),
     "early_movers": ((55.0, 65.0), (85.0, 1000.0)),
@@ -389,9 +391,8 @@ def lev_for(src: str, conf=None, burst=None) -> float:
     3.25%, so that guard bites only on the genuinely wild plans.
     ONE source of truth — the 💸 live executor calls this too.
     (The GEN 15 star 6x/8x-by-burst ladder is in git at 2a56c58.)"""
-    return {"early_lane": 10.0, "early_movers": 10.0,
-            "best_zone": 10.0, "strong_trigger": 10.0,
-            "strig_kr": 10.0}.get(src, LEV_GEN13)
+    return {"strong_trigger": 10.0, "early_movers": 10.0,
+            "early_lane": 10.0, "strig_kr": 10.0}.get(src, LEV_GEN13)
 
 
 def load() -> dict:

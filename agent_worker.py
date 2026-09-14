@@ -4065,10 +4065,9 @@ def cycle() -> None:
         # GEN 8 form boosts: each pool's own live desk ledger (duo
         # form = the duo85 tier; young tiers just read ~0 = neutral).
         _dz_form = {}
-        for _dt, _sh in (("early_lane", "early_lane"),
+        for _dt, _sh in (("strong_trigger", "trig_strong"),
                          ("early_movers", "early_movers"),
-                         ("best_zone", "best_board"),
-                         ("strong_trigger", "trig_strong"),
+                         ("early_lane", "early_lane"),
                          ("strig_kr", "trig_strong_kr")):
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_sh)["net_r"]
@@ -4383,9 +4382,8 @@ def cycle() -> None:
             "early_movers": (_g16(_em_rest, "early_movers")
                              + [d for d in _dz_reo
                                 if d["src"] == "early_movers"]),
-            "best_zone": (_g16(best, "best_zone")
-                          + [d for d in _dz_reo
-                             if d["src"] == "best_zone"]),
+            # (💎 best_zone dropped from the money 2026-09-14
+            # "just have these and nothing else" — buzz/desk stay.)
             # 💥 plain strong trigger rejoins 2026-09-14, conf>=65
             # only (its measured-positive half: +0.117R vs +0.006R).
             "strong_trigger": ([f for f in _dz_fires
@@ -4458,10 +4456,9 @@ def cycle() -> None:
                      "score": float(_rp8.get("score") or 80),
                      "src": (_rec8.get("src")
                              if _rec8.get("src") in
-                             ("early_lane", "early_movers",
-                              "best_zone", "strong_trigger",
-                              "strig_kr")
-                             else "early_lane"),       # GEN 16
+                             ("strong_trigger", "early_movers",
+                              "early_lane", "strig_kr")
+                             else "strong_trigger"),   # GEN 16.2
                      "chain": int(_rp8.get("chain") or 0) + 1,
                      "fired_at": _now})
                 print(f"[gen8] 🔁 momentum re-entry queued "
