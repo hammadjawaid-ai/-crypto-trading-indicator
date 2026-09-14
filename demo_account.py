@@ -250,8 +250,8 @@ ELITE_FAMILY_CAP = 0
 # positives banked first, then negatives cut. Healthy signals are
 # NEVER rotated, and at most this many rotations happen per cycle.
 ROTATE_MAX = 0   # GEN 9 user order: rotation REMOVED
-SMART_EXIT_SKIP: set = {"early_lane", "early_movers",
-                        "best_zone", "strig_kr"}           # GEN 16
+SMART_EXIT_SKIP: set = {"early_lane", "early_movers", "best_zone",
+                        "strong_trigger", "strig_kr"}      # GEN 16
 # GEN 12: kronos smart-exit off for all. Exits: SL-or-TP1-bank-100%
 # everywhere EXCEPT ⭐ elite_star's near-TP bank (own block) and
 # 💎🔮 elite_kr's RIDE (half-bank TP1 + BE + trail, in the TP1
@@ -320,10 +320,11 @@ MIN_RANK = 85.0  # GEN 9: anyone can take any place
 # ranking would be premium first by a wide margin, so MAX_PER_SRC caps
 # below stop the 18.8-fires/day trigger firehose from eating the heat
 # budget before the premium cell can seat.
-CLASS_W = {"early_lane": 104,     # 1a. the user's first pick
-           "early_movers": 103,   # 1b. its non-lane half
-           "best_zone": 102,      # 2. 💎 BEST TRADE ZONE
-           "strig_kr": 101}       # 3. 💥🔮 TRIG×KR
+CLASS_W = {"early_lane": 105,     # 1a. the user's first pick
+           "early_movers": 104,   # 1b. its non-lane half
+           "best_zone": 103,      # 2. 💎 BEST TRADE ZONE
+           "strong_trigger": 102,  # 3. 💥 added 2026-09-14
+           "strig_kr": 101}       # 4. 💥🔮 TRIG×KR
 # 🎯 CONF-BAND SEAT GATES (user 2026-09-07, read off the live desk
 # ledger): a stream's candidate takes a seat ONLY when its conf falls
 # in a band that measured green on its own closed trades. Bands are
@@ -347,9 +348,27 @@ CLASS_W = {"early_lane": 104,     # 1a. the user's first pick
 # conf >= 65 ONLY — the all-bands version was measured at +0.006R
 # because its sub-65 half runs -0.101R (n=199). Revert to all bands:
 # delete the strong_trigger line.
-# GEN 16: no conf gates — none of the four lanes has a measured
-# conf law, and the user named no bands.
-CONF_GATE: dict = {}
+# 🎯 GEN 16.1 CONF BANDS (user 2026-09-14: "for demo trading with
+# this confidence score only"). Half-open [lo, hi); chain>0 re-entries
+# exempt; a gated stream with conf None takes no seat.
+# ⚠️ MEASURED WARNING GIVEN TO HIM AT WIRE TIME — two of these four
+# gates cost money on the last 45d of closed desk trades:
+#   early_lane   conf>=85  +0.096R  3.0/day  vs ALL +0.151R 13.4/day
+#   early_movers conf 85+  +0.088R  3.0/day  vs ALL +0.154R 14.2/day
+#   early_movers conf 55-64 is n=3 in 45 days — effectively empty
+#   strong_trigger conf>=65 +0.117R vs ALL +0.006R   <- gate EARNS
+#   strig_kr       conf>=40 +0.077R vs ALL +0.047R   <- gate EARNS
+# The early lanes' edge is spread across every band, so gating at 85
+# cuts volume ~4x AND expectancy ~40%. His call, his system; revert
+# by deleting the two early_* lines.
+# best_zone stays UNGATED — he did not name a band for it, and its
+# fires carry conf 85-98 natively so a gate would be inert anyway.
+CONF_GATE: dict = {
+    "early_lane": ((85.0, 1000.0),),
+    "early_movers": ((55.0, 65.0), (85.0, 1000.0)),
+    "strong_trigger": ((65.0, 1000.0),),
+    "strig_kr": ((40.0, 1000.0),),
+}
 # GEN 6: no conditional seats — the pool is exactly the named three.
 CONDITIONAL_SRC: set = set()
 # 2026-08-11 user call: 🚀 MOONSHOT removed from the demo menu (desk
@@ -371,7 +390,8 @@ def lev_for(src: str, conf=None, burst=None) -> float:
     ONE source of truth — the 💸 live executor calls this too.
     (The GEN 15 star 6x/8x-by-burst ladder is in git at 2a56c58.)"""
     return {"early_lane": 10.0, "early_movers": 10.0,
-            "best_zone": 10.0, "strig_kr": 10.0}.get(src, LEV_GEN13)
+            "best_zone": 10.0, "strong_trigger": 10.0,
+            "strig_kr": 10.0}.get(src, LEV_GEN13)
 
 
 def load() -> dict:

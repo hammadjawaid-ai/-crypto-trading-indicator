@@ -1667,30 +1667,18 @@ def cycle() -> None:
                             "28% win, the winners ride 3-10R. Few "
                             "hit, hits are huge — size for that._\n"
                             + _msg9)
-                    # ⭐ the STAR buzz — its OWN bell (user
-                    # 2026-09-13: "elite star can be separate, it
-                    # should fire on its own"). Fires on every star
-                    # profile regardless of the plain lane's gates.
-                    if _star9:
-                        _msg9 = (
-                            "💎⭐ *ELITE STAR — the measured winner "
-                            "profile*\n"
-                            "_approved · HIGH · score<85 · calm "
-                            "burst · TP1 within 1.2R = 65% / "
-                            "+1.12R live (n=49, all thirds green). "
-                            "Fires on its own — no kronos/conf gate. "
-                            "Desk tier ⭐ + demo seat #1 track it._\n"
-                            + _msg9)
-                    # 🔊 PLAIN ELITE BACK ON THE PHONE (user
-                    # 2026-09-13 night: "have elite conviction
-                    # notifications as well, as it was before —
-                    # uncapped, approved, high and max, even kronos
-                    # conflicts, buzz all of them"). The
-                    # backend-only hour is over; the ⏱ 1H VERDICT
-                    # and ⭐GO bells now ride ALONGSIDE the fire
-                    # buzz instead of replacing it. Revert to
-                    # backend-only: gate this send on
-                    # (_star9 or rider) via _MUTE_R9.
+                    # 📵 STAR HEADLINE REMOVED (user 2026-09-14:
+                    # "remove what we build with elite star, its not
+                    # working at all"). A star fire still buzzes —
+                    # as a PLAIN elite conviction card, because
+                    # "elite conviction stays as it is" — it just no
+                    # longer wears a badge claiming 65%/+1.12R that
+                    # its forward record (52.9%/+0.062R n=17) has
+                    # not delivered. _star9 still drives the desk
+                    # tier, the board and the demo feed, so the
+                    # ledger keeps proving it while the adaptive
+                    # TP/SL rework is measured. Revert: restore the
+                    # headline block from commit 025ff60.
                     ok, _m9 = tg.send(_msg9)
                     n_alerts += 1 if ok else 0
                     if _star9:
@@ -4080,6 +4068,7 @@ def cycle() -> None:
         for _dt, _sh in (("early_lane", "early_lane"),
                          ("early_movers", "early_movers"),
                          ("best_zone", "best_board"),
+                         ("strong_trigger", "trig_strong"),
                          ("strig_kr", "trig_strong_kr")):
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_sh)["net_r"]
@@ -4260,8 +4249,12 @@ def cycle() -> None:
                         # cap (user item 2). One verdict per fire
                         # by construction — no cooldown needed.
                         if _ew.get("appr"):
+                            # 📵 MUTED (user 2026-09-14: "remove
+                            # from telegram notification of elite
+                            # go and 1h verdict"). The elite_1h
+                            # stamps keep building the desk split.
                             if _ew["oneh"] == "LIVE":
-                                tg.send(
+                                _MUTE_R9(
                                     f"⏱💎 *{_ew['base']} "
                                     f"{_ew['side']} — 1H VERDICT: "
                                     f"🟢 LIVE* ({_ew['tier']})\n"
@@ -4275,7 +4268,7 @@ def cycle() -> None:
                                     f"entry here measured NEGATIVE "
                                     f"— don't chase._")
                             else:
-                                tg.send(
+                                _MUTE_R9(
                                     f"⏱💎 *{_ew['base']} "
                                     f"{_ew['side']} — 1H VERDICT: "
                                     f"🔴 DEAD* ({_ew['tier']})\n"
@@ -4306,7 +4299,10 @@ def cycle() -> None:
                         _go_tag = ("" if _ew["go"] == "FAST" else
                                    " (LATE — after 4h: the weaker "
                                    "+0.10R cell)")
-                        tg.send(
+                        # 📵 MUTED with the rest of the star build
+                        # (user 2026-09-14); star_go records and the
+                        # star_go_chase control tier continue.
+                        _MUTE_R9(
                             f"⭐🚀 *GO — {_ew['base']} star is "
                             f"PERFORMING*{_go_tag}\n"
                             f"+25% of the way to TP1, "
@@ -4338,7 +4334,7 @@ def cycle() -> None:
                             and not _ew.get("froze")
                             and _age >= 4 * 3600 and not _stopped):
                         _ew["froze"] = True
-                        tg.send(
+                        _MUTE_R9(          # 📵 muted 2026-09-14
                             f"⭐❄️ *{_ew['base']} star — 4h, no "
                             f"ignition.*\n"
                             f"_freeze: no adds, expectations down "
@@ -4390,6 +4386,12 @@ def cycle() -> None:
             "best_zone": (_g16(best, "best_zone")
                           + [d for d in _dz_reo
                              if d["src"] == "best_zone"]),
+            # 💥 plain strong trigger rejoins 2026-09-14, conf>=65
+            # only (its measured-positive half: +0.117R vs +0.006R).
+            "strong_trigger": ([f for f in _dz_fires
+                                if f["src"] == "strong_trigger"]
+                               + [d for d in _dz_reo
+                                  if d["src"] == "strong_trigger"]),
             "strig_kr": ([f for f in _dz_fires
                           if f["src"] == "strig_kr"]
                          + [d for d in _dz_reo
@@ -4457,7 +4459,8 @@ def cycle() -> None:
                      "src": (_rec8.get("src")
                              if _rec8.get("src") in
                              ("early_lane", "early_movers",
-                              "best_zone", "strig_kr")
+                              "best_zone", "strong_trigger",
+                              "strig_kr")
                              else "early_lane"),       # GEN 16
                      "chain": int(_rp8.get("chain") or 0) + 1,
                      "fired_at": _now})
