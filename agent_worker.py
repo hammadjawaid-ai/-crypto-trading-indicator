@@ -1614,6 +1614,16 @@ def cycle() -> None:
                     # ── the PLAIN elite buzz gates (stars exempt) ──
                     if _cf9 is not None and _cf9 < 40:
                         continue
+                    # 📵 THE 55-64 BAND IS MUTED (user 2026-09-17:
+                    # "mute the 55-64 conf band from the buzz, rest
+                    # stays as it is"). The system-wide cursed band:
+                    # elite lifetime -0.338R (n=100), negative even
+                    # in the revival week (-0.193R n=17), 0-for-3 on
+                    # the star, the losing half of the trigger.
+                    # Records/desk/boards continue; 40-54 and 65+
+                    # stay audible. Revert: delete this gate.
+                    if _cf9 is not None and 55 <= _cf9 < 65:
+                        continue
                     # 🔮 KRONOS GATE — UNAPPROVED ONLY (user
                     # 2026-09-13 night, two messages: "uncapped
                     # approved high and max, even kronos conflicts,
@@ -4259,12 +4269,15 @@ def cycle() -> None:
                         # cap (user item 2). One verdict per fire
                         # by construction — no cooldown needed.
                         if _ew.get("appr"):
-                            # 📵 MUTED (user 2026-09-14: "remove
-                            # from telegram notification of elite
-                            # go and 1h verdict"). The elite_1h
-                            # stamps keep building the desk split.
+                            # 🔊 1H VERDICT BACK ON (user
+                            # 2026-09-17: "add 1H VERDICT back for
+                            # approved fires") — LIVE/DEAD for
+                            # every approved HIGH+MAX fire, no cap.
+                            # It earned the return while muted:
+                            # forward LIVE 69%/+1.008R vs DEAD
+                            # 43%/-0.101R (certified +0.485R / ~0).
                             if _ew["oneh"] == "LIVE":
-                                _MUTE_R9(
+                                tg.send(
                                     f"⏱💎 *{_ew['base']} "
                                     f"{_ew['side']} — 1H VERDICT: "
                                     f"🟢 LIVE* ({_ew['tier']})\n"
@@ -4278,7 +4291,7 @@ def cycle() -> None:
                                     f"entry here measured NEGATIVE "
                                     f"— don't chase._")
                             else:
-                                _MUTE_R9(
+                                tg.send(
                                     f"⏱💎 *{_ew['base']} "
                                     f"{_ew['side']} — 1H VERDICT: "
                                     f"🔴 DEAD* ({_ew['tier']})\n"
