@@ -1550,6 +1550,17 @@ def cycle() -> None:
                             _pmx.get("symbol"), _pmx.get("side"))
                     except Exception:
                         _cf9 = None
+                # 🧹 CONF SANITY CLAMP (2026-09-17): the 0917 backup
+                # showed star/elite records carrying garbage conf
+                # (5.5e12, 9.3e11, 4010.88 …) inherited from the
+                # card's own conf field — poisoning every conf-band
+                # panel that reads them. Confidence is 0-100 by
+                # definition; anything else is treated as unknown.
+                try:
+                    if _cf9 is not None and not 0 <= float(_cf9) <= 100:
+                        _cf9 = None
+                except (TypeError, ValueError):
+                    _cf9 = None
                 # 📵 ELITE GATE — FINAL (user 2026-08-31 revert:
                 # "elite conviction fires approved unapproved with
                 # high and max with confidence score set to 40 and
