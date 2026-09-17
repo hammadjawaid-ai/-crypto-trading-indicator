@@ -759,17 +759,14 @@ def _trigger_watch() -> None:
                                     f"TP1, no greed._")
                             elif (a.get("conf") is not None
                                     and float(a.get("conf")) >= 65):
-                                # 🔊 UNMUTED AGAIN (user 2026-09-13,
-                                # same day: "bring back strong trigger
-                                # conf >= 65"). The ≥65 band is the
-                                # measured-positive half — 69.1% /
-                                # +0.117R n=110 on the 09-13 backup;
-                                # its sub-65 half (-0.101R) stays
-                                # silent AND unseated. TRIG×KR is a
-                                # separate bell and remains muted, so
-                                # a co-signed break still does not
-                                # buzz. Revert: tg.send -> _MUTE_R9.
-                                tg.send(_fmt_trigger(a, px, vk))
+                                # 📵 MUTED (user 2026-09-17: "remove
+                                # from telegram notifications —
+                                # STRONG TRIGGER"). The break keeps
+                                # its GEN 16.2 demo seat #1 (conf
+                                # >=65) and every record — buzz and
+                                # money separate, as always.
+                                # Revert: _MUTE_R9 -> tg.send.
+                                _MUTE_R9(_fmt_trigger(a, px, vk))
                         store.record_signal("trigger_fire", a)
                         print(f"[trigger] 💥 {a['base']} {a['side']} "
                               f"@ {px:g}", flush=True)
