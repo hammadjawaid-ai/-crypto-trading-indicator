@@ -4306,22 +4306,44 @@ def cycle() -> None:
                             "score": round(_age / 60.0, 1),
                             "entry": _e0, "stop": _ew["stop"],
                             "tp1": _ew["tp1"]})
-                        _go_tag = ("" if _ew["go"] == "FAST" else
-                                   " (LATE — after 4h: the weaker "
-                                   "+0.10R cell)")
-                        # 📵 MUTED with the rest of the star build
-                        # (user 2026-09-14); star_go records and the
-                        # star_go_chase control tier continue.
-                        _MUTE_R9(
-                            f"⭐🚀 *GO — {_ew['base']} star is "
-                            f"PERFORMING*{_go_tag}\n"
-                            f"+25% of the way to TP1, "
-                            f"{_age / 60:.0f} min after fire.\n"
-                            f"_rung stars measured 72% / +0.34R — "
-                            f"HOLD to the plan, no early profit. "
-                            f"Not in from the ⭐ fire? Entering "
-                            f"HERE measured +0.05R — don't "
-                            f"chase._")
+                        # 🔊 ⭐GO FAST IS THE STAR'S BELL (user
+                        # 2026-09-17: "this gets the seat for
+                        # uncapped notifications — 2, 3, 10, 15,
+                        # depending on the buzzes"). EVERY FAST
+                        # ignition (<=4h) buzzes, no cap; the
+                        # <=90-min subset is tagged TOP PICK (its
+                        # certified cell: 71.4%/+0.288R n=70;
+                        # forward 80%/+1.05R). LATE ignitions and
+                        # the ❄️ freeze stay board-only — the star
+                        # fire itself has no separate bell either
+                        # (it rides the elite conviction buzz).
+                        # Volume at current tape: ~5/day, ~2 of
+                        # them top picks.
+                        _go_top = (_ew["go"] == "FAST"
+                                   and _age <= 90 * 60)
+                        _go_hd = (
+                            "⭐🏆 *GO — {b} star TOP PICK* — "
+                            "ignited in {m:.0f} min (the ≤90-min "
+                            "cream: 71-80% measured)"
+                            if _go_top else
+                            "⭐🚀 *GO — {b} star is PERFORMING* — "
+                            "ignited in {m:.0f} min"
+                            if _ew["go"] == "FAST" else
+                            "⭐🐢 *GO (late) — {b}* — after 4h, "
+                            "the weaker +0.10R cell")
+                        _snd_go = (tg.send if _ew["go"] == "FAST"
+                                   else _MUTE_R9)
+                        _snd_go(
+                            _go_hd.format(b=_ew["base"],
+                                          m=_age / 60) + "\n"
+                            f"+25% of the way to TP1 · entry "
+                            f"`{_e0:g}` · SL `{float(_ew['stop']):g}`"
+                            f" · TP1 `{float(_ew['tp1']):g}`\n"
+                            f"_rung stars measured 72-82% — HOLD to "
+                            f"the plan, no early profit. Not in "
+                            f"from the ⭐ fire? This is a HOLD "
+                            f"signal — entering here measured "
+                            f"+0.05R, don't chase._")
                         n_alerts += 1
                         if _ew["go"] == "FAST":
                             # control tier: forward-test that the
