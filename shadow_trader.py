@@ -75,6 +75,15 @@ def open_from_signal(tier: str, p: dict, live_px: float | None) -> bool:
         return False
     if side == "SHORT" and not (stop > entry > tp1):
         return False
+    # 🧹 DEGENERATE-RISK GUARD (2026-09-17): the 0917 backup held 119
+    # closed rows whose ORIGINAL stop sat <0.1% from entry — pnl_r
+    # divides by that near-zero risk, so a routine 6% move books as
+    # ±85R and one such row nukes a tier's whole record (kr_strong's
+    # "revival" was exactly this; the 119 rows net -3,951R of pure
+    # accounting noise). The demo has refused these since GEN 6
+    # (stop_pct <= 0.001 in try_open); the desk now refuses them too.
+    if abs(entry - stop) / entry < 0.001:
+        return False
     if store.shadow_has_open(tier, sym):
         return False
     _cf = p.get("conf")
