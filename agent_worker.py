@@ -1150,12 +1150,14 @@ def _fmt_prime(p) -> str:
     prog = p.get("_prog")
     zone = (f" · 🟢 IN ZONE ({prog * 100:.0f}% to TP1)"
             if prog is not None else "")
-    # 🚀 RETITLED (user 2026-09-18): this formatter serves ONLY the
-    # early-lane buzz ("em" push), but its legacy "PRIME ENTRY"
-    # header made ~16 lane buzzes/day read as the 🥇 PRIME stream —
-    # the user could not find his early lanes on the phone. The
-    # label now matches every chart.
-    return (f"🚀 *EARLY LANE* — {p['base']} {p['side']} "
+    # ⭐🚀 TITLE KEPT (user 2026-09-18, on being shown the mapping:
+    # "PRIME ENTRY is equal to early lane — keep it the same,
+    # retitle it again"): he knows this stream BY this name, so the
+    # familiar header stays. FOR THE RECORD: ⭐🚀 PRIME ENTRY = the
+    # EARLY LANE buzz (early_strong fires carrying the lanes flag),
+    # ~16/day; it is NOT the 🥇 PRIME stream. ⚡ EARLY MOVER is the
+    # separate, rarer non-lane remainder.
+    return (f"⭐🚀 *PRIME ENTRY* — {p['base']} {p['side']} "
             f"(STRONG {p['score']:.0f}){zone}\n"
             f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
             f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
@@ -4346,45 +4348,37 @@ def cycle() -> None:
                             "score": round(_age / 60.0, 1),
                             "entry": _e0, "stop": _ew["stop"],
                             "tp1": _ew["tp1"]})
-                        # 🔊 ⭐GO FAST IS THE STAR'S BELL (user
-                        # 2026-09-17: "this gets the seat for
-                        # uncapped notifications — 2, 3, 10, 15,
-                        # depending on the buzzes"). EVERY FAST
-                        # ignition (<=4h) buzzes, no cap; the
-                        # <=90-min subset is tagged TOP PICK (its
-                        # certified cell: 71.4%/+0.288R n=70;
-                        # forward 80%/+1.05R). LATE ignitions and
-                        # the ❄️ freeze stay board-only — the star
-                        # fire itself has no separate bell either
-                        # (it rides the elite conviction buzz).
-                        # Volume at current tape: ~5/day, ~2 of
-                        # them top picks.
-                        _go_top = (_ew["go"] == "FAST"
-                                   and _age <= 90 * 60)
-                        _go_hd = (
-                            "⭐🏆 *GO — {b} star TOP PICK* — "
-                            "ignited in {m:.0f} min (the ≤90-min "
-                            "cream: 71-80% measured)"
-                            if _go_top else
-                            "⭐🚀 *GO — {b} star is PERFORMING* — "
-                            "ignited in {m:.0f} min"
-                            if _ew["go"] == "FAST" else
-                            "⭐🐢 *GO (late) — {b}* — after 4h, "
-                            "the weaker +0.10R cell")
-                        _snd_go = (tg.send if _ew["go"] == "FAST"
-                                   else _MUTE_R9)
-                        _snd_go(
-                            _go_hd.format(b=_ew["base"],
-                                          m=_age / 60) + "\n"
-                            f"+25% of the way to TP1 · entry "
-                            f"`{_e0:g}` · SL `{float(_ew['stop']):g}`"
-                            f" · TP1 `{float(_ew['tp1']):g}`\n"
-                            f"_rung stars measured 72-82% — HOLD to "
-                            f"the plan, no early profit. Not in "
-                            f"from the ⭐ fire? This is a HOLD "
-                            f"signal — entering here measured "
-                            f"+0.05R, don't chase._")
-                        n_alerts += 1
+                        # ⭐⚡ GO IS THE REVIVAL BELL NOW (user
+                        # 2026-09-18 final roster): it rings ONLY
+                        # when a fire the phone heard was graded
+                        # 🔴 DEAD at the 1h verdict and THEN
+                        # ignites to +25% of its path — the
+                        # verdict's one measured blind spot
+                        # (median ignition ~90-100min sits AFTER
+                        # the 60m grade). Replay: dead-then-ignited
+                        # = 55.1%/+0.196R (n=345) pulled out of a
+                        # graveyard running 1%/-1.08R; star subset
+                        # 57.3%/+0.143R (n=89). Fast igniters need
+                        # no bell — the 🟢 LIVE verdict already
+                        # names them. GO-FAST/TOP-PICK buzzes
+                        # retire (stamps + chase tier continue).
+                        if (_ew.get("buzzed")
+                                and _ew.get("oneh") == "DEAD"):
+                            tg.send(
+                                f"⭐⚡ *GO — {_ew['base']} "
+                                f"REVIVED*\n"
+                                f"graded 🔴 DEAD at the 1h verdict "
+                                f"— just ignited to +25% of its "
+                                f"path at {_age / 60:.0f} min.\n"
+                                f"entry `{_e0:g}` · SL "
+                                f"`{float(_ew['stop']):g}` · TP1 "
+                                f"`{float(_ew['tp1']):g}`\n"
+                                f"_dead-then-ignited fires measured "
+                                f"55% / +0.20R — the verdict's "
+                                f"blind spot corrected. HOLD "
+                                f"signal: the plan rides; still "
+                                f"not an entry._")
+                            n_alerts += 1
                         if _ew["go"] == "FAST":
                             # control tier: forward-test that the
                             # chase really is worthless.
