@@ -262,7 +262,7 @@ def _ego_add(p, star=False):
              "tier": str(p.get("tier") or "HIGH"),
              "star": bool(star), "appr": bool(p.get("appr")),
              "entry0": None, "go": None, "oneh": None,
-             "froze": False, "fired_at": _t9})
+             "froze": False, "buzzed": False, "fired_at": _t9})
         del _EGO_WATCH[:-80]
     except Exception:
         pass
@@ -1150,7 +1150,12 @@ def _fmt_prime(p) -> str:
     prog = p.get("_prog")
     zone = (f" · 🟢 IN ZONE ({prog * 100:.0f}% to TP1)"
             if prog is not None else "")
-    return (f"⭐🚀 *PRIME ENTRY* — {p['base']} {p['side']} "
+    # 🚀 RETITLED (user 2026-09-18): this formatter serves ONLY the
+    # early-lane buzz ("em" push), but its legacy "PRIME ENTRY"
+    # header made ~16 lane buzzes/day read as the 🥇 PRIME stream —
+    # the user could not find his early lanes on the phone. The
+    # label now matches every chart.
+    return (f"🚀 *EARLY LANE* — {p['base']} {p['side']} "
             f"(STRONG {p['score']:.0f}){zone}\n"
             f"entry `{p['entry']:g}` · SL `{p['stop']:g}` · "
             f"TP1 `{p['tp1']:g}`{_tp2(p)}\n"
@@ -1685,20 +1690,42 @@ def cycle() -> None:
                             "28% win, the winners ride 3-10R. Few "
                             "hit, hits are huge — size for that._\n"
                             + _msg9)
-                    # 📵 STAR HEADLINE REMOVED (user 2026-09-14:
-                    # "remove what we build with elite star, its not
-                    # working at all"). A star fire still buzzes —
-                    # as a PLAIN elite conviction card, because
-                    # "elite conviction stays as it is" — it just no
-                    # longer wears a badge claiming 65%/+1.12R that
-                    # its forward record (52.9%/+0.062R n=17) has
-                    # not delivered. _star9 still drives the desk
-                    # tier, the board and the demo feed, so the
-                    # ledger keeps proving it while the adaptive
-                    # TP/SL rework is measured. Revert: restore the
-                    # headline block from commit 025ff60.
+                    # ⭐ STAR HEADLINE BACK (user 2026-09-18: "⭐
+                    # headline back at qualification, single
+                    # message, honest numbers"): a star-profile fire
+                    # leads its ONE elite buzz with the banner — no
+                    # second bell, no double buzz — and quotes the
+                    # FORWARD ledger, never the old backtest halo
+                    # (65%/+1.12R was claimed; the live record is
+                    # what it is). Numbers as of 2026-09-18; the ⭐
+                    # board carries the live figure.
+                    if _star9:
+                        _msg9 = (
+                            "⭐ *ELITE STAR — qualifies now*\n"
+                            "_the measured winner profile (approved "
+                            "· HIGH · calm burst · TP1 <1.2R). "
+                            "Forward ledger: ~57% / +9.4R net over "
+                            "56 closed — regime-dependent: when its "
+                            "fires ignite it runs 72-82%, silent "
+                            "ones are the losers. The ⏱ 1H verdict "
+                            "follows this buzz._\n" + _msg9)
                     ok, _m9 = tg.send(_msg9)
                     n_alerts += 1 if ok else 0
+                    # ④ mark the fire BUZZED so the 1H VERDICT bell
+                    # covers exactly what the phone heard (user
+                    # 2026-09-18: "widen the verdict to every
+                    # buzzed fire").
+                    if ok:
+                        try:
+                            for _ewb in _EGO_WATCH:
+                                if (_ewb["symbol"] == _pmx.get(
+                                        "symbol")
+                                        and _ewb["side"] == (
+                                            _pmx.get("side") or ""
+                                        ).upper()):
+                                    _ewb["buzzed"] = True
+                        except Exception:
+                            pass
                     if _star9:
                         try:
                             _st_sig = {
@@ -4265,14 +4292,17 @@ def cycle() -> None:
                         # buzz: approved fires, HIGH and MAX, no
                         # cap (user item 2). One verdict per fire
                         # by construction — no cooldown needed.
-                        if _ew.get("appr"):
-                            # 🔊 1H VERDICT BACK ON (user
-                            # 2026-09-17: "add 1H VERDICT back for
-                            # approved fires") — LIVE/DEAD for
-                            # every approved HIGH+MAX fire, no cap.
-                            # It earned the return while muted:
-                            # forward LIVE 69%/+1.008R vs DEAD
-                            # 43%/-0.101R (certified +0.485R / ~0).
+                        if _ew.get("buzzed") or _ew.get("appr"):
+                            # 🔊 1H VERDICT — WIDENED (user
+                            # 2026-09-18: "widen the verdict to
+                            # every buzzed fire"): every fire the
+                            # phone actually heard — approved,
+                            # unapproved-with-kronos, stars — gets
+                            # its LIVE/DEAD follow-up, no cap.
+                            # (appr kept as a fallback for fires
+                            # graded before the buzzed flag lands.)
+                            # Forward while proving: LIVE
+                            # 69%/+1.008R vs DEAD 43%/-0.101R.
                             if _ew["oneh"] == "LIVE":
                                 tg.send(
                                     f"⏱💎 *{_ew['base']} "
