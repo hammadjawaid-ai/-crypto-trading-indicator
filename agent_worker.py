@@ -5858,7 +5858,12 @@ def cycle() -> None:
                             and (_bd15 or "").upper() == "LONG"
                             and store.should_alert(
                                 f"pwatch_early:{_pw_sym}", 6 * 3600)):
-                        ok, _pw_err = tg.send(
+                        # 📵 MUTED (user 2026-09-18: "remove the my
+                        # list waking now and confirmed from
+                        # telegram"). Records, desk tier, fx tags
+                        # and demo feeds all continue.
+                        # Revert: _MUTE_R9 -> tg.send.
+                        ok, _pw_err = _MUTE_R9(
                             f"⚡ *{_pw_base} WAKING NOW* — moving "
                             f"before the 1h confirm.\n"
                             f"15m trend {_ts15:.0f} LONG · burst "
@@ -5982,7 +5987,10 @@ def cycle() -> None:
             if not store.should_alert(f"pwatch:{_pw_sym}", 6 * 3600):
                 continue
             _pw_vx = _pv[-2] / _pvma if _pvma > 0 else 0.0
-            ok, _pw_err = tg.send(
+            # 📵 MUTED (user 2026-09-18, same order as the waking
+            # bell). Records/desk/fx tags continue.
+            # Revert: _MUTE_R9 -> tg.send.
+            ok, _pw_err = _MUTE_R9(
                 f"🟢 *{_pw_base} JUST CONFIRMED* — the pullback is "
                 f"over.\n"
                 f"1h confirmation candle: green · above ema20 · "
