@@ -1990,7 +1990,7 @@ def cycle() -> None:
     # user's chosen list, proving decides later). Revert: min_conf=0,
     # tier="prime".
     _push(list(_prime), "prime", _fmt_prime_board, min_conf=55,
-          tier=None, cooldown=3 * 3600)
+          tier=None, cooldown=int(1.5 * 3600))
     # 📡 SURGE RADAR (user 2026-07-26, LPT case): whole-market fresh-
     # pump ignition — fires only in a pump's first ~2h, refuses
     # extended chases. Unproven: labeled stream + desk tier proving.
@@ -2035,7 +2035,7 @@ def cycle() -> None:
     # 2026-09-05 final: same user order for BEST — audible regardless.
     # Revert: min_conf=70.
     _push([p for p in best if _in_zone(p)], "best", _fmt_best,
-          min_conf=0, tier=None, cooldown=3 * 3600)
+          min_conf=0, tier=None, cooldown=int(1.5 * 3600))
     # 2026-09-05 user order: "apex seems closed... can we have it back
     # please and best of the best and one trade as well" — same two
     # silencers as BEST: the greens gate (14d form) and the conf-70
@@ -2073,7 +2073,7 @@ def cycle() -> None:
     _push([p for p in apex if int(p.get("apex") or 0) >= 3
            and float(p.get("score") or 0) >= 70],
           "apex", _fmt_apex, min_conf=0, tier=None,
-          cooldown=3 * 3600)
+          cooldown=int(1.5 * 3600))
     # 2026-08-15 user order: 🌟 EARLY ELITE buzzes ALWAYS — no greens
     # gate. Kronos disagreeing is fine ("if kronos dont agree thats
     # ok"): the 🔮 line on every buzz already spells out all three
