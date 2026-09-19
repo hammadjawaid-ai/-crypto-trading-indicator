@@ -2887,7 +2887,7 @@ def cycle() -> None:
     # cell). tier=None removes the greens gate; the band does the
     # judging. Revert: min_conf=0, tier="moonshot".
     _push(list(_moon_fires), "moon", _fmt_moonshot, min_conf=55,
-          max_conf=64, tier=None)
+          max_conf=64, tier=None, cooldown=3 * 3600)
 
     # 🔮 KRONOS APPROVED desk tier (user 2026-08-03: "can the 86% be
     # treated separately?") — every elite-stream signal where Kronos
