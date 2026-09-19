@@ -1475,7 +1475,10 @@ def cycle() -> None:
         _greens_alert = None
 
     def _push(items, key_prefix, fmt, conf_gated=True, min_conf=None,
-              tier=None, max_conf=None):
+              tier=None, max_conf=None, cooldown=None):
+        # ⏲ per-stream re-buzz window (user 2026-09-19): None ->
+        # the global COOLDOWN (6h). Dedup only — volume stays
+        # uncapped.
         nonlocal n_alerts
         # 📵 ROSTER-9 (2026-09-10): _push streams allowed to speak
         # are ONLY apex / moon / prime — best, one trade, early
@@ -1514,7 +1517,7 @@ def cycle() -> None:
                 if max_conf is not None and _cf > max_conf:
                     continue
             if store.should_alert(f"{key_prefix}:{p['symbol']}:{p['side']}",
-                                  COOLDOWN):
+                                  cooldown or COOLDOWN):
                 _msg = fmt(p)
                 # 🤝🌡 conf rebuild chips (2026-09-04, display-only)
                 _chips = _pair_chips(p.get("symbol"), p.get("side"))
@@ -1646,7 +1649,7 @@ def cycle() -> None:
                 _key9 = ("elitestar" if _star9 else "eliteconv")
                 if store.should_alert(
                         f"{_key9}:{_pmx['symbol']}:{_pmx['side']}",
-                        2 * 3600):
+                        int(1.5 * 3600)):   # 1.5h (user 2026-09-19)
                     _msg9 = _fmt_elite_conv(_pmx)
                     # 🎯 board-conf + ⚡ edge-conf side by side on
                     # elite only (user 2026-08-31). Two different
@@ -1987,7 +1990,7 @@ def cycle() -> None:
     # user's chosen list, proving decides later). Revert: min_conf=0,
     # tier="prime".
     _push(list(_prime), "prime", _fmt_prime_board, min_conf=55,
-          tier=None)
+          tier=None, cooldown=3 * 3600)
     # 📡 SURGE RADAR (user 2026-07-26, LPT case): whole-market fresh-
     # pump ignition — fires only in a pump's first ~2h, refuses
     # extended chases. Unproven: labeled stream + desk tier proving.
@@ -2032,7 +2035,7 @@ def cycle() -> None:
     # 2026-09-05 final: same user order for BEST — audible regardless.
     # Revert: min_conf=70.
     _push([p for p in best if _in_zone(p)], "best", _fmt_best,
-          min_conf=0, tier=None)
+          min_conf=0, tier=None, cooldown=3 * 3600)
     # 2026-09-05 user order: "apex seems closed... can we have it back
     # please and best of the best and one trade as well" — same two
     # silencers as BEST: the greens gate (14d form) and the conf-70
@@ -2069,7 +2072,8 @@ def cycle() -> None:
     # Revert: min_conf=70 and drop the score filter.)
     _push([p for p in apex if int(p.get("apex") or 0) >= 3
            and float(p.get("score") or 0) >= 70],
-          "apex", _fmt_apex, min_conf=0, tier=None)
+          "apex", _fmt_apex, min_conf=0, tier=None,
+          cooldown=3 * 3600)
     # 2026-08-15 user order: 🌟 EARLY ELITE buzzes ALWAYS — no greens
     # gate. Kronos disagreeing is fine ("if kronos dont agree thats
     # ok"): the 🔮 line on every buzz already spells out all three
@@ -2528,11 +2532,11 @@ def cycle() -> None:
     # (+0.366R n=554, the reversal rides). No conf bands, no kronos
     # gate. Revert to the agree-only form: re-add _kr_cache_agree.
     _push([p for p in em_big if _in_zone(p)], "em", _fmt_prime,
-          min_conf=0)
+          min_conf=0, cooldown=int(1.5 * 3600))
     _em_rest = [p for p in r.get("early_strong", [])
                 if not p.get("early_lanes")]
     _push([p for p in _em_rest if _in_zone(p)], "emrest",
-          _fmt_early_rest, min_conf=0)
+          _fmt_early_rest, min_conf=0, cooldown=int(1.5 * 3600))
     # 🌊 TREND RIDER buzz MUTED AGAIN same day (user 2026-08-06 after
     # the honest 25%-win framing: "not effective for me") — the 3-of-4
     # loser cadence doesn't fit how he trades, even net-positive.
