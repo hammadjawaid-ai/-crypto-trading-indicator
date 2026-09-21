@@ -8213,7 +8213,11 @@ if active_section == "🎮 Demo $1,500":
     _t3c.metric("🏆 Win rate",
                 f"{_wr:.0f}%" if _closedp else "—",
                 f"{_wins}/{len(_closedp)} closed")
-    _t4c.metric("📂 Slots", f"{len(_openp)}/10")
+    # 🪑 display bug fixed 2026-09-21: the seat cap was hardcoded
+    # "/10" from an older generation — GEN 16 runs 20 seats, so a
+    # healthy 14-open board read as an impossible "14/10" and looked
+    # stuck/capped to the user. Always show the live constant.
+    _t4c.metric("📂 Slots", f"{len(_openp)}/{_da.MAX_SLOTS}")
     # 10-day target meter ($1,500 -> $2,500)
     _prog = max(0.0, min(1.0, (_eq - 1500) / 1000))
     st.markdown(
