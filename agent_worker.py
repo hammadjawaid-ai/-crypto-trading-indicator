@@ -4117,6 +4117,7 @@ def cycle() -> None:
         # form = the duo85 tier; young tiers just read ~0 = neutral).
         _dz_form = {}
         for _dt, _sh in (("strong_trigger", "trig_strong"),
+                         ("elite_star", "elite_star"),
                          ("early_movers", "early_movers"),
                          ("early_lane", "early_lane"),
                          ("strig_kr", "trig_strong_kr")):
@@ -4527,9 +4528,10 @@ def cycle() -> None:
                      "score": float(_rp8.get("score") or 80),
                      "src": (_rec8.get("src")
                              if _rec8.get("src") in
-                             ("strong_trigger", "early_movers",
-                              "early_lane", "strig_kr")
-                             else "strong_trigger"),   # GEN 16.2
+                             ("strong_trigger", "elite_star",
+                              "early_movers", "early_lane",
+                              "strig_kr")
+                             else "strong_trigger"),   # GEN 16.3
                      "chain": int(_rp8.get("chain") or 0) + 1,
                      "fired_at": _now})
                 print(f"[gen8] 🔁 momentum re-entry queued "

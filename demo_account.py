@@ -160,10 +160,11 @@ NEAR_TP_FADE = 0.60          # how far it has given back
 # law — (lo, hi) half-open, None = unbounded on that side. The star
 # profile was measured at TP1 within 1.2R; the premium cell at
 # 1.0-1.5R (under 1R = 30%/-0.09R, over 1.5R = 11%/-0.58R).
-# GEN 16: the two rr-law streams (star, premium) are out of the
-# roster, so no seat re-checks rr at open. Restore their bounds here
-# if either ever returns.
-RR_OPEN_BOUNDS: dict = {}
+# ⭐ back on the roster 2026-09-21 -> its rr law guards the seat
+# again: the profile was measured at TP1 within 1.2R, and the trades
+# that killed it in September (PUMP rr 1.81, CHIP 1.22) were drifted
+# entries outside it. Re-checked at the LIVE fill in try_open.
+RR_OPEN_BOUNDS: dict = {"elite_star": (None, 1.2)}
 LEV_GEN13 = 10.0             # fallback only; the GEN 14 per-stream
                              # ladder lives in lev_for() below
 DAY_MAX_LOSS_PCT = 0.15      # of day-start equity; stops NEW seats
@@ -250,8 +251,9 @@ ELITE_FAMILY_CAP = 0
 # positives banked first, then negatives cut. Healthy signals are
 # NEVER rotated, and at most this many rotations happen per cycle.
 ROTATE_MAX = 0   # GEN 9 user order: rotation REMOVED
-SMART_EXIT_SKIP: set = {"strong_trigger", "early_movers",
-                        "early_lane", "strig_kr"}          # GEN 16.2
+SMART_EXIT_SKIP: set = {"strong_trigger", "elite_star",
+                        "early_movers", "early_lane",
+                        "strig_kr"}                        # GEN 16.3
 # GEN 12: kronos smart-exit off for all. Exits: SL-or-TP1-bank-100%
 # everywhere EXCEPT ⭐ elite_star's near-TP bank (own block) and
 # 💎🔮 elite_kr's RIDE (half-bank TP1 + BE + trail, in the TP1
@@ -325,10 +327,16 @@ MIN_RANK = 85.0  # GEN 9: anyone can take any place
 # these and nothing else"): the GEN-9-shaped roster. BEST ZONE is
 # OUT of the money (buzz/board/desk continue); 💥 STRONG TRIGGER
 # leads the ladder.
-CLASS_W = {"strong_trigger": 104,  # 1. THE priority (his words)
-           "early_movers": 103,   # 2. conf 55-64 or 85+
-           "early_lane": 102,     # 3. conf >=85
-           "strig_kr": 101}       # 4. 💥🔮 TRIG×KR conf >=40
+# GEN 16.3 (user 2026-09-21): ⭐ ELITE STAR joins the money — conf
+# 40-54 and 65+ only (his bands; the 55-64 cursed band stays out,
+# same as the buzz), full-priority member like the rest. Slotted #2
+# behind the trigger, mirroring his GEN 14 ordering when both were
+# on the roster together.
+CLASS_W = {"strong_trigger": 105,  # 1. THE priority (his words)
+           "elite_star": 104,     # 2. ⭐ conf 40-54 / 65+
+           "early_movers": 103,   # 3. conf 55-64 or 85+
+           "early_lane": 102,     # 4. conf >=85
+           "strig_kr": 101}       # 5. 💥🔮 TRIG×KR conf >=40
 # 🎯 CONF-BAND SEAT GATES (user 2026-09-07, read off the live desk
 # ledger): a stream's candidate takes a seat ONLY when its conf falls
 # in a band that measured green on its own closed trades. Bands are
@@ -370,6 +378,10 @@ CONF_GATE: dict = {
     "early_movers": ((55.0, 65.0), (85.0, 1000.0)),
     "strong_trigger": ((65.0, 1000.0),),
     "strig_kr": ((40.0, 1000.0),),
+    # ⭐ user 2026-09-21: "confidence score of 65 and above and the
+    # 40-54 one" — the 55-64 band (0-for-3 live, -0.12R replay)
+    # stays out of the money exactly as it is out of the buzz.
+    "elite_star": ((40.0, 55.0), (65.0, 1000.0)),
 }
 # GEN 6: no conditional seats — the pool is exactly the named three.
 CONDITIONAL_SRC: set = set()
@@ -391,8 +403,9 @@ def lev_for(src: str, conf=None, burst=None) -> float:
     3.25%, so that guard bites only on the genuinely wild plans.
     ONE source of truth — the 💸 live executor calls this too.
     (The GEN 15 star 6x/8x-by-burst ladder is in git at 2a56c58.)"""
-    return {"strong_trigger": 10.0, "early_movers": 10.0,
-            "early_lane": 10.0, "strig_kr": 10.0}.get(src, LEV_GEN13)
+    return {"strong_trigger": 10.0, "elite_star": 10.0,
+            "early_movers": 10.0, "early_lane": 10.0,
+            "strig_kr": 10.0}.get(src, LEV_GEN13)
 
 
 def load() -> dict:
