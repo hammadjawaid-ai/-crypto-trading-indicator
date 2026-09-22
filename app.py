@@ -3551,6 +3551,9 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                                  "lanes live, proving)",
                    "comeback_f": "🌊🪂 FLUSH COMEBACK (BTC-flush "
                                  "dip, the measured cell)",
+                   "apex_v2": "🏆² APEX V2 (certified core: STRONG "
+                              "· score 90-94 · heat<75 — 59%/+0.14R "
+                              "backtest, proving forward)",
                    "star_go_chase": "⭐🏃 GO CHASE (control — enter "
                                     "AT ignition; measured +0.05R, "
                                     "expected to bleed)",

@@ -50,6 +50,7 @@ STREAM_TO_TIER = {
     "comeback_g": "comeback_g", "comeback_f": "comeback_f",
     "elite_star": "elite_star",
     "star_go_chase": "star_go_chase",
+    "apex_v2": "apex_v2",
     "personal_watch": "personal_watch",
     "personal_watch_early": "personal_watch_early",
 }

@@ -238,7 +238,7 @@ _DEMO_FIRES: list = []
 _EGO_WATCH: list = []
 
 
-def _ego_add(p, star=False):
+def _ego_add(p, star=False, fam="elite"):
     """Queue a fired elite card for ignition grading. entry0 fills
     with the first live price the checker sees (<=5 min after fire —
     the same fill timing the desk trade got)."""
@@ -250,6 +250,7 @@ def _ego_add(p, star=False):
         _t9 = time.time()
         for w in _EGO_WATCH:
             if (w["symbol"] == sym and w["side"] == side
+                    and w.get("fam", "elite") == fam
                     and _t9 - w["fired_at"] < 2 * 3600):
                 w["star"] = w["star"] or bool(star)
                 w["appr"] = w["appr"] or bool(p.get("appr"))
@@ -262,7 +263,8 @@ def _ego_add(p, star=False):
              "tier": str(p.get("tier") or "HIGH"),
              "star": bool(star), "appr": bool(p.get("appr")),
              "entry0": None, "go": None, "oneh": None,
-             "froze": False, "buzzed": False, "fired_at": _t9})
+             "froze": False, "buzzed": False, "fam": fam,
+             "fired_at": _t9})
         del _EGO_WATCH[:-80]
     except Exception:
         pass
@@ -832,6 +834,32 @@ def _trigger_watch() -> None:
                                   "tp1": a["tp1"],
                                   "tp2": a.get("tp2")}
                         store.record_signal("trig_strong", _sig_t)
+                        # 🏆²🔔 apex_v2 CONFIRM state (certified
+                        # 76.5%/+0.484R hold class): this break
+                        # lands on an open v2 watch within 90min
+                        # AFTER its fire — stamp it (records only).
+                        try:
+                            for _ew2 in _EGO_WATCH:
+                                if (_ew2.get("fam") == "apexv2"
+                                        and not _ew2.get("trig")
+                                        and _ew2["symbol"]
+                                        == a["symbol"]
+                                        and _ew2["side"]
+                                        == a["side"]
+                                        and 0 < time.time()
+                                        - _ew2["fired_at"]
+                                        <= 90 * 60):
+                                    _ew2["trig"] = True
+                                    store.record_signal(
+                                        "apex_v2_trig",
+                                        {"symbol": a["symbol"],
+                                         "base": a["base"],
+                                         "side": a["side"],
+                                         "tier": "CONFIRM",
+                                         "entry": a.get("entry")
+                                         or px})
+                        except Exception:
+                            pass
                         shadow_trader.open_from_signal(
                             "trig_strong", _sig_t, px)
                         _h2 = _KR_CACHE.get(a["symbol"])
@@ -1415,6 +1443,59 @@ def cycle() -> None:
         except Exception:
             pass
         store.record_signal("apex", p)
+    # 🏆² APEX V2 — its own decision desk (user 2026-09-22: "a v2,
+    # separate, nothing changes on the current system... backtest,
+    # validate, own decision desk"). CERTIFIED by the 13-agent replay
+    # study (wf_6559bb2d, 3,482 fires, both assassins):
+    #   ENTRY = tier STRONG + score 90-94 + 1h ATR-heat < 75 —
+    #   59.0%/+0.136R n=346 (interior heat<70: 62.3%/+0.209R);
+    #   kill-list at scale: score>=95 30%/-0.40R · MAX -0.22R ·
+    #   x4 -0.15R · the old n=25 heat/score lead cell was noise.
+    # RECORDS ONLY — no buzz, no money; graduation by forward
+    # ledger. The 60m RIDE/LAG verdict (LIVE 59.2%/+0.326R vs LAG
+    # 38.4%/-0.236R, corrected p=0.0002) stamps via the ignition
+    # watch as stream apexv2_1h; the certified CONFIRM state (a
+    # trig_strong fire on the same coin+side within 90min AFTER the
+    # v2 fire = the 76.5%/+0.484R hold class vs silent 41.9%/-0.19R)
+    # stamps as apex_v2_trig from the trigger fire site.
+    for _av2 in apex:
+        try:
+            if (_av2.get("tier") or "").upper() != "STRONG":
+                continue
+            _sc2 = float(_av2.get("score") or 0)
+            if not 90 <= _sc2 < 95:
+                continue
+            if not (_av2.get("entry") and _av2.get("stop")
+                    and _av2.get("tp1")):
+                continue
+            _sym2 = _av2["symbol"]
+            _sd2 = (_av2.get("side") or "").upper()
+            if not store.should_alert(f"apexv2:{_sym2}:{_sd2}",
+                                      2 * 3600):
+                continue        # one record per coin+side per 2h
+            _ht2 = _atr_heat(binance_client.get_klines(
+                _sym2, "1h", limit=160))
+            if _ht2 is None or _ht2 >= 75:
+                continue
+            _sig2 = {"symbol": _sym2,
+                     "base": _av2.get("base")
+                     or _sym2.replace("USDT", ""),
+                     "side": _sd2, "entry": _av2["entry"],
+                     "stop": _av2["stop"], "tp1": _av2["tp1"],
+                     "tp2": _av2.get("tp2"), "tier": "STRONG",
+                     "score": _sc2, "heat": _ht2}
+            store.record_signal("apex_v2", _sig2)
+            _px2 = None
+            try:
+                _px2 = binance_client.get_ticker_price(_sym2)
+            except Exception:
+                pass
+            shadow_trader.open_from_signal("apex_v2", _sig2, _px2)
+            _ego_add(dict(_sig2), fam="apexv2")
+            print(f"[apexv2] 🏆² {_sig2['base']} {_sd2} score "
+                  f"{_sc2:.0f} heat {_ht2}", flush=True)
+        except Exception as _v2_exc:
+            print("  apexv2 error:", _v2_exc, flush=True)
     for p in sst1:
         store.record_signal("sst1", p)
     for p in takenow:
@@ -4287,7 +4368,10 @@ def cycle() -> None:
                     if _ew.get("oneh") is None and _age >= 3600:
                         _ew["oneh"] = ("LIVE" if _prg >= 0.10
                                        else "DEAD")
-                        store.record_signal("elite_1h", {
+                        store.record_signal(
+                            ("elite_1h"
+                             if _ew.get("fam", "elite") == "elite"
+                             else "apexv2_1h"), {
                             "symbol": _ew["symbol"],
                             "base": _ew["base"],
                             "side": _ew["side"],
