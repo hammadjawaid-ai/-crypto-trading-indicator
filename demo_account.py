@@ -251,9 +251,9 @@ ELITE_FAMILY_CAP = 0
 # positives banked first, then negatives cut. Healthy signals are
 # NEVER rotated, and at most this many rotations happen per cycle.
 ROTATE_MAX = 0   # GEN 9 user order: rotation REMOVED
-SMART_EXIT_SKIP: set = {"strong_trigger", "elite_star",
+SMART_EXIT_SKIP: set = {"moonshot", "strong_trigger", "elite_star",
                         "early_movers", "early_lane",
-                        "strig_kr"}                        # GEN 16.3
+                        "strig_kr"}                        # GEN 16.4
 # GEN 12: kronos smart-exit off for all. Exits: SL-or-TP1-bank-100%
 # everywhere EXCEPT ⭐ elite_star's near-TP bank (own block) and
 # 💎🔮 elite_kr's RIDE (half-bank TP1 + BE + trail, in the TP1
@@ -332,11 +332,34 @@ MIN_RANK = 85.0  # GEN 9: anyone can take any place
 # same as the buzz), full-priority member like the rest. Slotted #2
 # behind the trigger, mirroring his GEN 14 ordering when both were
 # on the roster together.
-CLASS_W = {"strong_trigger": 105,  # 1. THE priority (his words)
-           "elite_star": 104,     # 2. ⭐ conf 40-54 / 65+
-           "early_movers": 103,   # 3. conf 55-64 or 85+
-           "early_lane": 102,     # 4. conf >=85
-           "strig_kr": 101}       # 5. 💥🔮 TRIG×KR conf >=40
+# GEN 16.4 (user 2026-09-28: "add to the current system — moonshot
+# conf 55-64 first priority, elite star with the feed fixed, early
+# lane conf 85+ only fills spare seats; strong trigger conf 65+"):
+# 🚀 MOONSHOT joins on its live desk record — the one cell green
+# before AND during the September rally (conf 55-64: 62%/+0.66R
+# pre-rally n=37, 69%/+0.54R rally n=59; every other band loses).
+# LADDER (user 2026-09-29, superseding the 09-28 order: "elite star,
+# strong trigger and moonshot get the priority entries only, then
+# prime entry, after that trig x kronos and lastly early movers"):
+# the PRIORITY THREE in his written order, then the three spare-seat
+# streams. GEN stays 16 on purpose so the balance and history carry
+# on.
+CLASS_W = {"elite_star": 106,     # 1. ⭐ conf 40-54 / 65+   PRIORITY
+           "strong_trigger": 105,  # 2. 💥 conf >=65           PRIORITY
+           "moonshot": 104,       # 3. 🚀 conf 55-64          PRIORITY
+           "early_lane": 103,     # 4. ⭐🚀 PRIME ENTRY conf >=85 (spare)
+           "strig_kr": 102,       # 5. 💥🔮 TRIG×KR conf >=40  (spare)
+           "early_movers": 101}   # 6. ⚡ conf 55-64 or 85+    (spare)
+# 🪑 SPARE-SEAT RULE: a listed stream may open only while at least
+# this many seats stay free after it, so the priority three always
+# find room — rotation is off (ROTATE_MAX = 0) and a seat once taken
+# is held to SL/TP. Every non-priority stream carries it (a lower
+# rung must never have more seat access than a higher one). Measured
+# on GEN 16's own 242 trades: the board peaked at 18/20 and sat ~8-9
+# typically; a 5-seat reserve would have blocked 3 of early lane's 92
+# opens.
+SPARE_RESERVE: dict = {"early_lane": 5, "strig_kr": 5,
+                       "early_movers": 5}
 # 🎯 CONF-BAND SEAT GATES (user 2026-09-07, read off the live desk
 # ledger): a stream's candidate takes a seat ONLY when its conf falls
 # in a band that measured green on its own closed trades. Bands are
@@ -382,14 +405,16 @@ CONF_GATE: dict = {
     # 40-54 one" — the 55-64 band (0-for-3 live, -0.12R replay)
     # stays out of the money exactly as it is out of the buzz.
     "elite_star": ((40.0, 55.0), (65.0, 1000.0)),
+    # 🚀 GEN 16.4: the measured band only — 40-54 ran 33% / -0.23R
+    # pre-rally and -0.38R in the rally; 65+ is 1-for-7.
+    "moonshot": ((55.0, 65.0),),
 }
 # GEN 6: no conditional seats — the pool is exactly the named three.
 CONDITIONAL_SRC: set = set()
-# 2026-08-11 user call: 🚀 MOONSHOT removed from the demo menu (desk
-# record 9 closed / −0.65R, and those closes pre-date the top-30
-# validation restrictions — it hasn't earned a money seat yet). 🥇
-# PRIME was already out (2026-08-09). Both keep proving on the desk;
-# they return only when their OWN live record turns green.
+# 🚀 MOONSHOT was benched 2026-08-11 (9 closed / -0.65R at the time)
+# and returns at GEN 16.4 on the record it built since: 203 desk
+# closes, the 55-64 band green in both market regimes. 🥇 PRIME stays
+# out (not named).
 
 
 def lev_for(src: str, conf=None, burst=None) -> float:
@@ -403,9 +428,9 @@ def lev_for(src: str, conf=None, burst=None) -> float:
     3.25%, so that guard bites only on the genuinely wild plans.
     ONE source of truth — the 💸 live executor calls this too.
     (The GEN 15 star 6x/8x-by-burst ladder is in git at 2a56c58.)"""
-    return {"strong_trigger": 10.0, "elite_star": 10.0,
-            "early_movers": 10.0, "early_lane": 10.0,
-            "strig_kr": 10.0}.get(src, LEV_GEN13)
+    return {"moonshot": 10.0, "strong_trigger": 10.0,
+            "elite_star": 10.0, "early_movers": 10.0,
+            "early_lane": 10.0, "strig_kr": 10.0}.get(src, LEV_GEN13)
 
 
 def load() -> dict:
@@ -638,6 +663,9 @@ def try_open(state: dict, cands: list, live_fn, active=None):
                                 # cards sorted after it
         if c["symbol"] in held:
             continue
+        _res = SPARE_RESERVE.get(c["src"])
+        if _res is not None and len(state["open"]) >= _slot_cap - _res:
+            continue            # 🪑 spare-only stream: seats kept free
         if len(state["open"]) >= _slot_cap and not _rotate():
             continue            # board full, nothing rotatable
         _cap = MAX_PER_SRC.get(c["src"])

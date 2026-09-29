@@ -23,6 +23,7 @@ if hasattr(sys.stdout, "buffer"):
 
 import best_board
 import binance_client
+import btc2h
 import btc_outlook
 import market_context as _mc_w
 import news as _news_w
@@ -1278,6 +1279,44 @@ def _fmt_apex(p) -> str:
             f"_best of the best — {edges} all agree_")
 
 
+def _fmt_apex_v2(sig, px=None, rec=None) -> str:
+    """🏆💎 APEX V2 bell (user 2026-09-29: "keep the desk ladder for apex
+    v2 so its like tp1 and tp2 in it and we should have a telegram
+    notification for it"). Quotes the plan at the price the desk opens
+    at, the ladder the desk runs, and the measured numbers."""
+    sd = (sig.get("side") or "").upper()
+    sg = 1 if sd == "LONG" else -1
+    e = float(px or sig["entry"])
+    st, t1 = float(sig["stop"]), float(sig["tp1"])
+    t2 = float(sig["tp2"]) if sig.get("tp2") else None
+    rk = max(1e-12, sg * (e - st))
+    r1 = sg * (t1 - e) / rk
+    tps = f"TP1 `{t1:g}` (+{r1:.1f}R)"
+    if t2 is not None:
+        tps += f" · TP2 `{t2:g}` (+{sg * (t2 - e) / rk:.1f}R)"
+    lad = ("at +1R move SL to entry · at TP1 lock SL at TP1 and ride "
+           "to TP2, trailing 1.2R behind the peak · 48h max"
+           if t2 is not None else
+           "at +1R move SL to entry · at TP1 lock SL at TP1 and trail "
+           "1.2R behind the peak · 48h max")
+    live = "desk proving live since 09-22"
+    if rec and int(rec.get("n") or 0):
+        live += (f": {int(rec['n'])} closed · "
+                 f"{float(rec.get('win_pct') or 0):.0f}% win · "
+                 f"{float(rec.get('net_r') or 0):+.1f}R")
+    return (f"🏆💎 *APEX V2 — {sig['base']} {sd}*\n"
+            f"the tested APEX core: STRONG · score "
+            f"{float(sig.get('score') or 0):.0f} · heat "
+            f"{float(sig.get('heat') or 0):.0f}\n"
+            f"entry `{e:g}` · SL `{st:g}` · {tps}\n"
+            f"🪜 plan: {lad}\n"
+            f"⏱ 60-min read: already 10%+ of the way to TP1 after an "
+            f"hour = the stronger half (59% vs 38% win); laggers still "
+            f"recover often, so hold the plan and don't add\n"
+            f"📊 79-day test with this ladder: 54% win · +0.16R a trade "
+            f"(346 trades) · {live}")
+
+
 def _kr_note(p) -> str:
     """🔮 verdict line for alert messages (user 2026-08-03 + 2026-08-09
     'it should show kronos agreed or not' — the line is now on EVERY
@@ -1451,8 +1490,10 @@ def cycle() -> None:
     #   59.0%/+0.136R n=346 (interior heat<70: 62.3%/+0.209R);
     #   kill-list at scale: score>=95 30%/-0.40R · MAX -0.22R ·
     #   x4 -0.15R · the old n=25 heat/score lead cell was noise.
-    # RECORDS ONLY — no buzz, no money; graduation by forward
-    # ledger. The 60m RIDE/LAG verdict (LIVE 59.2%/+0.326R vs LAG
+    # 🏆💎 BELL since 2026-09-29 (user: "keep the desk ladder for apex
+    # v2 ... and we should have a telegram notification for it") — one
+    # buzz per desk record (same 2h coin+side key), plan + ladder +
+    # measured numbers; still NO money. The 60m RIDE/LAG verdict (LIVE 59.2%/+0.326R vs LAG
     # 38.4%/-0.236R, corrected p=0.0002) stamps via the ignition
     # watch as stream apexv2_1h; the certified CONFIRM state (a
     # trig_strong fire on the same coin+side within 90min AFTER the
@@ -1492,6 +1533,14 @@ def cycle() -> None:
                 pass
             shadow_trader.open_from_signal("apex_v2", _sig2, _px2)
             _ego_add(dict(_sig2), fam="apexv2")
+            if not _bstock_quiet(_sym2):
+                try:
+                    _rv2 = next((x for x in shadow_trader.tier_records()
+                                 if x.get("tier") == "apex_v2"), None)
+                    tg.send(_fmt_apex_v2(_sig2, _px2, _rv2)
+                            + _kr_note(_sig2))
+                except Exception as _v2b_exc:
+                    print("  apexv2 bell error:", _v2b_exc, flush=True)
             print(f"[apexv2] 🏆² {_sig2['base']} {_sd2} score "
                   f"{_sc2:.0f} heat {_ht2}", flush=True)
         except Exception as _v2_exc:
@@ -2910,8 +2959,10 @@ def cycle() -> None:
     # SEPARATE big-move desk: 🔥 social heat (LunarCrush, one call
     # covers the universe) + ⛽ positioning fuel (Coinalyze, 12-coin
     # rotation ≈ full universe every 25 min) + 🏗 base + ⏱ confirmed
-    # break, fused per coin over the top-60. UNPROVEN: its own desk
-    # tier proves forward; the live executor NEVER reads it. Watch
+    # break, fused per coin over the top-60. Since GEN 16.4 (user
+    # 2026-09-28) its conf 55-64 fires hold the demo's top seat, so
+    # they ride the same ranked list run_gen10 mirrors — behind
+    # GEN10_ENTRY_HOLD like every other demo stream. Watch
     # snapshots are stored so every future BMT-class runner becomes
     # measurable precursor data.
     _moon_fires, _moon_watch = [], []
@@ -3340,6 +3391,21 @@ def cycle() -> None:
         # silently, boards stay visible, no Telegram. Re-enable by
         # restoring the _push line ONLY if the desk record earns it.
         # _push(list(_pb), "preburst", _fmt_preburst, min_conf=0)
+
+    # 🧭 BTC 2H PULSE (user 2026-09-29: "every 2 hrs ... lean up, lean
+    # down or remain sideways ... the point is to know the BTC
+    # movements and take trades accordingly"; then "full pulse with
+    # lean, state and conditions"). News-style, no TP/SL, every even
+    # UTC hour. btc2h dedupes per closed hour itself; the lean's
+    # measured hit rate rides on every message and each lean is
+    # graded 2h later. The tests behind every line are in btc2h.py.
+    try:
+        _pz = datetime.now(timezone.utc)
+        if _pz.hour % 2 == 0 and _pz.minute < 30:
+            if btc2h.run(binance_client.get_klines, tg.send):
+                print("[btc2h] pulse sent", flush=True)
+    except Exception as _pz_exc:
+        print("  btc2h pulse error:", _pz_exc, flush=True)
 
     # 🟢 GREEN LIGHT announcements stay (desk reports, rare + informative)
     try:
@@ -4197,7 +4263,8 @@ def cycle() -> None:
         # GEN 8 form boosts: each pool's own live desk ledger (duo
         # form = the duo85 tier; young tiers just read ~0 = neutral).
         _dz_form = {}
-        for _dt, _sh in (("strong_trigger", "trig_strong"),
+        for _dt, _sh in (("moonshot", "moonshot"),
+                         ("strong_trigger", "trig_strong"),
                          ("elite_star", "elite_star"),
                          ("early_movers", "early_movers"),
                          ("early_lane", "early_lane"),
@@ -4532,6 +4599,23 @@ def cycle() -> None:
             return out
 
         _dz_pools = {
+            # 🚀 GEN 16.4 (user 2026-09-28): moonshot fires take the
+            # top of the ladder — conf stamped by _g16 exactly as the
+            # desk stamps it, so the 55-64 gate reads the measured
+            # number. LONG-only by construction.
+            "moonshot": (_g16(_moon_fires, "moonshot")
+                         + [d for d in _dz_reo
+                            if d["src"] == "moonshot"]),
+            # ⭐ GEN 16.4 FIX: GEN 16.3 put elite_star on the ladder,
+            # the conf gate and the reopen list but never into THIS
+            # dict, so _DEMO_STARS never reached rank_candidates — 0
+            # demo trades 09-21 -> 09-28 while the desk logged ~150.
+            # The star's own conf (_cf9) rides in unchanged.
+            "elite_star": ([dict(d) for d in _DEMO_STARS
+                            if d.get("entry") and d.get("stop")
+                            and d.get("tp1")]
+                           + [d for d in _dz_reo
+                              if d["src"] == "elite_star"]),
             "early_lane": (_g16(em_big, "early_lane")
                            + [d for d in _dz_reo
                               if d["src"] == "early_lane"]),
@@ -4612,10 +4696,10 @@ def cycle() -> None:
                      "score": float(_rp8.get("score") or 80),
                      "src": (_rec8.get("src")
                              if _rec8.get("src") in
-                             ("strong_trigger", "elite_star",
-                              "early_movers", "early_lane",
-                              "strig_kr")
-                             else "strong_trigger"),   # GEN 16.3
+                             ("moonshot", "strong_trigger",
+                              "elite_star", "early_movers",
+                              "early_lane", "strig_kr")
+                             else "strong_trigger"),   # GEN 16.4
                      "chain": int(_rp8.get("chain") or 0) + 1,
                      "fired_at": _now})
                 print(f"[gen8] 🔁 momentum re-entry queued "

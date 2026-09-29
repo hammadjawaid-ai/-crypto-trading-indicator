@@ -7791,7 +7791,7 @@ if _qp_mode not in ("Futures", "Spot"):
 # The section code stays below but is unreachable.
 SECTIONS = [
     "🎯 True Signal",
-    "🎮 Demo $1,500",
+    "🎮 Demo Trading",
     "💎 Best Trade Zone",
     "🔍 Market Scanner", "🔮 Forecast", "🚀 Breakout Radar",
     "🤖 Ask the Oracle", "🪙 Coin Analysis", "📰 News & Sentiment",
@@ -7800,6 +7800,10 @@ SECTIONS = [
     "🔮 Predictor",
 ]
 _qp_section = _qp.get("section", SECTIONS[0])
+# the demo tab was "🎮 Demo $1,500" until GEN 16 ran $2,000 — the
+# old name in a saved link still opens it (user 2026-09-29).
+if _qp_section == "🎮 Demo $1,500":
+    _qp_section = "🎮 Demo Trading"
 if _qp_section not in SECTIONS:
     _qp_section = SECTIONS[0]
 active_section = st.sidebar.radio(
@@ -8155,7 +8159,7 @@ if active_section == "🎯 True Signal":
 # 🎮 Demo $1,500 — GEN 6, the 10-day WILD run (user 2026-08-23): the
 # worker auto-trades a simulated real account; this page is its cockpit.
 # ===========================================================================
-if active_section == "🎮 Demo $1,500":
+if active_section == "🎮 Demo Trading":
     import demo_account as _da
 
     _dz = _da.load()
@@ -8174,7 +8178,8 @@ if active_section == "🎮 Demo $1,500":
             _unreal += _p["qty"] * (_lp - _p["entry"]) * \
                 (1 if _p["side"] == "LONG" else -1)
     _eq = _bal + _unreal
-    _pnl = _eq - float(_dz.get("start") or 1500)
+    _start = float(_dz.get("start") or _da.START_BAL)
+    _pnl = _eq - _start
     _days = max(0.0, (time.time()
                       - float(_dz.get("started_at") or time.time()))
                 / 86400)
@@ -8188,15 +8193,20 @@ if active_section == "🎮 Demo $1,500":
         "<span style='font-size:1.5rem;font-weight:900;background:"
         "linear-gradient(90deg,#40c4ff,#b388ff);-webkit-background-"
         "clip:text;-webkit-text-fill-color:transparent;background-"
-        "clip:text'>🎮 DEMO $2,000 — GEN 16.2 · THE GEN-9 SHAPE"
+        "clip:text'>🎮 DEMO $2,000 — GEN 16.4 · THE PRIORITY THREE"
         "</span><br><span style='color:#9aa7c7;font-size:0.82rem'>"
-        "$2,000 ledger (2026-09-14) — the user's GEN-9-shaped roster: "
-        "<b>1. 💥 STRONG TRIGGER conf ≥65 — THE priority</b> "
-        "(69.1%/+0.117R n=110) · <b>2. ⭐ ELITE STAR conf 40-54 / "
-        "65+</b> (joined 09-21; the 55-64 band stays out, and its "
-        "rr&lt;1.2R profile law is re-checked at the live fill) · "
-        "<b>3. 🚀 EARLY MOVERS conf 55-64 or 85+</b> · <b>4. ⚡ EARLY "
-        "LANE conf ≥85</b> · <b>5. 💥🔮 TRIG×KR conf ≥40</b>. 💎 Best Zone left the money "
+        "$2,000 ledger (2026-09-14; GEN 16.4 ladder 2026-09-29). "
+        "<b>PRIORITY THREE:</b> <b>1. ⭐ ELITE STAR conf 40-54 / 65+</b> "
+        "(its demo feed was never connected at 16.3 — fixed at 16.4; "
+        "rr&lt;1.2R profile law re-checked at the live fill) · <b>2. 💥 "
+        "STRONG TRIGGER conf ≥65</b> · <b>3. 🚀 MOONSHOT conf 55-64</b> "
+        "(the one desk cell green before AND during the September "
+        "rally: 62%/+0.66R then 69%/+0.54R). <b>SPARE SEATS</b> (each "
+        "opens only while 5 seats stay free for the priority three): "
+        "<b>4. ⭐🚀 PRIME ENTRY / early lane conf ≥85</b> · <b>5. 💥🔮 "
+        "TRIG×KR conf ≥40</b> · <b>6. ⚡ EARLY MOVERS conf 55-64 or "
+        "85+</b>. "
+        "💎 Best Zone left the money "
         "(buzz + desk record continue). ⚠️ honest note kept from the "
         "wire-up: the two early-lane conf gates measured WORSE than "
         "ungated on 45d (+0.09R at 3/day vs +0.15R at 13-14/day) — "
@@ -8212,7 +8222,8 @@ if active_section == "🎮 Demo $1,500":
         unsafe_allow_html=True)
     _t1c, _t2c, _t3c, _t4c = st.columns(4)
     _t1c.metric("💼 Equity", f"${_eq:,.2f}",
-                f"{_pnl:+,.2f} ({_pnl / 15:.1f}%)" if _pnl else None)
+                f"{_pnl:+,.2f} ({_pnl / _start * 100:.1f}%)"
+                if _pnl else None)
     _t2c.metric("💵 Realized balance", f"${_bal:,.2f}")
     _t3c.metric("🏆 Win rate",
                 f"{_wr:.0f}%" if _closedp else "—",
