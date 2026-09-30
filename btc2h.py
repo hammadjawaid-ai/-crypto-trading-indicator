@@ -1,33 +1,27 @@
-"""🧭 BTC 2H PULSE — lean, state and trading conditions every two hours.
+"""🧭 BTC 2H PULSE — a factual BTC read every two hours (no forecast).
 
-User 2026-09-29: "after every 2 hrs you are going to predict and watch
-every BTC movements and notify me on telegram ... lean up in next two
-hours, lean down or remain sideways ... the point of this update is to
-know the BTC movements and take trades accordingly" — no TP/SL, news
-style; then "full pulse with lean, state and conditions".
+User 2026-09-29: "after every 2 hrs ... notify me on telegram ... up,
+down or sideways ... the point is to know the BTC movements and take
+trades accordingly" — no TP/SL, news style; then "full pulse with lean,
+state and conditions". 2026-10-01, after 3/12 leans came in wrong:
+"switch it" — the lean is replaced by a fact-based read.
 
-1. THE LEAN (13-month test, .btc2h_bt.py, 4,703 calls on BTC 1h
-   closes; outcome judged against an adaptive band = half the
-   trailing-7-day median |2h move|):
-     fade the last 2h (stretched up -> DOWN, stretched down -> UP,
-     inside the band -> SIDEWAYS)   right 38.3% | direction 53.9%
-     trend (1h EMA20/50 + 4h slope)  right 34.5% | direction 48.5%
-     momentum (last 2h continues)    right 33.9% | direction 46.1%
-     a random guess                  right 33.4% | direction 51.3%
-   The fade is the most accurate reader, but the average BTC move in
-   its called direction is ~0, and 4h/8h/24h windows were no better —
-   so every lean prints its measured hit rate and is graded 2h later.
-2. THE STATE: BTC's last 2h and 24h moves against their own normal
-   size, and the 24h range. Seen, not predicted.
-3. THE CONDITIONS (.btc_align.py, 23,409 clean desk trades over 83
-   days): the BTC read that actually sorts the system's trades is the
-   24h mood, not the 2h lean —
-     BTC flat over 24h           48% win / +0.145R  (pre-rally +0.071R)
-     trade AGAINST a 24h trend   45% win / +0.072R  (pre-rally +0.019R)
-     trade WITH a 24h trend      43% win / +0.003R  (pre-rally -0.014R)
-   Chasing BTC's visible trend is the weakest spot; setups work best
-   while BTC is quiet. (Trading with vs against the 2h lean itself:
-   +0.070R vs +0.072R — no difference, so the lean is never a filter.)
+WHY NO FORECAST (13-month test, .btc2h_bt.py / .pulse_fix.py, 4,692
+pulses): no chart reader called BTC's next 2h better than ~54% on
+direction with ~0 move captured — fade-the-push 53.8%, trend 48%,
+regime switch 48%, dip-in-uptrend 53%, random 49%. So the pulse
+reports what BTC IS doing, which the desk can act on:
+  1. NOW: the last 2h move against BTC's own normal 2h size (band =
+     half the trailing-7-day median |2h move|) -> RISING / FALLING /
+     RANGING; plus the last closed 15m candle against its normal size
+     -> ⚡ strong candle flag. A strong BTC 15m candle in the trade's
+     direction was the one BTC cue that sorted elite-star re-entries
+     (+0.7%/trade vs a random moment, .sc3.py).
+  2. STATE: 2h / 24h moves and the 24h range.
+  3. CONDITIONS (.btc_align.py, 23,409 desk trades): BTC flat over 24h
+     48% win / +0.145R (best); trading WITH a 24h trend 43% / +0.003R
+     (worst); against +0.072R.
+  4. HOURS: the measured PKT trading windows (project_entry_timing_pkt).
 """
 import json
 import time
@@ -39,73 +33,82 @@ import config
 STATE_FILE = config.state_path(".btc2h.json")
 BAND_K = 0.5            # band = BAND_K x median |move| over 7 days
 BAND_LOOKBACK = 168     # hourly samples in 7 days
-KEEP = 600              # leans kept in the state file
+BAND_LOOKBACK_15 = 672  # 15m samples in 7 days
+STRONG_15 = 1.5         # a 15m candle >= this x its normal size is "strong"
+KEEP = 600              # pulses kept in the state file
 PKT = 5 * 3600          # Pakistan time, the user's clock
 _LAST = {"t": 0.0}      # in-process backstop if the disk write fails
-# quoted on every message: the LIVE module replayed over the same 13
-# months (.btc2h_test.py, 4,657 leans) — a hair under the research
-# backtest's 38.3% / 53.9%, so the smaller numbers are the ones shown.
-BT_RIGHT, BT_RANDOM, BT_DIR = 37.8, 33.4, 52.7
-ICON = {"UP": "⬆️", "DOWN": "⬇️", "SIDEWAYS": "↔️"}
-HEAD = {"UP": "LEANS UP", "DOWN": "LEANS DOWN", "SIDEWAYS": "SIDEWAYS"}
+ICON = {"UP": "📈", "DOWN": "📉", "FLAT": "↔️"}
+HEAD = {"UP": "RISING NOW", "DOWN": "FALLING NOW", "FLAT": "RANGING NOW"}
 
 
-def closed_closes(kl: pd.DataFrame, now: float) -> pd.Series:
-    """1h closes indexed by CLOSE time, forming candle dropped."""
+def closed_closes(kl: pd.DataFrame, now: float, minutes: int = 60
+                  ) -> pd.Series:
+    """Closes indexed by CLOSE time, forming candle dropped."""
     c = kl["close"].astype(float).copy()
-    c.index = c.index + pd.Timedelta(hours=1)
+    c.index = c.index + pd.Timedelta(minutes=minutes)
     return c[c.index <= pd.Timestamp(now, unit="s", tz="UTC")]
 
 
-def _band(ret: pd.Series) -> float:
-    return float(ret.abs().iloc[-BAND_LOOKBACK:].median() * BAND_K)
+def _band(ret: pd.Series, n: int) -> float:
+    return float(ret.abs().iloc[-n:].median() * BAND_K)
 
 
-def read(c: pd.Series) -> dict:
-    """Lean + state off closed 1h closes (oldest first, >= 200 bars)."""
+def read(c: pd.Series, c15: pd.Series | None = None) -> dict:
+    """The factual read off closed 1h closes (>= 200 bars) and, when
+    given, closed 15m closes (>= 300 bars)."""
     r2 = c / c.shift(2) - 1.0
     r24 = c / c.shift(24) - 1.0
-    b2, b24 = _band(r2), _band(r24)
+    b2, b24 = _band(r2, BAND_LOOKBACK), _band(r24, BAND_LOOKBACK)
     p2, p24 = float(r2.iloc[-1]), float(r24.iloc[-1])
-    lean = "UP" if p2 < -b2 else "DOWN" if p2 > b2 else "SIDEWAYS"
+    now2 = "UP" if p2 > b2 else "DOWN" if p2 < -b2 else "FLAT"
     x = abs(p2) / b2 if b2 > 0 else 0.0
-    return {"t": float(c.index[-1].timestamp()), "px": float(c.iloc[-1]),
-            "call": lean, "band": b2, "past": p2,
-            "size2": ("wild" if x >= 4 else "big" if x >= 2 else
-                      "normal" if x > 1 else "quiet"),
-            "p24": p24, "b24": b24,
-            "mood": ("UP" if p24 > b24 else "DOWN" if p24 < -b24
-                     else "FLAT"),
-            "lo24": float(c.iloc[-24:].min()),
-            "hi24": float(c.iloc[-24:].max())}
+    out = {"t": float(c.index[-1].timestamp()), "px": float(c.iloc[-1]),
+           "now": now2, "band": b2, "past": p2,
+           "size2": ("wild" if x >= 4 else "big" if x >= 2 else
+                     "normal" if x > 1 else "quiet"),
+           "p24": p24, "b24": b24,
+           "mood": ("UP" if p24 > b24 else "DOWN" if p24 < -b24
+                    else "FLAT"),
+           "lo24": float(c.iloc[-24:].min()),
+           "hi24": float(c.iloc[-24:].max()),
+           "m15": None, "z15": None, "strong15": None}
+    if c15 is not None and len(c15) >= 300:
+        r15 = c15 / c15.shift(1) - 1.0
+        sd = float(r15.iloc[-BAND_LOOKBACK_15:].std())
+        m15 = float(r15.iloc[-1])
+        z = abs(m15) / sd if sd > 0 else 0.0
+        out.update({"m15": m15, "z15": z,
+                    "strong15": ("UP" if m15 > 0 else "DOWN")
+                    if z >= STRONG_15 else None})
+    return out
 
 
-def grade(calls: list, c: pd.Series) -> list:
-    """Grade every ungraded lean whose 2h window has closed."""
-    by_t = {float(ts.timestamp()): float(v) for ts, v in c.items()}
-    for k in calls:
-        if k.get("graded"):
-            continue
-        px2 = by_t.get(k["t"] + 2 * 3600)
-        if px2 is None:
-            if c.index[-1].timestamp() > k["t"] + 3 * 3600:
-                k["graded"] = True       # window missed (worker down)
-                k["right"] = None
-            continue
-        mv = px2 / k["px"] - 1.0
-        out = ("UP" if mv > k["band"] else
-               "DOWN" if mv < -k["band"] else "SIDEWAYS")
-        k.update({"graded": True, "move": mv, "px2": px2,
-                  "out": out, "right": out == k["call"]})
-    return calls
-
-
-def score(calls: list, now: float) -> dict:
-    g = [k for k in calls
-         if k.get("graded") and k.get("right") is not None]
-    day = [k for k in g if now - k["t"] <= 26 * 3600]
-    return {"n": len(g), "right": sum(k["right"] for k in g),
-            "day_n": len(day), "day_right": sum(k["right"] for k in day)}
+def window(t: float) -> str:
+    """🕐 the trading-hours headline (user 2026-09-29: "the best trading
+    times ... should have a btc headline accordingly"). The pulse covers
+    the next 2h; this names the measured window those hours fall in.
+    Numbers from .timing_pkt.py (live desk split before/after the Sep
+    rally + the 79-day replays), in PKT:
+      13-21  elite star 67-83% win / +0.30R, APEX and moonshot green in
+             both regimes — the best hours for every stream
+      05-13  APEX and moonshot fine; elite star only worked in the rally
+      21-05  elite star and APEX lost money before the rally (replay
+             -0.20..-0.30R); moonshot still fine
+    Elite conviction had no good hour at all (see the star instead)."""
+    h = int(time.gmtime(t + PKT).tm_hour)
+    h2 = (h + 2) % 24
+    span = f"{h:02d}:00–{h2:02d}:00 PKT"
+    if 13 <= h < 21:
+        return (f"🕐 {span} · 🟢 your best trading hours (13–21 PKT): "
+                f"elite star, APEX and moonshot all measured green here")
+    if 5 <= h < 13:
+        return (f"🕐 {span} · 🟡 morning hours (05–13 PKT): APEX and "
+                f"moonshot fine, elite star only paid in the rally — "
+                f"take the star with care")
+    return (f"🕐 {span} · 🔴 weak hours (21–05 PKT): elite star and APEX "
+            f"lost money here before the rally; moonshot still fine — "
+            f"be pickier, smaller")
 
 
 def conditions(r: dict) -> str:
@@ -120,51 +123,46 @@ def conditions(r: dict) -> str:
             f"Be pickier.")
 
 
-def lean_why(r: dict) -> str:
+def now_line(r: dict) -> str:
     b = r["band"] * 100
-    if r["call"] == "UP":
-        return (f"BTC dropped {r['past'] * 100:+.2f}% in 2h, beyond the "
-                f"±{b:.2f}% sideways band — after a push like that the "
-                f"next 2h bounces a little more often than not")
-    if r["call"] == "DOWN":
-        return (f"BTC rose {r['past'] * 100:+.2f}% in 2h, beyond the "
-                f"±{b:.2f}% sideways band — after a push like that the "
-                f"next 2h gives a little back more often than not")
-    return (f"BTC moved {r['past'] * 100:+.2f}% in 2h, inside the "
-            f"±{b:.2f}% sideways band — no push to fade, so it leans "
-            f"to a range")
+    if r["now"] == "UP":
+        s = (f"BTC is up {r['past'] * 100:+.2f}% over the last 2h, beyond "
+             f"its ±{b:.2f}% normal range")
+    elif r["now"] == "DOWN":
+        s = (f"BTC is down {r['past'] * 100:+.2f}% over the last 2h, beyond "
+             f"its ±{b:.2f}% normal range")
+    else:
+        s = (f"BTC moved {r['past'] * 100:+.2f}% over the last 2h, inside "
+             f"its ±{b:.2f}% normal range")
+    if r.get("m15") is not None:
+        if r.get("strong15"):
+            s += (f" · ⚡ strong 15m candle {'up' if r['strong15'] == 'UP' else 'down'} "
+                  f"({r['m15'] * 100:+.2f}%, {r['z15']:.1f}× normal) — the "
+                  f"one BTC cue that helped star re-entries in its direction")
+        else:
+            s += f" · last 15m {r['m15'] * 100:+.2f}% (quiet)"
+    return s
 
 
-def message(r: dict, last: dict | None, sc: dict) -> str:
+def message(r: dict) -> str:
     nxt = time.strftime("%H:%M", time.gmtime(r["t"] + 2 * 3600))
     nxt_pk = time.strftime("%H:%M", time.gmtime(r["t"] + 2 * 3600 + PKT))
     mood = {"FLAT": "flat", "UP": "trending up",
             "DOWN": "trending down"}[r["mood"]]
     lines = [
-        f"🧭 *BTC 2H PULSE — {ICON[r['call']]} {HEAD[r['call']]}*",
+        f"🧭 *BTC 2H PULSE — {ICON[r['now']]} {HEAD[r['now']]}*",
+        window(r["t"]),
         f"BTC `${r['px']:,.0f}` · next pulse ~{nxt} UTC "
         f"({nxt_pk} PKT)",
-        f"📍 state: 2h {r['past'] * 100:+.2f}% ({r['size2']}) · "
+        f"📍 now: {now_line(r)}",
+        f"📊 state: 2h {r['past'] * 100:+.2f}% ({r['size2']}) · "
         f"24h {r['p24'] * 100:+.2f}% ({mood}) · 24h range "
         f"${r['lo24']:,.0f}–${r['hi24']:,.0f}",
         f"🌡 conditions: {conditions(r)}",
-        f"🧭 lean: {lean_why(r)}"]
-    if last and last.get("right") is not None:
-        s = (f"🕑 last lean: {ICON[last['call']]} {last['call']} @ "
-             f"${last['px']:,.0f} → ${last['px2']:,.0f} "
-             f"({last['move'] * 100:+.2f}%) "
-             f"{'✅' if last['right'] else '❌'}")
-    else:
-        s = "🕑 last lean: none graded yet"
-    if sc["n"]:
-        s += (f" · score {sc['day_right']}/{sc['day_n']} in 24h, "
-              f"{sc['right']}/{sc['n']} all-time "
-              f"({sc['right'] / sc['n'] * 100:.0f}%)")
-    lines.append(s)
-    lines.append(f"_lean tested on 13 months: right {BT_RIGHT:.0f}% "
-                 f"of the time vs {BT_RANDOM:.0f}% for a random guess "
-                 f"(direction {BT_DIR:.0f}%) — context, not a trade "
-                 f"signal._")
+        "_a factual read, not a forecast — no chart method called BTC's "
+        "next 2h better than a coin flip over 13 months, so the pulse "
+        "reports what BTC is doing and the conditions your setups "
+        "measured best in._"]
     return "\n".join(lines)
 
 
@@ -188,24 +186,26 @@ def _save(s: dict) -> None:
 
 
 def run(get_klines, send, now: float | None = None) -> dict | None:
-    """One pulse: grade the open leans, read BTC, send. The caller
-    decides WHEN (every even UTC hour)."""
+    """One pulse. The caller decides WHEN (every even UTC hour)."""
     now = time.time() if now is None else now
     c = closed_closes(get_klines("BTCUSDT", "1h", limit=240), now)
     if len(c) < 200:
         return None
+    c15 = None
+    try:
+        c15 = closed_closes(get_klines("BTCUSDT", "15m", limit=720), now,
+                            minutes=15)
+    except Exception:
+        c15 = None
     s = _load()
-    calls = grade(s["calls"], c)
-    r = read(c)
+    calls = s["calls"]
+    r = read(c, c15)
     if (calls and calls[-1]["t"] >= r["t"]) or _LAST["t"] >= r["t"]:
         return None                      # this hour already sent
     _LAST["t"] = r["t"]
-    last = next((k for k in reversed(calls)
-                 if k.get("graded") and k.get("right") is not None
-                 and r["t"] - k["t"] <= 2 * 3600), None)
-    msg = message(r, last, score(calls, now))
-    calls.append({"t": r["t"], "px": r["px"], "call": r["call"],
-                  "band": r["band"], "graded": False})
+    msg = message(r)
+    calls.append({"t": r["t"], "px": r["px"], "now": r["now"],
+                  "band": r["band"]})
     s["calls"] = calls[-KEEP:]
     _save(s)
     send(msg)

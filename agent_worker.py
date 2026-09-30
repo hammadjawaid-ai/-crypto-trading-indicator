@@ -24,6 +24,8 @@ if hasattr(sys.stdout, "buffer"):
 import best_board
 import binance_client
 import btc2h
+import buzz_clock
+import news_radar
 import btc_outlook
 import market_context as _mc_w
 import news as _news_w
@@ -293,6 +295,9 @@ _DEMO_CONFIRMS: list = []
 # 🎮 GEN 11 (user 2026-09-10): 💎⭐ elite star fires are the demo's
 # TOP priority seat. Cycle-thread only; TTL-drained like the rest.
 _DEMO_STARS: list = []
+# 🗞 NEWS RADAR runs off the main loop (its RSS pass takes ~16-18s);
+# news_radar holds its own lock, this just avoids piling up threads.
+_NR = {"thread": None, "syms": [], "syms_t": 0.0}
 
 
 def _kr_cache_agree(sym: str, side: str) -> bool:
@@ -1337,18 +1342,19 @@ def _kr_note(p) -> str:
             except Exception:
                 s = None
         if not s:
-            return "\n🔮 kronos: no read available"
+            return "\n🔮 ❔ Kronos: no read"
         d = s.get("direction")
         _e = float(s.get("exp_move_pct") or 0)
+        # one-glance form (user 2026-10-01: "kronos agree or not —
+        # emoji or one word"): the verdict first, the read after it.
         if d == "FLAT":
-            return (f"\n🔮 kronos FLAT {_e:+.1f}%/24h — no conviction "
-                    f"either way")
+            return f"\n🔮 ➖ Kronos flat · {_e:+.1f}%/24h"
         agree = ((d == "UP" and p.get("side") == "LONG")
                  or (d == "DOWN" and p.get("side") == "SHORT"))
-        return (f"\n🔮 kronos {d} {_e:+.1f}%/24h — "
-                f"{'✅ AGREES (validated +0.34R edge)' if agree else '⚠️ CONFLICTS — caution'}")
+        return (f"\n🔮 {'✅ Kronos agrees' if agree else '❌ Kronos disagrees'}"
+                f" · {d} {_e:+.1f}%/24h")
     except Exception:
-        return "\n🔮 kronos: no read available"
+        return "\n🔮 ❔ Kronos: no read"
 
 
 def _fmt_elite_early(p) -> str:
@@ -1844,6 +1850,20 @@ def cycle() -> None:
                             "fires ignite it runs 72-82%, silent "
                             "ones are the losers. The ⏱ 1H verdict "
                             "follows this buzz._\n" + _msg9)
+                    # 🕐 BUZZ CLOCK (user 2026-10-01: "add the times ...
+                    # if it's a long buzz a tagline below accordingly,
+                    # if short its own tagline — elite conviction and
+                    # elite star only for now"): this stream's live
+                    # desk record for THIS direction in THIS 4h PKT
+                    # window, refreshed every 30 min. Label, not gate.
+                    try:
+                        _ck9 = buzz_clock.tagline(
+                            "elite_star" if _star9 else "elite_conv",
+                            _pmx.get("side"))
+                        if _ck9:
+                            _msg9 = _msg9 + "\n" + _ck9
+                    except Exception:
+                        pass
                     ok, _m9 = tg.send(_msg9)
                     n_alerts += 1 if ok else 0
                     # ④ mark the fire BUZZED so the 1H VERDICT bell
@@ -3406,6 +3426,36 @@ def cycle() -> None:
                 print("[btc2h] pulse sent", flush=True)
     except Exception as _pz_exc:
         print("  btc2h pulse error:", _pz_exc, flush=True)
+
+    # 🗞 NEWS RADAR (user 2026-09-30: "if something big happened to any
+    # coin or some partnership ... we should have it as soon as it lands
+    # on our telegram ... CPI data ... all the important events"):
+    # exchange listings/delistings, big coin news, unusual moves, US
+    # high-impact macro in PKT, a 09:00 PKT digest. Information and risk
+    # prompts only — our studies found listing pumps and coin surges are
+    # priced before any alert lands (every bell says so).
+    try:
+        _nr_t = _NR["thread"]
+        if _nr_t is None or not _nr_t.is_alive():
+            def _nr_job():
+                try:
+                    if time.time() - _NR["syms_t"] > 1800 or not _NR["syms"]:
+                        _NR["syms"] = binance_client.get_top_symbols(
+                            150)["symbol"].tolist()
+                        _NR["syms_t"] = time.time()
+                    _nr_sent = news_radar.run(
+                        binance_client.get_klines, _NR["syms"], tg.send,
+                        record=lambda _st, _pl: store.record_signal(
+                            _st, _pl))
+                    if _nr_sent:
+                        print(f"[news_radar] 🗞 {len(_nr_sent)} bell(s)",
+                              flush=True)
+                except Exception as _nr_exc:
+                    print("  news_radar error:", _nr_exc, flush=True)
+            _NR["thread"] = threading.Thread(target=_nr_job, daemon=True)
+            _NR["thread"].start()
+    except Exception as _nr_exc2:
+        print("  news_radar start error:", _nr_exc2, flush=True)
 
     # 🟢 GREEN LIGHT announcements stay (desk reports, rare + informative)
     try:
@@ -5569,9 +5619,9 @@ def cycle() -> None:
             _ef_n = 0
             for _ef in _ef_imp:
                 _ef_t = str(_ef.get("title") or "")
-                _ef_up = _ef_t.upper()
-                _ef_syms = [b for b in _ef_bases
-                            if b and len(b) >= 3 and b in _ef_up] or [None]
+                # word-boundary tagger (the old substring match tagged ENA
+                # in "SENATE", XPL in "EXPLOIT", NEAR from the word "near")
+                _ef_syms = news_radar.tag_coins(_ef_t, _ef_bases) or [None]
                 for _ef_s in _ef_syms[:3]:
                     store.record_event_flag(
                         (_ef_s + "USDT") if _ef_s else None,
