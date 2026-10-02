@@ -20,6 +20,7 @@ from plotly.subplots import make_subplots
 
 import alerts
 import binance_client
+import worker_store as _ws_c   # desk DB path for the read-only boards
 import breakout
 import btc_outlook
 import config
@@ -3480,6 +3481,132 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                 f"{float(_r.get('tp1') or 0):g}</span>",
                 unsafe_allow_html=True)
 
+    # 🔶 PRESSING — its own board (user 2026-10-02: "log the pressing-
+    # first cases separately AND have a telegram notification for it
+    # plus a separate board with openable trades"). Top: every armed
+    # number price is pressing RIGHT NOW (the openable candidates,
+    # with how long it has pressed). Below: the forward ledger of
+    # pressed-first breaks (desk tier press_break) next to every break
+    # of the same kinds since logging began — the honest benchmark.
+    st.markdown("#### 🔶 PRESSING — openable now, and the pressed-first "
+                "record")
+    st.caption("A number is PRESSING while price sits within 0.4% of it "
+               "without breaking. These are the trades you can open the "
+               "moment the number breaks; each break that was pressed "
+               "first is logged separately (tier press_break) and buzzed "
+               "🔶💥, so we learn whether a slow approach to the number "
+               "beats a gap-through. Benchmark = every break of the same "
+               "kinds since the log started: ⚡ coils 70%/+0.11R (longs "
+               "74%, shorts lose), 🔥 2nd legs 54%/+0.16R, 💎 elite "
+               "42%/+0.04R.")
+    try:
+        _pr_now = time.time()
+        _pr_rows = []
+        for _r in (_al_rows or []):
+            try:
+                _lp = float(binance_client.get_ticker_price(
+                    _r["symbol"]) or 0)
+                _tg = float(_r.get("trigger") or 0)
+            except Exception:
+                continue
+            if _lp <= 0 or _tg <= 0:
+                continue
+            _dist = ((_tg / _lp - 1) * 100 if _r.get("side") == "LONG"
+                     else (_lp / _tg - 1) * 100)
+            if 0 <= _dist <= 0.4:
+                _pa = _r.get("pressed_at")
+                _pr_rows.append((_dist, _r, ((_pr_now - float(_pa)) / 60
+                                             if _pa else None)))
+        _pr_rows.sort(key=lambda x: x[0])
+        if _pr_rows:
+            for _dist, _r, _mins in _pr_rows:
+                _sc9 = ("#2ed47a" if _r.get("side") == "LONG"
+                        else "#ff5c5c")
+                _k9 = str(_r.get("src", ""))[:1]
+                _kind = ("⚡ coil (longs 74%)" if _k9 == "⚡"
+                         else "🔥 2nd leg (54%)" if _k9 == "🔥"
+                         else "💎 elite arm (42%)" if _k9 == "💎"
+                         else str(_r.get("src", "")))
+                _since = (f"pressing for {_mins:.0f} min"
+                          if _mins is not None else "pressing now")
+                st.markdown(
+                    f"<div style='background:rgba(255,213,74,0.08);"
+                    f"border:1px solid rgba(255,213,74,0.35);"
+                    f"border-radius:10px;padding:8px 13px;margin:4px 0'>"
+                    f"🔶 <b>{_r.get('base')}</b> "
+                    f"<span style='color:{_sc9};font-weight:800'>"
+                    f"{_r.get('side')}</span> · opens on a break of "
+                    f"<b>{float(_r.get('trigger') or 0):g}</b> "
+                    f"<span style='color:#ffd54a;font-size:0.8rem'>"
+                    f"({_dist:+.2f}% away · {_since})</span> · "
+                    f"<span style='color:#8b93a7;font-size:0.78rem'>"
+                    f"SL {float(_r.get('stop') or 0):g} · TP1 "
+                    f"{float(_r.get('tp1') or 0):g} · {_kind}</span>"
+                    f"</div>", unsafe_allow_html=True)
+        else:
+            st.caption("· no armed number is pressing right now")
+        import sqlite3 as _sq_pb
+        _pbc = _sq_pb.connect(f"file:{_ws_c.DB_PATH}?mode=ro", uri=True)
+        try:
+            _pb_first = _pbc.execute(
+                "SELECT MIN(opened_at) FROM shadow_trades WHERE "
+                "tier='press_break'").fetchone()[0]
+            _pb_rec = _pbc.execute(
+                "SELECT COUNT(*), SUM(CASE WHEN pnl_r>0 THEN 1 ELSE 0 "
+                "END), COALESCE(SUM(pnl_r),0) FROM shadow_trades WHERE "
+                "tier='press_break' AND status='CLOSED' AND "
+                "abs(entry-stop0)/entry>=0.005").fetchone()
+            _pb_open = _pbc.execute(
+                "SELECT symbol, side, entry, stop, tp1, opened_at FROM "
+                "shadow_trades WHERE tier='press_break' AND "
+                "status='OPEN' ORDER BY opened_at DESC LIMIT 10"
+            ).fetchall()
+            _pb_bench = _pbc.execute(
+                "SELECT COUNT(*), SUM(CASE WHEN pnl_r>0 THEN 1 ELSE 0 "
+                "END), COALESCE(SUM(pnl_r),0) FROM shadow_trades WHERE "
+                "tier IN ('trig_strong','second_leg','elite_conv') AND "
+                "status='CLOSED' AND abs(entry-stop0)/entry>=0.005 AND "
+                "opened_at>=?", (_pb_first or 1e18,)).fetchone()
+        finally:
+            _pbc.close()
+        _pn, _pw, _pr_ = (int(_pb_rec[0] or 0), int(_pb_rec[1] or 0),
+                          float(_pb_rec[2] or 0))
+        _bn, _bw, _br_ = (int(_pb_bench[0] or 0), int(_pb_bench[1] or 0),
+                          float(_pb_bench[2] or 0))
+        _pc = "#2ed47a" if _pr_ > 0 else "#ff5c5c"
+        if _pn:
+            st.markdown(
+                f"**pressed-first breaks (the judge):** {_pn} closed · "
+                f"win {_pw / _pn * 100:.0f}% · <b style='color:{_pc}'>"
+                f"{_pr_:+.2f}R</b> ({_pr_ / _pn:+.3f}R a trade) · "
+                f"benchmark, every ⚡/🔥/💎 break since the log started: "
+                f"{_bn} closed · win "
+                f"{(_bw / _bn * 100) if _bn else 0:.0f}% · "
+                f"{(_br_ / _bn) if _bn else 0:+.3f}R a trade",
+                unsafe_allow_html=True)
+        else:
+            st.caption("· pressed-first ledger: no closes yet — logging "
+                       "started with this build")
+        if _pb_open:
+            st.markdown("**open pressed-first trades:**")
+            for _sym, _sd, _e, _st, _t1, _oa in _pb_open:
+                try:
+                    _lv = float(binance_client.get_ticker_price(_sym)
+                                or 0)
+                    _pg = (((_lv - _e) / (_t1 - _e)) if _sd == "LONG"
+                           else ((_e - _lv) / (_e - _t1))) * 100
+                except Exception:
+                    _pg = 0.0
+                st.markdown(
+                    f"<span style='font-size:0.8rem;color:#9aa7c7'>· "
+                    f"<b>{_sym.replace('USDT', '')}</b> {_sd} · entry "
+                    f"{_e:g} · SL {_st:g} · TP1 {_t1:g} · "
+                    f"{_pg:+.0f}% of the way · "
+                    f"{(time.time() - _oa) / 3600:.1f}h</span>",
+                    unsafe_allow_html=True)
+    except Exception as _pb_exc:
+        st.caption(f"pressing board unavailable: {_pb_exc}")
+
     # 🕵️ OI LOAD moved to its OWN board (user 2026-08-28 correction:
     # "it should not be a part of it, treated separately") — see
     # _oi_load_board(), rendered after the pre-burst board below.
@@ -3551,6 +3678,9 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                                  "lanes live, proving)",
                    "comeback_f": "🌊🪂 FLUSH COMEBACK (BTC-flush "
                                  "dip, the measured cell)",
+                   "press_break": "🔶💥 PRESSED & BROKE (armed number "
+                                  "pressed within 0.4% before the break "
+                                  "— vs gap-through, proving)",
                    "apex_v2": "🏆² APEX V2 (certified core: STRONG "
                               "· score 90-94 · heat<75 — 59%/+0.14R "
                               "backtest, proving forward)",

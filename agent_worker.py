@@ -537,6 +537,33 @@ def _trigger_near(a: dict, px: float) -> bool:
     return t < px <= t * (1 + TRIG_NEAR_PCT)
 
 
+def _fmt_press_break(a: dict, px: float, mins: float) -> str:
+    """🔶💥 PRESSED & BROKE (user 2026-10-02: "log the pressing-first
+    cases separately AND have a telegram notification for it"): an
+    armed number that price PRESSED (sat within 0.4%) before breaking.
+    Logged under desk tier press_break so pressed-first breaks can be
+    judged against gap-through breaks; the record decides."""
+    _t2 = (f" · TP2 `{float(a['tp2']):g}`" if a.get("tp2") else "")
+    _cf = a.get("conf")
+    _bits = []
+    if _cf is not None:
+        _bits.append(f"🎯 conf {_cf}")
+    if a.get("burst"):
+        _bits.append(f"🔥 burst {float(a['burst']):.0f}")
+    _tail = (" · " + " · ".join(_bits)) if _bits else ""
+    return (f"🔶💥 *PRESSED & BROKE — {a['base']} {a['side']}* "
+            f"({str(a.get('src', '')).strip()})\n"
+            f"pressed the number `{float(a['trigger']):g}` for "
+            f"{mins:.0f} min (within 0.4%), then broke it{_tail}\n"
+            f"entry `{px:g}` · SL `{float(a['stop']):g}` · TP1 "
+            f"`{float(a['tp1']):g}`{_t2}\n"
+            f"_logged separately (its own desk tier) so pressed-first "
+            f"breaks are judged against gap-through breaks; the record "
+            f"decides. All breaks so far: ⚡ coils 70%/+0.11R (longs "
+            f"74%, shorts lose), 🔥 2nd legs 54%/+0.16R, 💎 elite "
+            f"42%/+0.04R._")
+
+
 # 💎🌀 momentum re-fire (user 2026-08-16: "elite conviction max or
 # high — if it notifies and the movement is soon, it refires again as
 # soon as we see the momentum, even a little bit, no matter the
@@ -662,6 +689,14 @@ def _trigger_watch() -> None:
                     #     except Exception as exc:
                     #         print("[trigger] near-buzz error:", exc,
                     #               flush=True)
+                    # 🔶 PRESSED stamp (user 2026-10-02): silent — the
+                    # first time price sits within 0.4% of the number
+                    # is remembered, so the eventual break can be
+                    # logged as pressed-first (vs gap-through).
+                    if not a.get("pressed") and _trigger_near(a, px):
+                        with _TRIG_LOCK:
+                            a["pressed"] = True
+                            a["pressed_at"] = _now
                     continue
                 # volume kick on the forming 15m bar — fetched only
                 # on an actual break (rare), never in the hot loop
@@ -829,6 +864,53 @@ def _trigger_watch() -> None:
                     except Exception as exc:
                         print("[trigger] oi-proof error:", exc,
                               flush=True)
+                # 🔶💥 PRESSED-FIRST BREAK (user 2026-10-02: "log the
+                # pressing-first cases separately AND have a telegram
+                # notification plus a separate board"): if this number
+                # was pressed (within 0.4%) before it broke, the break
+                # also opens desk tier press_break and rings its own
+                # bell. The record keeps 'pressed' on EVERY break (the
+                # armed dict is dumped into trigger_fire's extra), so
+                # gap-through breaks are the comparison population.
+                # 💎/⚡/🔥 kinds only — the board's three; 🕵️ OI loads
+                # stay on their own ledger.
+                try:
+                    _src_pb = str(a.get("src", ""))
+                    if (a.get("pressed")
+                            and _src_pb[:1] in ("💎", "⚡", "🔥")):
+                        _pb_min = max(
+                            0.0, (_now - float(a.get("pressed_at")
+                                              or _now)) / 60.0)
+                        _sig_pb = {"symbol": a["symbol"],
+                                   "base": a["base"],
+                                   "side": a["side"],
+                                   "tier": ("STRONG" if _src_pb[:1] == "⚡"
+                                            else "2NDLEG"
+                                            if _src_pb[:1] == "🔥"
+                                            else "ELITE"),
+                                   "src": _src_pb,
+                                   "pressed_min": round(_pb_min, 1),
+                                   "score": a.get("score"),
+                                   "conf": a.get("conf"),
+                                   "burst": a.get("burst"),
+                                   "entry": px, "stop": a["stop"],
+                                   "tp1": a["tp1"],
+                                   "tp2": a.get("tp2")}
+                        store.record_signal("press_break", _sig_pb)
+                        shadow_trader.open_from_signal(
+                            "press_break", _sig_pb, px)
+                        if (not _bstock_quiet(a["symbol"])
+                                and store.should_alert(
+                                    f"pressbrk:{a['symbol']}:"
+                                    f"{a['side']}", 6 * 3600)):
+                            tg.send(_fmt_press_break(a, px, _pb_min)
+                                    + _kr_note(a))
+                        print(f"[trigger] 🔶💥 pressed-first break "
+                              f"{a['base']} {a['side']} after "
+                              f"{_pb_min:.0f} min", flush=True)
+                except Exception as exc:
+                    print("[trigger] press-break error:", exc,
+                          flush=True)
                 if str(a.get("src", "")).startswith("⚡"):
                     try:
                         _sig_t = {"symbol": a["symbol"],
@@ -5476,7 +5558,9 @@ def cycle() -> None:
                          "stop": a.get("stop"),
                          "tp1": a.get("tp1"), "tp2": a.get("tp2"),
                          "score": a.get("score"),
-                         "armed_at": a.get("armed_at")}
+                         "armed_at": a.get("armed_at"),
+                         "pressed": bool(a.get("pressed")),
+                         "pressed_at": a.get("pressed_at")}
                         for a in _TRIG_ARMED.values()]
         _al_path = str(config.state_path(".armed_levels.json"))
         with open(_al_path + ".tmp", "w", encoding="utf-8") as _f_al:

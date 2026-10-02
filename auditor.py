@@ -51,6 +51,7 @@ STREAM_TO_TIER = {
     "elite_star": "elite_star",
     "star_go_chase": "star_go_chase",
     "apex_v2": "apex_v2",
+    "press_break": "press_break",
     "personal_watch": "personal_watch",
     "personal_watch_early": "personal_watch_early",
 }
