@@ -683,8 +683,21 @@ def surge_replay_qnt_real_data():
              "tokenised deposits", "link": "https://x.test/q",
              "published": (t0 - timedelta(hours=3)).timestamp()}]
     out, rec = Outbox(), Recorder()
+    # 📵 the surge bell is muted by default since 2026-10-04 — the
+    # muted path must still RECORD and remember, and send nothing
+    assert nr.SURGE_BELL is False
     sent = nr.run(gk, ["QNTUSDT", "BTCUSDT"], out, record=rec, now=t0,
                   fetch=no_fetch(rss=lambda: rows))
+    assert sent == [], sent
+    assert any(p.get("kind") == "unusual_move" for _, p in rec.rows)
+    assert nr._load_state().get("surges"), "muted surge must stay in memory"
+    # the message itself, exercised once with the bell switched on
+    fresh_state("replay")
+    nr.SURGE_BELL = True
+    out, rec = Outbox(), Recorder()
+    sent = nr.run(gk, ["QNTUSDT", "BTCUSDT"], out, record=rec, now=t0,
+                  fetch=no_fetch(rss=lambda: rows))
+    nr.SURGE_BELL = False
     assert len(sent) == 1 and sent[0].startswith(
         "🚨 *UNUSUAL MOVE — QNT +"), sent
     assert "news found: Quant partners with SWIFT" in sent[0], sent[0]

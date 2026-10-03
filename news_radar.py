@@ -61,6 +61,11 @@ PKT = timezone(timedelta(hours=5), "PKT")      # Pakistan: UTC+5, no DST
 HTTP_TIMEOUT = 10
 MAX_MSG = 900
 MAX_BELLS_PER_RUN = 8
+# 📵 SURGE BELL OFF (user 2026-10-04: "mute from telegram ... unusual
+# moves"): the 🚨 UNUSUAL MOVE / DROP bell is not sent. The scan still
+# runs, records (kind unusual_move / unusual_drop), feeds the radar's
+# memory and the 09:00 PKT digest's 24h list. Revert: True.
+SURGE_BELL = False
 
 EX_EVERY = 180            # exchange notices every 3 min
 RSS_EVERY = 600           # RSS every 10 min
@@ -1647,7 +1652,8 @@ def _process_surges(evs, st, now_ts, rec) -> list[tuple[int, str]]:
                  "sigma": ev["sigma"], "vol_mult": ev["vol_mult"],
                  "btc_r4": ev["btc_r4"], "price": ev["price"],
                  "headlines": [h.get("title") for h in heads]})
-            out.append((2, msg))
+            if SURGE_BELL:
+                out.append((2, msg))
         except Exception:
             continue
     return out

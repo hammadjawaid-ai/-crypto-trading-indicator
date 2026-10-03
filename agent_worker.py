@@ -5745,7 +5745,12 @@ def cycle() -> None:
                 if _cb_flush:
                     _fg = (f"\n🛡 plus: {_cb_glabel}"
                            if _cb_guard else "")
-                    ok, _ = tg.send(
+                    # 📵 MUTED (user 2026-10-04: "mute from telegram
+                    # ... Comeback family") — all three 🪂 bells.
+                    # Desk tiers comeback / comeback_g / comeback_f
+                    # and the board keep recording. Revert: _MUTE_R9
+                    # -> tg.send at the three sends.
+                    ok, _ = _MUTE_R9(
                         f"🌊🪂 *FLUSH COMEBACK — {_cb_sig['base']} "
                         f"{_cbside}* — BTC dragged it down, and the "
                         f"dip is over\n"
@@ -5767,7 +5772,7 @@ def cycle() -> None:
                         f"tier `comeback_f` keeps the forward "
                         f"score._")
                 elif _cb_guard:
-                    ok, _ = tg.send(
+                    ok, _ = _MUTE_R9(            # 📵 muted 2026-10-04
                         f"🛡🪂 *GUARDED COMEBACK — {_cb_sig['base']} "
                         f"{_cbside}* — the dip is over and the "
                         f"lanes still guard it\n"
@@ -5787,7 +5792,7 @@ def cycle() -> None:
                         f"separately; whichever cell proves green "
                         f"earns the money call._")
                 else:
-                    ok, _ = tg.send(
+                    ok, _ = _MUTE_R9(            # 📵 muted 2026-10-04
                         f"🪂 *COMEBACK — {_cb_sig['base']} "
                         f"{_cbside}* — the panic dip is over "
                         f"(unguarded)\n"
