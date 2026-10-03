@@ -3787,6 +3787,13 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                                     "expected to bleed)",
                    "elite_star": "💎⭐ ELITE STAR (the measured "
                                  "winner profile)",
+                   "elite_agrade": "💎🏆 ELITE A-GRADE (seated on Top "
+                                   "Conviction · conf 65+ · LONG · TP1 "
+                                   "≤1.6R — 68.6%/+0.49R desk Sep, "
+                                   "proving)",
+                   "elite_seated65": "💎🏆 ELITE SEATED 65+ (seated + "
+                                     "conf 65+, any side — records "
+                                     "only, no bell)",
                    "sniper2": "🎯 SNIPER v2 (golden cells, proving)",
                    "moonshot": "🚀 MOONSHOT (big-move desk)",
                    "sentry": "🎯 SENTRY (your 18-coin watch)",

@@ -18,11 +18,11 @@ blk = src.split("def _push_elite")[1].split("\n    tn_hot =")[0]
 fails = []
 
 i_star = blk.find("_star9 = (bool(_pmx.get(\"appr\"))")
-i_gate = blk.find("if not _star9:")
+i_gate = blk.find("if not (_star9 or _ag9):")
 i_conf = blk.find("if _cf9 is not None and _cf9 < 40:")
 i_kron = blk.find("_kr_cache_agree")  # inside the unified gate
 i_appr = blk.find("if not _pmx.get(\"appr\") and not _kr_cache_agree(")
-i_key = blk.find("_key9 = (\"elitestar\" if _star9 else \"eliteconv\")")
+i_key = blk.find("_key9 = (\"elitestar\" if _star9")
 
 if not (0 < i_star < i_gate < i_conf):
     fails.append("star detection does not precede the gates")

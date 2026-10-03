@@ -905,8 +905,12 @@ def _trigger_watch() -> None:
                                 and store.should_alert(
                                     f"pressbrk:{a['symbol']}:"
                                     f"{a['side']}", 6 * 3600)):
-                            tg.send(_fmt_press_break(a, px, _pb_min)
-                                    + _kr_note(a))
+                            # 📵 MUTED (user 2026-10-04: "remove ...
+                            # Pressed and broke"). Record, desk tier
+                            # and board stay. Revert: _MUTE_R9 ->
+                            # tg.send.
+                            _MUTE_R9(_fmt_press_break(a, px, _pb_min)
+                                     + _kr_note(a))
                         print(f"[trigger] 🔶💥 pressed-first break "
                               f"{a['base']} {a['side']} after "
                               f"{_pb_min:.0f} min", flush=True)
@@ -1450,6 +1454,139 @@ def _fmt_elite_early(p) -> str:
             f"high-conviction entry_")
 
 
+# ---------------------------------------------------------------------------
+# 💎🏆 ELITE A-GRADE + SEATED-65 (user 2026-10-04: "ok build this, deploy on
+# my telegram notification as well and also make it part of the decision
+# desk ... seated + 65+ conf band as well but no telegram notification,
+# first it needs to prove").
+# The 2026-10-03 study joined every elite conviction desk trade (Sep 1-28,
+# 830 clean) to the Top Conviction board's eight confirmed seats (board 2h
+# before .. 30m after the fire):
+#   A-GRADE   = seated + 🎯 conf >= 65 + LONG + TP1 within 1.6R
+#               68.6% / +0.493R over 35, every third green, still positive
+#               after dropping the 3 best days (+0.16R) and coins (+0.29R).
+#   SEATED-65 = seated + conf >= 65, any side / target: 59.3% / +0.326R
+#               over 59 (thirds +++). RECORDS ONLY — no bell until proven.
+#   Excluded shapes: unseated MAX 32% / -0.08R, targets over 1.6R 19%
+#   win, shorts 39% / -0.09R.
+# Replay (Aug 24-Sep 13) holds 7 A-grade fires and they lost, so the bell
+# says "unproven" and the forward ledger (tier elite_agrade) is the judge.
+# ---------------------------------------------------------------------------
+_SEATS: dict = {}
+SEAT_MEMORY_S = 2 * 3600          # the study's "board 2h before the fire"
+AGRADE_CONF = 65.0
+AGRADE_MAX_RR = 1.6
+
+
+def _seats_update(tn_hot_list, now=None):
+    """Remember the Top Conviction board's eight seats (confirmed TAKE
+    NOW + HOT, top 8 by score — the same list the desk's top_conviction
+    tier records) per coin+side for SEAT_MEMORY_S."""
+    now = time.time() if now is None else now
+    try:
+        top = sorted(list(tn_hot_list or []),
+                     key=lambda p: -float(p.get("score") or 0))[:8]
+    except Exception:
+        top = []
+    for p in top:
+        k = (p.get("symbol"), (p.get("side") or "").upper())
+        _SEATS[k] = {"ts": now, "score": p.get("score"),
+                     "lanes": p.get("lanes")}
+    for k in [k for k, v in list(_SEATS.items())
+              if now - float(v.get("ts") or 0) > SEAT_MEMORY_S]:
+        _SEATS.pop(k, None)
+
+
+def _seat_of(symbol, side, now=None):
+    """The remembered seat for coin+side, or None once it is older than
+    SEAT_MEMORY_S."""
+    now = time.time() if now is None else now
+    v = _SEATS.get((symbol, (side or "").upper()))
+    if v and now - float(v.get("ts") or 0) <= SEAT_MEMORY_S:
+        return v
+    return None
+
+
+def _plan_rr(p):
+    """TP1 distance in R of the plan's own stop, or None."""
+    try:
+        e = float(p.get("entry") or 0)
+        s = float(p.get("stop") or 0)
+        t = float(p.get("tp1") or 0)
+        if e and s and t and abs(e - s) > 0:
+            return abs(t - e) / abs(e - s)
+    except Exception:
+        pass
+    return None
+
+
+def _elite_grade(p, conf, seat):
+    """'A' / 'S65' / None for an elite conviction card — see the block
+    comment above. Pure: no I/O, tested in .agrade_test.py. Garbage conf
+    (outside 0-100, the 0917 lesson) reads as unknown."""
+    if not seat or conf is None:
+        return None
+    try:
+        c = float(conf)
+        if not 0 <= c <= 100 or c < AGRADE_CONF:
+            return None
+    except (TypeError, ValueError):
+        return None
+    rr = _plan_rr(p)
+    if ((p.get("side") or "").upper() == "LONG" and rr is not None
+            and rr <= AGRADE_MAX_RR):
+        return "A"
+    return "S65"
+
+
+def _grade_sig(p, conf, seat, grade):
+    """Desk / record payload for a graded elite fire."""
+    return {"symbol": p.get("symbol"),
+            "base": p.get("base") or str(p.get("symbol")).replace("USDT", ""),
+            "side": p.get("side"), "entry": p.get("entry"),
+            "stop": p.get("stop"), "tp1": p.get("tp1"), "tp2": p.get("tp2"),
+            "conf": conf, "heat": p.get("heat"), "tier": p.get("tier"),
+            "score": p.get("score"), "appr": p.get("appr"),
+            "seat_score": seat.get("score"), "seat_lanes": seat.get("lanes"),
+            "rr": _plan_rr(p), "grade": grade}
+
+
+def _agrade_banner(seat, conf, rr):
+    """Headline block that LEADS an A-grade elite buzz. The study numbers
+    stay; the live forward ledger joins once it has 10 closes."""
+    fwd = ""
+    try:
+        rec = next((x for x in shadow_trader.tier_records()
+                    if x.get("tier") == "elite_agrade"), None)
+        if rec and int(rec.get("n") or 0) >= 10:
+            fwd = (f" Forward ledger so far: {int(rec['n'])} closed · "
+                   f"{float(rec['win_pct']):.0f}% · "
+                   f"{float(rec['net_r']):+.1f}R net.")
+    except Exception:
+        fwd = ""
+    bits = []
+    try:
+        if seat.get("score") is not None:
+            bits.append(f"score {float(seat['score']):.0f}")
+        if seat.get("lanes") is not None:
+            bits.append(f"{int(seat['lanes'])} lanes")
+    except Exception:
+        pass
+    seat_txt = ("🏆 seated on Top Conviction"
+                + (f" ({', '.join(bits)})" if bits else ""))
+    try:
+        conf_txt = f"{float(conf):.0f}"
+    except Exception:
+        conf_txt = "?"
+    rr_txt = f"{rr:.2f}R" if rr is not None else "?"
+    return ("💎🏆 *ELITE A-GRADE — the measured best cell*\n"
+            f"_{seat_txt} · 🎯 conf {conf_txt} · LONG · TP1 {rr_txt} away. "
+            "Desk Sep 1-28: 68.6% / +0.49R over 35 fires, every third "
+            "green, still positive after the best-days and best-coins "
+            "cuts. Replay unproven (7 fires) — size as a normal elite "
+            f"trade until the forward ledger speaks.{fwd}_\n")
+
+
 def _fmt_elite_conv(p) -> str:
     """💎 every MAX/HIGH elite conviction fire (user 2026-08-15:
     "approved or unapproved, high and max should be notified")."""
@@ -1837,7 +1974,19 @@ def cycle() -> None:
                               and _rr9 is not None and _rr9 < 1.2)
                 except Exception:
                     _star9 = False
-                if not _star9:
+                # 💎🏆 A-GRADE READ (user 2026-10-04): seated on Top
+                # Conviction + conf>=65 + LONG + TP1 within 1.6R. Like
+                # the star it is its own stream: it skips the plain
+                # gates (its conf is >=65 by definition, so only the
+                # unapproved-needs-kronos gate is bypassed), carries
+                # its own alert key and LEADS the buzz with its banner.
+                # Desk records for elite_agrade / elite_seated65 are
+                # taken in the ✳️ desk tier loop from the FULL elite
+                # list, not here (buzz and ledger stay independent).
+                _seat9 = _seat_of(_pmx.get("symbol"), _pmx.get("side"))
+                _grade9 = _elite_grade(_pmx, _cf9, _seat9)
+                _ag9 = _grade9 == "A"
+                if not (_star9 or _ag9):
                     # ── the PLAIN elite buzz gates (stars exempt) ──
                     if _cf9 is not None and _cf9 < 40:
                         continue
@@ -1866,7 +2015,8 @@ def cycle() -> None:
                     if not _pmx.get("appr") and not _kr_cache_agree(
                             _pmx.get("symbol"), _pmx.get("side")):
                         continue
-                _key9 = ("elitestar" if _star9 else "eliteconv")
+                _key9 = ("elitestar" if _star9
+                         else "eliteagrade" if _ag9 else "eliteconv")
                 if store.should_alert(
                         f"{_key9}:{_pmx['symbol']}:{_pmx['side']}",
                         int(1.5 * 3600)):   # 1.5h (user 2026-09-19)
@@ -1934,6 +2084,14 @@ def cycle() -> None:
                             "fires ignite it runs 72-82%, silent "
                             "ones are the losers. The ⏱ 1H verdict "
                             "follows this buzz._\n" + _msg9)
+                    # 💎🏆 A-GRADE BANNER leads everything (user
+                    # 2026-10-04) — single buzz, no double bell.
+                    if _ag9:
+                        try:
+                            _msg9 = _agrade_banner(
+                                _seat9, _cf9, _plan_rr(_pmx)) + _msg9
+                        except Exception:
+                            pass
                     # 🕐 BUZZ CLOCK (user 2026-10-01: "add the times ...
                     # if it's a long buzz a tagline below accordingly,
                     # if short its own tagline — elite conviction and
@@ -2025,6 +2183,7 @@ def cycle() -> None:
                 print("  elite buzz error:", _mx_exc, flush=True)
 
     tn_hot = [p for p in takenow if p.get("hot")]
+    _seats_update(tn_hot)   # 🏆 seat memory for the elite A-grade read
     elite_early = [p for p in tn_hot
                    if p.get("tier") in ("MAX", "HIGH")
                    and int(p.get("lanes") or 0) >= 2]
@@ -3201,6 +3360,20 @@ def cycle() -> None:
             if _pe.get("requal"):
                 _ec_buzz.append(_pe)
                 continue
+            # 💎🏆 an unapproved A-GRADE fire buzzes without the kronos
+            # ticket (user 2026-10-04; the study did not condition on
+            # approval). Conf is stamped here so the grade can be read.
+            _sa3 = _seat_of(_pe["symbol"], _pe["side"])
+            if _sa3 is not None:
+                if _pe.get("conf") is None:
+                    try:
+                        _pe["conf"] = best_board.confidence(
+                            _pe.get("symbol"), _pe.get("side"))
+                    except Exception:
+                        pass
+                if _elite_grade(_pe, _pe.get("conf"), _sa3) == "A":
+                    _ec_buzz.append(_pe)
+                    continue
             _kv3 = _kr_get(_pe["symbol"], _pe["side"])
             if not _kv3 and _ec_extra[0] < 2:
                 _ec_extra[0] += 1
@@ -3312,6 +3485,18 @@ def cycle() -> None:
         # kronos down → the rescue can't be judged; buzz the approved
         # elite conviction fires so the stream never goes fully dark.
         _ec_buzz = [p for p in _ec_mh if p.get("appr")]
+        for _pe in _ec_mh:      # 💎🏆 unapproved A-grade still buzzes
+            _sa4 = _seat_of(_pe["symbol"], _pe["side"])
+            if _pe.get("appr") or _sa4 is None:
+                continue
+            if _pe.get("conf") is None:
+                try:
+                    _pe["conf"] = best_board.confidence(
+                        _pe.get("symbol"), _pe.get("side"))
+                except Exception:
+                    pass
+            if _elite_grade(_pe, _pe.get("conf"), _sa4) == "A":
+                _ec_buzz.append(_pe)
         for _pe in _ec_buzz:
             try:
                 _pe["conf"] = best_board.confidence(
@@ -3673,6 +3858,33 @@ def cycle() -> None:
         # still negative past ~50 closed — final record -22.6R/110).
         # Signals stay recorded above for the archive; the desk stops
         # taking them. Re-add here only if a NEW validation earns it.
+        # 💎🏆 A-GRADE + SEATED-65 desk tiers (user 2026-10-04): read
+        # off the FULL elite list (approved or not, buzzed or not) so
+        # the ledger judges the exact cells the study measured.
+        # open_from_signal dedupes one open per (tier, symbol).
+        _ag_list, _s65_list = [], []
+        for _pq in _ec_mh:
+            try:
+                _sq = _seat_of(_pq.get("symbol"), _pq.get("side"))
+                if _sq is None:
+                    continue
+                if _pq.get("conf") is None:
+                    try:
+                        _pq["conf"] = best_board.confidence(
+                            _pq.get("symbol"), _pq.get("side"))
+                    except Exception:
+                        pass
+                _gq = _elite_grade(_pq, _pq.get("conf"), _sq)
+                if not _gq:
+                    continue
+                _gs = _grade_sig(_pq, _pq.get("conf"), _sq, _gq)
+                _s65_list.append(_gs)
+                store.record_signal("elite_seated65", _gs)
+                if _gq == "A":
+                    _ag_list.append(_gs)
+                    store.record_signal("elite_agrade", _gs)
+            except Exception as _gq_exc:
+                print("  elite grade error:", _gq_exc, flush=True)
         _tiers = (("top_conviction", _topc),
                   # 💎 ELITE CONVICTION desk tier (user 2026-08-31:
                   # "confidence score should be recorded for elite
@@ -3685,6 +3897,8 @@ def cycle() -> None:
                   # dedupes one open per (tier, symbol), so a card
                   # persisting across cycles is taken once.
                   ("elite_conv", _ec_mh),
+                  ("elite_agrade", _ag_list),      # 💎🏆 proving
+                  ("elite_seated65", _s65_list),   # records only
                   ("best_board", best),
                   ("apex", apex), ("takenow_hot", tn_hot),
                   ("elite_early", elite_early),
@@ -3959,8 +4173,11 @@ def cycle() -> None:
             # 🔊 UNMUTED (user 2026-09-13: "duo 85+ bring it back") —
             # the conf>=85 duo cell only (named pairs stay silent via
             # their own keys). Revert: tg.send -> _MUTE_R9.
-            ok, _ = (tg.send(_du_msg) if _du_key == "duo85"
-                     else _MUTE_R9(_du_msg))
+            # 📵 MUTED (user 2026-10-04: "remove these from buzzes:
+            # DUO 85+"). Desk tier + demo seat feed unchanged.
+            # Revert: tg.send(_du_msg) if _du_key == "duo85" else
+            # _MUTE_R9(_du_msg).
+            ok, _ = _MUTE_R9(_du_msg)
             n_alerts += 1 if ok else 0
             try:
                 _du_sig = {"symbol": _du["symbol"], "base": _du_b,

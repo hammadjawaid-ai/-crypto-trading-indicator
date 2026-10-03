@@ -44,7 +44,7 @@ i_ts = W.find('store.record_signal("trig_strong", _sig_t)')
 blk = W[i_pb - 2500:i_pb + 900]
 if not (0 < i_pb < i_ts):
     fails.append("press_break record not wired before the trig_strong record")
-for need in ('shadow_trader.open_from_signal(\n                            "press_break", _sig_pb, px)', 'f"pressbrk:{a[\'symbol\']}:"', "tg.send(_fmt_press_break(a, px, _pb_min)", "+ _kr_note(a))", '_src_pb[:1] in ("💎", "⚡", "🔥")'):
+for need in ('shadow_trader.open_from_signal(\n                            "press_break", _sig_pb, px)', 'f"pressbrk:{a[\'symbol\']}:"', "_MUTE_R9(_fmt_press_break(a, px, _pb_min)", "+ _kr_note(a))", '_src_pb[:1] in ("💎", "⚡", "🔥")'):
     if need not in blk:
         fails.append(f"break wiring missing {need[:40]!r}")
 if '"pressed": bool(a.get("pressed")),' not in W or '"pressed_at": a.get("pressed_at")}' not in W:
