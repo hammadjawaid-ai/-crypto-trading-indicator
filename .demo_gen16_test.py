@@ -55,9 +55,10 @@ for fn in (r"F:\Trading Indicator\agent_worker.py",
 
 import demo_account as da
 import time
+da._clock = lambda: 1791108000.0   # GEN 16.5: pin 15:00 PKT (🟢) so the time gate stays open here
 
 FOUR = {"moonshot", "strong_trigger", "elite_star", "early_movers",
-        "early_lane", "strig_kr"}          # GEN 16.4: six streams
+        "early_lane", "strig_kr", "press_break"}   # GEN 16.5: seven
 INBAND = {"moonshot": 60}                  # conf that sits in-band
 assert da.GEN == 16
 assert da.START_BAL == 2000.0
@@ -79,7 +80,8 @@ assert da.RIDE_SRC == set()
 assert da.HEAT_CAP == 0.35 and da.DAY_MAX_LOSS_PCT == 0.15
 assert da.DAY_MAX_GAIN == float("inf")
 assert not hasattr(da, "RISK_PCT")
-assert (da.CLASS_W["elite_star"] > da.CLASS_W["strong_trigger"]
+assert (da.CLASS_W["press_break"] > da.CLASS_W["elite_star"]
+        > da.CLASS_W["strong_trigger"]
         > da.CLASS_W["moonshot"] > da.CLASS_W["early_lane"]
         > da.CLASS_W["strig_kr"] > da.CLASS_W["early_movers"])
 fails = []

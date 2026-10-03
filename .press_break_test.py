@@ -41,7 +41,7 @@ if not (0 < i_stamp < i_cont < i_vk):
 # wiring: pressed-first break records + opens + bells, before the trig_strong record
 i_pb = W.find('store.record_signal("press_break", _sig_pb)')
 i_ts = W.find('store.record_signal("trig_strong", _sig_t)')
-blk = W[i_pb - 2500:i_pb + 900]
+blk = W[i_pb - 2500:i_pb + 1600]
 if not (0 < i_pb < i_ts):
     fails.append("press_break record not wired before the trig_strong record")
 for need in ('shadow_trader.open_from_signal(\n                            "press_break", _sig_pb, px)', 'f"pressbrk:{a[\'symbol\']}:"', "_MUTE_R9(_fmt_press_break(a, px, _pb_min)", "+ _kr_note(a))", '_src_pb[:1] in ("💎", "⚡", "🔥")'):

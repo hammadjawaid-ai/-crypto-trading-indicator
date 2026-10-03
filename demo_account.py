@@ -253,7 +253,7 @@ ELITE_FAMILY_CAP = 0
 ROTATE_MAX = 0   # GEN 9 user order: rotation REMOVED
 SMART_EXIT_SKIP: set = {"moonshot", "strong_trigger", "elite_star",
                         "early_movers", "early_lane",
-                        "strig_kr"}                        # GEN 16.4
+                        "strig_kr", "press_break"}         # GEN 16.5
 # GEN 12: kronos smart-exit off for all. Exits: SL-or-TP1-bank-100%
 # everywhere EXCEPT ⭐ elite_star's near-TP bank (own block) and
 # 💎🔮 elite_kr's RIDE (half-bank TP1 + BE + trail, in the TP1
@@ -344,7 +344,13 @@ MIN_RANK = 85.0  # GEN 9: anyone can take any place
 # the PRIORITY THREE in his written order, then the three spare-seat
 # streams. GEN stays 16 on purpose so the balance and history carry
 # on.
-CLASS_W = {"elite_star": 106,     # 1. ⭐ conf 40-54 / 65+   PRIORITY
+# 🔶💥 GEN 16.5 (user 2026-10-04: "add PRESSED & BROKE to priority 1 but
+# only longs no shorts ... timings should matter"): the pressed-first
+# break takes the TOP rung, longs only, any conf, no time gate; the
+# rest of the ladder is unchanged below it. GEN stays 16 (balance and
+# history carry on).
+CLASS_W = {"press_break": 107,    # 1. 🔶💥 PRESSED & BROKE, LONGS ONLY (GEN 16.5)
+           "elite_star": 106,     # 2. ⭐ conf 40-54 / 65+   PRIORITY
            "strong_trigger": 105,  # 2. 💥 conf >=65           PRIORITY
            "moonshot": 104,       # 3. 🚀 conf 55-64          PRIORITY
            "early_lane": 103,     # 4. ⭐🚀 PRIME ENTRY conf >=85 (spare)
@@ -360,6 +366,94 @@ CLASS_W = {"elite_star": 106,     # 1. ⭐ conf 40-54 / 65+   PRIORITY
 # opens.
 SPARE_RESERVE: dict = {"early_lane": 5, "strig_kr": 5,
                        "early_movers": 5}
+# 🔶💥 GEN 16.5 (user 2026-10-04: "add PRESSED & BROKE to priority 1 but
+# only longs no shorts"): an armed ⚡/🔥/💎 number that was PRESSED
+# (price within 0.4% of it for a while) before it broke, from the
+# worker's _trigger_watch; desk tier press_break (17 closed, 71%,
+# +3.6R at wiring — young, proving). LONG only, any conf, no spare
+# reserve, no time gate (his call), flat 10x like every lane.
+LONG_ONLY: set = {"press_break"}
+# ⏰ GEN 16.5 TIME GATE (user 2026-10-04: "timings should matter — we
+# will take long trades as per our finding for elite star with yellow
+# and green timings not red timings; same goes for early lane and
+# early movers and strong trigger but not pressed and broke ... and
+# for shorts whichever timings do that accordingly").
+# LONGS — his order: the PKT clock law on the BTC pulse, 🟢 13-21 ·
+# 🟡 05-13 open, 🔴 21-05 closed (star longs 22:00 PKT 17% / -0.61R,
+# 01-05 ~0R, 21-01 unstable desk vs replay), applied to all five.
+# HONEST NOTE for the record (desk 09-01..09-28): strong trigger
+# longs were green in every window incl. 21-01 +0.17R n=156 and
+# 01-05 +0.21R n=123, and early lane / movers longs were +0.23 /
+# +0.28R at 01-05 — the 🔴 law is the star's, applied by his call.
+# SHORTS — per stream from the same desk ledger, closing only the
+# proven-red 4h windows (avg <= -0.10R with n >= 15, the buzz-clock
+# 🔴 rule; star also uses the desk+replay clock study):
+#   elite_star    shorts best 17-21 (62% / +0.26R n=24); red 09-13,
+#                 21-01, 01-05 (both sources)      -> those 3 closed
+#   strong_trig   shorts -0.10R overall; 17-21 -0.29R n=78 and
+#                 09-13 -0.18R n=48 red            -> those 2 closed
+#   strig_kr      inherits its parent (own cells n=12-18, thin)
+#   early lane /  no proven-red window (17-21 -0.05R n=116 is flat;
+#   early movers  21-01 +0.33R n=50 is their best) -> nothing closed
+# Shorts and longs of PRESSED & BROKE and moonshot are untouched
+# (moonshot is green all day by its own finding). Momentum
+# re-entries are gated too: a seat taken at 23:00 is taken at 23:00.
+TIME_WINDOWS = ("05-09", "09-13", "13-17", "17-21", "21-01", "01-05")
+_RED_LONG = {"21-01", "01-05"}
+TIME_CLOSED: dict = {
+    ("elite_star", "LONG"): set(_RED_LONG),
+    ("strong_trigger", "LONG"): set(_RED_LONG),
+    ("strig_kr", "LONG"): set(_RED_LONG),
+    ("early_lane", "LONG"): set(_RED_LONG),
+    ("early_movers", "LONG"): set(_RED_LONG),
+    ("elite_star", "SHORT"): {"09-13", "21-01", "01-05"},
+    ("strong_trigger", "SHORT"): {"09-13", "17-21"},
+    ("strig_kr", "SHORT"): {"09-13", "17-21"},
+    ("early_lane", "SHORT"): set(),
+    ("early_movers", "SHORT"): set(),
+}
+TIME_GATED: set = {s for s, _ in TIME_CLOSED}
+PKT_OFFSET_S = 5 * 3600
+_clock = time.time                # tests pin the clock here
+
+
+def pkt_hour(now=None) -> int:
+    t = float(_clock() if now is None else now)
+    return int((t + PKT_OFFSET_S) // 3600 % 24)
+
+
+def pkt_window4(now=None) -> str:
+    """The 4h PKT window label the clock study uses."""
+    h = pkt_hour(now)
+    if 5 <= h < 9:
+        return "05-09"
+    if 9 <= h < 13:
+        return "09-13"
+    if 13 <= h < 17:
+        return "13-17"
+    if 17 <= h < 21:
+        return "17-21"
+    return "21-01" if h >= 21 or h < 1 else "01-05"
+
+
+def pkt_window(now=None) -> str:
+    """The pulse colour for LONGS: green 13-21 · yellow 05-13 · red
+    21-05 (PKT)."""
+    h = pkt_hour(now)
+    if 13 <= h < 21:
+        return "green"
+    if 5 <= h < 13:
+        return "yellow"
+    return "red"
+
+
+def time_gate_ok(src, side, now=None) -> bool:
+    """False only when (stream, side) has the current 4h PKT window
+    in its TIME_CLOSED set."""
+    closed = TIME_CLOSED.get((src, (side or "").upper()))
+    if not closed:
+        return True
+    return pkt_window4(now) not in closed
 # 🎯 CONF-BAND SEAT GATES (user 2026-09-07, read off the live desk
 # ledger): a stream's candidate takes a seat ONLY when its conf falls
 # in a band that measured green on its own closed trades. Bands are
@@ -430,7 +524,8 @@ def lev_for(src: str, conf=None, burst=None) -> float:
     (The GEN 15 star 6x/8x-by-burst ladder is in git at 2a56c58.)"""
     return {"moonshot": 10.0, "strong_trigger": 10.0,
             "elite_star": 10.0, "early_movers": 10.0,
-            "early_lane": 10.0, "strig_kr": 10.0}.get(src, LEV_GEN13)
+            "early_lane": 10.0, "strig_kr": 10.0,
+            "press_break": 10.0}.get(src, LEV_GEN13)      # GEN 16.5
 
 
 def load() -> dict:
@@ -480,6 +575,8 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
             side = (p.get("side") or "").upper()
             if not sym or side not in ("LONG", "SHORT"):
                 continue
+            if name in LONG_ONLY and side != "LONG":
+                continue        # 🔶 GEN 16.5: PRESSED & BROKE longs only
             # 🏦 B-stock money gate (user 2026-08-17: "give them real
             # size when validated") — tokenized symbols get NO demo
             # money until their cohort validation flips the flag.
@@ -580,7 +677,8 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
     return out
 
 
-def try_open(state: dict, cands: list, live_fn, active=None):
+def try_open(state: dict, cands: list, live_fn, active=None,
+             now=None):
     """Fill free slots with the best in-zone candidates. Real-account
     rules: seat caps, one per coin, margin sized off the CURRENT
     balance, entry fee paid immediately.
@@ -599,7 +697,8 @@ def try_open(state: dict, cands: list, live_fn, active=None):
     # trades to be taken if that hits"): realized P&L over the last
     # 24h decides whether NEW seats open. Open positions always keep
     # their SL/TP — the rails stop entries, never management.
-    _day0 = time.time() - 24 * 3600
+    _t = float(_clock() if now is None else now)   # GEN 16.5 clock
+    _day0 = _t - 24 * 3600
     _day_pnl = sum(float(c9.get("pnl") or 0)
                    for c9 in state.get("closed") or []
                    if float(c9.get("closed_at") or 0) >= _day0)
@@ -663,6 +762,8 @@ def try_open(state: dict, cands: list, live_fn, active=None):
                                 # cards sorted after it
         if c["symbol"] in held:
             continue
+        if not time_gate_ok(c["src"], c["side"], _t):
+            continue            # ⏰ GEN 16.5: 🔴 21-05 PKT, long seat closed
         _res = SPARE_RESERVE.get(c["src"])
         if _res is not None and len(state["open"]) >= _slot_cap - _res:
             continue            # 🪑 spare-only stream: seats kept free
@@ -769,7 +870,7 @@ def try_open(state: dict, cands: list, live_fn, active=None):
                "src": c["src"], "score": c["score"],
                "agree": c.get("agree", 1),
                "srcs": c.get("srcs", c["src"]),
-               "opened_at": time.time(), "fees": fee_in,
+               "opened_at": _t, "fees": fee_in,
                "tp1_banked": 0.0, "be_set": False, "peak": live}
         state["balance"] -= fee_in
         state["open"].append(pos)

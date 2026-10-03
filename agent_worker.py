@@ -296,6 +296,7 @@ _DEMO_CONFIRMS: list = []
 # 🎮 GEN 11 (user 2026-09-10): 💎⭐ elite star fires are the demo's
 # TOP priority seat. Cycle-thread only; TTL-drained like the rest.
 _DEMO_STARS: list = []
+_DEMO_PB: list = []     # 🔶💥 GEN 16.5 pressed-first breaks, LONGS ONLY
 # 🗞 NEWS RADAR runs off the main loop (its RSS pass takes ~16-18s);
 # news_radar holds its own lock, this just avoids piling up threads.
 _NR = {"thread": None, "syms": [], "syms_t": 0.0}
@@ -899,6 +900,14 @@ def _trigger_watch() -> None:
                                    "tp1": a["tp1"],
                                    "tp2": a.get("tp2")}
                         store.record_signal("press_break", _sig_pb)
+                        # 🎮 GEN 16.5 (user 2026-10-04): priority-1
+                        # demo seat, LONGS ONLY — same plan as the
+                        # desk row, conf as stamped on the armed level.
+                        if (a.get("side") or "").upper() == "LONG":
+                            _DEMO_PB.append(dict(_sig_pb,
+                                                 src="press_break",
+                                                 fired_at=_now))
+                            del _DEMO_PB[:-12]
                         shadow_trader.open_from_signal(
                             "press_break", _sig_pb, px)
                         if (not _bstock_quiet(a["symbol"])
@@ -4650,7 +4659,8 @@ def cycle() -> None:
                          ("elite_star", "elite_star"),
                          ("early_movers", "early_movers"),
                          ("early_lane", "early_lane"),
-                         ("strig_kr", "trig_strong_kr")):
+                         ("strig_kr", "trig_strong_kr"),
+                         ("press_break", "press_break")):   # GEN 16.5
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_sh)["net_r"]
             except Exception:
@@ -4733,6 +4743,8 @@ def cycle() -> None:
                              <= DEMO_FIRE_TTL_S]
         _DEMO_STARS[:] = [d for d in _DEMO_STARS
                           if _now - d["fired_at"] <= DEMO_FIRE_TTL_S]
+        _DEMO_PB[:] = [d for d in _DEMO_PB
+                       if _now - d["fired_at"] <= DEMO_FIRE_TTL_S]
         # 💎🔮 elite_kr candidates: live elite MAX/HIGH cards whose
         # coin+side has a fresh KR-STRONG/TRIG×KR fire behind it
         _dz_ekr = []
@@ -4981,6 +4993,15 @@ def cycle() -> None:
             return out
 
         _dz_pools = {
+            # 🔶💥 GEN 16.5 (user 2026-10-04): PRESSED & BROKE longs
+            # lead the ladder (priority 1). Fed by _trigger_watch's
+            # pressed-first break record (LONG filter at the feed,
+            # LONG_ONLY guard again in rank_candidates).
+            "press_break": ([dict(d) for d in _DEMO_PB
+                             if d.get("entry") and d.get("stop")
+                             and d.get("tp1")]
+                            + [d for d in _dz_reo
+                               if d["src"] == "press_break"]),
             # 🚀 GEN 16.4 (user 2026-09-28): moonshot fires take the
             # top of the ladder — conf stamped by _g16 exactly as the
             # desk stamps it, so the 55-64 gate reads the measured
@@ -5080,8 +5101,9 @@ def cycle() -> None:
                              if _rec8.get("src") in
                              ("moonshot", "strong_trigger",
                               "elite_star", "early_movers",
-                              "early_lane", "strig_kr")
-                             else "strong_trigger"),   # GEN 16.4
+                              "early_lane", "strig_kr",
+                              "press_break")
+                             else "strong_trigger"),   # GEN 16.5
                      "chain": int(_rp8.get("chain") or 0) + 1,
                      "fired_at": _now})
                 print(f"[gen8] 🔁 momentum re-entry queued "
