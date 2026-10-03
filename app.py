@@ -3607,6 +3607,101 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
     except Exception as _pb_exc:
         st.caption(f"pressing board unavailable: {_pb_exc}")
 
+    # 🌊 AFTER THE SHOCK — the 24/7 measuring board (user 2026-10-03).
+    # Reads the worker's .shock_watch.json: the current BTC shock, its
+    # phase, the live re-ignition leaderboard while the window is open,
+    # and the shock_reignite forward ledger next to the replay benchmark.
+    st.markdown("#### 🌊 AFTER THE SHOCK — who catches momentum again, "
+                "measured live")
+    st.caption("When BTC dumps ≥1.5% from its 12h high (or pumps ≥1.5% and "
+               "gives it back), alts bleed for ~2h after BTC calms. From "
+               "then, for 6h, every coin that shows +1.5% one-hour strength "
+               "over BTC on 1.5× volume and a new post-shock high is logged "
+               "as a RE-IGNITION and shadow-taken (stop under its shock "
+               "low, TP1 1.5R). Replay on 406 shocks: these picks beat a "
+               "random coin by 0.2–0.4% but still averaged −0.2% a trade "
+               "(~40% win) — so this is a measuring instrument, not a "
+               "signal. The live ledger below is the judge.")
+    try:
+        import json as _json_sw
+        import shock_watch as _sw_mod
+        try:
+            with open(str(config.state_path(".shock_watch.json")),
+                      encoding="utf-8") as _f_sw:
+                _sw = _json_sw.load(_f_sw)
+        except Exception:
+            _sw = {}
+        _sw_age = time.time() - float(_sw.get("ts") or 0)
+        _sw_cur = _sw.get("shock") or {}
+        if _sw_cur:
+            _ph = _sw_cur.get("phase", "")
+            _pc = {"window": "#ffd54a", "waiting": "#9aa7c7",
+                   "bleeding": "#ff8a65", "closed": "#8b93a7"}.get(_ph, "#8b93a7")
+            st.markdown(
+                f"<div style='background:rgba(64,196,255,0.06);border:1px "
+                f"solid rgba(64,196,255,0.25);border-radius:10px;padding:"
+                f"8px 13px;margin:4px 0'>🌊 <b>{_sw_mod.describe(_sw)}</b> · "
+                f"<span style='color:{_pc};font-weight:800'>{_ph.upper()}"
+                f"</span> <span style='color:#8b93a7;font-size:0.78rem'>"
+                f"(updated {_sw_age/60:.0f} min ago)</span></div>",
+                unsafe_allow_html=True)
+            _bd = _sw.get("board") or []
+            if _bd:
+                st.markdown("**live leaderboard — strength over BTC in the "
+                            "last hour (🔥 = re-ignition logged):**")
+                for _r in _bd[:15]:
+                    _fc = "#2ed47a" if _r.get("rel_1h", 0) > 0 else "#ff5c5c"
+                    st.markdown(
+                        f"<span style='font-size:0.8rem;color:#9aa7c7'>· "
+                        f"<b>{str(_r.get('symbol', '')).replace('USDT', '')}"
+                        f"</b> 1h vs BTC <b style='color:{_fc}'>"
+                        f"{_r.get('rel_1h', 0):+.2f}%</b> · vol "
+                        f"{_r.get('vol_x', 0):.1f}× · since its low "
+                        f"{_r.get('since_low', 0):+.2f}%"
+                        f"{' · new high' if _r.get('new_high') else ''}"
+                        f"{' · 🔥 logged' if _r.get('fired') else ''}</span>",
+                        unsafe_allow_html=True)
+        else:
+            st.caption("· no BTC shock in the last 24h — the watch is armed")
+        import sqlite3 as _sq_sw
+        _swc = _sq_sw.connect(f"file:{_ws_c.DB_PATH}?mode=ro", uri=True)
+        try:
+            _sw_rec = _swc.execute(
+                "SELECT COUNT(*), SUM(CASE WHEN pnl_r>0 THEN 1 ELSE 0 END), "
+                "COALESCE(SUM(pnl_r),0) FROM shadow_trades WHERE "
+                "tier='shock_reignite' AND status='CLOSED' AND "
+                "abs(entry-stop0)/entry>=0.005").fetchone()
+            _sw_open = _swc.execute(
+                "SELECT symbol, entry, stop, tp1, opened_at FROM shadow_trades "
+                "WHERE tier='shock_reignite' AND status='OPEN' ORDER BY "
+                "opened_at DESC LIMIT 10").fetchall()
+        finally:
+            _swc.close()
+        _n9, _w9, _r9 = (int(_sw_rec[0] or 0), int(_sw_rec[1] or 0),
+                         float(_sw_rec[2] or 0))
+        if _n9:
+            _c9 = "#2ed47a" if _r9 > 0 else "#ff5c5c"
+            st.markdown(
+                f"**forward ledger (the judge):** {_n9} closed · win "
+                f"{_w9 / _n9 * 100:.0f}% · <b style='color:{_c9}'>{_r9:+.2f}R"
+                f"</b> ({_r9 / _n9:+.3f}R a trade) · replay benchmark: 40% "
+                f"win, −0.2% a trade, random coin −0.5%",
+                unsafe_allow_html=True)
+        else:
+            st.caption("· re-ignition ledger: no closes yet — logging "
+                       "started with this build")
+        if _sw_open:
+            st.markdown("**open re-ignition trades:**")
+            for _sym, _e, _st9, _t1, _oa in _sw_open:
+                st.markdown(
+                    f"<span style='font-size:0.8rem;color:#9aa7c7'>· <b>"
+                    f"{_sym.replace('USDT', '')}</b> entry {_e:g} · SL "
+                    f"{_st9:g} · TP1 {_t1:g} · "
+                    f"{(time.time() - _oa) / 3600:.1f}h</span>",
+                    unsafe_allow_html=True)
+    except Exception as _sw_exc:
+        st.caption(f"shock board unavailable: {_sw_exc}")
+
     # 🕵️ OI LOAD moved to its OWN board (user 2026-08-28 correction:
     # "it should not be a part of it, treated separately") — see
     # _oi_load_board(), rendered after the pre-burst board below.
@@ -3678,6 +3773,9 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                                  "lanes live, proving)",
                    "comeback_f": "🌊🪂 FLUSH COMEBACK (BTC-flush "
                                  "dip, the measured cell)",
+                   "shock_reignite": "🌊 SHOCK RE-IGNITION (post-shock "
+                                     "momentum, records only — replay "
+                                     "-0.2%/trade)",
                    "press_break": "🔶💥 PRESSED & BROKE (armed number "
                                   "pressed within 0.4% before the break "
                                   "— vs gap-through, proving)",

@@ -24,6 +24,7 @@ if hasattr(sys.stdout, "buffer"):
 import best_board
 import binance_client
 import btc2h
+import shock_watch
 import buzz_clock
 import news_radar
 import btc_outlook
@@ -298,6 +299,7 @@ _DEMO_STARS: list = []
 # 🗞 NEWS RADAR runs off the main loop (its RSS pass takes ~16-18s);
 # news_radar holds its own lock, this just avoids piling up threads.
 _NR = {"thread": None, "syms": [], "syms_t": 0.0}
+_SW = {"thread": None}   # 🌊 shock watch runs off the main loop too
 
 
 def _kr_cache_agree(sym: str, side: str) -> bool:
@@ -3538,6 +3540,37 @@ def cycle() -> None:
             _NR["thread"].start()
     except Exception as _nr_exc2:
         print("  news_radar start error:", _nr_exc2, flush=True)
+
+    # 🌊 SHOCK WATCH (user 2026-10-03: "catch the coins catching momentum
+    # again after a BTC dump / pump-then-dump ... agents measuring 24/7,
+    # board, validate"): the replay said the re-ignition detector sorts
+    # but does not earn (-0.2%/trade, ~40% win), so this is a RECORDS-ONLY
+    # instrument — desk tier shock_reignite + the AFTER THE SHOCK board.
+    # No Telegram, no money. Own daemon thread; the coin scan only runs
+    # while a post-shock window is open.
+    try:
+        _sw_t = _SW["thread"]
+        if _sw_t is None or not _sw_t.is_alive():
+            def _sw_job():
+                try:
+                    if time.time() - _NR["syms_t"] > 1800 or not _NR["syms"]:
+                        _NR["syms"] = binance_client.get_top_symbols(
+                            150)["symbol"].tolist()
+                        _NR["syms_t"] = time.time()
+                    _sw_st = shock_watch.run(
+                        binance_client.get_klines, _NR["syms"],
+                        record=store.record_signal,
+                        open_trade=shadow_trader.open_from_signal)
+                    if (_sw_st.get("shock") or {}).get("phase") == "window":
+                        print(f"[shock] 🌊 {shock_watch.describe(_sw_st)} · "
+                              f"{len(_sw_st.get('board') or [])} coins on "
+                              f"the board", flush=True)
+                except Exception as _sw_exc:
+                    print("  shock_watch error:", _sw_exc, flush=True)
+            _SW["thread"] = threading.Thread(target=_sw_job, daemon=True)
+            _SW["thread"].start()
+    except Exception as _sw_exc2:
+        print("  shock_watch start error:", _sw_exc2, flush=True)
 
     # 🟢 GREEN LIGHT announcements stay (desk reports, rare + informative)
     try:
