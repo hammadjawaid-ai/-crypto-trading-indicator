@@ -536,21 +536,53 @@ def _arrival_grade(d15, side) -> dict | None:
         return None
 
 
-def _fmt_hot_arrival(a: dict, px: float) -> str:
-    """⚡🔥 the HOT ARRIVAL bell (written 2026-10-05, MUTED until the user's
-    word): a strong-coil LONG number that broke after arriving on rising,
-    not-yet-spiked volume with a steady drift into it."""
-    v2 = a.get("arr_vol2")
-    m3 = a.get("arr_mom3")
+ARRIVAL_TIERS = {
+    1: ("⚡🔥", "HOT strong coil", "86% / +0.21R over 154 replay breaks"),
+    2: ("⚡🔥", "HOT arrival", "83% / +0.23R over 197 replay breaks"),
+    3: ("⚡", "long break at the number", "76% / +0.11R over 1,190 replay breaks"),
+}
+
+
+def _arrival_tier(src, side, grade):
+    """The ARRIVAL banner tier for a break (user 2026-10-05, from the
+    .prefire_study replay, Aug 15 - Sep 28):
+      1 = HOT arrival at a ⚡ strong-coil number     86% / +0.21R n=154
+      2 = HOT arrival at any ⚡/🔥/💎 number     83% / +0.23R n=197
+      3 = any LONG break at an armed number        76% / +0.11R n=1,190
+      None = shorts (58% / -0.11R) or an unknown source.
+    T1 is inside T2 is inside T3 — each keeps its own desk ledger. Pure."""
+    s = str(src or "")
+    if (side or "").upper() != "LONG" or s[:1] not in ("⚡", "🔥", "💎"):
+        return None
+    if grade == "HOT":
+        return 1 if s.startswith("⚡") else 2
+    return 3
+
+
+def _fmt_arrival(a: dict, px: float, tier: int) -> str:
+    """One banner for all three classes; the tier line says which one."""
+    emo, label, rec = ARRIVAL_TIERS[int(tier)]
+    g = a.get("arrival")
+    v2, m3 = a.get("arr_vol2"), a.get("arr_mom3")
+    if g == "HOT":
+        how = f"arrived HOT: {v2}x the 7-day bar with a {m3} ATR drift into the number"
+    elif g == "COLD":
+        how = (f"arrived COLD: {v2}x volume, {m3} ATR drift (the weak end, "
+               f"68% / -0.02R in the replay)")
+    elif g == "NEUTRAL":
+        how = f"arrival neutral: {v2}x volume, {m3} ATR drift"
+    else:
+        how = "arrival: no read (short candle history)"
     t2 = f" · TP2 `{float(a['tp2']):g}`" if a.get("tp2") else ""
-    return (f"⚡🔥 *HOT ARRIVAL — {a['base']} LONG*\n"
-            f"the number `{float(a['trigger']):g}` broke on rising volume "
-            f"({v2}x the 7-day bar) with a {m3} ATR drift into it\n"
+    src = str(a.get("src") or "").strip()
+    return (f"{emo} *ARRIVAL T{int(tier)} — {a['base']} LONG · {label}*\n"
+            f"{src} number `{float(a['trigger']):g}` broke · {how}\n"
             f"entry `{float(px):g}` · SL `{float(a['stop']):g}` · TP1 "
             f"`{float(a['tp1']):g}`{t2}\n"
-            f"_the measured best cell on the trigger desk: strong-coil longs "
-            f"arriving like this ran 86% / +0.21R over 154 breaks (Aug 15 - "
-            f"Sep 28); quiet arrivals 70% / +0.01R. Proving on tier trig hot._")
+            f"_this tier: {rec}. T1 HOT strong coil 86% / +0.21R · T2 HOT "
+            f"83% / +0.23R · T3 any long break 76% / +0.11R (Aug 15 - Sep 28). "
+            f"Shorts at the number lost 58% / -0.11R, so only longs ring. "
+            f"Desk tiers arrival T1 / T2 / T3 prove it forward._")
 
 
 def _fmt_trigger(a: dict, px: float, vk: float) -> str:
@@ -823,6 +855,47 @@ def _trigger_watch() -> None:
                              "arrival": a.get("arrival"),
                              "src": _dsrc, "fired_at": _now})
                         del _DEMO_FIRES[:-40]
+                # ⚡🔥 ARRIVAL BANNER (user 2026-10-05: "these 3 are
+                # solid numbers, all should go accordingly, under the
+                # same banner"): every LONG break at an armed ⚡/🔥/💎
+                # number rings ONCE under one banner with its tier, and
+                # each tier keeps its own desk ledger (T1 inside T2
+                # inside T3):
+                #   T1 HOT + strong coil  86% / +0.21R (n=154)  -> trig_hot
+                #   T2 HOT, any source    83% / +0.23R (n=197)  -> arr_hot
+                #   T3 any long break     76% / +0.11R (n=1190) -> arr_long
+                # Shorts at the number lost 58% / -0.11R: no bell, no
+                # tier. Demo untouched (user: nothing deploys to demo).
+                # Mute: tg.send -> _MUTE_R9 below.
+                _atier = _arrival_tier(_src0, a.get("side"),
+                                       a.get("arrival"))
+                if _atier is not None:
+                    try:
+                        _sig_a = {"symbol": a["symbol"],
+                                  "base": a["base"],
+                                  "side": a["side"],
+                                  "tier": f"T{_atier}",
+                                  "score": a.get("score"),
+                                  "conf": a.get("conf"),
+                                  "entry": px, "stop": a["stop"],
+                                  "tp1": a["tp1"],
+                                  "tp2": a.get("tp2"), "src": _src0,
+                                  "arrival": a.get("arrival"),
+                                  "arr_vol2": a.get("arr_vol2"),
+                                  "arr_mom3": a.get("arr_mom3")}
+                        _tiers_a = (["arr_long"]
+                                    + (["arr_hot"] if _atier <= 2 else [])
+                                    + (["trig_hot"] if _atier == 1 else []))
+                        for _tn in _tiers_a:
+                            store.record_signal(_tn, _sig_a)
+                            shadow_trader.open_from_signal(_tn, _sig_a, px)
+                        if (store.should_alert(
+                                f"arrival:{a['symbol']}:LONG", 6 * 3600)
+                                and not _bstock_quiet(a["symbol"])):
+                            tg.send(_fmt_arrival(a, px, _atier)
+                                    + _kr_note(a))
+                    except Exception as _ar_exc:
+                        print("  arrival error:", _ar_exc, flush=True)
                 try:
                     if store.should_alert(
                             f"trig:{a['symbol']}:{a['side']}",
@@ -1014,30 +1087,6 @@ def _trigger_watch() -> None:
                                   "arr_vol2": a.get("arr_vol2"),
                                   "arr_mom3": a.get("arr_mom3")}
                         store.record_signal("trig_strong", _sig_t)
-                        # ⚡🔥 HOT ARRIVAL (study 2026-10-05): the
-                        # strong-coil LONG break that arrived on
-                        # 1.3-3x volume + 0.3-1.5 ATR drift — 86% /
-                        # +0.21R over 154 replay breaks. Own desk
-                        # tier `trig_hot` proves it forward; the bell
-                        # is written but MUTED until the user's word
-                        # (revert: _MUTE_R9 -> tg.send).
-                        if (a.get("arrival") == "HOT"
-                                and a["side"] == "LONG"):
-                            try:
-                                _sig_h = dict(_sig_t, tier="HOT")
-                                store.record_signal("trig_hot", _sig_h)
-                                shadow_trader.open_from_signal(
-                                    "trig_hot", _sig_h, px)
-                                if (store.should_alert(
-                                        f"trighot:{a['symbol']}:"
-                                        f"{a['side']}", 6 * 3600)
-                                        and not _bstock_quiet(
-                                            a["symbol"])):
-                                    _MUTE_R9(_fmt_hot_arrival(a, px)
-                                             + _kr_note(a))
-                            except Exception as _ha_exc:
-                                print("  trig_hot error:", _ha_exc,
-                                      flush=True)
                         # 🏆²🔔 apex_v2 CONFIRM state (certified
                         # 76.5%/+0.484R hold class): this break
                         # lands on an open v2 watch within 90min
@@ -1957,7 +2006,10 @@ def cycle() -> None:
         # · 🥇 PRIME conf>=55 · 💎 BEST OF THE BEST with its 🎯 conf
         # chip — all three back on the phone, gates as they were.)
         if key_prefix not in ("moon", "em", "emrest",
-                              "apex", "prime", "best"):
+                              "apex", "prime"):
+            # ("best" left the roster 2026-10-05: user replaced the
+            #  BEST OF THE BEST bell with HOT ARRIVAL. Revert: add
+            #  "best" back to the tuple above.)
             return
         for p in items:
             if (tier is not None and _greens_alert is not None

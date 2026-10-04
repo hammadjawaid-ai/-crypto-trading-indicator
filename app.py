@@ -3802,9 +3802,13 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "elite_seated65": "💎🏆 ELITE SEATED 65+ (seated + "
                                      "conf 65+, any side — records "
                                      "only, no bell)",
-                   "trig_hot": "⚡🔥 HOT ARRIVAL (strong-coil long that "
-                               "arrived on 1.3-3x volume + 0.3-1.5 ATR "
-                               "drift — 86%/+0.21R replay, proving)",
+                   "trig_hot": "⚡🔥 ARRIVAL T1 — HOT strong-coil longs "
+                               "(1.3-3x volume + 0.3-1.5 ATR drift into "
+                               "the number; 86%/+0.21R replay, proving)",
+                   "arr_hot": "⚡🔥 ARRIVAL T2 — HOT arrival longs, any "
+                              "source (83%/+0.23R replay, proving)",
+                   "arr_long": "⚡ ARRIVAL T3 — every long break at an "
+                               "armed number (76%/+0.11R replay, proving)",
                    "sniper2": "🎯 SNIPER v2 (golden cells, proving)",
                    "moonshot": "🚀 MOONSHOT (big-move desk)",
                    "sentry": "🎯 SENTRY (your 18-coin watch)",

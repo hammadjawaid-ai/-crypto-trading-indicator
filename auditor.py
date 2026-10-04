@@ -52,6 +52,8 @@ STREAM_TO_TIER = {
     "elite_agrade": "elite_agrade",
     "elite_seated65": "elite_seated65",
     "trig_hot": "trig_hot",
+    "arr_hot": "arr_hot",
+    "arr_long": "arr_long",
     "star_go_chase": "star_go_chase",
     "apex_v2": "apex_v2",
     "press_break": "press_break",
