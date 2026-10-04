@@ -52,7 +52,12 @@ for key in ('("approach", tf, 30)', '("approach", tf, 100)', '("scout", tf, 50)'
         fails.append(f"warm sweep missing job {key}")
 
 # ---- warm store semantics, extracted ----
-want = {"_warm_get", "_warm_put", "WARM_EVERY", "WARM_MAX_AGE", "_WARM_STORE"}
+for need in ("def _warm_state() -> dict:", "_WARM_STORE: dict = _warm_state()[\"store\"]", "_WARM_STATUS: dict = _warm_state()[\"status\"]"):
+    if need not in A:
+        fails.append(f"warm state singleton missing: {need}")
+if "_WARM_STORE: dict = {}" in A:
+    fails.append("warm store is still a per-run module dict")
+want = {"_warm_get", "_warm_put", "WARM_EVERY", "WARM_MAX_AGE"}
 body = []
 for n in tree.body:
     if isinstance(n, ast.FunctionDef) and n.name in want:
@@ -62,7 +67,7 @@ for n in tree.body:
         if isinstance(t, ast.Name) and t.id in want:
             body.append(n)
 import copy
-ns = {"time": time, "_copy": copy}
+ns = {"time": time, "_copy": copy, "_WARM_STORE": {}}
 exec(compile(ast.Module(body=body, type_ignores=[]), "warm", "exec"), ns)
 ns["_warm_put"](("k",), [{"a": 1}])
 v = ns["_warm_get"](("k",))

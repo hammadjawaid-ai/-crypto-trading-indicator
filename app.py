@@ -8056,10 +8056,22 @@ import threading as _threading
 
 WARM_EVERY = 300
 WARM_MAX_AGE = 3 * WARM_EVERY
-_WARM_STORE: dict = {}
-_WARM_STATUS: dict = {"last_sweep": None, "sweep_s": None, "jobs": {},
-                      "errors": {}, "sweeps": 0}
 _WARM_STATUS_FILE = str(config.state_path(".app_warm.json"))
+
+
+@st.cache_resource(show_spinner=False)
+def _warm_state() -> dict:
+    """ONE process-global home for the warm results. Streamlit re-runs
+    this script with a fresh namespace on every page load, so a plain
+    module dict would be empty again each run; cache_resource hands
+    back the same object to every run and to the warmer thread."""
+    return {"store": {},
+            "status": {"last_sweep": None, "sweep_s": None, "jobs": {},
+                       "errors": {}, "sweeps": 0}}
+
+
+_WARM_STORE: dict = _warm_state()["store"]
+_WARM_STATUS: dict = _warm_state()["status"]
 
 
 def _warm_get(key):
@@ -8216,6 +8228,15 @@ if os.environ.get("APP_BOARD_WARMER", "1") != "0":
 def _warm_caption() -> str:
     """One line for the boards: how fresh the pre-computed scans are."""
     ls = _WARM_STATUS.get("last_sweep")
+    if not ls:
+        try:   # fall back to the status file the sweep writes
+            with open(_WARM_STATUS_FILE, encoding="utf-8") as _f:
+                _st_f = json.load(_f)
+            if _st_f.get("last_sweep"):
+                _WARM_STATUS.update(_st_f)
+                ls = _WARM_STATUS.get("last_sweep")
+        except Exception:
+            pass
     if not ls:
         return ("⚡ boards computing in the page this time — the background "
                 "warmer has not finished its first sweep since the app "

@@ -83,5 +83,10 @@ while time.time() - t_wait < 1500:
     time.sleep(10)
 else:
     print("warmer never reported a sweep")
+st.cache_data.clear()      # the warm run must come from the warm store, not from run 1's data caches
 w = load("run 2, warm")
+cap = [lab for _, _, lab in marks if "pre-computed" in lab or "boards computing" in lab]
+print("warm caption:", cap[:1])
+if not any("pre-computed" in c for c in cap):
+    print("!! WARM STORE NOT USED — the page did not see the warmer's results")
 print(f"\nCOLD {c:.0f}s -> WARM {w:.0f}s")
