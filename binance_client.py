@@ -154,7 +154,7 @@ def _cache_get(cache: dict, key, ttl: float):
     return None
 
 
-def _cache_put(cache: dict, key, val, cap: int = 800) -> None:
+def _cache_put(cache: dict, key, val, cap: int = 1500) -> None:
     if len(cache) > cap:
         now = time.time()
         for k in [k for k, v in list(cache.items())
@@ -163,6 +163,38 @@ def _cache_put(cache: dict, key, val, cap: int = 800) -> None:
         if len(cache) > cap:
             cache.clear()
     cache[key] = (time.time(), val)
+
+
+_PX_PRIME_TS = 0.0
+
+
+def prime_prices(symbols=None) -> int:
+    """⚡ page-speed (2026-10-04): fill the 15s price cache for EVERY
+    symbol with ONE /api/v3/ticker/price call (weight 2) instead of one
+    call per symbol. Same endpoint, same numbers; get_ticker_price then
+    hits the cache. Runs at most once per _PX_TTL; fail-soft (returns
+    0 and the per-symbol path works exactly as before)."""
+    global _PX_PRIME_TS
+    if time.time() - _PX_PRIME_TS < _PX_TTL:
+        return 0
+    try:
+        data = _get("/api/v3/ticker/price")
+    except BinanceError:
+        return 0
+    want = set(symbols) if symbols else None
+    n = 0
+    now = time.time()
+    for row in data or []:
+        try:
+            sym = row["symbol"]
+            if want is not None and sym not in want:
+                continue
+            _PX_CACHE[sym] = (now, float(row["price"]))
+            n += 1
+        except (KeyError, TypeError, ValueError):
+            continue
+    _PX_PRIME_TS = now
+    return n
 
 
 def get_ticker_price(symbol: str) -> float | None:
@@ -253,6 +285,20 @@ def get_klines(symbol: str, interval: str,
     hit = _cache_get(_KL_CACHE, key, _KL_TTL)
     if hit is not None:
         return hit.copy()
+    # ⚡ page-speed (2026-10-04): a shorter request is served from a
+    # FRESH longer frame of the same symbol/interval — the last N
+    # candles of a 300-candle fetch are the same candles a 100-candle
+    # fetch returns, so callers asking for different limits no longer
+    # pay a second round trip.
+    _best = None
+    _now = time.time()
+    for (_s, _i, _l), (_ts, _df) in list(_KL_CACHE.items()):
+        if (_s == symbol and _i == interval and _l > int(limit)
+                and _now - _ts <= _KL_TTL and len(_df) >= int(limit)
+                and (_best is None or _l < _best[0])):
+            _best = (_l, _df)
+    if _best is not None:
+        return _best[1].tail(int(limit)).copy()
     df = _get_klines_uncached(symbol, interval, limit)
     try:
         if df is not None and len(df):

@@ -2784,6 +2784,10 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
     only RECENT rows (the validated stats are measured from confirmation-time
     entry, so old cards aren't the validated trade anyway) and each card
     shows the LIVE price next to the plan."""
+    try:   # ⚡ one ticker call primes every per-symbol price lookup below
+        binance_client.prime_prices()
+    except Exception:
+        pass
     try:
         import worker_store as _ws
         import json as _json_bm
@@ -3448,6 +3452,10 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "near (0.4% away) and 💥 at the break; breaks "
                    "feed the desk and the GEN 6 demo. Sorted by "
                    "distance — the top rows are closest to firing.")
+        try:   # ⚡ one ticker call for every armed level (page-speed)
+            binance_client.prime_prices([_r.get("symbol") for _r in _al_rows])
+        except Exception:
+            pass
         _al_lines = []
         for _r in _al_rows:
             try:
@@ -3882,7 +3890,7 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                          "from every desk trade", expanded=False):
             try:
                 import edge_miner as _em
-                _rep = _em.mine()
+                _rep = _edge_mine_cached(int(time.time() // 600))   # ⚡ 10-min cache
                 _tot = _rep.get("total") or {}
                 st.caption(f"joined {_rep.get('matched_n', 0)} of "
                            f"{_tot.get('n', 0)} closed desk trades to "
@@ -4980,8 +4988,12 @@ MOOD_COLORS = {"Bullish": "#34c759", "Bearish": "#ff6b5b", "Neutral": "#8e8e93"}
 
 
 # --- Cached data services --------------------------------------------------
-def _worker_scan_file(max_age: float = 720.0, min_n: int = 100):
+def _worker_scan_file(max_age: float = 2400.0, min_n: int = 100):
     """⚡ Read the 24/7 worker's freshly published unified scan off the
+    shared disk. max_age 720 -> 2400 (user 2026-10-04 page-speed order):
+    the worker cycle is ~17 min (p95 24), so a 12-min limit sent most
+    page loads into a 150-coin page scan (~3 min). 40 min keeps the
+    worker as the single source; the board shows the scan age.
     shared disk (scan_core._publish_scan, every ~5-min cycle) instead
     of re-running a multi-minute scan inside the page. Re-applied
     2026-08-15 after the 502 diagnosis: the double-scan CPU burn was
@@ -5100,8 +5112,9 @@ def compute_multi_tf_setups_forming(scan_n: int = 30,
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def compute_unified_best_picks(interval: str, scan_n: int = 50,
-                               _cache_version: int = 1) -> list:
+def _compute_unified_best_picks_raw(interval: str, scan_n: int = 50,
+                                    _cache_version: int = 1,
+                                    _bucket: int = 0) -> list:
     """Unified ranking of the BEST picks across all sources, deduplicated
     by symbol. Highest tier wins per coin. Shown in the top-of-board
     "🏆 Best Trades Now" section so user doesn't have to dig through
@@ -5308,8 +5321,9 @@ def compute_unified_best_picks(interval: str, scan_n: int = 50,
 
 
 @st.cache_data(ttl=600, show_spinner=False)
-def compute_convergence_picks(interval: str, scan_n: int = 50,
-                              _cache_version: int = 2) -> list:
+def _compute_convergence_picks_raw(interval: str, scan_n: int = 50,
+                                   _cache_version: int = 2,
+                                   _bucket: int = 0) -> list:
     """⚡ CONVERGENCE — the highest-conviction picks across the system.
 
     Cross-references multiple INDEPENDENT signals on the same coin:
@@ -5496,8 +5510,9 @@ def compute_convergence_picks(interval: str, scan_n: int = 50,
 
 
 @st.cache_data(ttl=600, show_spinner=False)
-def run_reversal_approach_scan(interval: str, scan_n: int = 30,
-                               _cache_version: int = 2) -> list:
+def _run_reversal_approach_scan_raw(interval: str, scan_n: int = 30,
+                                    _cache_version: int = 2,
+                                    _bucket: int = 0) -> list:
     """Scan top N coins for coins APPROACHING reversal conditions.
 
     Leading-indicator scan — finds coins where pre-shooting-star or
@@ -5594,8 +5609,9 @@ def run_reversal_approach_scan(interval: str, scan_n: int = 30,
 
 
 @st.cache_data(ttl=600, show_spinner=False)
-def run_pattern_scout(interval: str, scan_n: int = 50,
-                      _cache_version: int = 6) -> list:
+def _run_pattern_scout_raw(interval: str, scan_n: int = 50,
+                           _cache_version: int = 6,
+                           _bucket: int = 0) -> list:
     """Universal Pattern Scout — scans top N coins for high-conviction
     setups across all validated-edge patterns, INDEPENDENT of the
     alerts.build_alerts() gate.
@@ -6100,7 +6116,8 @@ def scan_market(symbols: tuple[str, ...], interval: str,
 
 
 @st.cache_data(ttl=config.MARKET_CACHE_TTL, show_spinner=False)
-def forecast_market(symbols: tuple[str, ...]) -> pd.DataFrame:
+def _forecast_market_raw(symbols: tuple[str, ...],
+                         _bucket: int = 0) -> pd.DataFrame:
     """Per-coin multi-horizon forecast — blends the per-timeframe technical
     read with the comprehensive Breakout Radar read (news catalysts, the
     macro / geopolitical backdrop, volume ignition, social heat and funding).
@@ -6193,8 +6210,9 @@ def btc_outlook_now(btc_change_24h: float, alt_median_24h: float) -> dict:
 
 
 @st.cache_data(ttl=config.MARKET_CACHE_TTL, show_spinner=False)
-def scan_breakouts(symbols: tuple[str, ...],
-                   horizon: str = "imminent") -> tuple[pd.DataFrame, dict]:
+def _scan_breakouts_raw(symbols: tuple[str, ...],
+                        horizon: str = "imminent",
+                        _bucket: int = 0) -> tuple[pd.DataFrame, dict]:
     """Scan symbols for blowout candidates on a horizon ("imminent" or "24h"),
     wiring in funding, social, news and the broad-market backdrop. Returns
     (radar DataFrame, backdrop dict)."""
@@ -8012,6 +8030,219 @@ st.sidebar.title("📈 Crypto Indicator")
 st.sidebar.caption("Live technical analysis & sentiment — Binance USDT pairs")
 
 # --- Persistent state — survives full page refresh via URL query params --
+
+# =====================================================================
+# ⚡ BOARD WARMER (user 2026-10-04: "make it load faster ... nothing on
+# the signals or the things we measure should be touched"). Profile of
+# one Paper Trader load (.pt_profile.py: 504s) — 457s were Binance kline
+# fetches re-running the scanner boards INSIDE the page request: unified
+# picks 95s, elite picks 83s, best trades 65s, early bursts 35s, forecast
+# 27s, breakouts 14s. Two causes: (a) the worker's published scan was
+# accepted only when <12 min old while the worker cycle is ~17 min, so
+# the page re-ran the 150-coin scan itself; (b) the page's own cached
+# scans expire (300-600s) between its 270s auto-refreshes, so nearly
+# every refresh recomputed them in the request.
+# Fix: the SAME scanner functions with the SAME arguments, run by one
+# daemon thread every WARM_EVERY seconds; the page reads the latest
+# finished result from _WARM_STORE (a deep copy, so no caller can
+# mutate it) and computes itself only when nothing warm exists — the
+# first minutes after a restart, or a non-default timeframe / coin
+# count. Board numbers are the same functions' outputs, at most
+# WARM_EVERY old; the worker's own signal cadence is ~17 min.
+# APP_BOARD_WARMER=0 disables the thread (tests / profiling).
+# =====================================================================
+import copy as _copy
+import threading as _threading
+
+WARM_EVERY = 300
+WARM_MAX_AGE = 3 * WARM_EVERY
+_WARM_STORE: dict = {}
+_WARM_STATUS: dict = {"last_sweep": None, "sweep_s": None, "jobs": {},
+                      "errors": {}, "sweeps": 0}
+_WARM_STATUS_FILE = str(config.state_path(".app_warm.json"))
+
+
+def _warm_get(key):
+    hit = _WARM_STORE.get(key)
+    if hit is not None and time.time() - hit[0] <= WARM_MAX_AGE:
+        try:
+            return _copy.deepcopy(hit[1])
+        except Exception:
+            return hit[1]
+    return None
+
+
+def _warm_put(key, val) -> None:
+    _WARM_STORE[key] = (time.time(), val)
+
+
+def compute_unified_best_picks(interval: str, scan_n: int = 50,
+                               _cache_version: int = 1) -> list:
+    w = _warm_get(("unified", interval, int(scan_n)))
+    if w is not None:
+        return w
+    return _compute_unified_best_picks_raw(interval, scan_n, _cache_version)
+
+
+def compute_convergence_picks(interval: str, scan_n: int = 50,
+                              _cache_version: int = 2) -> list:
+    w = _warm_get(("convergence", interval, int(scan_n)))
+    if w is not None:
+        return w
+    return _compute_convergence_picks_raw(interval, scan_n, _cache_version)
+
+
+def run_reversal_approach_scan(interval: str, scan_n: int = 30,
+                               _cache_version: int = 2) -> list:
+    w = _warm_get(("approach", interval, int(scan_n)))
+    if w is not None:
+        return w
+    return _run_reversal_approach_scan_raw(interval, scan_n, _cache_version)
+
+
+def run_pattern_scout(interval: str, scan_n: int = 50,
+                      _cache_version: int = 6) -> list:
+    w = _warm_get(("scout", interval, int(scan_n)))
+    if w is not None:
+        return w
+    return _run_pattern_scout_raw(interval, scan_n, _cache_version)
+
+
+def forecast_market(symbols: tuple[str, ...]) -> pd.DataFrame:
+    w = _warm_get(("forecast", tuple(symbols)))
+    if w is not None:
+        return w
+    return _forecast_market_raw(tuple(symbols))
+
+
+def scan_breakouts(symbols: tuple[str, ...],
+                   horizon: str = "imminent") -> tuple[pd.DataFrame, dict]:
+    w = _warm_get(("breakouts", tuple(symbols), horizon))
+    if w is not None:
+        return w
+    return _scan_breakouts_raw(tuple(symbols), horizon)
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def _early_bursts_raw(syms: tuple, _bust: int = 0, _bucket: int = 0) -> list:
+    import velocity_burst as _vb_w
+    return _vb_w.scan_15m_early(list(syms), max_results=30)
+
+
+def early_bursts_now(syms) -> list:
+    """The 🔥 Early Burst Radar scan (15m, top-100): warm result if the
+    warmer has one, else the same scan on the given symbols."""
+    w = _warm_get(("early_bursts",))
+    if w is not None:
+        return w
+    return _early_bursts_raw(tuple(syms), int(time.time() // 60))
+
+
+def _warm_universe():
+    """Exactly the symbol tuples the page builds with its defaults:
+    top_n slider default 100 -> head(40) for forecast/breakouts; the
+    early-burst radar's top-110 -> first 100."""
+    tops = load_top_symbols(100)
+    syms40 = tuple(tops["symbol"].head(40))
+    try:
+        syms100 = tuple(binance_client.get_top_symbols(110)["symbol"]
+                        .tolist()[:100])
+    except Exception:
+        syms100 = tuple(tops["symbol"].head(100))
+    return syms40, syms100
+
+
+def _warm_sweep() -> None:
+    b = int(time.time() // WARM_EVERY)
+    tf = config.DEFAULT_TIMEFRAME
+    syms40, syms100 = _warm_universe()
+    # dependency order: the unified board calls convergence / scout /
+    # approach through the wrappers above, so those are warmed first.
+    jobs = [
+        (("approach", tf, 30), lambda: _run_reversal_approach_scan_raw(tf, 30, _bucket=b)),
+        (("approach", tf, 100), lambda: _run_reversal_approach_scan_raw(tf, 100, _bucket=b)),
+        (("scout", tf, 50), lambda: _run_pattern_scout_raw(tf, 50, _bucket=b)),
+        (("convergence", tf, 50), lambda: _compute_convergence_picks_raw(tf, 50, _bucket=b)),
+        (("convergence", "1h", 50), lambda: _compute_convergence_picks_raw("1h", 50, _bucket=b)),
+        (("unified", tf, 50), lambda: _compute_unified_best_picks_raw(tf, 50, _bucket=b)),
+        (("forecast", syms40), lambda: _forecast_market_raw(syms40, _bucket=b)),
+        (("breakouts", syms40, "imminent"), lambda: _scan_breakouts_raw(syms40, "imminent", _bucket=b)),
+        (("early_bursts",), lambda: _early_bursts_raw(syms100, 0, _bucket=b)),
+    ]
+    t_all = time.time()
+    durs, errs = {}, {}
+    for key, fn in jobs:
+        t0 = time.time()
+        try:
+            _warm_put(key, fn())
+            durs[str(key)] = round(time.time() - t0, 1)
+        except Exception as exc:
+            errs[str(key)] = str(exc)[:160]
+    _WARM_STATUS.update(last_sweep=time.time(),
+                        sweep_s=round(time.time() - t_all, 1),
+                        jobs=durs, errors=errs,
+                        sweeps=int(_WARM_STATUS.get("sweeps") or 0) + 1)
+    try:
+        with open(_WARM_STATUS_FILE, "w", encoding="utf-8") as _f:
+            json.dump(_WARM_STATUS, _f)
+    except Exception:
+        pass
+
+
+def _warm_loop() -> None:
+    while True:
+        t0 = time.time()
+        try:
+            _warm_sweep()
+        except Exception as exc:
+            print("board warmer error:", exc, flush=True)
+        time.sleep(max(15.0, WARM_EVERY - (time.time() - t0)))
+
+
+@st.cache_resource(show_spinner=False)
+def _start_board_warmer() -> bool:
+    _threading.Thread(target=_warm_loop, name="board-warmer",
+                      daemon=True).start()
+    return True
+
+
+if os.environ.get("APP_BOARD_WARMER", "1") != "0":
+    try:
+        _start_board_warmer()
+    except Exception as _bw_exc:
+        print("board warmer start error:", _bw_exc, flush=True)
+
+
+def _warm_caption() -> str:
+    """One line for the boards: how fresh the pre-computed scans are."""
+    ls = _WARM_STATUS.get("last_sweep")
+    if not ls:
+        return ("⚡ boards computing in the page this time — the background "
+                "warmer has not finished its first sweep since the app "
+                "restarted.")
+    return (f"⚡ scanner boards pre-computed {(time.time() - ls) / 60:.0f} min "
+            f"ago in {_WARM_STATUS.get('sweep_s')}s (refreshed every "
+            f"{WARM_EVERY // 60} min; worker signal cadence unchanged).")
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _edge_mine_cached(_bust: int = 0):
+    """🧠 EDGE MINER report over closed desk trades — a 10-min cached
+    read of the same miner (page-speed 2026-10-04; it is a report,
+    not a signal, and the desk ledger moves every ~17 min)."""
+    import edge_miner as _em_c
+    return _em_c.mine()
+
+
+def _worker_scan_age_min():
+    try:
+        with open(str(config.state_path(".last_scan.json")),
+                  encoding="utf-8") as _f:
+            return (time.time() - float(json.load(_f).get("ts") or 0)) / 60
+    except Exception:
+        return None
+
+
 _qp = st.query_params
 _qp_tf = _qp.get("tf", config.DEFAULT_TIMEFRAME)
 if _qp_tf not in config.TIMEFRAMES:
@@ -10961,7 +11192,7 @@ if active_section == "🧪 Paper Trader":
                 # Wide universe (top 100) — a pumping coin like SYN was
                 # rank #57 by volume, OUTSIDE the old top-55 scan, so it
                 # never even got looked at. Top 100 covers the movers.
-                return _vb_radar.scan_15m_early(_syms, max_results=30)
+                return early_bursts_now(_syms)   # ⚡ warmable (same scan)
 
             _eb_hits = _scan_early_bursts(int(time.time() // 60))
         except Exception:
@@ -15484,6 +15715,13 @@ if active_section == "🧪 Paper Trader":
                 "Breakout Coil · 🌀 VWAP Z-Fade · 💧 Liq Exhaustion. "
                 "**Tiers:** 🟣 MAX (90+, ≥3 strong lanes) · 🔴 HIGH "
                 "(85+, ≥2 strong) · 🟢 STRONG (80+). Cached 5 min.")
+            _wsa = _worker_scan_age_min()
+            st.caption((f"🤖 scan published by the 24/7 worker {_wsa:.0f} min "
+                        f"ago (accepted up to 40 min; the worker cycle is "
+                        f"~17 min)." if _wsa is not None and _wsa <= 40
+                        else "⚠️ worker scan older than 40 min — this load "
+                        "ran the 150-coin scan in the page.")
+                       + " " + _warm_caption())
             # ⚠ HONEST BACKTEST DISCLAIMER — 25-coin walk-forward
             # (n=698) showed ELITE standalone is essentially a coin
             # flip: 48% overall, 50.6% STRONG tier, no slice produces
