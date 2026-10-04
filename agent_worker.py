@@ -495,6 +495,64 @@ def _trigger_pass(a: dict, px: float) -> bool:
             else px <= a["trigger"])
 
 
+def _arrival_grade(d15, side) -> dict | None:
+    """⚡🔥 ARRIVAL GRADE (study 2026-10-05, .prefire_study.py, 1,691 breaks):
+    how the price ARRIVED at the number in the two CLOSED 15m bars before
+    the break bar. HOT = volume 1.3-3x the 7-day median bar AND drift
+    toward the number 0.3-1.5 ATR(14) -> long breaks 83% / +0.23R (n=197;
+    strong-coil longs 86% / +0.21R, 6 of 8 weeks green, survives the
+    drop-3-days and day-weighted tests). COLD = volume <1x AND drift
+    <0.3 ATR -> 68% / -0.02R. Everything else NEUTRAL. Shorts are not
+    rescued by a hot arrival (59% / -0.07R). `d15` = 15m frame with the
+    FORMING (break) bar last. Pure; None when the frame is too short."""
+    try:
+        import numpy as _np
+        if d15 is None or len(d15) < 120:
+            return None
+        closed = d15.iloc[:-1]
+        c = closed["close"].to_numpy(float)
+        h = closed["high"].to_numpy(float)
+        l = closed["low"].to_numpy(float)
+        v = closed["volume"].to_numpy(float)
+        if len(c) < 20:
+            return None
+        tr = (_np.maximum(h[-14:], c[-15:-1])
+              - _np.minimum(l[-14:], c[-15:-1]))
+        atr = float(tr.mean())
+        if not atr > 0:
+            return None
+        sgn = 1.0 if (side or "").upper() == "LONG" else -1.0
+        mom3 = sgn * (c[-1] - c[-4]) / atr
+        base = float(_np.median(v[max(0, len(v) - 674):-2])) or 1e-12
+        vol2 = float(v[-2:].mean()) / base
+        if 1.3 <= vol2 <= 3.0 and 0.3 <= mom3 <= 1.5:
+            grade = "HOT"
+        elif vol2 < 1.0 and mom3 < 0.3:
+            grade = "COLD"
+        else:
+            grade = "NEUTRAL"
+        return {"grade": grade, "vol2": round(vol2, 2), "mom3": round(mom3, 2)}
+    except Exception:
+        return None
+
+
+def _fmt_hot_arrival(a: dict, px: float) -> str:
+    """⚡🔥 the HOT ARRIVAL bell (written 2026-10-05, MUTED until the user's
+    word): a strong-coil LONG number that broke after arriving on rising,
+    not-yet-spiked volume with a steady drift into it."""
+    v2 = a.get("arr_vol2")
+    m3 = a.get("arr_mom3")
+    t2 = f" · TP2 `{float(a['tp2']):g}`" if a.get("tp2") else ""
+    return (f"⚡🔥 *HOT ARRIVAL — {a['base']} LONG*\n"
+            f"the number `{float(a['trigger']):g}` broke on rising volume "
+            f"({v2}x the 7-day bar) with a {m3} ATR drift into it\n"
+            f"entry `{float(px):g}` · SL `{float(a['stop']):g}` · TP1 "
+            f"`{float(a['tp1']):g}`{t2}\n"
+            f"_the measured best cell on the trigger desk: strong-coil longs "
+            f"arriving like this ran 86% / +0.21R over 154 breaks (Aug 15 - "
+            f"Sep 28); quiet arrivals 70% / +0.01R. Proving on tier trig hot._")
+
+
 def _fmt_trigger(a: dict, px: float, vk: float) -> str:
     _t2 = (f" · TP2 `{a['tp2']:g}`" if a.get("tp2") else "")
     _age = (time.time() - float(a.get("armed_at") or time.time())) / 3600
@@ -731,6 +789,18 @@ def _trigger_watch() -> None:
                     a["burst"] = 0.0
                 with _TRIG_LOCK:
                     _TRIG_ARMED.pop(k, None)
+                # ⚡🔥 ARRIVAL GRADE (2026-10-05): the two closed 15m
+                # bars before this break bar — stamped on every break
+                # record so the ledger can split HOT / COLD arrivals.
+                _arr = None
+                try:
+                    _arr = _arrival_grade(binance_client.get_klines(
+                        a["symbol"], "15m", limit=700), a["side"])
+                except Exception:
+                    _arr = None
+                a["arrival"] = (_arr or {}).get("grade")
+                a["arr_vol2"] = (_arr or {}).get("vol2")
+                a["arr_mom3"] = (_arr or {}).get("mom3")
                 # 🎮 GEN 6 demo feed — every break is demo-money
                 # candidate material: ⚡ → strong_trigger, 🔥 →
                 # rerun, 💎 → elite entering on the break.
@@ -750,6 +820,7 @@ def _trigger_watch() -> None:
                              "score": float(a.get("score") or 80),
                              "burst": float(a.get("burst") or 0),
                              "conf": a.get("conf"),
+                             "arrival": a.get("arrival"),
                              "src": _dsrc, "fired_at": _now})
                         del _DEMO_FIRES[:-40]
                 try:
@@ -898,7 +969,10 @@ def _trigger_watch() -> None:
                                    "burst": a.get("burst"),
                                    "entry": px, "stop": a["stop"],
                                    "tp1": a["tp1"],
-                                   "tp2": a.get("tp2")}
+                                   "tp2": a.get("tp2"),
+                                   "arrival": a.get("arrival"),
+                                   "arr_vol2": a.get("arr_vol2"),
+                                   "arr_mom3": a.get("arr_mom3")}
                         store.record_signal("press_break", _sig_pb)
                         # 🎮 GEN 16.5 (user 2026-10-04): priority-1
                         # demo seat, LONGS ONLY — same plan as the
@@ -935,8 +1009,35 @@ def _trigger_watch() -> None:
                                   "conf": a.get("conf"),
                                   "entry": px, "stop": a["stop"],
                                   "tp1": a["tp1"],
-                                  "tp2": a.get("tp2")}
+                                  "tp2": a.get("tp2"),
+                                  "arrival": a.get("arrival"),
+                                  "arr_vol2": a.get("arr_vol2"),
+                                  "arr_mom3": a.get("arr_mom3")}
                         store.record_signal("trig_strong", _sig_t)
+                        # ⚡🔥 HOT ARRIVAL (study 2026-10-05): the
+                        # strong-coil LONG break that arrived on
+                        # 1.3-3x volume + 0.3-1.5 ATR drift — 86% /
+                        # +0.21R over 154 replay breaks. Own desk
+                        # tier `trig_hot` proves it forward; the bell
+                        # is written but MUTED until the user's word
+                        # (revert: _MUTE_R9 -> tg.send).
+                        if (a.get("arrival") == "HOT"
+                                and a["side"] == "LONG"):
+                            try:
+                                _sig_h = dict(_sig_t, tier="HOT")
+                                store.record_signal("trig_hot", _sig_h)
+                                shadow_trader.open_from_signal(
+                                    "trig_hot", _sig_h, px)
+                                if (store.should_alert(
+                                        f"trighot:{a['symbol']}:"
+                                        f"{a['side']}", 6 * 3600)
+                                        and not _bstock_quiet(
+                                            a["symbol"])):
+                                    _MUTE_R9(_fmt_hot_arrival(a, px)
+                                             + _kr_note(a))
+                            except Exception as _ha_exc:
+                                print("  trig_hot error:", _ha_exc,
+                                      flush=True)
                         # 🏆²🔔 apex_v2 CONFIRM state (certified
                         # 76.5%/+0.484R hold class): this break
                         # lands on an open v2 watch within 90min

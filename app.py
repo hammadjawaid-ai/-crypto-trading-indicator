@@ -3802,6 +3802,9 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "elite_seated65": "💎🏆 ELITE SEATED 65+ (seated + "
                                      "conf 65+, any side — records "
                                      "only, no bell)",
+                   "trig_hot": "⚡🔥 HOT ARRIVAL (strong-coil long that "
+                               "arrived on 1.3-3x volume + 0.3-1.5 ATR "
+                               "drift — 86%/+0.21R replay, proving)",
                    "sniper2": "🎯 SNIPER v2 (golden cells, proving)",
                    "moonshot": "🚀 MOONSHOT (big-move desk)",
                    "sentry": "🎯 SENTRY (your 18-coin watch)",
