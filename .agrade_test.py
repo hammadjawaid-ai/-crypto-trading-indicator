@@ -160,5 +160,14 @@ for need, lab in (('"elite_agrade": "💎🏆 ELITE A-GRADE', "app A-grade name"
 for need in ('"elite_agrade": "elite_agrade",', '"elite_seated65": "elite_seated65",'):
     if need not in U:
         fails.append(f"auditor missing {need}")
+for need, lab in (('json.dump(_diag, _fd, default=str)', "worker writes the status file"),
+                  ('elite_conf65=sum(1 for q in _ec_mh', "conf-65 count"),
+                  ('seated65_now=[g["symbol"] for g in _s65_list]', "seated list")):
+    if need not in W:
+        fails.append(f"diag missing: {lab}")
+if W.find('json.dump(_diag, _fd, default=str)') > W.find('_tiers = (("top_conviction", _topc),'):
+    fails.append("diag must be written before the tiers tuple")
+if 'A-GRADE WATCH (worker status' not in A:
+    fails.append("app caption missing")
 print(m)
 print("ELITE A-GRADE:", "ALL PASS" if not fails else fails)

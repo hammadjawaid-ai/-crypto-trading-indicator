@@ -15750,6 +15750,30 @@ if active_section == "🧪 Paper Trader":
                         else "⚠️ worker scan older than 40 min — this load "
                         "ran the 150-coin scan in the page.")
                        + " " + _warm_caption())
+            try:   # 🏆 A-GRADE WATCH — the worker's own status
+                with open(str(config.state_path(".agrade_status.json")),
+                          encoding="utf-8") as _fa:
+                    _ags = json.load(_fa)
+                _age_m = (time.time() - float(_ags.get("ts") or 0)) / 60
+                _ls = _ags.get("last_seated65")
+                _la = _ags.get("last_agrade")
+                _fmt_ago = (lambda t: f"{(time.time() - float(t)) / 3600:.1f}h ago"
+                            if t else "never since the worker started")
+                st.caption(
+                    f"🏆 A-GRADE WATCH (worker status {_age_m:.0f} min old): "
+                    f"{len(_ags.get('seats') or [])} Top Conviction seats in "
+                    f"memory [{', '.join(_ags.get('seats') or [])[:160]}] · "
+                    f"{_ags.get('elite_cards')} elite cards, "
+                    f"{_ags.get('elite_conf65')} with conf 65+ · seated now: "
+                    f"{', '.join(_ags.get('elite_seated_now') or []) or 'none'} · "
+                    f"SEATED-65 this cycle: {', '.join(_ags.get('seated65_now') or []) or 'none'} · "
+                    f"A-GRADE this cycle: {', '.join(_ags.get('agrade_now') or []) or 'none'} · "
+                    f"since worker start ({_ags.get('cycles')} cycles): "
+                    f"seated-65 {_ags.get('seated65_total')} (last {_fmt_ago(_ls)}), "
+                    f"A-grade {_ags.get('agrade_total')} (last {_fmt_ago(_la)}).")
+            except Exception:
+                st.caption("🏆 A-GRADE WATCH: no status file yet — the worker "
+                           "has not completed a cycle on the new code.")
             # ⚠ HONEST BACKTEST DISCLAIMER — 25-coin walk-forward
             # (n=698) showed ELITE standalone is essentially a coin
             # flip: 48% overall, 50.6% STRONG tier, no slice produces

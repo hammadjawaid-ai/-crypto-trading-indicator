@@ -1,7 +1,8 @@
 """⚡🔥 ARRIVAL — grade on synthetic 15m frames, the T1/T2/T3 tier rule, the banner
 markdown for every grade, and wiring: banner block after the demo feed and before
-the plain trigger bell, three desk tiers nested, bell live, BEST OF THE BEST out of
-the push roster, demo roster untouched, names in app/auditor."""
+the plain trigger bell, three desk tiers nested, bell live for T1+T2 only with a
+1.5h per-coin window, BEST OF THE BEST out of the push roster, demo roster
+untouched, names in app/auditor."""
 import ast
 import importlib.util
 import io
@@ -57,13 +58,12 @@ for df, side, want, lab in [
     if got != want:
         fails.append(f"grade({lab}) = {got} ({g}), wanted {want}")
 
-# ---- the tier rule ----
 for src, side, g, want, lab in [
     ("\u26a1 STRONG", "LONG", "HOT", 1, "hot strong coil -> T1"),
     ("\U0001F525 2ND LEG", "LONG", "HOT", 2, "hot 2nd leg -> T2"),
     ("\U0001F48E ELITE HIGH", "LONG", "HOT", 2, "hot elite -> T2"),
     ("\u26a1 STRONG", "LONG", "NEUTRAL", 3, "neutral strong coil -> T3"),
-    ("\u26a1 STRONG", "LONG", "COLD", 3, "cold -> T3 (still rings, labelled cold)"),
+    ("\u26a1 STRONG", "LONG", "COLD", 3, "cold -> T3"),
     ("\u26a1 STRONG", "LONG", None, 3, "no read -> T3"),
     ("\u26a1 STRONG", "SHORT", "HOT", None, "shorts never ring"),
     ("\U0001F575\ufe0f OI", "LONG", "HOT", None, "unknown source -> none"),
@@ -73,12 +73,11 @@ for src, side, g, want, lab in [
     if tier(src, side, g) != want:
         fails.append(f"tier({lab}) = {tier(src, side, g)}, wanted {want}")
 
-# ---- the banner ----
 a = {"base": "XLM", "side": "LONG", "src": "\u26a1 STRONG", "trigger": 0.2266, "stop": 0.218541, "tp1": 0.230499, "tp2": 0.2345,
      "arrival": "HOT", "arr_vol2": 2.1, "arr_mom3": 0.8}
 m1 = fmt(a, 0.2268, 1)
 for need in ("\u26a1\U0001F525 *ARRIVAL T1 — XLM LONG · HOT strong coil*", "number `0.2266` broke · arrived HOT: 2.1x the 7-day bar with a 0.8 ATR drift",
-             "entry `0.2268`", "TP2 `0.2345`", "this tier: 86% / +0.21R over 154 replay breaks", "T3 any long break 76% / +0.11R", "only longs ring"):
+             "entry `0.2268`", "TP2 `0.2345`", "this tier: 86% / +0.21R over 154 replay breaks", "only longs ring"):
     if need not in m1:
         fails.append(f"T1 banner missing {need!r}")
 m2 = fmt({**a, "src": "\U0001F525 2ND LEG"}, 0.2268, 2)
@@ -99,20 +98,21 @@ i_grade = W.find('_arr = _arrival_grade(binance_client.get_klines(\n            
 i_src0 = W.find('_src0 = str(a.get("src", ""))')
 i_feed = W.find("                        del _DEMO_FIRES[:-40]\n                # \u26a1\U0001F525 ARRIVAL BANNER")
 i_tier = W.find('_atier = _arrival_tier(_src0, a.get("side"),')
+i_gate = W.find("if (_atier <= 2 and store.should_alert(")
 i_bell = W.find("tg.send(_fmt_arrival(a, px, _atier)\n                                    + _kr_note(a))")
 i_trig = W.find('f"trig:{a[\'symbol\']}:{a[\'side\']}",')
-if not (0 < i_grade < i_src0 < i_feed < i_tier < i_bell < i_trig):
-    fails.append(f"banner block order wrong: grade {i_grade} src0 {i_src0} feed {i_feed} tier {i_tier} bell {i_bell} trig {i_trig}")
+if not (0 < i_grade < i_src0 < i_feed < i_tier < i_gate < i_bell < i_trig):
+    fails.append(f"banner block order wrong: grade {i_grade} src0 {i_src0} feed {i_feed} tier {i_tier} gate {i_gate} bell {i_bell} trig {i_trig}")
 for need, lab in (('_tiers_a = (["arr_long"]\n                                    + (["arr_hot"] if _atier <= 2 else [])\n                                    + (["trig_hot"] if _atier == 1 else []))', "nested tiers"),
                   ("for _tn in _tiers_a:\n                            store.record_signal(_tn, _sig_a)\n                            shadow_trader.open_from_signal(_tn, _sig_a, px)", "record + desk open per tier"),
-                  ('f"arrival:{a[\'symbol\']}:LONG", 6 * 3600)', "one key per coin, 6h"),
+                  ('f"arrival:{a[\'symbol\']}:LONG",\n                                int(1.5 * 3600))', "1.5h per coin"),
                   ('"arr_mom3": a.get("arr_mom3")}\n                        store.record_signal("press_break", _sig_pb)', "press_break stamp"),
                   ('"arr_mom3": a.get("arr_mom3")}\n                        store.record_signal("trig_strong", _sig_t)', "trig_strong stamp")):
     if need not in W:
         fails.append(f"wiring missing: {lab}")
-for gone in ("_sig_h = dict(_sig_t, tier=\"HOT\")", "_fmt_hot_arrival", "trighot:"):
+for gone in ('_sig_h = dict(_sig_t, tier="HOT")', "_fmt_hot_arrival", "trighot:", "LONG\", 6 * 3600)"):
     if gone in W:
-        fails.append(f"old HOT-only block still present: {gone}")
+        fails.append(f"stale text still present: {gone}")
 if "_MUTE_R9(_fmt_arrival" in W:
     fails.append("ARRIVAL bell must be live")
 if '"apex", "prime", "best"):' in W or '"apex", "prime"):' not in W:

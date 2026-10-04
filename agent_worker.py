@@ -889,8 +889,13 @@ def _trigger_watch() -> None:
                         for _tn in _tiers_a:
                             store.record_signal(_tn, _sig_a)
                             shadow_trader.open_from_signal(_tn, _sig_a, px)
-                        if (store.should_alert(
-                                f"arrival:{a['symbol']}:LONG", 6 * 3600)
+                        # user 2026-10-05 (same hour): "make it 1.5 hrs
+                        # and remove T3, T1 and T2 works" -> only the
+                        # two HOT tiers ring, 1.5h per coin; T3 stays a
+                        # desk-only ledger (arr_long).
+                        if (_atier <= 2 and store.should_alert(
+                                f"arrival:{a['symbol']}:LONG",
+                                int(1.5 * 3600))
                                 and not _bstock_quiet(a["symbol"])):
                             tg.send(_fmt_arrival(a, px, _atier)
                                     + _kr_note(a))
@@ -1632,6 +1637,9 @@ def _fmt_elite_early(p) -> str:
 # says "unproven" and the forward ledger (tier elite_agrade) is the judge.
 # ---------------------------------------------------------------------------
 _SEATS: dict = {}
+_AG_DIAG: dict = {"cycles": 0, "seated65_total": 0, "agrade_total": 0,
+                  "last_seated65": None, "last_agrade": None,
+                  "started": time.time()}
 SEAT_MEMORY_S = 2 * 3600          # the study's "board 2h before the fire"
 AGRADE_CONF = 65.0
 AGRADE_MAX_RR = 1.6
@@ -4047,6 +4055,38 @@ def cycle() -> None:
                     store.record_signal("elite_agrade", _gs)
             except Exception as _gq_exc:
                 print("  elite grade error:", _gq_exc, flush=True)
+        # 🏆 A-GRADE WATCH status (user 2026-10-05: "where does this
+        # A-grade lie?") — one small file per cycle the page can show.
+        try:
+            _AG_DIAG["cycles"] += 1
+            _AG_DIAG["seated65_total"] += len(_s65_list)
+            _AG_DIAG["agrade_total"] += len(_ag_list)
+            if _s65_list:
+                _AG_DIAG["last_seated65"] = time.time()
+            if _ag_list:
+                _AG_DIAG["last_agrade"] = time.time()
+
+            def _cf_ok(_v):
+                try:
+                    return 65 <= float(_v) <= 100
+                except (TypeError, ValueError):
+                    return False
+            _seated_now = [f"{q.get('symbol')} {q.get('side')}"
+                           for q in _ec_mh
+                           if _seat_of(q.get("symbol"), q.get("side"))]
+            _diag = dict(_AG_DIAG, ts=time.time(),
+                         seats=sorted(f"{s} {d}" for (s, d) in _SEATS),
+                         elite_cards=len(_ec_mh),
+                         elite_conf65=sum(1 for q in _ec_mh
+                                          if _cf_ok(q.get("conf"))),
+                         elite_seated_now=_seated_now,
+                         seated65_now=[g["symbol"] for g in _s65_list],
+                         agrade_now=[g["symbol"] for g in _ag_list])
+            with open(str(config.state_path(".agrade_status.json")), "w",
+                      encoding="utf-8") as _fd:
+                json.dump(_diag, _fd, default=str)
+        except Exception as _dg_exc:
+            print("  agrade diag error:", _dg_exc, flush=True)
         _tiers = (("top_conviction", _topc),
                   # 💎 ELITE CONVICTION desk tier (user 2026-08-31:
                   # "confidence score should be recorded for elite
