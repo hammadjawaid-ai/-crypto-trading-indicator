@@ -4088,6 +4088,15 @@ def cycle() -> None:
                 _json_ag.dump(_diag, _fd, default=str)
         except Exception as _dg_exc:
             print("  agrade diag error:", _dg_exc, flush=True)
+            try:   # make the failure visible on the page, not only in the log
+                import json as _json_ag2
+                with open(str(config.state_path(".agrade_status.json")), "w",
+                          encoding="utf-8") as _fd2:
+                    _json_ag2.dump({"ts": time.time(),
+                                    "error": f"{type(_dg_exc).__name__}: {_dg_exc}"},
+                                   _fd2)
+            except Exception:
+                pass
         _tiers = (("top_conviction", _topc),
                   # 💎 ELITE CONVICTION desk tier (user 2026-08-31:
                   # "confidence score should be recorded for elite

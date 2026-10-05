@@ -15936,6 +15936,9 @@ if active_section == "🧪 Paper Trader":
                           encoding="utf-8") as _fa:
                     _ags = json.load(_fa)
                 _age_m = (time.time() - float(_ags.get("ts") or 0)) / 60
+                if _ags.get("error"):
+                    raise RuntimeError(f"worker could not build the status "
+                                       f"{_age_m:.0f} min ago: {_ags['error']}")
                 _ls = _ags.get("last_seated65")
                 _la = _ags.get("last_agrade")
                 _fmt_ago = (lambda t: f"{(time.time() - float(t)) / 3600:.1f}h ago"
