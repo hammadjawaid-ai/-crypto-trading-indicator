@@ -140,6 +140,8 @@ if abs(C["dead_go"][1] - 70.0) > 0.1 or abs(C["frozen_night"][2] + 1.0) > 1e-9:
     fails.append(f"class values wrong: dead_go {C['dead_go']} frozen_night {C['frozen_night']}")
 if st["chase"] != (12, 7 / 12 * 100, (7 * 0.3 - 5) / 12):
     fails.append(f"chase cell wrong {st['chase']}")
+if [rs.light(c) for c in ((14, 100.0, 1.0), (42, 60.0, 0.16), (20, 48.0, 0.3), (20, 55.0, 0.05), (20, 30.0, -0.4))] != ["🟡", "🟢", "🟡", "🟡", "🔴"]:
+    fails.append("light() thresholds wrong")
 if rs.rec((3, 100.0, 1.0)) != "young (3 closes)" or rs.rec((0, 0, 0)) != "no closes yet" or rs.rec((48, 77.1, 0.49)) != "77% / +0.49R (48)":
     fails.append("rec() formatting wrong")
 if rs.rec(rs.tier_rec("trig_hot", None, NOW, DB)) != "young (4 closes)":   # 3 old + yesterday's XLM
@@ -155,14 +157,14 @@ day_msg = rs.star_fire(p, 77, NOW, ["🎯 conf 77/100", "🌡 heat 23"], "\n🔮
 for need in ("⭐ *ELITE STAR — GLMR LONG · TAKE (full size: 13–17 PKT window) · 13:40 PKT*",
              "entry `0.012078` · SL `0.010827` · TP1 `0.01343` · TP2 `0.014512` · HIGH 81 · 🚀 approved",
              "🎯 conf 77/100 · 🌡 heat 23", "rule: enter at the buzz, no conf filter",
-             "window record: 13–17 PKT longs", "day fires 57% / +0.11R (35)", "night fires 29% / −0.43R (14)",
+             "window record: 🟢 13–17 PKT longs 58% / +0.11R (33)", "day fires 57% / +0.11R (35)", "night fires 29% / −0.43R (14)",
              "measured on the desk", "refreshed 13:40 PKT",
              "next: ⏱ verdict 14:40 · ⭐⚡ GO window till 17:40 · ❄️ freeze after", "🔮 ✅ Kronos agrees"):
     if need not in day_msg:
         fails.append(f"day star fire missing {need!r}")
 NIGHT = NOW + 10 * H      # 23:40 PKT
 night_msg = rs.star_fire(dict(p, side="SHORT"), 40, NIGHT, [], "", DB)
-for need in ("TAKE HALF, or wait for GO (night fire) · 23:40 PKT*", "window record: 21–01 PKT shorts",
+for need in ("TAKE HALF, or wait for GO (night fire) · 23:40 PKT*", "window record: 🟡 21–01 PKT shorts 0% / −1.00R (10)",
              "frozen night fires 0% / −1.00R (10)", "ignited night fires young (4 closes)", "🎯 conf 40"):
     if need not in night_msg:
         fails.append(f"night star fire missing {need!r}")
@@ -184,7 +186,7 @@ for need in ("⭐⚡ *GO — GLMR LONG · PROTECT · 13:40 PKT (2.5h after the f
     if need not in g:
         fails.append(f"GO text missing {need!r}")
 g2 = rs.go_text(dict(ew, oneh="DEAD", entry0=0.0121, stop=0.0119), 0.26, 5 * H, 0.01215, NOW, DB)
-if "(5.0h after the fire, late)*" not in g2 or "DEAD then ignited 70% / +0.26R (10)" not in g2 or "entry at GO measured 58% / −0.24R (12) — small, your call" not in g2:
+if "⭐⚡ *GO — GLMR LONG · REVIVED · PROTECT · 13:40 PKT (5.0h after the fire, late)*" not in g2 or "REVIVED" in g or "DEAD then ignited 70% / +0.26R (10)" not in g2 or "entry at GO measured 58% / −0.24R (12) — small, your call" not in g2:
     fails.append(f"late GO text wrong:\n{g2}")
 fz_n = rs.freeze_text(dict(ew, fired_at=NOW + 10 * H - 86400), NOW, DB)   # fired 23:40 PKT yesterday
 if "❄️ *GLMR LONG · silent at 4h · 13:40 PKT · FREEZE — free the seat*" not in fz_n or "night frozen fires: 0% / −1.00R (10) · day frozen fires: 0% / −1.00R (11)" not in fz_n or "release it the moment" not in fz_n:
@@ -230,7 +232,10 @@ for need, lab in (("TG_RULES = True\n", "switch on"),
                   ('_TG_THREADS[(_pmx.get("symbol"),', "thread memory written"),
                   ('_th = _TG_THREADS.get((sym, side))', "ego_add adopts the thread"),
                   ("rung_stats.verdict_text(\n                                            _ew, _prg, _ew_now),\n                                        reply_to=_ew.get(\"tg_ids\"))", "verdict reply"),
-                  ("rung_stats.go_text(\n                                            _ew, _prg, _age, _ew_px,\n                                            _ew_now),\n                                        reply_to=_ew.get(\"tg_ids\"))", "GO reply"),
+                  ("_go9 = rung_stats.go_text(\n                                        _ew, _prg, _age, _ew_px,\n                                        _ew_now)", "GO text built"),
+                  ('if _ew.get("oneh") == "DEAD":\n                                        # ⭐⚡ GO REVIVED is its own', "revived branch"),
+                  ("tg.send(_go9)", "GO REVIVED standalone"),
+                  ("tg.send_thread(\n                                            _go9,\n                                            reply_to=_ew.get(\"tg_ids\"))", "GO thread reply"),
                   ("rung_stats.freeze_text(_ew, _ew_now),\n                                    reply_to=_ew.get(\"tg_ids\"))", "freeze reply"),
                   ("now=(time.time() if TG_RULES else None))\n                                    + _kr_note(a))", "arrival stamps"),
                   ('store.should_alert("rung_scoreboard", 20 * 3600)', "scoreboard scheduled"),

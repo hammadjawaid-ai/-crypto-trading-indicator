@@ -78,6 +78,21 @@ def cell(pnls) -> tuple:
     return (n, w / n * 100.0, sum(pnls) / n)
 
 
+def light(c: tuple) -> str:
+    """🟢 / 🟡 / 🔴 — the clock's verdict light (user 2026-10-05: "previously
+    we had buttons for the time, can we have them again?"), same thresholds
+    as the old 🕐 tagline: a verdict needs buzz_clock.MIN_N closes; 🟢 at
+    avg >= GREEN_R with win >= 50%; 🔴 at avg <= RED_R; 🟡 otherwise."""
+    n, wp, ar = c
+    if n < buzz_clock.MIN_N:
+        return "🟡"
+    if ar >= buzz_clock.GREEN_R and wp >= 50:
+        return "🟢"
+    if ar <= buzz_clock.RED_R:
+        return "🔴"
+    return "🟡"
+
+
 def rec(c: tuple) -> str:
     """'77% / +0.49R (48)' — or honest 'young (n closes)' under MIN_N."""
     n, wp, ar = c
@@ -234,12 +249,13 @@ def star_fire(p: dict, conf, now: float, chips=(), kr_line: str = "",
     if not chips_line and conf is not None:
         chips_line = f"🎯 conf {conf}"
     if night:
-        wl = (f"window record: {win} PKT {who} {rec(wcell)} · night fires "
-              f"{rec(C['night'])} · frozen night fires {rec(C['frozen_night'])}"
-              f" · ignited night fires {rec(C['ignited_night'])}")
+        wl = (f"window record: {light(wcell)} {win} PKT {who} {rec(wcell)} · "
+              f"night fires {rec(C['night'])} · frozen night fires "
+              f"{rec(C['frozen_night'])} · ignited night fires "
+              f"{rec(C['ignited_night'])}")
     else:
-        wl = (f"window record: {win} PKT {who} {rec(wcell)} · day fires "
-              f"{rec(C['day'])} · night fires {rec(C['night'])}")
+        wl = (f"window record: {light(wcell)} {win} PKT {who} {rec(wcell)} · "
+              f"day fires {rec(C['day'])} · night fires {rec(C['night'])}")
     hn, hw, ha = bc.get((side, hour), (0, 0.0, 0.0))
     if hn >= buzz_clock.MIN_H and abs(ha) >= buzz_clock.HOUR_R:
         wl += (f" · {'⚠️' if ha < 0 else '✨'} {hour:02d}:00 itself: "
@@ -297,8 +313,13 @@ def go_text(ew: dict, prg: float, age_s: float, px: float, now: float,
     C = st["cls"]
     base, side = ew["base"], ew["side"]
     late = age_s > 4 * 3600
-    head = (f"⭐⚡ *GO — {base} {side} · PROTECT · {pkt_hm(now)} PKT "
-            f"({age_s / 3600:.1f}h after the fire{', late' if late else ''})*")
+    # ⭐⚡ REVIVED (user 2026-10-05: "where does our GO revived go?"): a fire
+    # the 1H verdict graded DEAD that ignites anyway keeps its name in the
+    # header — the old revival bell, now inside the thread.
+    rev = ew.get("oneh") == "DEAD"
+    head = (f"⭐⚡ *GO — {base} {side} · {'REVIVED · ' if rev else ''}PROTECT · "
+            f"{pkt_hm(now)} PKT ({age_s / 3600:.1f}h after the fire"
+            f"{', late' if late else ''})*")
     l2 = f"ignited: {prg * 100:+.0f}% of the path · live `{float(px):g}`"
     if ew.get("oneh") == "DEAD":
         lab, c = "DEAD then ignited", C["dead_go"]

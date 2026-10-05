@@ -5256,11 +5256,20 @@ def cycle() -> None:
                             if (_ew.get("buzzed")
                                     and _ew.get("fam", "elite") == "elite"):
                                 try:
-                                    tg.send_thread(
-                                        rung_stats.go_text(
-                                            _ew, _prg, _age, _ew_px,
-                                            _ew_now),
-                                        reply_to=_ew.get("tg_ids"))
+                                    _go9 = rung_stats.go_text(
+                                        _ew, _prg, _age, _ew_px,
+                                        _ew_now)
+                                    if _ew.get("oneh") == "DEAD":
+                                        # ⭐⚡ GO REVIVED is its own
+                                        # bell (user 2026-10-05:
+                                        # "have a GO revived as a
+                                        # separate one") — standalone,
+                                        # not a thread reply.
+                                        tg.send(_go9)
+                                    else:
+                                        tg.send_thread(
+                                            _go9,
+                                            reply_to=_ew.get("tg_ids"))
                                     n_alerts += 1
                                 except Exception as _go_exc:
                                     print("  GO thread error:", _go_exc,
