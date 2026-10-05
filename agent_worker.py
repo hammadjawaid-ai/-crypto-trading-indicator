@@ -26,6 +26,7 @@ import binance_client
 import btc2h
 import shock_watch
 import buzz_clock
+import rung_stats
 import news_radar
 import btc_outlook
 import market_context as _mc_w
@@ -269,6 +270,16 @@ def _ego_add(p, star=False, fam="elite"):
              "entry0": None, "go": None, "oneh": None,
              "froze": False, "buzzed": False, "fam": fam,
              "fired_at": _t9})
+        try:
+            # 🧵 a fire bell already went out for this coin+side (<2h):
+            # adopt its thread so verdict / GO / freeze reply to it.
+            _th = _TG_THREADS.get((sym, side))
+            if (_th and fam == "elite"
+                    and _t9 - float(_th.get("ts") or 0) < 2 * 3600):
+                _EGO_WATCH[-1]["buzzed"] = True
+                _EGO_WATCH[-1]["tg_ids"] = _th.get("ids")
+        except Exception:
+            pass
         del _EGO_WATCH[:-80]
     except Exception:
         pass
@@ -282,6 +293,22 @@ DEMO_FIRE_TTL_S = 1800
 # A muted stream that proves its ledger can earn its voice back on
 # the user's word. Revert any site: _MUTE_R9 -> tg.send.
 _MUTE_R9 = lambda *_a, **_k: (False, "roster9-muted")
+# 📵🧵 TG RULES (user 2026-10-05: "Mute the following rows: Apex, Prime,
+# Early Movers, Prime Entry, Live Executor Safety, Elite conviction (your
+# call), Morning and evening reports — rest bring the ones we discussed").
+# ONE switch. True = the rung-thread phone: ⭐ star / 💎🏆 A-GRADE / ⚡🔥
+# ARRIVAL bells lead with an action word (TAKE · TAKE HALF — a label by
+# PKT hour, never a gate) and carry measurement stamps; the ⏱ verdict,
+# ⭐⚡ GO and ❄️ FREEZE arrive as REPLIES in the fire's thread; the 09:00
+# PKT RUNG-1 SCOREBOARD; and every _MUTE_RULES site below is silent.
+# False = the phone exactly as the git tag telegram-baseline-2026-10-05
+# (the user's one-word "revert telegram"). Records, desk tiers, boards
+# and demo feeds never depend on this flag.
+TG_RULES = True
+_MUTE_RULES = _MUTE_R9 if TG_RULES else tg.send
+# 🧵 thread memory: (symbol, side) -> {ts, ids} of the fire bell the phone
+# heard, so a watch entry created after the send still answers in-thread.
+_TG_THREADS: dict = {}
 # 🎮 GEN 8 feeds (user 2026-09-05): the duo-pair buzzes and the ⚡
 # waking lane get demo seats. Cycle-thread only; TTL-drained like
 # _DEMO_FIRES. _DEMO_REOPEN holds TP1-banked winners whose momentum
@@ -559,8 +586,10 @@ def _arrival_tier(src, side, grade):
     return 3
 
 
-def _fmt_arrival(a: dict, px: float, tier: int) -> str:
-    """One banner for all three classes; the tier line says which one."""
+def _fmt_arrival(a: dict, px: float, tier: int, now=None) -> str:
+    """One banner for all three classes; the tier line says which one.
+    now (TG RULES 2026-10-05): when given, the header carries the action
+    word + fire time and a stamped record line follows the plan."""
     emo, label, rec = ARRIVAL_TIERS[int(tier)]
     g = a.get("arrival")
     v2, m3 = a.get("arr_vol2"), a.get("arr_mom3")
@@ -575,14 +604,23 @@ def _fmt_arrival(a: dict, px: float, tier: int) -> str:
         how = "arrival: no read (short candle history)"
     t2 = f" · TP2 `{float(a['tp2']):g}`" if a.get("tp2") else ""
     src = str(a.get("src") or "").strip()
-    return (f"{emo} *ARRIVAL T{int(tier)} — {a['base']} LONG · {label}*\n"
+    head = f"{emo} *ARRIVAL T{int(tier)} — {a['base']} LONG · {label}*"
+    tail = ""
+    if now is not None:
+        head = (f"{emo} *ARRIVAL T{int(tier)} — {a['base']} LONG · {label} · "
+                f"TAKE · {rung_stats.pkt_hm(now)} PKT*")
+        try:
+            tail = "\n" + rung_stats.arrival_record(int(tier), now)
+        except Exception:
+            tail = ""
+    return (head + "\n"
             f"{src} number `{float(a['trigger']):g}` broke · {how}\n"
             f"entry `{float(px):g}` · SL `{float(a['stop']):g}` · TP1 "
             f"`{float(a['tp1']):g}`{t2}\n"
             f"_this tier: {rec}. T1 HOT strong coil 86% / +0.21R · T2 HOT "
             f"83% / +0.23R · T3 any long break 76% / +0.11R (Aug 15 - Sep 28). "
             f"Shorts at the number lost 58% / -0.11R, so only longs ring. "
-            f"Desk tiers arrival T1 / T2 / T3 prove it forward._")
+            f"Desk tiers arrival T1 / T2 / T3 prove it forward._" + tail)
 
 
 def _fmt_trigger(a: dict, px: float, vk: float) -> str:
@@ -897,7 +935,9 @@ def _trigger_watch() -> None:
                                 f"arrival:{a['symbol']}:LONG",
                                 int(1.5 * 3600))
                                 and not _bstock_quiet(a["symbol"])):
-                            tg.send(_fmt_arrival(a, px, _atier)
+                            tg.send(_fmt_arrival(
+                                a, px, _atier,
+                                now=(time.time() if TG_RULES else None))
                                     + _kr_note(a))
                     except Exception as _ar_exc:
                         print("  arrival error:", _ar_exc, flush=True)
@@ -1719,7 +1759,7 @@ def _grade_sig(p, conf, seat, grade):
             "rr": _plan_rr(p), "grade": grade}
 
 
-def _agrade_banner(seat, conf, rr):
+def _agrade_banner(seat, conf, rr, head=None, nxt=""):
     """Headline block that LEADS an A-grade elite buzz. The study numbers
     stay; the live forward ledger joins once it has 10 closes."""
     fwd = ""
@@ -1747,12 +1787,13 @@ def _agrade_banner(seat, conf, rr):
     except Exception:
         conf_txt = "?"
     rr_txt = f"{rr:.2f}R" if rr is not None else "?"
-    return ("💎🏆 *ELITE A-GRADE — the measured best cell*\n"
+    return ((head or "💎🏆 *ELITE A-GRADE — the measured best cell*") + "\n"
             f"_{seat_txt} · 🎯 conf {conf_txt} · LONG · TP1 {rr_txt} away. "
             "Desk Sep 1-28: 68.6% / +0.49R over 35 fires, every third "
             "green, still positive after the best-days and best-coins "
             "cuts. Replay unproven (7 fires) — size as a normal elite "
-            f"trade until the forward ledger speaks.{fwd}_\n")
+            f"trade until the forward ledger speaks.{fwd}_\n"
+            + (nxt + "\n" if nxt else ""))
 
 
 def _fmt_elite_conv(p) -> str:
@@ -1932,8 +1973,11 @@ def cycle() -> None:
                 try:
                     _rv2 = next((x for x in shadow_trader.tier_records()
                                  if x.get("tier") == "apex_v2"), None)
-                    tg.send(_fmt_apex_v2(_sig2, _px2, _rv2)
-                            + _kr_note(_sig2))
+                    # 📵 TG RULES 2026-10-05: the APEX row is muted —
+                    # V2 included (desk tier apex_v2 + its 1h stamps
+                    # continue). Revert: TG_RULES = False.
+                    _MUTE_RULES(_fmt_apex_v2(_sig2, _px2, _rv2)
+                                + _kr_note(_sig2))
                 except Exception as _v2b_exc:
                     print("  apexv2 bell error:", _v2b_exc, flush=True)
             print(f"[apexv2] 🏆² {_sig2['base']} {_sd2} score "
@@ -2014,8 +2058,13 @@ def cycle() -> None:
         # (user 2026-09-13 later, "bring back": 🏆 APEX ×4/×5 conf>=70
         # · 🥇 PRIME conf>=55 · 💎 BEST OF THE BEST with its 🎯 conf
         # chip — all three back on the phone, gates as they were.)
-        if key_prefix not in ("moon", "em", "emrest",
-                              "apex", "prime"):
+        if key_prefix not in (("moon",) if TG_RULES else
+                              ("moon", "em", "emrest",
+                               "apex", "prime")):
+            # 📵 TG RULES 2026-10-05: 🏆 APEX, 🥇 PRIME, ⭐🚀 PRIME ENTRY
+            # (em) and ⚡ EARLY MOVERS (emrest) off the phone on the
+            # user's row list; records, boards, desk tiers and demo
+            # feeds untouched. Revert: TG_RULES = False.
             # ("best" left the roster 2026-10-05: user replaced the
             #  BEST OF THE BEST bell with HOT ARRIVAL. Revert: add
             #  "best" back to the tuple above.)
@@ -2260,7 +2309,14 @@ def cycle() -> None:
                     if _ag9:
                         try:
                             _msg9 = _agrade_banner(
-                                _seat9, _cf9, _plan_rr(_pmx)) + _msg9
+                                _seat9, _cf9, _plan_rr(_pmx),
+                                head=(rung_stats.agrade_head(
+                                    _pmx, time.time())
+                                      if TG_RULES else None),
+                                nxt=((rung_stats.next_line(time.time())
+                                      + "\n"
+                                      + rung_stats.stamp_now(time.time()))
+                                     if TG_RULES else "")) + _msg9
                         except Exception:
                             pass
                     # 🕐 BUZZ CLOCK (user 2026-10-01: "add the times ...
@@ -2277,7 +2333,40 @@ def cycle() -> None:
                             _msg9 = _msg9 + "\n" + _ck9
                     except Exception:
                         pass
-                    ok, _m9 = tg.send(_msg9)
+                    _ids9 = None
+                    if TG_RULES and (_star9 or _ag9):
+                        # 🧵 TG RULES (user 2026-10-05): the rung-1 bells
+                        # are thread anchors — the ⏱ verdict / ⭐⚡ GO /
+                        # ❄️ freeze answer INSIDE this message. A star
+                        # fire is re-set in the action format (TAKE /
+                        # TAKE HALF label by PKT hour — never a gate);
+                        # the A-GRADE keeps its banner + plan block.
+                        if _star9:
+                            try:
+                                _msg9 = rung_stats.star_fire(
+                                    _pmx, _cf9, time.time(), _cbits,
+                                    _kr_note(_pmx))
+                                if _ag9:
+                                    _msg9 = _agrade_banner(
+                                        _seat9, _cf9, _plan_rr(_pmx),
+                                        head=rung_stats.agrade_head(
+                                            _pmx, time.time())) + _msg9
+                            except Exception as _rs_exc:
+                                print("  star fire format error:",
+                                      _rs_exc, flush=True)
+                        ok, _m9, _ids9 = tg.send_thread(_msg9)
+                    elif TG_RULES:
+                        # 📵 plain 💎 conviction OFF the phone — Claude's
+                        # call on the user's "your call" (2026-10-05):
+                        # the stream is rally-only (-0.12R before the
+                        # rally / +0.17R in it / -0.21R replay); its two
+                        # measured subsets, ⭐ star and 💎🏆 A-grade, keep
+                        # ringing and carry the thread. Records, desk,
+                        # boards and 1h stamps all continue. Revert:
+                        # TG_RULES = False, or route this branch to tg.send.
+                        ok, _m9 = _MUTE_RULES(_msg9)
+                    else:
+                        ok, _m9 = tg.send(_msg9)
                     n_alerts += 1 if ok else 0
                     # ④ mark the fire BUZZED so the 1H VERDICT bell
                     # covers exactly what the phone heard (user
@@ -2290,8 +2379,18 @@ def cycle() -> None:
                                         "symbol")
                                         and _ewb["side"] == (
                                             _pmx.get("side") or ""
-                                        ).upper()):
+                                        ).upper()
+                                        and _ewb.get("fam", "elite")
+                                        == "elite"):
                                     _ewb["buzzed"] = True
+                                    if _ids9:
+                                        _ewb["tg_ids"] = _ids9
+                            # 🧵 thread memory for a watch entry that
+                            # is created after this send (star hook).
+                            _TG_THREADS[(_pmx.get("symbol"),
+                                         (_pmx.get("side") or "")
+                                         .upper())] = {
+                                "ts": time.time(), "ids": _ids9}
                         except Exception:
                             pass
                     if _star9:
@@ -4460,7 +4559,10 @@ def cycle() -> None:
             {"early_lane": em_big, "apex": apex, "fresh": fresh_m,
              "early_movers": r.get("early_strong", [])}, _live_px)
         for _po in _lx.get("opened", []):
-            ok, _ = tg.send(
+            # 📵 TG RULES 2026-10-05: live receipts off the phone; the
+            # 🛑 kill switch, ⛔ daily halt and ⚠️ Bybit-unreachable
+            # alerts below stay live (real-money safety).
+            ok, _ = _MUTE_RULES(
                 f"💸 *LIVE OPENED* — {_po.get('base')} {_po.get('side')} "
                 f"({_po.get('tier')})\n"
                 f"qty `{_po.get('qty')}` @ `{_po.get('entry'):g}` · "
@@ -4471,7 +4573,7 @@ def cycle() -> None:
             n_alerts += 1 if ok else 0
         for _pc in _lx.get("closed", []):
             _pu = float(_pc.get("pnl_usd") or 0)
-            ok, _ = tg.send(
+            ok, _ = _MUTE_RULES(
                 f"💸 *LIVE CLOSED* — {_pc.get('base')} "
                 f"{_pc.get('exit_reason')} · "
                 f"${_pu:+,.2f} ({float(_pc.get('pnl_pct') or 0):+.2f}%)")
@@ -4495,7 +4597,7 @@ def cycle() -> None:
             if ("adopted external" in _note
                     and store.should_alert(f"live_adopt:{_note[:60]}",
                                            12 * 3600)):
-                ok, _ = tg.send(f"👀 *LIVE* — {_note}")
+                ok, _ = _MUTE_RULES(f"👀 *LIVE* — {_note}")
                 n_alerts += 1 if ok else 0
             # ⚠️ the executor lost its Bybit connection (expired key,
             # revoked key, API outage) — buzz at most once per 20h so
@@ -4516,7 +4618,7 @@ def cycle() -> None:
                         "\n⏸ ENTRY HOLD is ON — no trades will open "
                         "until you give the word."
                         if live_executor.GEN10_ENTRY_HOLD else "")
-                    ok, _ = tg.send(
+                    ok, _ = _MUTE_RULES(
                         f"🤖💸 *LIVE EXECUTOR {_note}* — 🎮→💸 GEN 10 "
                         f"MODE: trading the demo's seven streams in "
                         f"their conf bands, real money. "
@@ -4528,7 +4630,7 @@ def cycle() -> None:
                         f"halt · -{live_executor.KILL_PCT:g}% kill "
                         f"switch.{_hold_line}")
                 else:
-                    ok, _ = tg.send(
+                    ok, _ = _MUTE_RULES(
                         f"🤖💸 *LIVE EXECUTOR {_note}* — trading the "
                         f"proven "
                         f"tiers (early-lane, apex, fresh, early movers) at "
@@ -5061,7 +5163,23 @@ def cycle() -> None:
                         # buzz: approved fires, HIGH and MAX, no
                         # cap (user item 2). One verdict per fire
                         # by construction — no cooldown needed.
-                        if _ew.get("buzzed") or _ew.get("appr"):
+                        if TG_RULES:
+                            # 🧵 the verdict answers in the fire's thread,
+                            # only for fires the phone heard (star /
+                            # A-grade anchors). HOLD FULL (LIVE) ·
+                            # HOLD — no add, no cut (DEAD).
+                            if (_ew.get("buzzed")
+                                    and _ew.get("fam", "elite") == "elite"):
+                                try:
+                                    tg.send_thread(
+                                        rung_stats.verdict_text(
+                                            _ew, _prg, _ew_now),
+                                        reply_to=_ew.get("tg_ids"))
+                                    n_alerts += 1
+                                except Exception as _vt_exc:
+                                    print("  verdict thread error:",
+                                          _vt_exc, flush=True)
+                        elif _ew.get("buzzed") or _ew.get("appr"):
                             # 🔊 1H VERDICT — WIDENED (user
                             # 2026-09-18: "widen the verdict to
                             # every buzzed fire"): every fire the
@@ -5129,7 +5247,25 @@ def cycle() -> None:
                         # no bell — the 🟢 LIVE verdict already
                         # names them. GO-FAST/TOP-PICK buzzes
                         # retire (stamps + chase tier continue).
-                        if (_ew.get("buzzed")
+                        if TG_RULES:
+                            # 🧵 GO answers in the thread for EVERY heard
+                            # star that ignites (+25% of the path), fast
+                            # or late. PROTECT — a hold bell with the
+                            # honest "not in it" line (R left to TP1 +
+                            # the GO-entry control record).
+                            if (_ew.get("buzzed")
+                                    and _ew.get("fam", "elite") == "elite"):
+                                try:
+                                    tg.send_thread(
+                                        rung_stats.go_text(
+                                            _ew, _prg, _age, _ew_px,
+                                            _ew_now),
+                                        reply_to=_ew.get("tg_ids"))
+                                    n_alerts += 1
+                                except Exception as _go_exc:
+                                    print("  GO thread error:", _go_exc,
+                                          flush=True)
+                        elif (_ew.get("buzzed")
                                 and _ew.get("oneh") == "DEAD"):
                             tg.send(
                                 f"⭐⚡ *GO — {_ew['base']} "
@@ -5167,6 +5303,19 @@ def cycle() -> None:
                             and not _ew.get("froze")
                             and _age >= 4 * 3600 and not _stopped):
                         _ew["froze"] = True
+                        if (TG_RULES and _ew.get("buzzed")
+                                and _ew.get("fam", "elite") == "elite"):
+                            # 🧵 ❄️ FREEZE reply (new on the phone
+                            # 2026-10-05): night fire -> free the seat;
+                            # day fire -> hold, no adds. Never a cut.
+                            try:
+                                tg.send_thread(
+                                    rung_stats.freeze_text(_ew, _ew_now),
+                                    reply_to=_ew.get("tg_ids"))
+                                n_alerts += 1
+                            except Exception as _fz_exc:
+                                print("  freeze thread error:", _fz_exc,
+                                      flush=True)
                         _MUTE_R9(          # 📵 muted 2026-09-14
                             f"⭐❄️ *{_ew['base']} star — 4h, no "
                             f"ignition.*\n"
@@ -5341,7 +5490,7 @@ def cycle() -> None:
         try:
             _g10 = live_executor.run_gen10(_dz_ranked, _live)
             for _po in _g10.get("opened", []):
-                ok, _ = tg.send(
+                ok, _ = _MUTE_RULES(
                     f"💸 *GEN10 LIVE OPENED* — {_po.get('base')} "
                     f"{_po.get('side')} via {_po.get('src')}\n"
                     f"entry `{float(_po.get('entry') or 0):g}` · SL "
@@ -6232,6 +6381,19 @@ def cycle() -> None:
                 print("[auditor] daily report sent", flush=True)
             except Exception as _aud_exc:
                 print("[auditor] error:", _aud_exc, flush=True)
+        # 📊 RUNG-1 SCOREBOARD (user 2026-10-05 thread design): yesterday's
+        # ⭐ / ⚡🔥 T1-T2 / 💎🏆 fires and how they resolved, once a day in
+        # the morning window. Its own key; fail-soft.
+        if (TG_RULES and _dh_utc <= _hr_now < _dh_utc + 3
+                and store.should_alert("rung_scoreboard", 20 * 3600)):
+            try:
+                _sb9 = rung_stats.scoreboard(time.time())
+                if _sb9:
+                    ok, _sbm = tg.send(_sb9)
+                    print(f"  rung scoreboard sent={ok}"
+                          + ("" if ok else f" ({_sbm})"), flush=True)
+            except Exception as _sb_exc:
+                print("  rung scoreboard error:", _sb_exc, flush=True)
         if (_dh_utc <= _hr_now < _dh_utc + 3
                 and store.should_alert("daily_digest", 20 * 3600)):
             recs = shadow_trader.tier_records()
@@ -6285,7 +6447,7 @@ def cycle() -> None:
             if _mood_line:
                 lines.append(_mood_line)
             lines.append(f"regime: {regime}")
-            ok, _dmsg = tg.send("\n".join(lines))
+            ok, _dmsg = _MUTE_RULES("\n".join(lines))   # 📵 TG RULES: reports off
             print(f"  digest sent={ok}" + ("" if ok else f" ({_dmsg})"),
                   flush=True)
             n_alerts += 1 if ok else 0
@@ -6346,7 +6508,7 @@ def cycle() -> None:
             if _mood_line:
                 lines.append(_mood_line)
             lines.append(f"regime: {regime}")
-            ok, _dmsg = tg.send("\n".join(lines))
+            ok, _dmsg = _MUTE_RULES("\n".join(lines))   # 📵 TG RULES: reports off
             print(f"  digest sent={ok}" + ("" if ok else f" ({_dmsg})"),
                   flush=True)
             n_alerts += 1 if ok else 0

@@ -17,7 +17,8 @@ A = open(r"F:\Trading Indicator\app.py", encoding="utf-8").read()
 U = open(r"F:\Trading Indicator\auditor.py", encoding="utf-8").read()
 fails = []
 tree = ast.parse(W)
-ns = {"np": np, "pd": pd}
+import rung_stats
+ns = {"np": np, "pd": pd, "rung_stats": rung_stats}
 for n in tree.body:
     if isinstance(n, ast.FunctionDef) and n.name in ("_arrival_grade", "_arrival_tier", "_fmt_arrival"):
         exec(compile(ast.Module(body=[n], type_ignores=[]), n.name, "exec"), ns)
@@ -87,6 +88,12 @@ m3 = fmt({**a, "arrival": "COLD", "arr_vol2": 0.6, "arr_mom3": 0.1, "tp2": None}
 if "\u26a1 *ARRIVAL T3 — XLM LONG · long break at the number*" not in m3 or "arrived COLD: 0.6x volume" not in m3 or "TP2" in m3:
     fails.append("T3 cold banner wrong")
 m4 = fmt({**a, "arrival": None, "arr_vol2": None, "arr_mom3": None}, 0.2268, 3)
+import calendar
+m5 = fmt(a, 0.2268, 1, now=float(calendar.timegm((2026, 10, 3, 0, 40, 0))))   # 00:40 UTC = 05:40 PKT
+if "*ARRIVAL T1 — XLM LONG · HOT strong coil · TAKE · 05:40 PKT*" not in m5 or "T1 record: replay 86% / +0.21R (154), 15 Aug → 28 Sep · forward desk" not in m5 or "refreshed 05:40 PKT" not in m5:
+    fails.append("TG RULES arrival header/record line wrong")
+if m5.count('*') % 2 or m5.count('`') % 2:
+    fails.append("TG RULES arrival markdown unbalanced")
 if "arrival: no read" not in m4:
     fails.append("no-read banner wrong")
 for m in (m1, m2, m3, m4):
@@ -99,7 +106,7 @@ i_src0 = W.find('_src0 = str(a.get("src", ""))')
 i_feed = W.find("                        del _DEMO_FIRES[:-40]\n                # \u26a1\U0001F525 ARRIVAL BANNER")
 i_tier = W.find('_atier = _arrival_tier(_src0, a.get("side"),')
 i_gate = W.find("if (_atier <= 2 and store.should_alert(")
-i_bell = W.find("tg.send(_fmt_arrival(a, px, _atier)\n                                    + _kr_note(a))")
+i_bell = W.find("tg.send(_fmt_arrival(\n                                a, px, _atier,\n                                now=(time.time() if TG_RULES else None))\n                                    + _kr_note(a))")
 i_trig = W.find('f"trig:{a[\'symbol\']}:{a[\'side\']}",')
 if not (0 < i_grade < i_src0 < i_feed < i_tier < i_gate < i_bell < i_trig):
     fails.append(f"banner block order wrong: grade {i_grade} src0 {i_src0} feed {i_feed} tier {i_tier} gate {i_gate} bell {i_bell} trig {i_trig}")
@@ -115,8 +122,8 @@ for gone in ('_sig_h = dict(_sig_t, tier="HOT")', "_fmt_hot_arrival", "trighot:"
         fails.append(f"stale text still present: {gone}")
 if "_MUTE_R9(_fmt_arrival" in W:
     fails.append("ARRIVAL bell must be live")
-if '"apex", "prime", "best"):' in W or '"apex", "prime"):' not in W:
-    fails.append("BEST OF THE BEST must be out of the push roster")
+if '"apex", "prime", "best"):' in W or '(("moon",) if TG_RULES else' not in W:
+    fails.append("push roster must be moon-only under TG_RULES (best/apex/prime/em off)")
 for need in ('"trig_hot": "\u26a1\U0001F525 ARRIVAL T1', '"arr_hot": "\u26a1\U0001F525 ARRIVAL T2', '"arr_long": "\u26a1 ARRIVAL T3'):
     if need not in A:
         fails.append(f"app name missing: {need}")
