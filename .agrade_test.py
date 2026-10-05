@@ -160,14 +160,46 @@ for need, lab in (('"elite_agrade": "💎🏆 ELITE A-GRADE', "app A-grade name"
 for need in ('"elite_agrade": "elite_agrade",', '"elite_seated65": "elite_seated65",'):
     if need not in U:
         fails.append(f"auditor missing {need}")
-for need, lab in (('json.dump(_diag, _fd, default=str)', "worker writes the status file"),
+for need, lab in (('_json_ag.dump(_diag, _fd, default=str)', "worker writes the status file"),
                   ('elite_conf65=sum(1 for q in _ec_mh', "conf-65 count"),
                   ('seated65_now=[g["symbol"] for g in _s65_list]', "seated list")):
     if need not in W:
         fails.append(f"diag missing: {lab}")
-if W.find('json.dump(_diag, _fd, default=str)') > W.find('_tiers = (("top_conviction", _topc),'):
+if W.find('_json_ag.dump(_diag, _fd, default=str)') > W.find('_tiers = (("top_conviction", _topc),'):
     fails.append("diag must be written before the tiers tuple")
 if 'A-GRADE WATCH (worker status' not in A:
     fails.append("app caption missing")
+_tw = ast.parse(W)
+_asg, _lds = set(), set()
+for _n in ast.walk(_tw):
+    if isinstance(_n, ast.Name):
+        (_asg if isinstance(_n.ctx, ast.Store) else _lds).add(_n.id)
+    elif isinstance(_n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        _asg.add(_n.name)
+        if not isinstance(_n, ast.ClassDef):
+            for _a in _n.args.args + _n.args.kwonlyargs + ([_n.args.vararg] if _n.args.vararg else []) + ([_n.args.kwarg] if _n.args.kwarg else []):
+                _asg.add(_a.arg)
+    elif isinstance(_n, (ast.Import, ast.ImportFrom)):
+        for _al in _n.names:
+            _asg.add((_al.asname or _al.name).split(".")[0])
+    elif isinstance(_n, ast.ExceptHandler) and _n.name:
+        _asg.add(_n.name)
+    elif isinstance(_n, ast.Lambda):
+        for _a in _n.args.args:
+            _asg.add(_a.arg)
+    elif isinstance(_n, ast.comprehension):
+        for _t in ast.walk(_n.target):
+            if isinstance(_t, ast.Name):
+                _asg.add(_t.id)
+    elif isinstance(_n, (ast.With, ast.AsyncWith)):
+        for _it in _n.items:
+            if _it.optional_vars:
+                for _t in ast.walk(_it.optional_vars):
+                    if isinstance(_t, ast.Name):
+                        _asg.add(_t.id)
+import builtins as _bi
+_ghosts = sorted(g for g in _lds - _asg if not hasattr(_bi, g) and g not in ("Any", "__file__"))
+if _ghosts:
+    fails.append(f"agent_worker.py uses names it never binds (NameError at run time): {_ghosts}")
 print(m)
 print("ELITE A-GRADE:", "ALL PASS" if not fails else fails)

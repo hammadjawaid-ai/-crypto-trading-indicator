@@ -4082,9 +4082,10 @@ def cycle() -> None:
                          elite_seated_now=_seated_now,
                          seated65_now=[g["symbol"] for g in _s65_list],
                          agrade_now=[g["symbol"] for g in _ag_list])
+            import json as _json_ag   # json is not a module-level name here
             with open(str(config.state_path(".agrade_status.json")), "w",
                       encoding="utf-8") as _fd:
-                json.dump(_diag, _fd, default=str)
+                _json_ag.dump(_diag, _fd, default=str)
         except Exception as _dg_exc:
             print("  agrade diag error:", _dg_exc, flush=True)
         _tiers = (("top_conviction", _topc),
