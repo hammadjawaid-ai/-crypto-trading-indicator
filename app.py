@@ -15951,10 +15951,16 @@ if active_section == "🧪 Paper Trader":
                     f"A-GRADE this cycle: {', '.join(_ags.get('agrade_now') or []) or 'none'} · "
                     f"since worker start ({_ags.get('cycles')} cycles): "
                     f"seated-65 {_ags.get('seated65_total')} (last {_fmt_ago(_ls)}), "
-                    f"A-grade {_ags.get('agrade_total')} (last {_fmt_ago(_la)}).")
-            except Exception:
+                    f"A-grade {_ags.get('agrade_total')} (last {_fmt_ago(_la)}) · "
+                    f"build {(os.environ.get('RENDER_GIT_COMMIT') or 'local')[:7]}.")
+            except FileNotFoundError:
                 st.caption("🏆 A-GRADE WATCH: no status file yet — the worker "
-                           "has not completed a cycle on the new code.")
+                           "has not completed a cycle on the new code · build "
+                           f"{(os.environ.get('RENDER_GIT_COMMIT') or 'local')[:7]}")
+            except Exception as _ag_exc:
+                st.caption(f"🏆 A-GRADE WATCH: status file present but the page "
+                           f"could not read it: {type(_ag_exc).__name__}: {_ag_exc} · "
+                           f"build {(os.environ.get('RENDER_GIT_COMMIT') or 'local')[:7]}")
             # ⚠ HONEST BACKTEST DISCLAIMER — 25-coin walk-forward
             # (n=698) showed ELITE standalone is essentially a coin
             # flip: 48% overall, 50.6% STRONG tier, no slice produces
