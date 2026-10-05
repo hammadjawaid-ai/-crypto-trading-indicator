@@ -1639,7 +1639,8 @@ def _fmt_elite_early(p) -> str:
 _SEATS: dict = {}
 _AG_DIAG: dict = {"cycles": 0, "seated65_total": 0, "agrade_total": 0,
                   "last_seated65": None, "last_agrade": None,
-                  "started": time.time()}
+                  "seat_cycles": 0, "last_seat_seen": None,
+                  "hot_now": 0, "started": time.time()}
 SEAT_MEMORY_S = 2 * 3600          # the study's "board 2h before the fire"
 AGRADE_CONF = 65.0
 AGRADE_MAX_RR = 1.6
@@ -4065,6 +4066,19 @@ def cycle() -> None:
                 _AG_DIAG["last_seated65"] = time.time()
             if _ag_list:
                 _AG_DIAG["last_agrade"] = time.time()
+            # base rate: how often the worker even HAS a seat to pair with
+            _AG_DIAG["hot_now"] = len(tn_hot)
+            if tn_hot:
+                _AG_DIAG["seat_cycles"] += 1
+                _AG_DIAG["last_seat_seen"] = time.time()
+            # conf for every elite card (unseated ones were never stamped)
+            for _q in _ec_mh:
+                if _q.get("conf") is None:
+                    try:
+                        _q["conf"] = best_board.confidence(
+                            _q.get("symbol"), _q.get("side"))
+                    except Exception:
+                        pass
 
             def _cf_ok(_v):
                 try:
