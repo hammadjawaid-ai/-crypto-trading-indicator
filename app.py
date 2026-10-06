@@ -2953,6 +2953,171 @@ def _render_star_board(pb_state, live_prices=None) -> None:
             continue
 
 
+def _render_revived_board(pb_state, live_prices=None) -> None:
+    """⭐⚡ GO REVIVED — openable now (user 2026-10-06: "build go revived
+    board on the paper trading under the elite star same like we have for
+    elite star with openable trades"). Every revived GO of the last 24h —
+    a star or approved elite fire graded DEAD at the hour that then ignited
+    to +25% of its path — as a card: the fire's plan, where price sits now
+    on the path, how long after the fire it ignited, whether the phone got
+    the bell, and a 📥 Open button that takes it into the Paper Trader at
+    the live price with the plan's stop / TP1 / TP2. Judge on top: the
+    go_revived desk tier (entered at the GO price, the same thing the
+    button does). Read-only on the worker DB; fail-soft."""
+    st.markdown("#### ⭐⚡ GO REVIVED — openable now")
+    st.caption(
+        "A fire the hour graded DEAD that ignited anyway: on the desk, DEAD "
+        "then ignited ran 71% / +0.39R over 55 stars and 73% / +0.55R over 52 "
+        "elite fires (09 Sep → 28 Sep, measured from the FIRE price). Entering "
+        "at the GO itself measured +0.10R on the star chase tier — the ledger "
+        "line below is that entry, forward. Each card is a revived GO from the "
+        "last 24 hours; 📥 Open takes it at the live price with the plan.")
+    try:
+        import sqlite3 as _sq_rb
+        _now_rb = time.time()
+        _since = _now_rb - 24 * 3600
+        _crb = _sq_rb.connect(f"file:{_ws_c.DB_PATH}?mode=ro", uri=True)
+        try:
+            _gos = _crb.execute(
+                "SELECT ts, symbol, base, side, entry, stop, tp1, tp2, tier, "
+                "score, extra FROM signals WHERE stream IN ('star_go', "
+                "'elite_go') AND ts>=? ORDER BY ts DESC", (_since,)).fetchall()
+            _led = _crb.execute(
+                "SELECT COUNT(*), SUM(CASE WHEN pnl_r>0 THEN 1 ELSE 0 END), "
+                "COALESCE(SUM(pnl_r),0), "
+                "SUM(CASE WHEN closed_at>=? THEN 1 ELSE 0 END), "
+                "COALESCE(SUM(CASE WHEN closed_at>=? THEN pnl_r ELSE 0 END),0) "
+                "FROM shadow_trades WHERE tier='go_revived' AND status='CLOSED' "
+                "AND abs(entry-stop0)/entry>=0.005",
+                (_now_rb - 14 * 86400, _now_rb - 14 * 86400)).fetchone()
+            _open_desk = _crb.execute(
+                "SELECT symbol, side FROM shadow_trades WHERE "
+                "tier='go_revived' AND status='OPEN'").fetchall()
+        finally:
+            _crb.close()
+    except Exception as _rb_exc:
+        st.caption(f"⭐⚡ board unavailable right now: {_rb_exc}")
+        return
+    _n, _w, _net, _n14, _net14 = (int(_led[0] or 0), int(_led[1] or 0),
+                                  float(_led[2] or 0), int(_led[3] or 0),
+                                  float(_led[4] or 0))
+    if _n:
+        _cc = "#2ed47a" if _net > 0 else "#ff5c5c"
+        st.markdown(
+            f"**forward ledger (entry at the revived GO):** {_n} closed · win "
+            f"{_w / _n * 100:.0f}% · <b style='color:{_cc}'>{_net:+.1f}R</b> "
+            f"· last 14 days {_n14} closed {_net14:+.1f}R · "
+            f"{len(_open_desk)} open on the desk", unsafe_allow_html=True)
+    else:
+        st.caption("forward ledger (entry at the revived GO): no closes yet — "
+                   "the first revived GO opens it")
+    _seen, _cards = set(), []
+    for _r in _gos:
+        try:
+            _ex = json.loads(_r[10] or "{}")
+        except Exception:
+            _ex = {}
+        if str(_ex.get("oneh") or "").upper() != "DEAD":
+            continue                      # only the revived class
+        _k = (_r[1], (_r[3] or "").upper())
+        if _k in _seen:
+            continue
+        _seen.add(_k)
+        _cards.append((_r, _ex))
+    if not _cards:
+        st.caption("· no revived GO in the last 24 hours — the next DEAD fire "
+                   "that ignites appears here")
+        return
+    _held = ({p.get("symbol") for p in (pb_state.get("open") or [])}
+             if pb_state else set())
+    try:
+        binance_client.prime_prices([r[1] for r, _ in _cards])
+    except Exception:
+        pass
+    for _i, (_r, _ex) in enumerate(_cards[:12]):
+        try:
+            _ts, _sym, _b, _sd, _e, _stp, _t1, _t2, _tier, _mins, _extra = _r
+            _e, _stp, _t1 = float(_e), float(_stp), float(_t1)
+            _t2f = float(_t2) if _t2 else None
+            _sd = (_sd or "").upper()
+            _lng = _sd == "LONG"
+            _live = None
+            try:
+                _live = float((live_prices or {}).get(_sym) or
+                              binance_client.get_ticker_price(_sym) or 0) or None
+            except Exception:
+                _live = None
+            _prog = None
+            if _live and _t1 != _e:
+                _prog = ((_live - _e) / (_t1 - _e) if _lng
+                         else (_e - _live) / (_e - _t1))
+            _stopped = bool(_live) and ((_live <= _stp) if _lng
+                                        else (_live >= _stp))
+            if _stopped:
+                _status, _scol = "🔴 stopped", "#ff5c5c"
+            elif _prog is None:
+                _status, _scol = "price n/a", "#8b93a7"
+            elif _prog >= 1:
+                _status, _scol = f"🏆 past TP1 ({_prog * 100:.0f}%)", "#ffd700"
+            elif _prog >= 0.25:
+                _status, _scol = f"🟡 holding the ignition ({_prog * 100:.0f}% to TP1)", "#ffd54a"
+            elif _prog >= 0:
+                _status, _scol = f"🟠 fell back ({_prog * 100:.0f}% to TP1)", "#ffb347"
+            else:
+                _status, _scol = f"🔻 under the fire entry ({_prog * 100:.0f}%)", "#ff8c69"
+            _chips = ["⭐ star" if _ex.get("star") else "💎 elite",
+                      f"⭐⚡ GO {_tier or ''}".strip(),
+                      f"ignited {float(_mins or 0):.0f} min after the fire",
+                      "⏱ 1H DEAD"]
+            _bell = str(_ex.get("bell") or "")
+            if _bell.startswith("sent"):
+                _chips.append("🔔 bell ✓")
+            elif _bell:
+                _chips.append(f"🔕 no bell: {_bell}")
+            _pkt = time.strftime("%H:%M", time.gmtime(float(_ts) + 5 * 3600))
+            _ago = (_now_rb - float(_ts)) / 3600
+            _sc = "#2ed47a" if _lng else "#ff5c5c"
+            _c1, _c2 = st.columns([5, 1])
+            _c1.markdown(
+                f"<div style='background:rgba(120,200,255,0.06);border:1px solid "
+                f"rgba(120,200,255,0.30);border-radius:10px;padding:8px 13px;"
+                f"margin:4px 0'>⭐⚡ <b>{_b}</b> <span style='color:{_sc};"
+                f"font-weight:800'>{_sd}</span> · GO at {_pkt} PKT "
+                f"({_ago:.1f}h ago) · <span style='color:{_scol}'>{_status}</span>"
+                f"<br><span style='color:#8b93a7;font-size:0.8rem'>fire entry "
+                f"{_e:g} · SL {_stp:g} · TP1 {_t1:g}"
+                + (f" · TP2 {_t2f:g}" if _t2f else "")
+                + (f" · live {_live:g}" if _live else "")
+                + " · " + " · ".join(_chips)
+                + "</span></div>", unsafe_allow_html=True)
+            _openable = (pb_state is not None and _live and not _stopped
+                         and (_prog is None or _prog < 1))
+            if _sym in _held:
+                _c2.caption("✓ open")
+            elif not _openable:
+                _c2.caption("—")
+            elif _c2.button("📥 Open", key=f"revived_open_{_sym}_{_i}",
+                            use_container_width=True):
+                try:
+                    _alert = {
+                        "symbol": _sym, "base": _b, "side": _sd,
+                        "entry_low": _live, "stop": _stp, "target": _t1,
+                        "target_2": _t2f, "chase_tp2_eligible": False,
+                        "confidence": 70, "strength_factor": 0.7,
+                        "_unified_source": "go_revived"}
+                    _pos = paper_bot.open_position(pb_state, _alert, _live)
+                    paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                    if _pos:
+                        st.success(f"Opened {_sd} {_b} (⭐⚡ GO REVIVED) at {_live:g}")
+                        st.rerun()
+                    else:
+                        st.warning("Not opened — Paper Trader rejected.")
+                except Exception as _op_exc:
+                    st.error(f"Open failed: {_op_exc}")
+        except Exception:
+            continue
+
+
 def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
     """Display the 24/7 background brain's LIVE MEMORY — the best-of-the-best
     (APEX) setups + recent signals it found on its own, even while the browser
@@ -3921,6 +4086,10 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
             _render_star_board(pb_state, live_prices)
         except Exception as _sb_exc2:
             st.caption(f"⭐ board error: {_sb_exc2}")
+        try:   # ⭐⚡ the revived GO board sits right under the star board
+            _render_revived_board(pb_state, live_prices)
+        except Exception as _rb_exc2:
+            st.caption(f"⭐⚡ revived board error: {_rb_exc2}")
     st.markdown("### ✳️ DECISION DESK — live forward proof")
     st.caption("The brain **takes every signal itself** at live prices with "
                "real fees and manages the exit (BE→TP1 lock→trail, 48h max "
@@ -4002,6 +4171,9 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "conv_prime": "💎🥇 ELITE × PRIME — conviction fire + 🥇 "
                                  "PRIME on the coin (60%/+0.28R Sep desk, "
                                  "every band recorded, proving)",
+                   "go_revived": "⭐⚡ GO REVIVED — entry at the revived GO "
+                                 "(DEAD at 1h, then ignited; stars + approved "
+                                 "elite; records only, the board's judge)",
                    "sniper2": "🎯 SNIPER v2 (golden cells, proving)",
                    "moonshot": "🚀 MOONSHOT (big-move desk)",
                    "sentry": "🎯 SENTRY (your 18-coin watch)",

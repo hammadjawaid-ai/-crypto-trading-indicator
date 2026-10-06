@@ -5540,7 +5540,31 @@ def cycle() -> None:
                             "entry": _e0, "stop": _ew["stop"],
                             "tp1": _ew["tp1"], "oneh": _ew.get("oneh"),
                             "star": bool(_ew.get("star")),
+                            "tp2": _ew.get("tp2"),
                             "bell": _bell9})
+                        if (_ew.get("oneh") == "DEAD"
+                                and (_ew.get("star") or _ew.get("appr"))):
+                            # 📥 go_revived desk tier (user 2026-10-06, the
+                            # GO REVIVED board): the forward record of
+                            # ENTERING at the revived GO — opened at the
+                            # GO price for every revived GO that rings.
+                            # Records only; the board quotes it.
+                            try:
+                                _rv_sig = {
+                                    "symbol": _ew["symbol"],
+                                    "base": _ew["base"],
+                                    "side": _ew["side"],
+                                    "entry": _ew_px, "stop": _ew["stop"],
+                                    "tp1": _ew["tp1"], "tp2": _ew.get("tp2"),
+                                    "tier": _ew["go"],
+                                    "star": bool(_ew.get("star")),
+                                    "fire_entry": _e0}
+                                store.record_signal("go_revived", _rv_sig)
+                                shadow_trader.open_from_signal(
+                                    "go_revived", _rv_sig, _ew_px)
+                            except Exception as _rv_exc:
+                                print("  go_revived tier error:", _rv_exc,
+                                      flush=True)
                         if _ew["go"] == "FAST" and _ew.get("star"):
                             # control tier: forward-test that the
                             # chase really is worthless.
