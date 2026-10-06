@@ -22,7 +22,7 @@ if "(+0.8R)" not in S or "TP2 `0.755` (+1.5R)" not in S:
 if "TP2" in N or "trail 1.2R" not in N:
     fails.append("no-TP2 variant wrong")
 blk = src[src.index('shadow_trader.open_from_signal("apex_v2"'):][:900]
-for need in ("_bstock_quiet(_sym2)", "_fmt_apex_v2(_sig2, _px2, _rv2)", "_kr_note(_sig2)", "_MUTE_RULES("):
+for need in ("_bstock_quiet(_sym2)", "_fmt_apex_v2(_sig2, _px2, _rv2)", "_kr_note(_sig2)", "tg.send("):
     if need not in blk:
         fails.append(f"hook missing {need}")
 if src.index('store.should_alert(f"apexv2:') > src.index('_fmt_apex_v2(_sig2, _px2, _rv2)'):

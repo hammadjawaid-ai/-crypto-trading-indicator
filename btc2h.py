@@ -40,6 +40,26 @@ PKT = 5 * 3600          # Pakistan time, the user's clock
 _LAST = {"t": 0.0}      # in-process backstop if the disk write fails
 ICON = {"UP": "📈", "DOWN": "📉", "FLAT": "↔️"}
 HEAD = {"UP": "RISING NOW", "DOWN": "FALLING NOW", "FLAT": "RANGING NOW"}
+# 🧭⚡ BTC FLIP (user 2026-10-06: "for the 2h BTC pulse if it flips please have
+# an additional notification when it flips, else keep it 2h; if the momentum
+# flips within 2h have the notification accordingly"). Between pulses the same
+# 2h read is re-taken at 15m cadence (8 closed 15m bars = 2h, same band); a
+# bell rings when its label differs from the last SENT message (pulse or
+# flip), confirmed on two closed 15m bars, never within FLIP_GAP of the last
+# sent message. The 2h pulse keeps its clock.
+FLIP_GAP = 30 * 60
+_FLIP = {"t": 0.0}
+# Reversals only (measured on 14 days of real BTC, 5-min cycles): every label
+# change would ring ~10x/day, mostly in and out of the RANGING band; true
+# RISING<->FALLING reversals ~2-3x/day. FLAT labels neither ring nor move the
+# anchor, so RISING -> ranging -> FALLING still rings as FLIPPED DOWN.
+FLIP_ONLY_REVERSALS = True
+FLIP_HEAD = {("UP", "DOWN"): "📈→📉 FLIPPED DOWN",
+             ("DOWN", "UP"): "📉→📈 FLIPPED UP",
+             ("UP", "FLAT"): "📈→↔️ momentum faded",
+             ("DOWN", "FLAT"): "📉→↔️ momentum faded",
+             ("FLAT", "UP"): "↔️→📈 turned UP",
+             ("FLAT", "DOWN"): "↔️→📉 turned DOWN"}
 
 
 def closed_closes(kl: pd.DataFrame, now: float, minutes: int = 60
@@ -207,6 +227,92 @@ def run(get_klines, send, now: float | None = None) -> dict | None:
     calls.append({"t": r["t"], "px": r["px"], "now": r["now"],
                   "band": r["band"]})
     s["calls"] = calls[-KEEP:]
+    s["last_now"], s["last_now_t"] = r["now"], now   # the flip watch's anchor
+    _save(s)
+    send(msg)
+    return r
+
+
+def _size(x: float) -> str:
+    return ("wild" if x >= 4 else "big" if x >= 2 else
+            "normal" if x > 1 else "quiet")
+
+
+def fine_labels(c15: pd.Series, band: float) -> tuple:
+    """The 2h read at 15m cadence: (label at the last closed 15m bar, label
+    at the bar before, the last 2h move). 8 closed 15m bars = 2h."""
+    p_now = float(c15.iloc[-1] / c15.iloc[-9] - 1.0)
+    p_prev = float(c15.iloc[-2] / c15.iloc[-10] - 1.0)
+
+    def lab(p):
+        return "UP" if p > band else "DOWN" if p < -band else "FLAT"
+    return lab(p_now), lab(p_prev), p_now
+
+
+def flip_message(prev: str, prev_t: float, r: dict) -> str:
+    head = FLIP_HEAD.get((prev, r["now"]),
+                         f"{ICON[prev]}→{ICON[r['now']]} changed")
+    nxt = (r["t"] // 7200 + 1) * 7200          # the next even UTC hour
+
+    def hm(t):
+        return time.strftime("%H:%M", time.gmtime(t))
+    mood = {"FLAT": "flat", "UP": "trending up",
+            "DOWN": "trending down"}[r["mood"]]
+    lines = [
+        f"🧭⚡ *BTC FLIP — {head} · {HEAD[r['now']]}*",
+        window(r["t"]),
+        f"BTC `${r['px']:,.0f}` · the last pulse said {HEAD[prev]} at "
+        f"{hm(prev_t)} UTC ({hm(prev_t + PKT)} PKT) · next pulse ~{hm(nxt)} "
+        f"UTC ({hm(nxt + PKT)} PKT)",
+        f"📍 now: {now_line(r)}",
+        f"📊 state: 2h {r['past'] * 100:+.2f}% ({r['size2']}) · "
+        f"24h {r['p24'] * 100:+.2f}% ({mood}) · 24h range "
+        f"${r['lo24']:,.0f}–${r['hi24']:,.0f}",
+        f"🌡 conditions: {conditions(r)}",
+        "_rings only when the 2h read changes between pulses, confirmed on "
+        "two closed 15m bars; the 2h pulse keeps its clock._"]
+    return "\n".join(lines)
+
+
+def run_flip(get_klines, send, now: float | None = None) -> dict | None:
+    """🧭⚡ between pulses — the caller runs it every cycle. Rings when the
+    2h read's label differs from the last sent message (pulse or flip),
+    confirmed on two closed 15m bars, at most once per 15m close and never
+    within FLIP_GAP of the last sent message."""
+    now = time.time() if now is None else now
+    s = _load()
+    prev = s.get("last_now")
+    if prev not in ICON:
+        return None                      # no pulse sent on this code yet
+    prev_t = float(s.get("last_now_t") or 0)
+    if now - prev_t < FLIP_GAP:
+        return None
+    c = closed_closes(get_klines("BTCUSDT", "1h", limit=240), now)
+    if len(c) < 200:
+        return None
+    c15 = closed_closes(get_klines("BTCUSDT", "15m", limit=720), now,
+                        minutes=15)
+    if len(c15) < 300:
+        return None
+    t15 = float(c15.index[-1].timestamp())
+    if float(s.get("flip_t") or 0) >= t15 or _FLIP["t"] >= t15:
+        return None                      # this 15m close already rang
+    r = read(c, c15)
+    f_now, f_prev, p_now = fine_labels(c15, r["band"])
+    if f_now == prev or f_prev != f_now:
+        return None                      # no change, or not yet confirmed
+    if FLIP_ONLY_REVERSALS and not (prev in ("UP", "DOWN")
+                                    and f_now in ("UP", "DOWN")):
+        return None                      # a fade or a start, not a flip
+    x = abs(p_now) / r["band"] if r["band"] > 0 else 0.0
+    r = dict(r, now=f_now, past=p_now, size2=_size(x), t=t15,
+             px=float(c15.iloc[-1]))
+    msg = flip_message(prev, prev_t, r)
+    s["last_now"], s["last_now_t"], s["flip_t"] = f_now, now, t15
+    _FLIP["t"] = t15
+    s.setdefault("flips", []).append({"t": t15, "from": prev, "to": f_now,
+                                      "px": r["px"]})
+    s["flips"] = s["flips"][-KEEP:]
     _save(s)
     send(msg)
     return r

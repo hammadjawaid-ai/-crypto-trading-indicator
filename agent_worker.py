@@ -309,6 +309,63 @@ _MUTE_RULES = _MUTE_R9 if TG_RULES else tg.send
 # 🧵 thread memory: (symbol, side) -> {ts, ids} of the fire bell the phone
 # heard, so a watch entry created after the send still answers in-thread.
 _TG_THREADS: dict = {}
+_EGO_FILE = config.state_path(".ego_watch.json")
+
+
+def _ego_save() -> None:
+    """🧵 persist the ignition watch + thread memory so a redeploy never
+    drops a fire's verdict / GO / freeze (2026-10-05: AAVE lost its 1h
+    verdict to the 19:50 PKT restart). Called once per cycle."""
+    try:
+        import json as _json_eg
+        _now = time.time()
+        with open(str(_EGO_FILE), "w", encoding="utf-8") as _fd:
+            _json_eg.dump({"ts": _now,
+                           "watch": [w for w in _EGO_WATCH
+                                     if _now - float(w.get("fired_at") or 0)
+                                     < 24 * 3600],
+                           "threads": {f"{k[0]}|{k[1]}": v
+                                       for k, v in _TG_THREADS.items()
+                                       if _now - float((v or {}).get("ts")
+                                                       or 0) < 2 * 3600}},
+                          _fd, default=str)
+    except Exception as _eg_exc:
+        print("  ego save error:", _eg_exc, flush=True)
+
+
+def _ego_load() -> int:
+    """Restore the watch at start; returns the number of fires restored."""
+    try:
+        import json as _json_eg
+        with open(str(_EGO_FILE), encoding="utf-8") as _fd:
+            _d = _json_eg.load(_fd)
+        _now = time.time()
+        n = 0
+        for w in _d.get("watch") or []:
+            try:
+                if (w.get("symbol") and w.get("stop") and w.get("tp1")
+                        and _now - float(w.get("fired_at") or 0) < 24 * 3600):
+                    w["stop"], w["tp1"] = float(w["stop"]), float(w["tp1"])
+                    w["fired_at"] = float(w["fired_at"])
+                    _EGO_WATCH.append(w)
+                    n += 1
+            except Exception:
+                continue
+        for k, v in (_d.get("threads") or {}).items():
+            try:
+                sym, side = k.split("|", 1)
+                _TG_THREADS[(sym, side)] = v
+            except Exception:
+                continue
+        return n
+    except Exception:
+        return 0
+
+
+# restored at IMPORT, not in __main__: on Render launch.py imports this module
+# and calls cycle() from its brain thread, so __main__ never runs there.
+_EGO_RESTORED = _ego_load()
+print(f"  ignition watch restored: {_EGO_RESTORED} fire(s)", flush=True)
 # 🎮 GEN 8 feeds (user 2026-09-05): the duo-pair buzzes and the ⚡
 # waking lane get demo seats. Cycle-thread only; TTL-drained like
 # _DEMO_FIRES. _DEMO_REOPEN holds TP1-banked winners whose momentum
@@ -1973,11 +2030,12 @@ def cycle() -> None:
                 try:
                     _rv2 = next((x for x in shadow_trader.tier_records()
                                  if x.get("tier") == "apex_v2"), None)
-                    # 📵 TG RULES 2026-10-05: the APEX row is muted —
-                    # V2 included (desk tier apex_v2 + its 1h stamps
-                    # continue). Revert: TG_RULES = False.
-                    _MUTE_RULES(_fmt_apex_v2(_sig2, _px2, _rv2)
-                                + _kr_note(_sig2))
+                    # 🏆💎 APEX V2 bell BACK (user 2026-10-06: "have you
+                    # closed apex v2 from telegram as well? bring it
+                    # back") — the 2026-10-05 APEX mute covers the plain
+                    # APEX stack bell only; V2 rings as before.
+                    tg.send(_fmt_apex_v2(_sig2, _px2, _rv2)
+                            + _kr_note(_sig2))
                 except Exception as _v2b_exc:
                     print("  apexv2 bell error:", _v2b_exc, flush=True)
             print(f"[apexv2] 🏆² {_sig2['base']} {_sd2} score "
@@ -2239,7 +2297,7 @@ def cycle() -> None:
                          else "eliteagrade" if _ag9 else "eliteconv")
                 if store.should_alert(
                         f"{_key9}:{_pmx['symbol']}:{_pmx['side']}",
-                        int(1.5 * 3600)):   # 1.5h (user 2026-09-19)
+                        int(1.0 * 3600)):   # 1h (user 2026-10-06; 1.5h since 09-19)
                     _msg9 = _fmt_elite_conv(_pmx)
                     # 🎯 board-conf + ⚡ edge-conf side by side on
                     # elite only (user 2026-08-31). Two different
@@ -3965,6 +4023,15 @@ def cycle() -> None:
                 print("[btc2h] pulse sent", flush=True)
     except Exception as _pz_exc:
         print("  btc2h pulse error:", _pz_exc, flush=True)
+    # 🧭⚡ BTC FLIP (user 2026-10-06: "if it flips please have an additional
+    # notification when it flips, else keep it 2h"): between pulses, every
+    # cycle, the same 2h read at 15m cadence; rings only on a confirmed
+    # change vs the last sent message. btc2h.run_flip dedupes itself.
+    try:
+        if btc2h.run_flip(binance_client.get_klines, tg.send):
+            print("[btc2h] flip sent", flush=True)
+    except Exception as _pf_exc:
+        print("  btc2h flip error:", _pf_exc, flush=True)
 
     # 🗞 NEWS RADAR (user 2026-09-30: "if something big happened to any
     # coin or some partnership ... we should have it as soon as it lands
@@ -5171,10 +5238,13 @@ def cycle() -> None:
                             if (_ew.get("buzzed")
                                     and _ew.get("fam", "elite") == "elite"):
                                 try:
-                                    tg.send_thread(
+                                    _okv, _mv, _ = tg.send_thread(
                                         rung_stats.verdict_text(
                                             _ew, _prg, _ew_now),
                                         reply_to=_ew.get("tg_ids"))
+                                    print(f"  [thread] verdict {_ew['base']} "
+                                          f"{_ew['side']} {_ew['oneh']} "
+                                          f"sent={_okv} {_mv}", flush=True)
                                     n_alerts += 1
                                 except Exception as _vt_exc:
                                     print("  verdict thread error:",
@@ -5221,18 +5291,15 @@ def cycle() -> None:
                     # ⭐ GO — certified HOLD bell: +25% of path,
                     # FAST <=4h (71.6%/+0.335R) or LATE after
                     # (+0.10R measured, weaker).
-                    if (_ew.get("star") and _ew.get("go") is None
+                    # (user 2026-10-06: GO for the whole elite family, not
+                    # just stars — desk 13-28 Sep: DEAD-then-ignited non-star
+                    # elite 59% / +0.63R (86), stars 68% / +0.35R (56).)
+                    if (_ew.get("fam", "elite") == "elite"
+                            and _ew.get("go") is None
                             and not _stopped and _prg >= 0.25):
                         _ew["go"] = ("FAST" if _age <= 4 * 3600
                                      else "LATE")
-                        store.record_signal("star_go", {
-                            "symbol": _ew["symbol"],
-                            "base": _ew["base"],
-                            "side": _ew["side"],
-                            "tier": _ew["go"],
-                            "score": round(_age / 60.0, 1),
-                            "entry": _e0, "stop": _ew["stop"],
-                            "tp1": _ew["tp1"]})
+                        _bell9 = "old-path"   # what the phone got
                         # ⭐⚡ GO IS THE REVIVAL BELL NOW (user
                         # 2026-09-18 final roster): it rings ONLY
                         # when a fire the phone heard was graded
@@ -5253,28 +5320,47 @@ def cycle() -> None:
                             # or late. PROTECT — a hold bell with the
                             # honest "not in it" line (R left to TP1 +
                             # the GO-entry control record).
-                            if (_ew.get("buzzed")
-                                    and _ew.get("fam", "elite") == "elite"):
+                            _bell9 = "not-buzzed (LIVE fire not on the phone)"
+                            if True:
                                 try:
                                     _go9 = rung_stats.go_text(
                                         _ew, _prg, _age, _ew_px,
                                         _ew_now)
                                     if _ew.get("oneh") == "DEAD":
-                                        # ⭐⚡ GO REVIVED is its own
-                                        # bell (user 2026-10-05:
-                                        # "have a GO revived as a
-                                        # separate one") — standalone,
-                                        # not a thread reply.
-                                        tg.send(_go9)
-                                    else:
-                                        tg.send_thread(
+                                        # GO REVIVED is its own bell
+                                        # for EVERY elite-family fire,
+                                        # heard or not (user 2026-10-05
+                                        # "separate one"; 2026-10-06
+                                        # "for elite also, separate
+                                        # notification").
+                                        # stars + APPROVED elite only (user
+                                        # 2026-10-06: "keep it to elite
+                                        # approved and stars only"; measured
+                                        # all-elite 10.3/day, approved 8.9/day).
+                                        if _ew.get("star") or _ew.get("appr"):
+                                            _ok9, _m9x = tg.send(_go9)
+                                            _bell9 = ("sent-standalone" if _ok9
+                                                      else f"failed: {_m9x}")
+                                        else:
+                                            _bell9 = ("not-approved (unapproved "
+                                                      "elite fire; records only)")
+                                    elif _ew.get("buzzed"):
+                                        _ok9, _m9x, _ = tg.send_thread(
                                             _go9,
                                             reply_to=_ew.get("tg_ids"))
-                                    n_alerts += 1
+                                        _bell9 = ("sent-thread" if _ok9
+                                                  else f"failed: {_m9x}")
+                                    if _bell9.startswith("sent"):
+                                        n_alerts += 1
                                 except Exception as _go_exc:
+                                    _bell9 = f"error: {_go_exc}"
                                     print("  GO thread error:", _go_exc,
                                           flush=True)
-                        elif (_ew.get("buzzed")
+                            print(f"  [thread] GO {_ew['base']} "
+                                  f"{_ew['side']} {_ew['go']} "
+                                  f"1h={_ew.get('oneh')} bell={_bell9}",
+                                  flush=True)
+                        elif (_ew.get("buzzed") and _ew.get("star")
                                 and _ew.get("oneh") == "DEAD"):
                             tg.send(
                                 f"⭐⚡ *GO — {_ew['base']} "
@@ -5291,7 +5377,21 @@ def cycle() -> None:
                                 f"signal: the plan rides; still "
                                 f"not an entry._")
                             n_alerts += 1
-                        if _ew["go"] == "FAST":
+                        # the stamp carries what the phone got (user
+                        # 2026-10-06: "I haven't heard any GO revived")
+                        # — the ⭐ board chip shows it.
+                        store.record_signal(
+                            "star_go" if _ew.get("star") else "elite_go", {
+                            "symbol": _ew["symbol"],
+                            "base": _ew["base"],
+                            "side": _ew["side"],
+                            "tier": _ew["go"],
+                            "score": round(_age / 60.0, 1),
+                            "entry": _e0, "stop": _ew["stop"],
+                            "tp1": _ew["tp1"], "oneh": _ew.get("oneh"),
+                            "star": bool(_ew.get("star")),
+                            "bell": _bell9})
+                        if _ew["go"] == "FAST" and _ew.get("star"):
                             # control tier: forward-test that the
                             # chase really is worthless.
                             _ch9 = {"symbol": _ew["symbol"],
@@ -5318,9 +5418,12 @@ def cycle() -> None:
                             # 2026-10-05): night fire -> free the seat;
                             # day fire -> hold, no adds. Never a cut.
                             try:
-                                tg.send_thread(
+                                _okf, _mf, _ = tg.send_thread(
                                     rung_stats.freeze_text(_ew, _ew_now),
                                     reply_to=_ew.get("tg_ids"))
+                                print(f"  [thread] freeze {_ew['base']} "
+                                      f"{_ew['side']} sent={_okf} {_mf}",
+                                      flush=True)
                                 n_alerts += 1
                             except Exception as _fz_exc:
                                 print("  freeze thread error:", _fz_exc,
@@ -5339,6 +5442,7 @@ def cycle() -> None:
                     continue
         except Exception as _ew_exc:
             print("  ignition-watch error:", _ew_exc, flush=True)
+        _ego_save()
         # 🎮 GEN 16 POOLS (user 2026-09-14: "we are taking trades
         # only on the following: 1. Early Lanes and Early Movers ·
         # 2. Best Zone · 3. TRIG×KR"). The desk's three highest-

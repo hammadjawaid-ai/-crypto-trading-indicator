@@ -121,7 +121,7 @@ def _load(tier: str, db_path: str | None) -> dict:
         vd = con.execute("SELECT symbol, side, ts, tier FROM signals "
                          "WHERE stream='elite_1h'").fetchall()
         go = con.execute("SELECT symbol, side, ts FROM signals "
-                         "WHERE stream='star_go'").fetchall()
+                         "WHERE stream IN ('star_go', 'elite_go')").fetchall()
         chase = [r[0] for r in con.execute(
             "SELECT pnl_r FROM shadow_trades WHERE tier='star_go_chase' AND "
             "status='CLOSED' AND pnl_r IS NOT NULL")]
@@ -166,13 +166,29 @@ def _load(tier: str, db_path: str | None) -> dict:
             "chase": cell(chase)}
 
 
+def _empty(tier: str, now: float) -> dict:
+    """What a bell gets when the desk cannot be read: every class empty, so
+    the lines print 'no closes yet' / 'record unavailable' — the bell itself
+    still goes out (a stats failure must never silence a bell)."""
+    keys = ("all", "night", "day", "live", "dead", "dead_go", "dead_nogo",
+            "go4h", "frozen", "frozen_night", "frozen_day", "ignited_night",
+            "ignited_day")
+    return {"tier": tier, "t": now, "first": None, "last": None, "n": 0,
+            "cls": {k: (0, 0.0, 0.0) for k in keys}, "chase": (0, 0.0, 0.0),
+            "error": True}
+
+
 def classes(tier: str, now: float | None = None,
             db_path: str | None = None) -> dict:
     now = time.time() if now is None else now
     hit = _CACHE.get(("cls", tier, db_path))
     if hit and now - hit["t"] < TTL:
         return hit
-    st = _load(tier, db_path)
+    try:
+        st = _load(tier, db_path)
+    except Exception as exc:
+        print("  rung_stats desk read failed:", exc, flush=True)
+        return _empty(tier, now)          # not cached: retried next call
     st["t"] = now
     _CACHE[("cls", tier, db_path)] = st
     return st
@@ -187,17 +203,22 @@ def tier_rec(tier: str, days: int | None = None, now: float | None = None,
     hit = _CACHE.get(key)
     if hit and now - hit["t"] < TTL:
         return hit["c"]
-    con = _connect(db_path)
     try:
-        q = ("SELECT pnl_r FROM shadow_trades WHERE tier=? AND status='CLOSED' "
-             "AND pnl_r IS NOT NULL AND entry>0 AND abs(entry-stop0)/entry>=?")
-        args = [tier, CLEAN]
-        if days:
-            q += " AND closed_at>=?"
-            args.append(now - days * 86400)
-        c = cell([r[0] for r in con.execute(q, args)])
-    finally:
-        con.close()
+        con = _connect(db_path)
+        try:
+            q = ("SELECT pnl_r FROM shadow_trades WHERE tier=? AND "
+                 "status='CLOSED' AND pnl_r IS NOT NULL AND entry>0 AND "
+                 "abs(entry-stop0)/entry>=?")
+            args = [tier, CLEAN]
+            if days:
+                q += " AND closed_at>=?"
+                args.append(now - days * 86400)
+            c = cell([r[0] for r in con.execute(q, args)])
+        finally:
+            con.close()
+    except Exception as exc:
+        print("  rung_stats tier read failed:", exc, flush=True)
+        return (0, 0.0, 0.0)              # 'no closes yet', bell still rings
     _CACHE[key] = {"t": now, "c": c}
     return c
 
@@ -297,34 +318,33 @@ def verdict_text(ew: dict, prg: float, now: float,
         return (f"⏱ *{base} {side} · 1H LIVE at {when} PKT · HOLD FULL*\n"
                 f"{prg * 100:+.0f}% of the path at 60 min · LIVE class "
                 f"({fam}) {rec(C['live'])}\n{stamp(st)}")
-    if star:
-        l3 = (f"DEAD then ignited: {rec(C['dead_go'])} · DEAD never ignited: "
-              f"{rec(C['dead_nogo'])}")
-    else:
-        l3 = (f"DEAD class ({fam}): {rec(C['dead'])} — the ignition split is "
-              f"measured on ⭐ stars only")
+    l3 = (f"DEAD then ignited ({fam}): {rec(C['dead_go'])} · DEAD never "
+          f"ignited: {rec(C['dead_nogo'])}")
     return (f"⏱ *{base} {side} · 1H DEAD at {when} PKT · HOLD — no add, no cut*\n"
             f"{prg * 100:+.0f}% of the path at 60 min\n{l3}\n{stamp(st)}")
 
 
 def go_text(ew: dict, prg: float, age_s: float, px: float, now: float,
             db_path: str | None = None) -> str:
-    st = classes("elite_star", now, db_path)
+    star = bool(ew.get("star"))
+    st = classes("elite_star" if star else "elite_conv", now, db_path)
     C = st["cls"]
+    fam = "⭐ stars" if star else "elite fires"
+    emo = "⭐⚡" if star else "💎⚡"
     base, side = ew["base"], ew["side"]
     late = age_s > 4 * 3600
     # ⭐⚡ REVIVED (user 2026-10-05: "where does our GO revived go?"): a fire
     # the 1H verdict graded DEAD that ignites anyway keeps its name in the
     # header — the old revival bell, now inside the thread.
     rev = ew.get("oneh") == "DEAD"
-    head = (f"⭐⚡ *GO — {base} {side} · {'REVIVED · ' if rev else ''}PROTECT · "
+    head = (f"{emo} *GO — {base} {side} · {'REVIVED · ' if rev else ''}PROTECT · "
             f"{pkt_hm(now)} PKT ({age_s / 3600:.1f}h after the fire"
             f"{', late' if late else ''})*")
     l2 = f"ignited: {prg * 100:+.0f}% of the path · live `{float(px):g}`"
     if ew.get("oneh") == "DEAD":
-        lab, c = "DEAD then ignited", C["dead_go"]
+        lab, c = f"DEAD then ignited ({fam})", C["dead_go"]
     else:
-        lab, c = "ignited within 4h", C["go4h"]
+        lab, c = f"ignited within 4h ({fam})", C["go4h"]
     l3 = f"holding it: hold to TP1 / TP2, do not bank early · {lab} {rec(c)}"
     sgn = 1 if side == "LONG" else -1
     e0 = float(ew.get("entry0") or 0)

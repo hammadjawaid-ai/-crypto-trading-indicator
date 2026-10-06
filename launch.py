@@ -32,10 +32,16 @@ def _brain() -> None:
     import agent_worker
     try:
         import telegram_notify as tg
-        if tg.enabled():
+        import worker_store as _ws
+        # one ping per 2h (user 2026-10-06 screenshot: three "App online"
+        # pings in twenty minutes = the service restarting in a loop during
+        # a deploy; the restarts themselves are logged, the phone is not
+        # the place to count them).
+        if tg.enabled() and _ws.should_alert("app_online", 2 * 3600):
             tg.send("🟢 *App online 24/7* — the brain is scanning in the "
-                    "background. Alerts: 🏆 APEX · 🌟 EARLY ELITE · "
-                    "🌱 FRESH · ✅🔥 TAKE NOW HOT · 🚀 EARLY MOVER big-hit.",
+                    "background. Alerts: ⭐ ELITE STAR · 💎🏆 A-GRADE · "
+                    "⚡🔥 ARRIVAL · 🏆💎 APEX V2 · 🚀 MOONSHOT · 🧭 BTC "
+                    "pulse + flips · 📰 news radar.",
                     silent=True)
     except Exception:
         pass

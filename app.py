@@ -2802,7 +2802,7 @@ def _render_star_board(pb_state, live_prices=None) -> None:
                 "SELECT ts, symbol, side, tier FROM signals WHERE "
                 "stream='elite_1h' AND ts>=? ORDER BY ts", (_since,)).fetchall()
             _go = _csb.execute(
-                "SELECT ts, symbol, side, tier FROM signals WHERE "
+                "SELECT ts, symbol, side, tier, extra FROM signals WHERE "
                 "stream='star_go' AND ts>=? ORDER BY ts", (_since,)).fetchall()
             _agr = _csb.execute(
                 "SELECT ts, symbol, side FROM signals WHERE "
@@ -2886,7 +2886,7 @@ def _render_star_board(pb_state, live_prices=None) -> None:
                                   "#2ed47a")
             _vt = [v[3] for v in _verd
                    if v[1] == _sym and (v[2] or "").upper() == _sd and v[0] >= _ts]
-            _gt = [g[3] for g in _go
+            _gt = [(g[3], g[4]) for g in _go
                    if g[1] == _sym and (g[2] or "").upper() == _sd and g[0] >= _ts]
             _isag = any(a[1] == _sym and (a[2] or "").upper() == _sd
                         and abs(a[0] - _ts) <= 2 * 3600 for a in _agr)
@@ -2894,7 +2894,14 @@ def _render_star_board(pb_state, live_prices=None) -> None:
             if _vt:
                 _chips.append("⏱ 1H " + str(_vt[-1]))
             if _gt:
-                _chips.append("⭐⚡ GO " + str(_gt[-1]))
+                _gb = ""
+                try:   # what the phone got for this GO (worker stamp)
+                    _gb = str((json.loads(_gt[-1][1] or "{}") or {}).get("bell") or "")
+                except Exception:
+                    _gb = ""
+                _chips.append("⭐⚡ GO " + str(_gt[-1][0])
+                              + (" (bell ✓)" if _gb.startswith("sent")
+                                 else f" (no bell: {_gb})" if _gb else ""))
             if _isag:
                 _chips.append("🏆 A-GRADE")
             if _ex.get("conf") is not None:
@@ -8390,6 +8397,11 @@ def _warm_sweep() -> None:
 
 
 def _warm_loop() -> None:
+    # let Streamlit answer the Render health check before the first heavy
+    # sweep competes for the box (2026-10-06: three restarts in twenty
+    # minutes during a deploy — the launcher already delays the brain 45s
+    # for the same reason)
+    time.sleep(75)
     while True:
         t0 = time.time()
         try:

@@ -174,19 +174,22 @@ v_live = rs.verdict_text(ew, 0.16, NOW, DB)
 if "⏱ *GLMR LONG · 1H LIVE at 13:40 PKT · HOLD FULL*" not in v_live or "+16% of the path at 60 min · LIVE class (⭐ stars) 100% / +1.00R (16)" not in v_live:
     fails.append(f"LIVE verdict wrong:\n{v_live}")
 v_dead = rs.verdict_text(dict(ew, oneh="DEAD"), 0.03, NOW, DB)
-if "1H DEAD at 13:40 PKT · HOLD — no add, no cut*" not in v_dead or "DEAD then ignited: 70% / +0.26R (10)" not in v_dead or "DEAD never ignited: 0% / −1.00R (21)" not in v_dead:
+if "1H DEAD at 13:40 PKT · HOLD — no add, no cut*" not in v_dead or "DEAD then ignited (⭐ stars): 70% / +0.26R (10)" not in v_dead or "DEAD never ignited: 0% / −1.00R (21)" not in v_dead:
     fails.append(f"DEAD verdict wrong:\n{v_dead}")
 v_plain = rs.verdict_text(dict(ew, star=False, oneh="DEAD"), 0.03, NOW, DB)
-if "measured on ⭐ stars only" not in v_plain or "(elite fires)" not in v_plain:
-    fails.append("non-star verdict must say the split is star-only")
+if "DEAD then ignited (elite fires):" not in v_plain:
+    fails.append("non-star verdict must carry the elite ignition split")
+ge = rs.go_text(dict(ew, star=False, oneh="DEAD", entry0=0.0121, stop=0.0119), 0.26, 2.0 * H, 0.01215, NOW, DB)
+if not ge.startswith("💎⚡ *GO — GLMR LONG · REVIVED · PROTECT · 13:40 PKT (2.0h after the fire)*") or "DEAD then ignited (elite fires)" not in ge:
+    fails.append(f"elite GO revived text wrong:\n{ge}")
 g = rs.go_text(ew, 0.34, 2.5 * H, 0.01254, NOW, DB)
 for need in ("⭐⚡ *GO — GLMR LONG · PROTECT · 13:40 PKT (2.5h after the fire)*", "ignited: +34% of the path · live `0.01254`",
-             "holding it: hold to TP1 / TP2, do not bank early · ignited within 4h 86% / +0.67R (28)",
+             "holding it: hold to TP1 / TP2, do not bank early · ignited within 4h (⭐ stars) 86% / +0.67R (28)",
              "not in it: 0.7R left to TP1 from here — PASS"):
     if need not in g:
         fails.append(f"GO text missing {need!r}")
 g2 = rs.go_text(dict(ew, oneh="DEAD", entry0=0.0121, stop=0.0119), 0.26, 5 * H, 0.01215, NOW, DB)
-if "⭐⚡ *GO — GLMR LONG · REVIVED · PROTECT · 13:40 PKT (5.0h after the fire, late)*" not in g2 or "REVIVED" in g or "DEAD then ignited 70% / +0.26R (10)" not in g2 or "entry at GO measured 58% / −0.24R (12) — small, your call" not in g2:
+if "⭐⚡ *GO — GLMR LONG · REVIVED · PROTECT · 13:40 PKT (5.0h after the fire, late)*" not in g2 or "REVIVED" in g or "DEAD then ignited (⭐ stars) 70% / +0.26R (10)" not in g2 or "entry at GO measured 58% / −0.24R (12) — small, your call" not in g2:
     fails.append(f"late GO text wrong:\n{g2}")
 fz_n = rs.freeze_text(dict(ew, fired_at=NOW + 10 * H - 86400), NOW, DB)   # fired 23:40 PKT yesterday
 if "❄️ *GLMR LONG · silent at 4h · 13:40 PKT · FREEZE — free the seat*" not in fz_n or "night frozen fires: 0% / −1.00R (10) · day frozen fires: 0% / −1.00R (11)" not in fz_n or "release it the moment" not in fz_n:
@@ -207,7 +210,7 @@ for need in ("📊 *RUNG-1 SCOREBOARD — Fri 02 Oct, 00:00 → 23:59 PKT* · bu
              "30-day desk: star ", "T1 young (4 closes)", "A-grade no closes yet", "refreshed 13:40 PKT"):
     if need not in sb:
         fails.append(f"scoreboard missing {need!r}")
-for m in (day_msg, night_msg, v_live, v_dead, v_plain, g, g2, fz_n, fz_d, ar, sb):
+for m in (day_msg, night_msg, v_live, v_dead, v_plain, g, g2, ge, fz_n, fz_d, ar, sb):
     if m.count("*") % 2 or m.count("`") % 2 or "\ufffd" in m:
         fails.append(f"markdown/encoding unbalanced in: {m[:60]!r}")
     if "_" in m.replace("`", ""):
@@ -224,7 +227,7 @@ for need, lab in (("TG_RULES = True\n", "switch on"),
                   ("_MUTE_RULES = _MUTE_R9 if TG_RULES else tg.send\n", "mute lambda"),
                   ("import rung_stats\n", "import"),
                   ('if key_prefix not in (("moon",) if TG_RULES else\n', "roster moon-only"),
-                  ("_MUTE_RULES(_fmt_apex_v2(_sig2, _px2, _rv2)", "apex v2 muted"),
+                  ("tg.send(_fmt_apex_v2(_sig2, _px2, _rv2)", "apex v2 bell live again (user 2026-10-06)"),
                   ('ok, _m9, _ids9 = tg.send_thread(_msg9)', "star/A-grade send as thread anchor"),
                   ("ok, _m9 = _MUTE_RULES(_msg9)", "plain conviction muted"),
                   ('_ewb["tg_ids"] = _ids9', "ids stored on the watch entry"),
@@ -233,8 +236,23 @@ for need, lab in (("TG_RULES = True\n", "switch on"),
                   ('_th = _TG_THREADS.get((sym, side))', "ego_add adopts the thread"),
                   ("rung_stats.verdict_text(\n                                            _ew, _prg, _ew_now),\n                                        reply_to=_ew.get(\"tg_ids\"))", "verdict reply"),
                   ("_go9 = rung_stats.go_text(\n                                        _ew, _prg, _age, _ew_px,\n                                        _ew_now)", "GO text built"),
-                  ('if _ew.get("oneh") == "DEAD":\n                                        # ⭐⚡ GO REVIVED is its own', "revived branch"),
-                  ("tg.send(_go9)", "GO REVIVED standalone"),
+                  ('if _ew.get("oneh") == "DEAD":\n                                        # GO REVIVED is its own bell', "revived branch"),
+                  ("int(1.0 * 3600)):   # 1h (user 2026-10-06", "elite re-buzz key 1h"),
+                  ('if _ew.get("star") or _ew.get("appr"):\n                                            _ok9, _m9x = tg.send(_go9)', "revived: stars + approved elite only"),
+                  ('_bell9 = ("not-approved (unapproved "', "unapproved elite stays records-only"),
+                  ("_ok9, _m9x = tg.send(_go9)", "GO REVIVED standalone"),
+                  ('_bell9 = "not-buzzed (LIVE fire not on the phone)"', "GO bell status default"),
+                  ('if (_ew.get("fam", "elite") == "elite"\n                            and _ew.get("go") is None', "GO for the whole elite family"),
+                  ('"star_go" if _ew.get("star") else "elite_go", {', "elite_go stamp"),
+                  ('if _ew["go"] == "FAST" and _ew.get("star"):', "chase tier star-only"),
+                  ('elif (_ew.get("buzzed") and _ew.get("star")\n                                and _ew.get("oneh") == "DEAD"):', "old path stays star-only"),
+                  ('"star": bool(_ew.get("star")),\n                            "bell": _bell9})', "GO stamp carries the bell status"),
+                  ("def _ego_save() -> None:", "watch persisted"),
+                  ("def _ego_load() -> int:", "watch restored"),
+                  ("        _ego_save()\n", "save each cycle"),
+                  ("_EGO_RESTORED = _ego_load()\n", "watch restored at module import (launch.py path)"),
+                  ("[thread] verdict", "verdict send logged"),
+                  ("[thread] freeze", "freeze send logged"),
                   ("tg.send_thread(\n                                            _go9,\n                                            reply_to=_ew.get(\"tg_ids\"))", "GO thread reply"),
                   ("rung_stats.freeze_text(_ew, _ew_now),\n                                    reply_to=_ew.get(\"tg_ids\"))", "freeze reply"),
                   ("now=(time.time() if TG_RULES else None))\n                                    + _kr_note(a))", "arrival stamps"),
@@ -261,8 +279,12 @@ i_v = W.find("rung_stats.verdict_text(")
 if not (0 < W.rfind("if TG_RULES:", 0, i_v) and W.find('elif _ew.get("buzzed") or _ew.get("appr"):', i_v) > 0):
     fails.append("verdict: old send must be the elif of the TG_RULES branch")
 i_g = W.find("rung_stats.go_text(")
-if W.find('elif (_ew.get("buzzed")\n                                and _ew.get("oneh") == "DEAD"):', i_g) < 0:
+if W.find('elif (_ew.get("buzzed") and _ew.get("star")\n                                and _ew.get("oneh") == "DEAD"):', i_g) < 0:
     fails.append("GO: old revival send must be the elif of the TG_RULES branch")
+if "WHERE stream IN ('star_go', 'elite_go')" not in open(os.path.join(ROOT, "rung_stats.py"), encoding="utf-8").read():
+    fails.append("rung_stats must join both GO streams")
+if "int(1.5 * 3600)):   # 1.5h (user 2026-09-19)" in W:
+    fails.append("elite re-buzz key still 1.5h")
 # star bell keeps its own record path (star gate test anchors) and is never time-gated
 blk = W.split("def _push_elite")[1].split("\n    tn_hot =")[0]
 for need in ('_ego_add(dict(_st_sig', 'store.record_signal("elite_star"', 'if not (_star9 or _ag9):'):
@@ -271,6 +293,36 @@ for need in ('_ego_add(dict(_st_sig', 'store.record_signal("elite_star"', 'if no
 if "is_night" in blk or "pkt_hour" in blk:
     fails.append("the send site must not gate on the clock")
 
+# the GO stamp must come AFTER the send (it records what the phone got)
+if not (0 < W.find("_bell9 = \"not-buzzed") < W.find('"bell": _bell9})') < W.find('if _ew["go"] == "FAST" and _ew.get("star"):')):
+    fails.append("GO stamp must follow the send and precede the chase tier")
+_i_d = W.find('if _ew.get("oneh") == "DEAD":\n                                        # GO REVIVED is its own bell')
+_i_s = W.find("_ok9, _m9x = tg.send(_go9)")
+if not (0 < _i_d < _i_s) or "buzzed" in W[_i_d:_i_s]:
+    fails.append("the revived bell must ring whether or not the fire was on the phone")
+# persistence round-trip (the two helpers run standalone)
+import ast as _ast
+_ns = {"time": time, "_EGO_WATCH": [], "_TG_THREADS": {}, "_EGO_FILE": os.path.join(tmp, "ego.json"), "print": print}
+for _n in _ast.parse(W).body:
+    if isinstance(_n, _ast.FunctionDef) and _n.name in ("_ego_save", "_ego_load"):
+        exec(compile(_ast.Module(body=[_n], type_ignores=[]), _n.name, "exec"), _ns)
+_ns["_EGO_WATCH"].extend([{"symbol": "ZECUSDT", "base": "ZEC", "side": "SHORT", "stop": 1371.34, "tp1": 1249.37, "tp2": None, "tier": "HIGH", "star": True, "appr": True,
+                          "entry0": 1299.5, "go": None, "oneh": "DEAD", "froze": False, "buzzed": True, "fam": "elite", "fired_at": time.time() - 3 * 3600, "tg_ids": {"1": 555}},
+                         {"symbol": "OLDUSDT", "base": "OLD", "side": "LONG", "stop": 1, "tp1": 2, "fired_at": time.time() - 30 * 3600, "fam": "elite"}])
+_ns["_TG_THREADS"][("ZECUSDT", "SHORT")] = {"ts": time.time() - 3 * 3600, "ids": {"1": 555}}
+_ns["_TG_THREADS"][("NEWUSDT", "LONG")] = {"ts": time.time() - 600, "ids": {"1": 777}}
+_ns["_ego_save"]()
+_ns["_EGO_WATCH"].clear(); _ns["_TG_THREADS"].clear()
+_nr = _ns["_ego_load"]()
+_w = _ns["_EGO_WATCH"]
+if _nr != 1 or len(_w) != 1 or _w[0]["symbol"] != "ZECUSDT" or _w[0]["tg_ids"] != {"1": 555} or _w[0]["oneh"] != "DEAD" or not _w[0]["buzzed"]:
+    fails.append(f"watch round-trip wrong: {_nr} {_w}")
+if _ns["_TG_THREADS"] != {("NEWUSDT", "LONG"): {"ts": _ns["_TG_THREADS"].get(("NEWUSDT", "LONG"), {}).get("ts"), "ids": {"1": 777}}}:
+    fails.append(f"thread memory round-trip wrong (old entries must drop): {_ns['_TG_THREADS']}")
+A_ = open(os.path.join(ROOT, "app.py"), encoding="utf-8").read()
+for need in ("SELECT ts, symbol, side, tier, extra FROM signals WHERE ", '(" (bell ✓)" if _gb.startswith("sent")'):
+    if need not in A_:
+        fails.append(f"board chip missing: {need[:40]}")
 # ghost scan of the touched modules
 def ghosts(src):
     tree = ast.parse(src)
