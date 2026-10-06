@@ -306,6 +306,9 @@ _MUTE_R9 = lambda *_a, **_k: (False, "roster9-muted")
 # and demo feeds never depend on this flag.
 TG_RULES = True
 _MUTE_RULES = _MUTE_R9 if TG_RULES else tg.send
+# ❄️ FREEZE reply muted (user 2026-10-06: "mute ❄️ FREEZE reply"); the froze
+# flag, stamps and board stay. True = back in the thread.
+TG_FREEZE = False
 # 🧵 thread memory: (symbol, side) -> {ts, ids} of the fire bell the phone
 # heard, so a watch entry created after the send still answers in-thread.
 _TG_THREADS: dict = {}
@@ -5559,7 +5562,7 @@ def cycle() -> None:
                             and not _ew.get("froze")
                             and _age >= 4 * 3600 and not _stopped):
                         _ew["froze"] = True
-                        if (TG_RULES and _ew.get("buzzed")
+                        if (TG_RULES and TG_FREEZE and _ew.get("buzzed")
                                 and _ew.get("fam", "elite") == "elite"):
                             # 🧵 ❄️ FREEZE reply (new on the phone
                             # 2026-10-05): night fire -> free the seat;
@@ -6882,7 +6885,9 @@ def cycle() -> None:
                     continue
                 _rg_b3 = _rg.get("base") or \
                     _rg_sym.replace("USDT", "")
-                ok, _ = tg.send(
+                # 📵 muted (user 2026-10-06: "mute 🔴 inverse risk");
+                # the 🏦 TP1 ping above stays. Revert: _MUTE_R9 -> tg.send.
+                ok, _ = _MUTE_R9(
                     f"🔴 *{_rg_b3} {_rg_side} — INVERSE RISK: the "
                     f"momentum has died.* Live `{_rg_px:g}` under "
                     f"the entry `{_rg_ent:g}`, the 1h closed back "
