@@ -3996,6 +3996,12 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                               "source (83%/+0.23R replay, proving)",
                    "arr_long": "⚡ ARRIVAL T3 — every long break at an "
                                "armed number (76%/+0.11R replay, proving)",
+                   "star_prime": "⭐🥇 STAR × PRIME — star fire + 🥇 PRIME on "
+                                 "the coin (76%/+0.48R Sep desk, every "
+                                 "band recorded, proving)",
+                   "conv_prime": "💎🥇 ELITE × PRIME — conviction fire + 🥇 "
+                                 "PRIME on the coin (60%/+0.28R Sep desk, "
+                                 "every band recorded, proving)",
                    "sniper2": "🎯 SNIPER v2 (golden cells, proving)",
                    "moonshot": "🚀 MOONSHOT (big-move desk)",
                    "sentry": "🎯 SENTRY (your 18-coin watch)",
