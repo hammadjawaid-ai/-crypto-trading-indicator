@@ -184,6 +184,7 @@ if not ge.startswith("💎⚡ *GO — GLMR LONG · REVIVED · PROTECT · 13:40 P
     fails.append(f"elite GO revived text wrong:\n{ge}")
 g = rs.go_text(ew, 0.34, 2.5 * H, 0.01254, NOW, DB)
 for need in ("⭐⚡ *GO — GLMR LONG · PROTECT · 13:40 PKT (2.5h after the fire)*", "ignited: +34% of the path · live `0.01254`",
+             "fire entry `0.0121` · SL `0.010827` · TP1 `0.01343`",
              "holding it: hold to TP1 / TP2, do not bank early · ignited within 4h (⭐ stars) 86% / +0.67R (28)",
              "not in it: 0.7R left to TP1 from here — PASS"):
     if need not in g:
@@ -238,7 +239,9 @@ for need, lab in (("TG_RULES = True\n", "switch on"),
                   ("_go9 = rung_stats.go_text(\n                                        _ew, _prg, _age, _ew_px,\n                                        _ew_now)", "GO text built"),
                   ('if _ew.get("oneh") == "DEAD":\n                                        # GO REVIVED is its own bell', "revived branch"),
                   ("int(1.0 * 3600)):   # 1h (user 2026-10-06", "elite re-buzz key 1h"),
-                  ('if _ew.get("star") or _ew.get("appr"):\n                                            _ok9, _m9x = tg.send(_go9)', "revived: stars + approved elite only"),
+                  ('elif _ew.get("star") or _ew.get("appr"):\n                                            _ok9, _m9x = tg.send(_go9)', "revived: stars + approved elite only"),
+                  ("REVIVED_LONG_FAST = True\n", "revived long+fast switch on"),
+                  ('and REVIVED_LONG_FAST\n                                                and not (_ew["side"] == "LONG"\n                                                         and _ew["go"] == "FAST")):', "revived bell skips shorts and late GOs"),
                   ('_bell9 = ("not-approved (unapproved "', "unapproved elite stays records-only"),
                   ("_ok9, _m9x = tg.send(_go9)", "GO REVIVED standalone"),
                   ('_bell9 = "not-buzzed (LIVE fire not on the phone)"', "GO bell status default"),

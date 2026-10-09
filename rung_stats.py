@@ -340,6 +340,12 @@ def go_text(ew: dict, prg: float, age_s: float, px: float, now: float,
     head = (f"{emo} *GO — {base} {side} · {'REVIVED · ' if rev else ''}PROTECT · "
             f"{pkt_hm(now)} PKT ({age_s / 3600:.1f}h after the fire"
             f"{', late' if late else ''})*")
+    # the plan rides every GO (user 2026-10-06: "go revived telegram
+    # notification should have the tp, entry and sl attached as well")
+    _e0p = float(ew.get("entry0") or 0)
+    plan = ((f"fire entry `{_e0p:g}`" if _e0p else "fire entry `?`")
+            + f" · SL `{float(ew['stop']):g}` · TP1 `{float(ew['tp1']):g}`"
+            + (f" · TP2 `{float(ew['tp2']):g}`" if ew.get("tp2") else ""))
     l2 = f"ignited: {prg * 100:+.0f}% of the path · live `{float(px):g}`"
     if ew.get("oneh") == "DEAD":
         lab, c = f"DEAD then ignited ({fam})", C["dead_go"]
@@ -358,7 +364,7 @@ def go_text(ew: dict, prg: float, age_s: float, px: float, now: float,
               f"measured {rec(st['chase'])} — small, your call")
     else:
         l4 = f"not in it: {r_left:.1f}R left to TP1 from here — PASS"
-    return "\n".join([head, l2, l3, l4, stamp(st)])
+    return "\n".join([head, plan, l2, l3, l4, stamp(st)])
 
 
 def freeze_text(ew: dict, now: float, db_path: str | None = None) -> str:

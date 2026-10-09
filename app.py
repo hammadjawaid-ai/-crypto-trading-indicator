@@ -2969,9 +2969,12 @@ def _render_revived_board(pb_state, live_prices=None) -> None:
         "A fire the hour graded DEAD that ignited anyway: on the desk, DEAD "
         "then ignited ran 71% / +0.39R over 55 stars and 73% / +0.55R over 52 "
         "elite fires (09 Sep → 28 Sep, measured from the FIRE price). Entering "
-        "at the GO itself measured +0.10R on the star chase tier — the ledger "
-        "line below is that entry, forward. Each card is a revived GO from the "
-        "last 24 hours; 📥 Open takes it at the live price with the plan.")
+        "at the GO itself, replayed on 119 recorded GOs with the fire stop: LONGS "
+        "within 4h 79% win / +1.15% / +0.21R a trade (77), shorts 48% / −1.92%, "
+        "late GOs 52% / −1.74% (14–28 Sep) — so this board and its bell carry "
+        "LONG + FAST only; shorts and late GOs keep stamping for the record. The "
+        "ledger line below is the GO entry, forward. Each card is a revived GO "
+        "from the last 24 hours; 📥 Open takes it at the live price with the plan.")
     try:
         import sqlite3 as _sq_rb
         _now_rb = time.time()
@@ -3019,6 +3022,8 @@ def _render_revived_board(pb_state, live_prices=None) -> None:
             _ex = {}
         if str(_ex.get("oneh") or "").upper() != "DEAD":
             continue                      # only the revived class
+        if (_r[3] or "").upper() != "LONG" or str(_r[8] or "").upper() != "FAST":
+            continue                      # LONG + FAST only (2026-10-09 GO-entry study)
         _k = (_r[1], (_r[3] or "").upper())
         if _k in _seen:
             continue

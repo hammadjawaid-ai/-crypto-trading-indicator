@@ -24,6 +24,7 @@ if hasattr(sys.stdout, "buffer"):
 import best_board
 import binance_client
 import btc2h
+import bottom_watch
 import shock_watch
 import buzz_clock
 import rung_stats
@@ -309,6 +310,11 @@ _MUTE_RULES = _MUTE_R9 if TG_RULES else tg.send
 # ❄️ FREEZE reply muted (user 2026-10-06: "mute ❄️ FREEZE reply"); the froze
 # flag, stamps and board stay. True = back in the thread.
 TG_FREEZE = False
+# ⭐⚡ GO REVIVED = LONG + FAST only (2026-10-09, .go_entry_study.py: 119
+# recorded GOs entered at the GO close with the fire stop — LONG 79% /
+# +1.15% / +0.21R (77) vs SHORT 48% / -1.92% (42); FAST 73% / +0.59% vs
+# LATE 52% / -1.74%). Shorts and late GOs still stamp; no bell, no tier.
+REVIVED_LONG_FAST = True
 # 🧵 thread memory: (symbol, side) -> {ts, ids} of the fire bell the phone
 # heard, so a watch entry created after the send still answers in-thread.
 _TG_THREADS: dict = {}
@@ -4244,6 +4250,58 @@ def cycle() -> None:
     except Exception as _sw_exc2:
         print("  shock_watch start error:", _sw_exc2, flush=True)
 
+    # 🌊⬆️ BOTTOM WATCH (user 2026-10-09: "BTC dumped to 80.3k ... all the
+    # alts bounced ... be more active with telegram notifications"): ONE
+    # factual message at the first higher close after a >= 2% BTC dump
+    # (re-printed after a new low, max 3 per dump) with the measured odds
+    # from that print and the SHORT bells rung into the low. The 13-month
+    # study (.bottom_study.py) found no entry edge at any confirmation, so
+    # this is a read, never a bell to enter on. bottom_watch dedupes itself.
+    def _recent_short_bells(_since):
+        _out = []
+        try:
+            for _a in store.recent_alerts(300):
+                _aid = str(_a.get("alert_id") or "")
+                if float(_a.get("last_ts") or 0) < _since:
+                    continue
+                if (_aid.startswith(("elitestar:", "eliteagrade:"))
+                        and _aid.endswith(":SHORT")):
+                    _out.append(_aid.split(":")[1].replace("USDT", "") + " ⭐")
+        except Exception:
+            pass
+        try:
+            import json as _json_bw
+            for _stream in ("star_go", "elite_go"):
+                for _g in store.recent_by_stream(_stream, 60):
+                    if (float(_g.get("ts") or 0) < _since
+                            or (_g.get("side") or "").upper() != "SHORT"):
+                        continue
+                    try:
+                        _ex = _json_bw.loads(_g.get("extra") or "{}")
+                    except Exception:
+                        _ex = {}
+                    if str(_ex.get("bell") or "").startswith("sent"):
+                        _out.append((_g.get("base")
+                                     or str(_g.get("symbol")).replace("USDT", ""))
+                                    + " ⚡GO")
+        except Exception:
+            pass
+        _seen, _res = set(), []
+        for _x in _out:
+            if _x not in _seen:
+                _seen.add(_x)
+                _res.append(_x)
+        return _res
+    try:
+        _bw = bottom_watch.run(binance_client.get_klines, tg.send,
+                               recent_shorts=_recent_short_bells)
+        if _bw:
+            print(f"[bottom] 🌊⬆️ print {_bw.get('prints_n')} · low "
+                  f"{_bw.get('low'):.0f} · depth {_bw.get('depth', 0) * 100:+.1f}%",
+                  flush=True)
+    except Exception as _bw_exc:
+        print("  bottom_watch error:", _bw_exc, flush=True)
+
     # 🟢 GREEN LIGHT announcements stay (desk reports, rare + informative)
     try:
         _green = {rec["tier"] for rec in shadow_trader.tier_records()
@@ -5487,7 +5545,16 @@ def cycle() -> None:
                                         # 2026-10-06: "keep it to elite
                                         # approved and stars only"; measured
                                         # all-elite 10.3/day, approved 8.9/day).
-                                        if _ew.get("star") or _ew.get("appr"):
+                                        if ((_ew.get("star") or _ew.get("appr"))
+                                                and REVIVED_LONG_FAST
+                                                and not (_ew["side"] == "LONG"
+                                                         and _ew["go"] == "FAST")):
+                                            _bell9 = ("skipped (revived "
+                                                      f"{_ew['side'].lower()} "
+                                                      f"{_ew['go'].lower()}: shorts "
+                                                      "-1.9% / late -1.7% measured; "
+                                                      "records only)")
+                                        elif _ew.get("star") or _ew.get("appr"):
                                             _ok9, _m9x = tg.send(_go9)
                                             _bell9 = ("sent-standalone" if _ok9
                                                       else f"failed: {_m9x}")
@@ -5543,7 +5610,10 @@ def cycle() -> None:
                             "tp2": _ew.get("tp2"),
                             "bell": _bell9})
                         if (_ew.get("oneh") == "DEAD"
-                                and (_ew.get("star") or _ew.get("appr"))):
+                                and (_ew.get("star") or _ew.get("appr"))
+                                and (not REVIVED_LONG_FAST
+                                     or (_ew["side"] == "LONG"
+                                         and _ew["go"] == "FAST"))):
                             # 📥 go_revived desk tier (user 2026-10-06, the
                             # GO REVIVED board): the forward record of
                             # ENTERING at the revived GO — opened at the
