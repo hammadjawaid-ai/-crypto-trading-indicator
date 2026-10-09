@@ -44,6 +44,16 @@ ARRIVAL_REPLAY = {1: ("86% / +0.21R (154)", "trig_hot"),
                   2: ("83% / +0.23R (197)", "arr_hot"),
                   3: ("76% / +0.11R", "arr_long")}
 ARRIVAL_WINDOW = "15 Aug → 28 Sep"
+# ⭐⚡ GO entry classes (.go_entry_study.py, 119 recorded GOs entered at the GO
+# close with the fire stop + fire TP1, 24h, fees; replay 14 → 28 Sep). The
+# user keeps every class on the phone; the heading names the class.
+GO_CLASS = {"long_fast": "✅ LONG · FAST — the measured cell: 79% win / +1.15% / "
+                         "+0.21R per GO entry (77)",
+            "short": "⚠️ SHORT — shorts entered at the GO measured 48% / −1.92% / "
+                     "−0.16R (42): size down or pass",
+            "late": "⚠️ LATE (over 4h) — late GOs measured 52% / −1.74% / −0.10R "
+                    "(27): size down or pass",
+            "window": "replay 14 → 28 Sep, fire stop"}
 
 
 # ───────────────────────── clock helpers ─────────────────────────
@@ -337,6 +347,9 @@ def go_text(ew: dict, prg: float, age_s: float, px: float, now: float,
     # the 1H verdict graded DEAD that ignites anyway keeps its name in the
     # header — the old revival bell, now inside the thread.
     rev = ew.get("oneh") == "DEAD"
+    cls = (GO_CLASS["short"] if side == "SHORT" else
+           GO_CLASS["late"] if late else GO_CLASS["long_fast"])
+    cls_line = f"class: {cls} · {GO_CLASS['window']}"
     head = (f"{emo} *GO — {base} {side} · {'REVIVED · ' if rev else ''}PROTECT · "
             f"{pkt_hm(now)} PKT ({age_s / 3600:.1f}h after the fire"
             f"{', late' if late else ''})*")
@@ -364,7 +377,7 @@ def go_text(ew: dict, prg: float, age_s: float, px: float, now: float,
               f"measured {rec(st['chase'])} — small, your call")
     else:
         l4 = f"not in it: {r_left:.1f}R left to TP1 from here — PASS"
-    return "\n".join([head, plan, l2, l3, l4, stamp(st)])
+    return "\n".join([head, cls_line, plan, l2, l3, l4, stamp(st)])
 
 
 def freeze_text(ew: dict, now: float, db_path: str | None = None) -> str:

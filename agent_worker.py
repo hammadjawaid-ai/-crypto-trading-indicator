@@ -314,7 +314,10 @@ TG_FREEZE = False
 # recorded GOs entered at the GO close with the fire stop — LONG 79% /
 # +1.15% / +0.21R (77) vs SHORT 48% / -1.92% (42); FAST 73% / +0.59% vs
 # LATE 52% / -1.74%). Shorts and late GOs still stamp; no bell, no tier.
-REVIVED_LONG_FAST = True
+# (user 2026-10-09 later: "it's ok to have shorts or late but it should have
+#  the heading to it, we are not letting go of any notifications" -> every
+#  class rings; rung_stats.go_text names the class with its numbers.)
+REVIVED_LONG_FAST = False
 # 🧵 thread memory: (symbol, side) -> {ts, ids} of the fire bell the phone
 # heard, so a watch entry created after the send still answers in-thread.
 _TG_THREADS: dict = {}

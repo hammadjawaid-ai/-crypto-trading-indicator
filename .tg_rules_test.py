@@ -180,17 +180,21 @@ v_plain = rs.verdict_text(dict(ew, star=False, oneh="DEAD"), 0.03, NOW, DB)
 if "DEAD then ignited (elite fires):" not in v_plain:
     fails.append("non-star verdict must carry the elite ignition split")
 ge = rs.go_text(dict(ew, star=False, oneh="DEAD", entry0=0.0121, stop=0.0119), 0.26, 2.0 * H, 0.01215, NOW, DB)
+gs = rs.go_text(dict(ew, side="SHORT", oneh="DEAD", entry0=0.0121, stop=0.0125), 0.26, 2.0 * H, 0.01195, NOW, DB)
+if "class: ⚠️ SHORT — shorts entered at the GO measured 48%" not in gs:
+    fails.append("short GO must carry the short class heading")
 if not ge.startswith("💎⚡ *GO — GLMR LONG · REVIVED · PROTECT · 13:40 PKT (2.0h after the fire)*") or "DEAD then ignited (elite fires)" not in ge:
     fails.append(f"elite GO revived text wrong:\n{ge}")
 g = rs.go_text(ew, 0.34, 2.5 * H, 0.01254, NOW, DB)
 for need in ("⭐⚡ *GO — GLMR LONG · PROTECT · 13:40 PKT (2.5h after the fire)*", "ignited: +34% of the path · live `0.01254`",
              "fire entry `0.0121` · SL `0.010827` · TP1 `0.01343`",
+             "class: ✅ LONG · FAST — the measured cell: 79% win / +1.15% / +0.21R per GO entry (77) · replay 14 → 28 Sep, fire stop",
              "holding it: hold to TP1 / TP2, do not bank early · ignited within 4h (⭐ stars) 86% / +0.67R (28)",
              "not in it: 0.7R left to TP1 from here — PASS"):
     if need not in g:
         fails.append(f"GO text missing {need!r}")
 g2 = rs.go_text(dict(ew, oneh="DEAD", entry0=0.0121, stop=0.0119), 0.26, 5 * H, 0.01215, NOW, DB)
-if "⭐⚡ *GO — GLMR LONG · REVIVED · PROTECT · 13:40 PKT (5.0h after the fire, late)*" not in g2 or "REVIVED" in g or "DEAD then ignited (⭐ stars) 70% / +0.26R (10)" not in g2 or "entry at GO measured 58% / −0.24R (12) — small, your call" not in g2:
+if "⭐⚡ *GO — GLMR LONG · REVIVED · PROTECT · 13:40 PKT (5.0h after the fire, late)*" not in g2 or "class: ⚠️ LATE (over 4h)" not in g2 or "REVIVED" in g or "DEAD then ignited (⭐ stars) 70% / +0.26R (10)" not in g2 or "entry at GO measured 58% / −0.24R (12) — small, your call" not in g2:
     fails.append(f"late GO text wrong:\n{g2}")
 fz_n = rs.freeze_text(dict(ew, fired_at=NOW + 10 * H - 86400), NOW, DB)   # fired 23:40 PKT yesterday
 if "❄️ *GLMR LONG · silent at 4h · 13:40 PKT · FREEZE — free the seat*" not in fz_n or "night frozen fires: 0% / −1.00R (10) · day frozen fires: 0% / −1.00R (11)" not in fz_n or "release it the moment" not in fz_n:
@@ -211,7 +215,7 @@ for need in ("📊 *RUNG-1 SCOREBOARD — Fri 02 Oct, 00:00 → 23:59 PKT* · bu
              "30-day desk: star ", "T1 young (4 closes)", "A-grade no closes yet", "refreshed 13:40 PKT"):
     if need not in sb:
         fails.append(f"scoreboard missing {need!r}")
-for m in (day_msg, night_msg, v_live, v_dead, v_plain, g, g2, ge, fz_n, fz_d, ar, sb):
+for m in (day_msg, night_msg, v_live, v_dead, v_plain, g, g2, ge, gs, fz_n, fz_d, ar, sb):
     if m.count("*") % 2 or m.count("`") % 2 or "\ufffd" in m:
         fails.append(f"markdown/encoding unbalanced in: {m[:60]!r}")
     if "_" in m.replace("`", ""):
@@ -240,7 +244,7 @@ for need, lab in (("TG_RULES = True\n", "switch on"),
                   ('if _ew.get("oneh") == "DEAD":\n                                        # GO REVIVED is its own bell', "revived branch"),
                   ("int(1.0 * 3600)):   # 1h (user 2026-10-06", "elite re-buzz key 1h"),
                   ('elif _ew.get("star") or _ew.get("appr"):\n                                            _ok9, _m9x = tg.send(_go9)', "revived: stars + approved elite only"),
-                  ("REVIVED_LONG_FAST = True\n", "revived long+fast switch on"),
+                  ("REVIVED_LONG_FAST = False\n", "every revived class rings (user 2026-10-09)"),
                   ('and REVIVED_LONG_FAST\n                                                and not (_ew["side"] == "LONG"\n                                                         and _ew["go"] == "FAST")):', "revived bell skips shorts and late GOs"),
                   ('_bell9 = ("not-approved (unapproved "', "unapproved elite stays records-only"),
                   ("_ok9, _m9x = tg.send(_go9)", "GO REVIVED standalone"),

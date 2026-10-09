@@ -38,7 +38,7 @@ for need, lab in (("WHERE stream IN ('star_go', \"\n                \"'elite_go'
                   ("_openable = (pb_state is not None and _live and not _stopped", "openable guard"),
                   ('"🔔 bell ✓"', "bell chip"), ('f"🔕 no bell: {_bell}"', "no-bell chip"),
                   ("no closes yet", "empty ledger line"),
-                  ('if (_r[3] or "").upper() != "LONG" or str(_r[8] or "").upper() != "FAST":', "board shows LONG + FAST only")):
+                  ('"✅ LONG·FAST class 79% / +1.15%" if (_lng and str(_tier or \'\').upper() == \'FAST\')', "class chip on every card")):
     if need not in body:
         fails.append(f"missing: {lab}")
 if "mode=ro" not in body or "INSERT" in body.upper().replace("INSERTED", ""):

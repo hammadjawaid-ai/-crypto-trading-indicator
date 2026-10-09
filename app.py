@@ -2971,8 +2971,8 @@ def _render_revived_board(pb_state, live_prices=None) -> None:
         "elite fires (09 Sep → 28 Sep, measured from the FIRE price). Entering "
         "at the GO itself, replayed on 119 recorded GOs with the fire stop: LONGS "
         "within 4h 79% win / +1.15% / +0.21R a trade (77), shorts 48% / −1.92%, "
-        "late GOs 52% / −1.74% (14–28 Sep) — so this board and its bell carry "
-        "LONG + FAST only; shorts and late GOs keep stamping for the record. The "
+        "late GOs 52% / −1.74% (14–28 Sep) — every class stays on the board and "
+        "the bell, each card names its class. The "
         "ledger line below is the GO entry, forward. Each card is a revived GO "
         "from the last 24 hours; 📥 Open takes it at the live price with the plan.")
     try:
@@ -3022,8 +3022,6 @@ def _render_revived_board(pb_state, live_prices=None) -> None:
             _ex = {}
         if str(_ex.get("oneh") or "").upper() != "DEAD":
             continue                      # only the revived class
-        if (_r[3] or "").upper() != "LONG" or str(_r[8] or "").upper() != "FAST":
-            continue                      # LONG + FAST only (2026-10-09 GO-entry study)
         _k = (_r[1], (_r[3] or "").upper())
         if _k in _seen:
             continue
@@ -3072,6 +3070,9 @@ def _render_revived_board(pb_state, live_prices=None) -> None:
                 _status, _scol = f"🔻 under the fire entry ({_prog * 100:.0f}%)", "#ff8c69"
             _chips = ["⭐ star" if _ex.get("star") else "💎 elite",
                       f"⭐⚡ GO {_tier or ''}".strip(),
+                      ("✅ LONG·FAST class 79% / +1.15%" if (_lng and str(_tier or '').upper() == 'FAST')
+                       else "⚠️ SHORT class 48% / −1.92%" if not _lng
+                       else "⚠️ LATE class 52% / −1.74%"),
                       f"ignited {float(_mins or 0):.0f} min after the fire",
                       "⏱ 1H DEAD"]
             _bell = str(_ex.get("bell") or "")
