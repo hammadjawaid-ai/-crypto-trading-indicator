@@ -21,8 +21,8 @@ ns = {}
 for n in ast.parse(W).body:
     if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id in ("TG_GO_LIVE", "GO_LIVE_LINE") for t in n.targets):
         exec(compile(ast.Module(body=[n], type_ignores=[]), "c", "exec"), ns)
-if ns.get("TG_GO_LIVE") is not True:
-    fails.append("TG_GO_LIVE must start ON")
+if ns.get("TG_GO_LIVE") is not False:
+    fails.append("TG_GO_LIVE must be OFF (user 2026-10-12: website only)")
 if "61% / +0.69R (171)" not in ns.get("GO_LIVE_LINE", "") or "shorts 55% / +0.38R (42)" not in ns.get("GO_LIVE_LINE", ""):
     fails.append("class line must carry the measured cell with R, never win rate alone")
 

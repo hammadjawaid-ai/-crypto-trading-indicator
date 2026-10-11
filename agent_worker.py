@@ -330,7 +330,11 @@ REVIVED_LONG_FAST = False
 # +0.38R (42) · FAST 62% / +0.70R (162) · LATE 44% / +0.36R (9); LIVE that
 # never ignited 0% / -0.65R (11). ~6 a day measured. False = silent, the
 # go_live desk tier and the board continue.
-TG_GO_LIVE = True
+# 2026-10-12 later, user: "deploy it only to paper trading under go revived
+# board … so we check on the website instead of notifications" -> OFF: a
+# hold bell for an entry the phone never heard is noise; the LIVE section
+# under GO REVIVED + the go_live ledger carry it. True = the bell is back.
+TG_GO_LIVE = False
 GO_LIVE_LINE = ("class: 💎 LIVE then GO — elite conviction, from the fire price: "
                 "61% / +0.69R (171) · longs 63% / +0.78R (129) · shorts 55% / "
                 "+0.38R (42) · desk 01 Sep → 28 Sep")

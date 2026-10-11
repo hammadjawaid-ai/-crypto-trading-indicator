@@ -3073,9 +3073,9 @@ def _render_revived_board(pb_state, live_prices=None) -> None:
             st.caption(
                 "An elite conviction fire (not a star) graded LIVE at the hour "
                 "that then ignited to +25% of its path. Its fire bell is muted, "
-                "so the GO is the first the phone hears of it — approved and "
-                "unapproved fires ring (unapproved tagged: LIVE then ignited 40% / "
-                "+0.51R over 15, thin). Sep desk from the FIRE price, "
+                "so this board is where it shows — no phone bell by your call "
+                "(cards + ledger only; unapproved fires are the thin cell: LIVE "
+                "then ignited 40% / +0.51R over 15). Sep desk from the FIRE price, "
                 "non-star: LIVE then ignited 61% / +0.69R over 171 (longs 63% / "
                 "+0.78R, shorts 55% / +0.38R); LIVE that never ignited 0% / "
                 "−0.65R (11). The ledger line is the GO entry, forward.")
