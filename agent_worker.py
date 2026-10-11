@@ -1951,6 +1951,17 @@ LEG2_PRIME_REC = {
     "window": "desk 01 Sep → 28 Sep", "all": "73% / +0.47R (37)",
     "alone": "51% / +0.10R (358)", "LONG": "65% / +0.36R (23)",
     "SHORT": "86% / +0.64R (14)"}
+# PKT-window lights on the two pair bells deployed 2026-10-11 ONLY (user: the
+# ⭐🥇 / 💎🥇 pair bells stay exactly as they were — "nothing we change with what
+# we had previous from today"). Desk 01 Sep → 28 Sep: 🟢 5+ trades, win >= 50%
+# and avg >= +0.10R · 🔴 5+ trades, avg <= 0 · 🟡 thin / flat. Labels only.
+PAIR_WINDOWS = {
+    "trigkr": {"05–09": ("🟢", "86% / +0.30R (7)"), "09–13": ("🟢", "83% / +0.36R (6)"),
+               "13–17": ("🟡", "0% / -0.09R (1)"), "17–21": ("🟢", "83% / +0.52R (6)"),
+               "21–01": ("🟡", "100% / +0.33R (1)"), "01–05": ("🟡", "100% / +0.43R (2)")},
+    "leg2": {"05–09": ("🟢", "78% / +0.61R (9)"), "09–13": ("🟡", "50% / -0.10R (4)"),
+             "13–17": ("🟢", "100% / +1.31R (5)"), "17–21": ("🟢", "89% / +0.72R (9)"),
+             "21–01": ("🔴", "33% / -0.39R (6)"), "01–05": ("🟡", "75% / +0.34R (4)")}}
 PAIR_KINDS = {
     "star": dict(tier="star_prime", rec=STAR_PRIME_REC, head="⭐🥇 *STAR × PRIME",
                  who="⭐ star fire", alone="star", tag="⭐🥇", bands=True),
@@ -1998,6 +2009,12 @@ def _fmt_prime_pair(kind, sig, px, now):
     l4 = (f"pair record ({rec['window']}): {rec['all']} vs "
           f"{kd['alone']} alone {rec['alone']} · {band_cell} · "
           f"{side.lower()}s {rec.get(side, '—')}")
+    lw = None
+    if kind in PAIR_WINDOWS:   # 💥🔮🥇 / 🔥🥇 only; ⭐🥇 / 💎🥇 print as before
+        _win = buzz_clock.window_of(rung_stats.pkt_hour(now))
+        _lt, _wrec = PAIR_WINDOWS[kind].get(_win, ("🟡", "no read"))
+        lw = (f"window: {_lt} {_win} PKT — this pair here {_wrec} · "
+              f"{rec['window']} · 🟢 5+ trades earning · 🔴 5+ trades losing · 🟡 thin or flat")
     try:
         fwd = rung_stats.rec(rung_stats.tier_rec(tier, None, now))
     except Exception:
@@ -2009,7 +2026,7 @@ def _fmt_prime_pair(kind, sig, px, now):
           if kd["bands"] else
           ("_one regime (September) and a thin count behind the pair record — "
            "every band rings; the desk ledger split by band decides._"))
-    return "\n".join([head, l2, plan, l4, l5, l6])
+    return "\n".join([x for x in (head, l2, plan, lw, l4, l5, l6) if x])
 
 
 def cycle() -> None:

@@ -16,12 +16,13 @@ A = open(os.path.join(ROOT, "app.py"), encoding="utf-8").read()
 U = open(os.path.join(ROOT, "auditor.py"), encoding="utf-8").read()
 fails = []
 tree = ast.parse(W)
-ns = {"rung_stats": rung_stats}
+import buzz_clock
+ns = {"rung_stats": rung_stats, "buzz_clock": buzz_clock}
 for n in tree.body:
     if isinstance(n, ast.FunctionDef) and n.name in ("_conf_band", "_fmt_prime_pair"):
         exec(compile(ast.Module(body=[n], type_ignores=[]), n.name, "exec"), ns)
     elif isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id in (
-            "STAR_PRIME_REC", "CONV_PRIME_REC", "TRIGKR_PRIME_REC", "LEG2_PRIME_REC", "PAIR_KINDS", "STAR_PRIME_BANDS", "CONV_PRIME_BANDS",
+            "STAR_PRIME_REC", "CONV_PRIME_REC", "TRIGKR_PRIME_REC", "LEG2_PRIME_REC", "PAIR_KINDS", "PAIR_WINDOWS", "STAR_PRIME_BANDS", "CONV_PRIME_BANDS",
             "TG_STAR_PRIME", "TG_CONV_PRIME", "TG_TRIGKR_PRIME", "TG_LEG2_PRIME") for t in n.targets):
         exec(compile(ast.Module(body=[n], type_ignores=[]), "consts", "exec"), ns)
 band, fmt = ns["_conf_band"], ns["_fmt_prime_pair"]
@@ -36,7 +37,8 @@ if not (ns["TG_STAR_PRIME"] is True and ns["TG_CONV_PRIME"] is True):
     fails.append("both switches must start ON")
 
 # messages (forward ledger reads the real store path; fail-soft either way)
-NOW = 1791108000.0
+import calendar
+NOW = float(calendar.timegm((2026, 10, 11, 13, 40, 0)))   # 18:40 PKT -> 17–21 window
 sig = {"symbol": "AAVEUSDT", "base": "AAVE", "side": "LONG", "entry": 184.04, "stop": 176.774, "tp1": 188.712, "tp2": 192.449, "tier": "HIGH", "score": 82, "conf": 40}
 m1 = fmt("star", sig, 184.5, NOW)
 for need in ("⭐🥇 *STAR × PRIME — AAVE LONG · TAKE · ", "⭐ star fire + 🥇 PRIME on the same coin and side",
@@ -46,6 +48,8 @@ for need in ("⭐🥇 *STAR × PRIME — AAVE LONG · TAKE · ", "⭐ star fire 
     if need not in m1:
         fails.append(f"star pair message missing {need!r}")
 m2 = fmt("conv", dict(sig, side="SHORT", conf=70, tp2=None), 183.9, NOW)
+if "window:" in m1 or "window:" in m2 or set(ns["PAIR_WINDOWS"]) != {"trigkr", "leg2"}:
+    fails.append("the window line belongs to the two 2026-10-11 bells only; star / conv pair bells unchanged")
 for need in ("💎🥇 *ELITE × PRIME — AAVE SHORT · TAKE · ", "💎 elite conviction fire + 🥇 PRIME",
              "🎯 conf 70 (65-74 band)", "pair record (desk 01 Sep → 28 Sep): 60% / +0.28R (85) vs elite alone 41% / +0.06R (750) · this band 67% / +0.70R (6) · shorts 59% / +0.36R (39)",
              "forward ledger (💎🥇 pair): "):
@@ -57,17 +61,24 @@ m3 = fmt("star", dict(sig, conf=None), 184.5, NOW)
 m4 = fmt("trigkr", dict(sig, side="SHORT", conf=58), 183.9, NOW)
 for need in ("💥🔮🥇 *TRIG × KR × PRIME — AAVE SHORT · TAKE · ", "💥🔮 TRIG × KR break + 🥇 PRIME",
              "pair record (desk 01 Sep → 28 Sep): 83% / +0.37R (23) vs TRIG × KR alone 70% / +0.05R (77) · every band rings; the desk splits the record by band · shorts 81% / +0.32R (16)",
-             "forward ledger (💥🔮🥇 pair): ", "a thin count behind the pair record"):
+             "forward ledger (💥🔮🥇 pair): ", "a thin count behind the pair record",
+             "window: 🟢 17–21 PKT — this pair here 83% / +0.52R (6)"):
     if need not in m4:
         fails.append(f"trigkr pair message missing {need!r}")
 m5 = fmt("leg2", dict(sig, conf=72), 184.5, NOW)
-if not m5.startswith("🔥🥇 *SECOND LEG × PRIME — AAVE LONG · TAKE · ") or "73% / +0.47R (37) vs second leg alone 51% / +0.10R (358)" not in m5 or "longs 65% / +0.36R (23)" not in m5:
+if not m5.startswith("🔥🥇 *SECOND LEG × PRIME — AAVE LONG · TAKE · ") or "73% / +0.47R (37) vs second leg alone 51% / +0.10R (358)" not in m5 or "longs 65% / +0.36R (23)" not in m5 or "window: 🟢 17–21 PKT — this pair here 89% / +0.72R (9)" not in m5:
     fails.append(f"leg2 pair message wrong:\n{m5}")
+m6 = fmt("leg2", dict(sig, conf=72), 184.5, float(calendar.timegm((2026, 10, 11, 17, 40, 0))))   # 22:40 PKT -> 21–01 red
+if "window: 🔴 21–01 PKT — this pair here 33% / -0.39R (6)" not in m6:
+    fails.append("red window line wrong")
+m7 = fmt("trigkr", dict(sig, conf=58), 184.5, float(calendar.timegm((2026, 10, 11, 9, 0, 0))))   # 14:00 PKT -> 13–17 thin
+if "window: 🟡 13–17 PKT — this pair here 0% / -0.09R (1)" not in m7:
+    fails.append("thin window line wrong")
 if not (ns["TG_TRIGKR_PRIME"] is True and ns["TG_LEG2_PRIME"] is True) or set(ns["PAIR_KINDS"]) != {"star", "conv", "trigkr", "leg2"}:
     fails.append("new pair switches / kinds wrong")
 if "🎯 conf ? (? band)" not in m3 or "this band —" not in m3:
     fails.append("unreadable conf must print ? and —")
-for m in (m1, m2, m3, m4, m5):
+for m in (m1, m2, m3, m4, m5, m6, m7):
     if m.count("*") % 2 or m.count("`") % 2 or m.count("_") % 2 or "\ufffd" in m:
         fails.append("markdown/encoding unbalanced")
 
