@@ -22,7 +22,7 @@ for n in tree.body:
     if isinstance(n, ast.FunctionDef) and n.name in ("_conf_band", "_fmt_prime_pair"):
         exec(compile(ast.Module(body=[n], type_ignores=[]), n.name, "exec"), ns)
     elif isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id in (
-            "STAR_PRIME_REC", "CONV_PRIME_REC", "TRIGKR_PRIME_REC", "LEG2_PRIME_REC", "PAIR_KINDS", "PAIR_WINDOWS", "STAR_PRIME_BANDS", "CONV_PRIME_BANDS",
+            "STAR_PRIME_REC", "CONV_PRIME_REC", "TRIGKR_PRIME_REC", "LEG2_PRIME_REC", "PAIR_KINDS", "PAIR_WINDOWS", "PAIR_KEY_H", "STAR_PRIME_BANDS", "CONV_PRIME_BANDS",
             "TG_STAR_PRIME", "TG_CONV_PRIME", "TG_TRIGKR_PRIME", "TG_LEG2_PRIME") for t in n.targets):
         exec(compile(ast.Module(body=[n], type_ignores=[]), "consts", "exec"), ns)
 band, fmt = ns["_conf_band"], ns["_fmt_prime_pair"]
@@ -74,6 +74,8 @@ if "window: 🔴 21–01 PKT — this pair here 33% / -0.39R (6)" not in m6:
 m7 = fmt("trigkr", dict(sig, conf=58), 184.5, float(calendar.timegm((2026, 10, 11, 9, 0, 0))))   # 14:00 PKT -> 13–17 thin
 if "window: 🟡 13–17 PKT — this pair here 0% / -0.09R (1)" not in m7:
     fails.append("thin window line wrong")
+if ns["PAIR_KEY_H"] != {"star": 1.0, "conv": 1.0, "trigkr": 3.0, "leg2": 3.0}:
+    fails.append("pair keys: star/conv 1h (user 2026-10-12), trigkr/leg2 3h")
 if not (ns["TG_TRIGKR_PRIME"] is True and ns["TG_LEG2_PRIME"] is True) or set(ns["PAIR_KINDS"]) != {"star", "conv", "trigkr", "leg2"}:
     fails.append("new pair switches / kinds wrong")
 if "🎯 conf ? (? band)" not in m3 or "this band —" not in m3:
@@ -97,7 +99,7 @@ for need, lab in (('("star", "elite_star", "star_prime", STAR_PRIME_BANDS,\n    
                   ('_conf_pp = best_board.confidence(_sym_pp, _sd_pp)', "conf fallback at the pass"),
                   ('if (_kind == "conv" and store.seen_between(\n                            "elite_star", _sym_pp, _sd_pp,', "a star never rings both"),
                   ('"prime", _sym_pp, _sd_pp,\n                            _ts_pp - PRIME_PAIR_BEFORE,\n                            _ts_pp + PRIME_PAIR_AFTER)', "2h-before / 30-min-after window"),
-                  ('f"{_tier_pp}:{_sym_pp}:{_sd_pp}", 3 * 3600)', "3h key per coin+side per bell"),
+                  ('f"{_tier_pp}:{_sym_pp}:{_sd_pp}",\n                            int(PAIR_KEY_H.get(_kind, 3.0) * 3600))', "per-kind key per coin+side"),
                   ("store.record_signal(_tier_pp, _sig_pp)\n                    shadow_trader.open_from_signal(_tier_pp, _sig_pp, _px_pp)", "records + desk open for every band"),
                   ('"off" if not _on_pp else', "switch gates the bell only"),
                   ("+ _kr_note(_sig_pp))", "kronos line")):

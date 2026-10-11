@@ -2007,6 +2007,9 @@ PAIR_WINDOWS = {
     "leg2": {"05–09": ("🟢", "78% / +0.61R (9)"), "09–13": ("🟡", "50% / -0.10R (4)"),
              "13–17": ("🟢", "100% / +1.31R (5)"), "17–21": ("🟢", "89% / +0.72R (9)"),
              "21–01": ("🔴", "33% / -0.39R (6)"), "01–05": ("🟡", "75% / +0.34R (4)")}}
+# per-kind re-fire key, hours per coin+side (user 2026-10-12: STAR × PRIME and
+# ELITE × PRIME "change this time to 1h per coin"; the two 10-11 pairs keep 3h).
+PAIR_KEY_H = {"star": 1.0, "conv": 1.0, "trigkr": 3.0, "leg2": 3.0}
 PAIR_KINDS = {
     "star": dict(tier="star_prime", rec=STAR_PRIME_REC, head="⭐🥇 *STAR × PRIME",
                  who="⭐ star fire", alone="star", tag="⭐🥇", bands=True),
@@ -4057,7 +4060,8 @@ def cycle() -> None:
                             and _sg.get("tp1")):
                         continue
                     if not store.should_alert(
-                            f"{_tier_pp}:{_sym_pp}:{_sd_pp}", 3 * 3600):
+                            f"{_tier_pp}:{_sym_pp}:{_sd_pp}",
+                            int(PAIR_KEY_H.get(_kind, 3.0) * 3600)):
                         continue
                     _paired_pp.add((_sym_pp, _sd_pp))
                     try:
