@@ -334,6 +334,27 @@ TG_GO_LIVE = True
 GO_LIVE_LINE = ("class: 💎 LIVE then GO — elite conviction, from the fire price: "
                 "61% / +0.69R (171) · longs 63% / +0.78R (129) · shorts 55% / "
                 "+0.38R (42) · desk 01 Sep → 28 Sep")
+# 🏦 TP1 HIT ride ping (user 2026-10-12: "rung for only streams we have live
+# on telegram, not the muted ones" + "add the stream line"): the watch list
+# IS the phone roster — stream recorded at each live bell -> its label. The
+# four streams it used to watch (conviction_v2, elite_confirm, personal_watch,
+# personal_watch_early) have silent entry bells and are out. Band-gated
+# bells (⭐🥇/💎🥇 pairs, 🌙 moonshot) record every fire, so a record outside
+# the band list can still ping — the line names the stream either way.
+TP1_STREAMS = {
+    "elite_star": "⭐ ELITE STAR",
+    "elite_agrade": "💎🏆 A-GRADE",
+    "trig_hot": "⚡🔥 ARRIVAL T1",
+    "kr_premium_bell": "⚡🔮 KR-STRONG PREMIUM",
+    "apex_v2": "🏆💎 APEX V2",
+    "moonshot": "🌙 MOONSHOT",
+    "star_prime": "⭐🥇 STAR × PRIME",
+    "conv_prime": "💎🥇 ELITE × PRIME",
+    "trigkr_prime": "💥🔮🥇 TRIG × KR × PRIME",
+    "leg2_prime": "🔥🥇 SECOND LEG × PRIME",
+    "go_revived": "⭐⚡ GO REVIVED (entry at the GO)",
+    "go_live": "💎⚡ GO LIVE (entry at the GO)"}
+_RG_DONE: set = set()      # (stream, symbol, side, ts) already banked / stopped
 GO_LIVE_UNAPPR = (" · this one is an UNAPPROVED fire: LIVE then GO 40% / +0.51R "
                   "(15), thin — size down")
 # 🧵 thread memory: (symbol, side) -> {ts, ids} of the fire bell the phone
@@ -3943,6 +3964,13 @@ def cycle() -> None:
                         f"+1.07R live (n=83, all thirds green). "
                         f"Bank at TP1._")
                     n_alerts += 1 if ok else 0
+                    # records-only stamp of the bell that rang, so the
+                    # 🏦 TP1 watch can see it (user 2026-10-12); the
+                    # premium bell itself is unchanged.
+                    try:
+                        store.record_signal("kr_premium_bell", _sp2)
+                    except Exception:
+                        pass
                     _kp_sent += 1
                 except Exception:
                     continue
@@ -7001,20 +7029,35 @@ def cycle() -> None:
     # let-it-ride. 🏦 TP1 bank buzz rides the same watch.
     try:
         _rg_watch = []
-        for _rg_stream in ("elite_confirm", "personal_watch",
-                           "personal_watch_early", "conviction_v2"):
+        for _rg_stream in TP1_STREAMS:      # the phone roster, nothing muted
             try:
                 _rg_watch += [(r, _rg_stream) for r in
                               store.recent_by_stream(_rg_stream, 8)]
             except Exception:
                 pass
         _rg_now = time.time()
+        # every live stream that had the coin+side in the window — the
+        # "from:" line under the TP1 bell
+        _rg_by: dict = {}
+        for _rg, _rg_src in _rg_watch:
+            try:
+                _rgt = float(_rg.get("ts") or 0)
+                if _rgt and _rg_now - _rgt <= 48 * 3600 and _rg.get("symbol"):
+                    _rg_by.setdefault(
+                        (_rg["symbol"], (_rg.get("side") or "").upper()),
+                        []).append((_rgt, _rg_src))
+            except Exception:
+                pass
+        if len(_RG_DONE) > 2000:
+            _RG_DONE.clear()
         for _rg, _rg_src in _rg_watch:
             _rg_ts = float(_rg.get("ts") or 0)
             if not _rg_ts or _rg_now - _rg_ts > 48 * 3600:
                 continue
             _rg_sym = _rg.get("symbol")
             _rg_side = (_rg.get("side") or "").upper()
+            if (_rg_src, _rg_sym, _rg_side, int(_rg_ts)) in _RG_DONE:
+                continue                  # walked once already
             _rg_ent = float(_rg.get("entry") or 0)
             _rg_stp = float(_rg.get("stop") or 0)
             _rg_tp1 = float(_rg.get("tp1") or 0)
@@ -7053,20 +7096,32 @@ def cycle() -> None:
             except Exception:
                 pass
             if _rg_banked:
-                # 🏦 TP1 buzz — the plan banks 100% here.
+                _RG_DONE.add((_rg_src, _rg_sym, _rg_side, int(_rg_ts)))
+                # 🏦 TP1 buzz — the plan banks 100% here. One ping per
+                # coin+side+TP1 level (7d); the line names every live
+                # stream that had it (user 2026-10-12).
                 if store.should_alert(
-                        f"tp1hit:{_rg_sym}:{_rg_side}:{int(_rg_ts)}",
+                        f"tp1hit:{_rg_sym}:{_rg_side}:{_rg_tp1:g}",
                         7 * 24 * 3600):
                     _rg_b2 = _rg.get("base") or \
                         _rg_sym.replace("USDT", "")
+                    _rg_from = " · ".join(
+                        f"{TP1_STREAMS.get(_s, _s)} fired "
+                        f"{rung_stats.pkt_hm(_t)} PKT"
+                        for _t, _s in sorted(
+                            _rg_by.get((_rg_sym, _rg_side), [])))
                     ok, _ = tg.send(
                         f"🏦 *{_rg_b2} {_rg_side} — TP1 HIT* "
                         f"`{_rg_tp1:g}` — BANK 100% HERE (the plan). "
                         f"Re-enter only on a fresh 🟢 confirm or "
-                        f"re-fire.")
+                        f"re-fire.\n"
+                        f"from: {_rg_from or TP1_STREAMS.get(_rg_src, _rg_src)}\n"
+                        f"fire entry `{_rg_ent:g}` · SL `{_rg_stp:g}` · "
+                        f"TP1 `{_rg_tp1:g}`")
                     n_alerts += 1 if ok else 0
                 continue
             if _rg_stopped:
+                _RG_DONE.add((_rg_src, _rg_sym, _rg_side, int(_rg_ts)))
                 continue    # stop did its job — silent by user rule
             # 🔴 INVERSE RISK — the red signal: momentum died, trade
             # turning inverse. One-shot per entry, caution framing.
