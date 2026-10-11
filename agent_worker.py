@@ -334,7 +334,9 @@ REVIVED_LONG_FAST = False
 # board … so we check on the website instead of notifications" -> OFF: a
 # hold bell for an entry the phone never heard is noise; the LIVE section
 # under GO REVIVED + the go_live ledger carry it. True = the bell is back.
-TG_GO_LIVE = False
+# 2026-10-12 night, user: "can we have just this bell on only on our telegram
+# notifications?" -> ON again (approved + unapproved, unapproved tagged).
+TG_GO_LIVE = True
 GO_LIVE_LINE = ("class: 💎 LIVE then GO — elite conviction, from the fire price: "
                 "61% / +0.69R (171) · longs 63% / +0.78R (129) · shorts 55% / "
                 "+0.38R (42) · desk 01 Sep → 28 Sep")
