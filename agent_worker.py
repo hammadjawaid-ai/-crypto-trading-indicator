@@ -1918,6 +1918,12 @@ def _fmt_fresh(p) -> str:
 # trade's desk result. ONE regime (September) — the forward ledgers judge it.
 TG_STAR_PRIME = True   # ⭐🥇 bell. False = silent; desk tier star_prime continues.
 TG_CONV_PRIME = True   # 💎🥇 bell. False = silent; desk tier conv_prime continues.
+# user 2026-10-11 ("deploy only prime with Trig x KR and Second leg with
+# Prime"): .prime_pairs_all.py — the strongest win-rate pair and the
+# biggest-lift pair on the board. No band rule: every band rings and records,
+# the desk splits the record by band.
+TG_TRIGKR_PRIME = True   # 💥🔮🥇 bell. False = silent; tier trigkr_prime continues.
+TG_LEG2_PRIME = True     # 🔥🥇 bell. False = silent; tier leg2_prime continues.
 PRIME_PAIR_BEFORE, PRIME_PAIR_AFTER = 2 * 3600, 30 * 60
 PRIME_PAIR_FRESH = 35 * 60       # an elite record pairs only while this fresh
 STAR_PRIME_BANDS = ("40-54", "55-64", "75-84", "85+")   # user: "just not 65 to 74"
@@ -1934,6 +1940,25 @@ CONV_PRIME_REC = {
     "55-64": "62% / +0.32R (21)", "65-74": "67% / +0.70R (6)",
     "75-84": "62% / +0.19R (13)", "85+": "50% / −0.06R (10)",
     "LONG": "61% / +0.22R (46)", "SHORT": "59% / +0.36R (39)"}
+TRIGKR_PRIME_REC = {
+    "window": "desk 01 Sep → 28 Sep", "all": "83% / +0.37R (23)",
+    "alone": "70% / +0.05R (77)", "LONG": "86% / +0.48R (7)",
+    "SHORT": "81% / +0.32R (16)"}
+LEG2_PRIME_REC = {
+    "window": "desk 01 Sep → 28 Sep", "all": "73% / +0.47R (37)",
+    "alone": "51% / +0.10R (358)", "LONG": "65% / +0.36R (23)",
+    "SHORT": "86% / +0.64R (14)"}
+PAIR_KINDS = {
+    "star": dict(tier="star_prime", rec=STAR_PRIME_REC, head="⭐🥇 *STAR × PRIME",
+                 who="⭐ star fire", alone="star", tag="⭐🥇", bands=True),
+    "conv": dict(tier="conv_prime", rec=CONV_PRIME_REC, head="💎🥇 *ELITE × PRIME",
+                 who="💎 elite conviction fire", alone="elite", tag="💎🥇", bands=True),
+    "trigkr": dict(tier="trigkr_prime", rec=TRIGKR_PRIME_REC,
+                   head="💥🔮🥇 *TRIG × KR × PRIME", who="💥🔮 TRIG × KR break",
+                   alone="TRIG × KR", tag="💥🔮🥇", bands=False),
+    "leg2": dict(tier="leg2_prime", rec=LEG2_PRIME_REC,
+                 head="🔥🥇 *SECOND LEG × PRIME", who="🔥 second-leg fire",
+                 alone="second leg", tag="🔥🥇", bands=False)}
 
 
 def _conf_band(conf):
@@ -1951,14 +1976,13 @@ def _conf_band(conf):
 def _fmt_prime_pair(kind, sig, px, now):
     """The pair bell: action word, the two fires, the plan, the pair record
     with its window, this band's cell, the side's cell, the forward ledger."""
-    star = kind == "star"
-    rec = STAR_PRIME_REC if star else CONV_PRIME_REC
-    tier = "star_prime" if star else "conv_prime"
+    kd = PAIR_KINDS[kind]
+    rec, tier = kd["rec"], kd["tier"]
     band = _conf_band(sig.get("conf"))
     side = (sig.get("side") or "").upper()
-    head = (("⭐🥇 *STAR × PRIME" if star else "💎🥇 *ELITE × PRIME")
+    head = (kd["head"]
             + f" — {sig['base']} {side} · TAKE · {rung_stats.pkt_hm(now)} PKT*")
-    who = "⭐ star fire" if star else "💎 elite conviction fire"
+    who = kd["who"]
     l2 = (f"{who} + 🥇 PRIME on the same coin and side (PRIME within 2h "
           f"before → 30 min after the fire)")
     t2 = f" · TP2 `{float(sig['tp2']):g}`" if sig.get("tp2") else ""
@@ -1966,17 +1990,22 @@ def _fmt_prime_pair(kind, sig, px, now):
     plan = (f"entry `{float(sig['entry']):g}` · live `{float(px):g}` · SL "
             f"`{float(sig['stop']):g}` · TP1 `{float(sig['tp1']):g}`{t2} · "
             f"🎯 conf {cf if cf is not None else '?'} ({band or '?'} band)")
+    band_cell = (f"this band {rec.get(band or '', '—')}" if kd["bands"]
+                 else "every band rings; the desk splits the record by band")
     l4 = (f"pair record ({rec['window']}): {rec['all']} vs "
-          f"{'star' if star else 'elite'} alone {rec['alone']} · this band "
-          f"{rec.get(band or '', '—')} · {side.lower()}s {rec.get(side, '—')}")
+          f"{kd['alone']} alone {rec['alone']} · {band_cell} · "
+          f"{side.lower()}s {rec.get(side, '—')}")
     try:
         fwd = rung_stats.rec(rung_stats.tier_rec(tier, None, now))
     except Exception:
         fwd = "record unavailable"
-    l5 = (f"forward ledger ({'⭐🥇' if star else '💎🥇'} pair): {fwd} · "
+    l5 = (f"forward ledger ({kd['tag']} pair): {fwd} · "
           f"{rung_stats.stamp_now(now)}")
-    l6 = ("_one regime (September) behind the pair record — the forward ledger "
-          "per band decides; bands outside your list record silently._")
+    l6 = (("_one regime (September) behind the pair record — the forward ledger "
+           "per band decides; bands outside your list record silently._")
+          if kd["bands"] else
+          ("_one regime (September) and a thin count behind the pair record — "
+           "every band rings; the desk ledger split by band decides._"))
     return "\n".join([head, l2, plan, l4, l5, l6])
 
 
@@ -3929,7 +3958,11 @@ def cycle() -> None:
                 ("star", "elite_star", "star_prime", STAR_PRIME_BANDS,
                  TG_STAR_PRIME),
                 ("conv", "elite_conv", "conv_prime", CONV_PRIME_BANDS,
-                 TG_CONV_PRIME)):
+                 TG_CONV_PRIME),
+                ("trigkr", "trig_strong_kr", "trigkr_prime", None,
+                 TG_TRIGKR_PRIME),
+                ("leg2", "second_leg", "leg2_prime", None,
+                 TG_LEG2_PRIME)):
             for _sg in store.recent_by_stream(_stream_pp, 80):
                 try:
                     _ts_pp = float(_sg.get("ts") or 0)
@@ -3960,6 +3993,11 @@ def cycle() -> None:
                     except Exception:
                         _ex_pp = {}
                     _conf_pp = _ex_pp.get("conf")
+                    if _conf_pp is None:
+                        try:   # the fire carried no conf — read the board now
+                            _conf_pp = best_board.confidence(_sym_pp, _sd_pp)
+                        except Exception:
+                            _conf_pp = None
                     _band_pp = _conf_band(_conf_pp)
                     _sig_pp = {"symbol": _sym_pp,
                                "base": _sg.get("base")
@@ -3977,7 +4015,8 @@ def cycle() -> None:
                     store.record_signal(_tier_pp, _sig_pp)
                     shadow_trader.open_from_signal(_tier_pp, _sig_pp, _px_pp)
                     _bell_pp = ("off" if not _on_pp else
-                                "band-out" if _band_pp not in _bands_pp else
+                                "band-out" if (_bands_pp is not None
+                                               and _band_pp not in _bands_pp) else
                                 "quiet" if _bstock_quiet(_sym_pp) else "due")
                     if _bell_pp == "due":
                         ok, _m_pp = tg.send(

@@ -56,6 +56,8 @@ STREAM_TO_TIER = {
     "arr_long": "arr_long",
     "star_prime": "star_prime",
     "conv_prime": "conv_prime",
+    "trigkr_prime": "trigkr_prime",
+    "leg2_prime": "leg2_prime",
     "go_revived": "go_revived",
     "star_go_chase": "star_go_chase",
     "apex_v2": "apex_v2",

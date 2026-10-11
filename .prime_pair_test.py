@@ -21,7 +21,8 @@ for n in tree.body:
     if isinstance(n, ast.FunctionDef) and n.name in ("_conf_band", "_fmt_prime_pair"):
         exec(compile(ast.Module(body=[n], type_ignores=[]), n.name, "exec"), ns)
     elif isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id in (
-            "STAR_PRIME_REC", "CONV_PRIME_REC", "STAR_PRIME_BANDS", "CONV_PRIME_BANDS", "TG_STAR_PRIME", "TG_CONV_PRIME") for t in n.targets):
+            "STAR_PRIME_REC", "CONV_PRIME_REC", "TRIGKR_PRIME_REC", "LEG2_PRIME_REC", "PAIR_KINDS", "STAR_PRIME_BANDS", "CONV_PRIME_BANDS",
+            "TG_STAR_PRIME", "TG_CONV_PRIME", "TG_TRIGKR_PRIME", "TG_LEG2_PRIME") for t in n.targets):
         exec(compile(ast.Module(body=[n], type_ignores=[]), "consts", "exec"), ns)
 band, fmt = ns["_conf_band"], ns["_fmt_prime_pair"]
 
@@ -53,9 +54,20 @@ for need in ("💎🥇 *ELITE × PRIME — AAVE SHORT · TAKE · ", "💎 elite 
 if "TP2" in m2:
     fails.append("no-TP2 plan must not print TP2")
 m3 = fmt("star", dict(sig, conf=None), 184.5, NOW)
+m4 = fmt("trigkr", dict(sig, side="SHORT", conf=58), 183.9, NOW)
+for need in ("💥🔮🥇 *TRIG × KR × PRIME — AAVE SHORT · TAKE · ", "💥🔮 TRIG × KR break + 🥇 PRIME",
+             "pair record (desk 01 Sep → 28 Sep): 83% / +0.37R (23) vs TRIG × KR alone 70% / +0.05R (77) · every band rings; the desk splits the record by band · shorts 81% / +0.32R (16)",
+             "forward ledger (💥🔮🥇 pair): ", "a thin count behind the pair record"):
+    if need not in m4:
+        fails.append(f"trigkr pair message missing {need!r}")
+m5 = fmt("leg2", dict(sig, conf=72), 184.5, NOW)
+if not m5.startswith("🔥🥇 *SECOND LEG × PRIME — AAVE LONG · TAKE · ") or "73% / +0.47R (37) vs second leg alone 51% / +0.10R (358)" not in m5 or "longs 65% / +0.36R (23)" not in m5:
+    fails.append(f"leg2 pair message wrong:\n{m5}")
+if not (ns["TG_TRIGKR_PRIME"] is True and ns["TG_LEG2_PRIME"] is True) or set(ns["PAIR_KINDS"]) != {"star", "conv", "trigkr", "leg2"}:
+    fails.append("new pair switches / kinds wrong")
 if "🎯 conf ? (? band)" not in m3 or "this band —" not in m3:
     fails.append("unreadable conf must print ? and —")
-for m in (m1, m2, m3):
+for m in (m1, m2, m3, m4, m5):
     if m.count("*") % 2 or m.count("`") % 2 or m.count("_") % 2 or "\ufffd" in m:
         fails.append("markdown/encoding unbalanced")
 
@@ -68,21 +80,26 @@ if not (0 < i_push < i_blk < i_conv2):
 blk = W[i_blk:i_conv2]
 for need, lab in (('("star", "elite_star", "star_prime", STAR_PRIME_BANDS,\n                 TG_STAR_PRIME)', "star pair config"),
                   ('("conv", "elite_conv", "conv_prime", CONV_PRIME_BANDS,\n                 TG_CONV_PRIME)', "conv pair config"),
+                  ('("trigkr", "trig_strong_kr", "trigkr_prime", None,\n                 TG_TRIGKR_PRIME)', "trigkr pair config"),
+                  ('("leg2", "second_leg", "leg2_prime", None,\n                 TG_LEG2_PRIME)', "leg2 pair config"),
+                  ('"band-out" if (_bands_pp is not None\n                                               and _band_pp not in _bands_pp) else', "band rule optional"),
+                  ('_conf_pp = best_board.confidence(_sym_pp, _sd_pp)', "conf fallback at the pass"),
                   ('if (_kind == "conv" and store.seen_between(\n                            "elite_star", _sym_pp, _sd_pp,', "a star never rings both"),
                   ('"prime", _sym_pp, _sd_pp,\n                            _ts_pp - PRIME_PAIR_BEFORE,\n                            _ts_pp + PRIME_PAIR_AFTER)', "2h-before / 30-min-after window"),
                   ('f"{_tier_pp}:{_sym_pp}:{_sd_pp}", 3 * 3600)', "3h key per coin+side per bell"),
                   ("store.record_signal(_tier_pp, _sig_pp)\n                    shadow_trader.open_from_signal(_tier_pp, _sig_pp, _px_pp)", "records + desk open for every band"),
-                  ('"band-out" if _band_pp not in _bands_pp else', "band filter on the bell only"),
                   ('"off" if not _on_pp else', "switch gates the bell only"),
                   ("+ _kr_note(_sig_pp))", "kronos line")):
     if need not in blk:
         fails.append(f"wiring missing: {lab}")
 if blk.index("store.record_signal(_tier_pp, _sig_pp)") > blk.index('if _bell_pp == "due":'):
     fails.append("the record must happen before the bell decision")
-for need in ('"star_prime": "⭐🥇 STAR × PRIME', '"conv_prime": "💎🥇 ELITE × PRIME'):
+for need in ('"star_prime": "⭐🥇 STAR × PRIME', '"conv_prime": "💎🥇 ELITE × PRIME', '"trigkr_prime": "💥🔮🥇 TRIG × KR × PRIME',
+             '"leg2_prime": "🔥🥇 SECOND LEG × PRIME', 'def _pair_band_split(tier: str) -> str:', 'st.caption(_pair_band_split(rec.get("tier")))',
+             '_PAIR_SPLIT_TIERS = ("star_prime", "conv_prime", "trigkr_prime", "leg2_prime")'):
     if need not in A:
         fails.append(f"app name missing: {need}")
-for need in ('    "star_prime": "star_prime",\n', '    "conv_prime": "conv_prime",\n'):
+for need in ('    "star_prime": "star_prime",\n', '    "conv_prime": "conv_prime",\n', '    "trigkr_prime": "trigkr_prime",\n', '    "leg2_prime": "leg2_prime",\n'):
     if need not in U:
         fails.append(f"auditor map missing: {need.strip()}")
 

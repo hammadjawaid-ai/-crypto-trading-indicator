@@ -3124,6 +3124,46 @@ def _render_revived_board(pb_state, live_prices=None) -> None:
             continue
 
 
+_PAIR_SPLIT_TIERS = ("star_prime", "conv_prime", "trigkr_prime", "leg2_prime")
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _pair_band_split(tier: str) -> str:
+    """🥇 pair tiers on the desk, split by the fire's conf band (user
+    2026-10-11: 'on the decision desk with conf band split'). Clean closes,
+    read-only; a band under 5 closes prints its count only."""
+    import sqlite3 as _sq_pb
+    _c = _sq_pb.connect(f"file:{_ws_c.DB_PATH}?mode=ro", uri=True)
+    try:
+        rows = _c.execute(
+            "SELECT conf, pnl_r FROM shadow_trades WHERE tier=? AND status='CLOSED' "
+            "AND pnl_r IS NOT NULL AND entry>0 AND abs(entry-stop0)/entry>=0.005",
+            (tier,)).fetchall()
+    finally:
+        _c.close()
+    if not rows:
+        return "by conf band: no closes yet"
+    bands = {"40-54": [], "55-64": [], "65-74": [], "75-84": [], "85+": [], "unknown": []}
+    for cf, r in rows:
+        try:
+            c = float(cf)
+            b = ("40-54" if c < 55 else "55-64" if c < 65 else "65-74" if c < 75
+                 else "75-84" if c < 85 else "85+") if 0 <= c <= 100 else "unknown"
+        except (TypeError, ValueError):
+            b = "unknown"
+        bands[b].append(float(r))
+    bits = []
+    for b, xs in bands.items():
+        if not xs:
+            continue
+        if len(xs) < 5:
+            bits.append(f"{b}: {len(xs)} close{'s' if len(xs) != 1 else ''}")
+        else:
+            bits.append(f"{b}: {sum(1 for x in xs if x > 0) / len(xs) * 100:.0f}% / "
+                        f"{sum(xs) / len(xs):+.2f}R ({len(xs)})")
+    return "by conf band: " + " · ".join(bits)
+
+
 def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
     """Display the 24/7 background brain's LIVE MEMORY — the best-of-the-best
     (APEX) setups + recent signals it found on its own, even while the browser
@@ -4177,6 +4217,12 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "conv_prime": "💎🥇 ELITE × PRIME — conviction fire + 🥇 "
                                  "PRIME on the coin (60%/+0.28R Sep desk, "
                                  "every band recorded, proving)",
+                   "trigkr_prime": "💥🔮🥇 TRIG × KR × PRIME — kronos-backed break + "
+                                   "🥇 PRIME on the coin (83%/+0.37R over 23, Sep "
+                                   "desk, thin; every band records, proving)",
+                   "leg2_prime": "🔥🥇 SECOND LEG × PRIME — second-leg fire + 🥇 "
+                                 "PRIME on the coin (73%/+0.47R over 37, Sep desk; "
+                                 "every band records, proving)",
                    "go_revived": "⭐⚡ GO REVIVED — entry at the revived GO "
                                  "(DEAD at 1h, then ignited; stars + approved "
                                  "elite; records only, the board's judge)",
@@ -4238,6 +4284,11 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                 f"<b style='color:{_ncol}'>{_net:+.2f}R</b> after fees · "
                 f"14d <b style='color:{_r14c}'>{_r14:+.1f}R</b> · "
                 f"{_opn} open</span></div>", unsafe_allow_html=True)
+            if rec.get("tier") in _PAIR_SPLIT_TIERS:
+                try:   # 🥇 pair tiers: the record split by conf band
+                    st.caption(_pair_band_split(rec.get("tier")))
+                except Exception:
+                    pass
 
         _active_rows, _bench_rows = [], []
         for rec in _sh_sum:
