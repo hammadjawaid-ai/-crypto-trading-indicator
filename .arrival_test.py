@@ -105,7 +105,9 @@ i_grade = W.find('_arr = _arrival_grade(binance_client.get_klines(\n            
 i_src0 = W.find('_src0 = str(a.get("src", ""))')
 i_feed = W.find("                        del _DEMO_FIRES[:-40]\n                # \u26a1\U0001F525 ARRIVAL BANNER")
 i_tier = W.find('_atier = _arrival_tier(_src0, a.get("side"),')
-i_gate = W.find("if (_atier <= 2 and store.should_alert(")
+i_gate = W.find("if (_atier == 1 and store.should_alert(")
+if "if (_atier <= 2 and store.should_alert(" in W:
+    fails.append("T2 bell must be off (user 2026-10-11: remove t2 notifications); desk ledgers stay")
 i_bell = W.find("tg.send(_fmt_arrival(\n                                a, px, _atier,\n                                now=(time.time() if TG_RULES else None))\n                                    + _kr_note(a))")
 i_trig = W.find('f"trig:{a[\'symbol\']}:{a[\'side\']}",')
 if not (0 < i_grade < i_src0 < i_feed < i_tier < i_gate < i_bell < i_trig):

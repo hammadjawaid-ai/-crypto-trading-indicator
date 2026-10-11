@@ -997,10 +997,13 @@ def _trigger_watch() -> None:
                             store.record_signal(_tn, _sig_a)
                             shadow_trader.open_from_signal(_tn, _sig_a, px)
                         # user 2026-10-05 (same hour): "make it 1.5 hrs
-                        # and remove T3, T1 and T2 works" -> only the
-                        # two HOT tiers ring, 1.5h per coin; T3 stays a
-                        # desk-only ledger (arr_long).
-                        if (_atier <= 2 and store.should_alert(
+                        # and remove T3, T1 and T2 works" -> the HOT
+                        # tiers ring, 1.5h per coin; T3 stays a desk-only
+                        # ledger (arr_long). User 2026-10-11: "remove t2
+                        # notifications from telegram" -> only T1 (HOT at a
+                        # ⚡ strong-coil number) rings; T2 keeps its desk
+                        # ledgers (arr_hot / arr_long) and the scoreboard.
+                        if (_atier == 1 and store.should_alert(
                                 f"arrival:{a['symbol']}:LONG",
                                 int(1.5 * 3600))
                                 and not _bstock_quiet(a["symbol"])):
