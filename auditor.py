@@ -59,6 +59,7 @@ STREAM_TO_TIER = {
     "trigkr_prime": "trigkr_prime",
     "leg2_prime": "leg2_prime",
     "go_revived": "go_revived",
+    "go_live": "go_live",
     "star_go_chase": "star_go_chase",
     "apex_v2": "apex_v2",
     "press_break": "press_break",

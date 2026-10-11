@@ -26,11 +26,11 @@ if not (0 < i_def < i_bm < i_star_call < i_call < i_desk):
     fails.append(f"placement wrong: def {i_def} bm {i_bm} star {i_star_call} call {i_call} desk {i_desk}")
 body = A[i_def:i_bm]
 for need, lab in (("WHERE stream IN ('star_go', \"\n                \"'elite_go') AND ts>=? ORDER BY ts DESC", "both GO streams, last 24h"),
-                  ('if str(_ex.get("oneh") or "").upper() != "DEAD":', "revived class only"),
+                  ('if _oneh == "DEAD":' + chr(10) + '            _dst, _sn = _cards, _seen', "revived class first"),
                   ("tier='go_revived' AND status='CLOSED'", "forward ledger = go_revived tier"),
-                  ("binance_client.prime_prices([r[1] for r, _ in _cards])", "one ticker call for the cards"),
-                  ('key=f"revived_open_{_sym}_{_i}"', "unique button key"),
-                  ('"_unified_source": "go_revived"', "open source tag"),
+                  ("binance_client.prime_prices([r[1] for r, _ in _cards + _cards_live])", "one ticker call for the cards"),
+                  ('key=f"{_kp}_open_{_sym}_{_i}"', "unique button key"),
+                  ('_src_c = "go_revived" if _sect == "rev" else "go_live"', "open source tag"),
                   ("paper_bot.open_position(pb_state, _alert, _live)", "opens through paper_bot"),
                   ("paper_bot.save_state(PAPER_BOT_FILE, pb_state)", "saves the paper state"),
                   ("st.rerun()", "rerun after open"),

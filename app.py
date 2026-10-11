@@ -2996,6 +2996,19 @@ def _render_revived_board(pb_state, live_prices=None) -> None:
             _open_desk = _crb.execute(
                 "SELECT symbol, side FROM shadow_trades WHERE "
                 "tier='go_revived' AND status='OPEN'").fetchall()
+            # 💎⚡ GO LIVE ledger (user 2026-10-12): entry at an elite
+            # conviction GO after a LIVE verdict.
+            _led2 = _crb.execute(
+                "SELECT COUNT(*), SUM(CASE WHEN pnl_r>0 THEN 1 ELSE 0 END), "
+                "COALESCE(SUM(pnl_r),0), "
+                "SUM(CASE WHEN closed_at>=? THEN 1 ELSE 0 END), "
+                "COALESCE(SUM(CASE WHEN closed_at>=? THEN pnl_r ELSE 0 END),0) "
+                "FROM shadow_trades WHERE tier='go_live' AND status='CLOSED' "
+                "AND abs(entry-stop0)/entry>=0.005",
+                (_now_rb - 14 * 86400, _now_rb - 14 * 86400)).fetchone()
+            _open2 = _crb.execute(
+                "SELECT symbol, side FROM shadow_trades WHERE "
+                "tier='go_live' AND status='OPEN'").fetchall()
         finally:
             _crb.close()
     except Exception as _rb_exc:
@@ -3015,113 +3028,158 @@ def _render_revived_board(pb_state, live_prices=None) -> None:
         st.caption("forward ledger (entry at the revived GO): no closes yet — "
                    "the first revived GO opens it")
     _seen, _cards = set(), []
+    _seen_l, _cards_live = set(), []
     for _r in _gos:
         try:
             _ex = json.loads(_r[10] or "{}")
         except Exception:
             _ex = {}
-        if str(_ex.get("oneh") or "").upper() != "DEAD":
-            continue                      # only the revived class
-        _k = (_r[1], (_r[3] or "").upper())
-        if _k in _seen:
+        _oneh = str(_ex.get("oneh") or "").upper()
+        if _oneh == "DEAD":
+            _dst, _sn = _cards, _seen          # the revived class
+        elif _oneh == "LIVE" and not _ex.get("star"):
+            # 💎⚡ LIVE then GO, elite conviction (user 2026-10-12) —
+            # its own section below; stars keep their chip on the ⭐ board
+            _dst, _sn = _cards_live, _seen_l
+        else:
             continue
-        _seen.add(_k)
-        _cards.append((_r, _ex))
+        _k = (_r[1], (_r[3] or "").upper())
+        if _k in _sn:
+            continue
+        _sn.add(_k)
+        _dst.append((_r, _ex))
     if not _cards:
         st.caption("· no revived GO in the last 24 hours — the next DEAD fire "
                    "that ignites appears here")
+    if not _cards and not _cards_live:
         return
     _held = ({p.get("symbol") for p in (pb_state.get("open") or [])}
              if pb_state else set())
     try:
-        binance_client.prime_prices([r[1] for r, _ in _cards])
+        binance_client.prime_prices([r[1] for r, _ in _cards + _cards_live])
     except Exception:
         pass
-    for _i, (_r, _ex) in enumerate(_cards[:12]):
-        try:
-            _ts, _sym, _b, _sd, _e, _stp, _t1, _t2, _tier, _mins, _extra = _r
-            _e, _stp, _t1 = float(_e), float(_stp), float(_t1)
-            _t2f = float(_t2) if _t2 else None
-            _sd = (_sd or "").upper()
-            _lng = _sd == "LONG"
-            _live = None
-            try:
-                _live = float((live_prices or {}).get(_sym) or
-                              binance_client.get_ticker_price(_sym) or 0) or None
-            except Exception:
-                _live = None
-            _prog = None
-            if _live and _t1 != _e:
-                _prog = ((_live - _e) / (_t1 - _e) if _lng
-                         else (_e - _live) / (_e - _t1))
-            _stopped = bool(_live) and ((_live <= _stp) if _lng
-                                        else (_live >= _stp))
-            if _stopped:
-                _status, _scol = "🔴 stopped", "#ff5c5c"
-            elif _prog is None:
-                _status, _scol = "price n/a", "#8b93a7"
-            elif _prog >= 1:
-                _status, _scol = f"🏆 past TP1 ({_prog * 100:.0f}%)", "#ffd700"
-            elif _prog >= 0.25:
-                _status, _scol = f"🟡 holding the ignition ({_prog * 100:.0f}% to TP1)", "#ffd54a"
-            elif _prog >= 0:
-                _status, _scol = f"🟠 fell back ({_prog * 100:.0f}% to TP1)", "#ffb347"
+    for _sect, _lst in (("rev", _cards), ("live", _cards_live)):
+        _emo_c = "⭐⚡" if _sect == "rev" else "💎⚡"
+        _kp = "revived" if _sect == "rev" else "golive"
+        _src_c = "go_revived" if _sect == "rev" else "go_live"
+        _lab_c = "⭐⚡ GO REVIVED" if _sect == "rev" else "💎⚡ GO LIVE"
+        if _sect == "live":
+            # 💎⚡ GO after a LIVE verdict — elite conviction (user 2026-10-12:
+            # "this i want on paper trading"): the fire bell is muted, so the
+            # GO is the first the phone hears of it; same openable cards.
+            st.markdown("#### 💎⚡ GO after a LIVE verdict — elite conviction, "
+                        "openable now")
+            st.caption(
+                "An elite conviction fire (not a star) graded LIVE at the hour "
+                "that then ignited to +25% of its path. Its fire bell is muted, "
+                "so the GO is the first the phone hears of it — approved fires "
+                "ring, unapproved record only. Sep desk from the FIRE price, "
+                "non-star: LIVE then ignited 61% / +0.69R over 171 (longs 63% / "
+                "+0.78R, shorts 55% / +0.38R); LIVE that never ignited 0% / "
+                "−0.65R (11). The ledger line is the GO entry, forward.")
+            _n2, _w2, _net2, _n142, _net142 = (
+                int(_led2[0] or 0), int(_led2[1] or 0), float(_led2[2] or 0),
+                int(_led2[3] or 0), float(_led2[4] or 0))
+            if _n2:
+                _cc2 = "#2ed47a" if _net2 > 0 else "#ff5c5c"
+                st.markdown(
+                    f"**forward ledger (entry at the LIVE GO):** {_n2} closed · win "
+                    f"{_w2 / _n2 * 100:.0f}% · <b style='color:{_cc2}'>{_net2:+.1f}R</b> "
+                    f"· last 14 days {_n142} closed {_net142:+.1f}R · "
+                    f"{len(_open2)} open on the desk", unsafe_allow_html=True)
             else:
-                _status, _scol = f"🔻 under the fire entry ({_prog * 100:.0f}%)", "#ff8c69"
-            _chips = ["⭐ star" if _ex.get("star") else "💎 elite",
-                      f"⭐⚡ GO {_tier or ''}".strip(),
-                      ("✅ LONG·FAST class 79% / +1.15%" if (_lng and str(_tier or '').upper() == 'FAST')
-                       else "⚠️ SHORT class 48% / −1.92%" if not _lng
-                       else "⚠️ LATE class 52% / −1.74%"),
-                      f"ignited {float(_mins or 0):.0f} min after the fire",
-                      "⏱ 1H DEAD"]
-            _bell = str(_ex.get("bell") or "")
-            if _bell.startswith("sent"):
-                _chips.append("🔔 bell ✓")
-            elif _bell:
-                _chips.append(f"🔕 no bell: {_bell}")
-            _pkt = time.strftime("%H:%M", time.gmtime(float(_ts) + 5 * 3600))
-            _ago = (_now_rb - float(_ts)) / 3600
-            _sc = "#2ed47a" if _lng else "#ff5c5c"
-            _c1, _c2 = st.columns([5, 1])
-            _c1.markdown(
-                f"<div style='background:rgba(120,200,255,0.06);border:1px solid "
-                f"rgba(120,200,255,0.30);border-radius:10px;padding:8px 13px;"
-                f"margin:4px 0'>⭐⚡ <b>{_b}</b> <span style='color:{_sc};"
-                f"font-weight:800'>{_sd}</span> · GO at {_pkt} PKT "
-                f"({_ago:.1f}h ago) · <span style='color:{_scol}'>{_status}</span>"
-                f"<br><span style='color:#8b93a7;font-size:0.8rem'>fire entry "
-                f"{_e:g} · SL {_stp:g} · TP1 {_t1:g}"
-                + (f" · TP2 {_t2f:g}" if _t2f else "")
-                + (f" · live {_live:g}" if _live else "")
-                + " · " + " · ".join(_chips)
-                + "</span></div>", unsafe_allow_html=True)
-            _openable = (pb_state is not None and _live and not _stopped
-                         and (_prog is None or _prog < 1))
-            if _sym in _held:
-                _c2.caption("✓ open")
-            elif not _openable:
-                _c2.caption("—")
-            elif _c2.button("📥 Open", key=f"revived_open_{_sym}_{_i}",
-                            use_container_width=True):
+                st.caption("forward ledger (entry at the LIVE GO): no closes yet — "
+                           "the first elite conviction LIVE GO opens it")
+            if not _lst:
+                st.caption("· no elite conviction LIVE GO in the last 24 hours — "
+                           "the next LIVE fire that ignites appears here")
+                continue
+        for _i, (_r, _ex) in enumerate(_lst[:12]):
+            try:
+                _ts, _sym, _b, _sd, _e, _stp, _t1, _t2, _tier, _mins, _extra = _r
+                _e, _stp, _t1 = float(_e), float(_stp), float(_t1)
+                _t2f = float(_t2) if _t2 else None
+                _sd = (_sd or "").upper()
+                _lng = _sd == "LONG"
+                _live = None
                 try:
-                    _alert = {
-                        "symbol": _sym, "base": _b, "side": _sd,
-                        "entry_low": _live, "stop": _stp, "target": _t1,
-                        "target_2": _t2f, "chase_tp2_eligible": False,
-                        "confidence": 70, "strength_factor": 0.7,
-                        "_unified_source": "go_revived"}
-                    _pos = paper_bot.open_position(pb_state, _alert, _live)
-                    paper_bot.save_state(PAPER_BOT_FILE, pb_state)
-                    if _pos:
-                        st.success(f"Opened {_sd} {_b} (⭐⚡ GO REVIVED) at {_live:g}")
-                        st.rerun()
-                    else:
-                        st.warning("Not opened — Paper Trader rejected.")
-                except Exception as _op_exc:
-                    st.error(f"Open failed: {_op_exc}")
-        except Exception:
-            continue
+                    _live = float((live_prices or {}).get(_sym) or
+                                  binance_client.get_ticker_price(_sym) or 0) or None
+                except Exception:
+                    _live = None
+                _prog = None
+                if _live and _t1 != _e:
+                    _prog = ((_live - _e) / (_t1 - _e) if _lng
+                             else (_e - _live) / (_e - _t1))
+                _stopped = bool(_live) and ((_live <= _stp) if _lng
+                                            else (_live >= _stp))
+                if _stopped:
+                    _status, _scol = "🔴 stopped", "#ff5c5c"
+                elif _prog is None:
+                    _status, _scol = "price n/a", "#8b93a7"
+                elif _prog >= 1:
+                    _status, _scol = f"🏆 past TP1 ({_prog * 100:.0f}%)", "#ffd700"
+                elif _prog >= 0.25:
+                    _status, _scol = f"🟡 holding the ignition ({_prog * 100:.0f}% to TP1)", "#ffd54a"
+                elif _prog >= 0:
+                    _status, _scol = f"🟠 fell back ({_prog * 100:.0f}% to TP1)", "#ffb347"
+                else:
+                    _status, _scol = f"🔻 under the fire entry ({_prog * 100:.0f}%)", "#ff8c69"
+                _chips = ["⭐ star" if _ex.get("star") else "💎 elite",
+                          f"⭐⚡ GO {_tier or ''}".strip(),
+                          ("✅ LONG·FAST class 79% / +1.15%" if (_lng and str(_tier or '').upper() == 'FAST')
+                           else "⚠️ SHORT class 48% / −1.92%" if not _lng
+                           else "⚠️ LATE class 52% / −1.74%"),
+                          f"ignited {float(_mins or 0):.0f} min after the fire",
+                          ("⏱ 1H DEAD" if _sect == "rev" else "⏱ 1H LIVE")]
+                _bell = str(_ex.get("bell") or "")
+                if _bell.startswith("sent"):
+                    _chips.append("🔔 bell ✓")
+                elif _bell:
+                    _chips.append(f"🔕 no bell: {_bell}")
+                _pkt = time.strftime("%H:%M", time.gmtime(float(_ts) + 5 * 3600))
+                _ago = (_now_rb - float(_ts)) / 3600
+                _sc = "#2ed47a" if _lng else "#ff5c5c"
+                _c1, _c2 = st.columns([5, 1])
+                _c1.markdown(
+                    f"<div style='background:rgba(120,200,255,0.06);border:1px solid "
+                    f"rgba(120,200,255,0.30);border-radius:10px;padding:8px 13px;"
+                    f"margin:4px 0'>{_emo_c} <b>{_b}</b> <span style='color:{_sc};"
+                    f"font-weight:800'>{_sd}</span> · GO at {_pkt} PKT "
+                    f"({_ago:.1f}h ago) · <span style='color:{_scol}'>{_status}</span>"
+                    f"<br><span style='color:#8b93a7;font-size:0.8rem'>fire entry "
+                    f"{_e:g} · SL {_stp:g} · TP1 {_t1:g}"
+                    + (f" · TP2 {_t2f:g}" if _t2f else "")
+                    + (f" · live {_live:g}" if _live else "")
+                    + " · " + " · ".join(_chips)
+                    + "</span></div>", unsafe_allow_html=True)
+                _openable = (pb_state is not None and _live and not _stopped
+                             and (_prog is None or _prog < 1))
+                if _sym in _held:
+                    _c2.caption("✓ open")
+                elif not _openable:
+                    _c2.caption("—")
+                elif _c2.button("📥 Open", key=f"{_kp}_open_{_sym}_{_i}",
+                                use_container_width=True):
+                    try:
+                        _alert = {
+                            "symbol": _sym, "base": _b, "side": _sd,
+                            "entry_low": _live, "stop": _stp, "target": _t1,
+                            "target_2": _t2f, "chase_tp2_eligible": False,
+                            "confidence": 70, "strength_factor": 0.7,
+                            "_unified_source": _src_c}
+                        _pos = paper_bot.open_position(pb_state, _alert, _live)
+                        paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                        if _pos:
+                            st.success(f"Opened {_sd} {_b} ({_lab_c}) at {_live:g}")
+                            st.rerun()
+                        else:
+                            st.warning("Not opened — Paper Trader rejected.")
+                    except Exception as _op_exc:
+                        st.error(f"Open failed: {_op_exc}")
+            except Exception:
+                continue
 
 
 _PAIR_SPLIT_TIERS = ("star_prime", "conv_prime", "trigkr_prime", "leg2_prime")
@@ -4223,6 +4281,9 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "leg2_prime": "🔥🥇 SECOND LEG × PRIME — second-leg fire + 🥇 "
                                  "PRIME on the coin (73%/+0.47R over 37, Sep desk; "
                                  "every band records, proving)",
+                   "go_live": "💎⚡ GO LIVE — entry at an elite conviction GO after "
+                              "a LIVE verdict (not stars; Sep desk from the fire "
+                              "price 61%/+0.69R over 171; records only, proving)",
                    "go_revived": "⭐⚡ GO REVIVED — entry at the revived GO "
                                  "(DEAD at 1h, then ignited; stars + approved "
                                  "elite; records only, the board's judge)",

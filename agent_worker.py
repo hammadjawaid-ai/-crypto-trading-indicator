@@ -318,6 +318,20 @@ TG_FREEZE = False
 #  the heading to it, we are not letting go of any notifications" -> every
 #  class rings; rung_stats.go_text names the class with its numbers.)
 REVIVED_LONG_FAST = False
+# 💎⚡ GO after a LIVE verdict for an ELITE CONVICTION fire (user 2026-10-12:
+# "go for elite convictions … similar to what we have for elite star"). The
+# plain conviction fire bell is muted, so these GOs had no thread and never
+# reached the phone (stamp "not-buzzed"). Now their own message, APPROVED
+# fires only (the revived rule); stars untouched — their LIVE GO stays a
+# thread reply. Sep desk from the fire price, non-star elite conviction LIVE
+# then ignited: 61% / +0.69R (171) · longs 63% / +0.78R (129) · shorts 55% /
+# +0.38R (42) · FAST 62% / +0.70R (162) · LATE 44% / +0.36R (9); LIVE that
+# never ignited 0% / -0.65R (11). ~6 a day measured. False = silent, the
+# go_live desk tier and the board continue.
+TG_GO_LIVE = True
+GO_LIVE_LINE = ("class: 💎 LIVE then GO — elite conviction, from the fire price: "
+                "61% / +0.69R (171) · longs 63% / +0.78R (129) · shorts 55% / "
+                "+0.38R (42) · desk 01 Sep → 28 Sep")
 # 🧵 thread memory: (symbol, side) -> {ts, ids} of the fire bell the phone
 # heard, so a watch entry created after the send still answers in-thread.
 _TG_THREADS: dict = {}
@@ -5629,6 +5643,21 @@ def cycle() -> None:
                                             reply_to=_ew.get("tg_ids"))
                                         _bell9 = ("sent-thread" if _ok9
                                                   else f"failed: {_m9x}")
+                                    elif (_ew.get("oneh") == "LIVE"
+                                          and not _ew.get("star")):
+                                        # 💎⚡ LIVE then GO, elite conviction
+                                        # with no thread (fire bell muted):
+                                        # its own message (user 2026-10-12).
+                                        if not _ew.get("appr"):
+                                            _bell9 = ("not-approved (unapproved "
+                                                      "elite fire; records only)")
+                                        elif not TG_GO_LIVE:
+                                            _bell9 = "muted (TG_GO_LIVE off)"
+                                        else:
+                                            _ok9, _m9x = tg.send(_go9.replace(
+                                                "\n", "\n" + GO_LIVE_LINE + "\n", 1))
+                                            _bell9 = ("sent-standalone" if _ok9
+                                                      else f"failed: {_m9x}")
                                     if _bell9.startswith("sent"):
                                         n_alerts += 1
                                 except Exception as _go_exc:
@@ -5696,6 +5725,29 @@ def cycle() -> None:
                                     "go_revived", _rv_sig, _ew_px)
                             except Exception as _rv_exc:
                                 print("  go_revived tier error:", _rv_exc,
+                                      flush=True)
+                        if (_ew.get("oneh") == "LIVE" and not _ew.get("star")
+                                and _ew.get("appr")):
+                            # 📥 go_live desk tier (user 2026-10-12, the GO
+                            # LIVE section of the board): the forward record
+                            # of ENTERING at an elite conviction GO after a
+                            # LIVE verdict — opened at the GO price. Records
+                            # only; the board quotes it.
+                            try:
+                                _lv_sig = {
+                                    "symbol": _ew["symbol"],
+                                    "base": _ew["base"],
+                                    "side": _ew["side"],
+                                    "entry": _ew_px, "stop": _ew["stop"],
+                                    "tp1": _ew["tp1"], "tp2": _ew.get("tp2"),
+                                    "tier": _ew["go"],
+                                    "star": False,
+                                    "fire_entry": _e0}
+                                store.record_signal("go_live", _lv_sig)
+                                shadow_trader.open_from_signal(
+                                    "go_live", _lv_sig, _ew_px)
+                            except Exception as _lv_exc:
+                                print("  go_live tier error:", _lv_exc,
                                       flush=True)
                         if _ew["go"] == "FAST" and _ew.get("star"):
                             # control tier: forward-test that the
