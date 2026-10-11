@@ -8548,6 +8548,53 @@ import threading as _threading
 WARM_EVERY = 600      # 10 min (was 5): a 502 blip on 2026-10-05 while the sweep ran — halve the duty
 WARM_MAX_AGE = 3 * WARM_EVERY
 _WARM_STATUS_FILE = str(config.state_path(".app_warm.json"))
+# 2026-10-11: the warm store survives a restart. Every deploy kills the
+# process and with it the cache_resource store, so the first 10-15 min
+# after each deploy computed the boards inside the page request while
+# the worker ran its cold first cycle on the same CPU (4+ min loads;
+# three deploys that day = three slow windows). The sweep now pickles
+# the store to STATE_DIR and a fresh process restores entries younger
+# than WARM_MAX_AGE, so the first load after a deploy is served from
+# the last sweep before the restart while the warmer re-sweeps.
+_WARM_DISK_FILE = str(config.state_path(".app_warm_store.pkl"))
+
+
+def _warm_disk_save(store: dict, path: str, now=None) -> bool:
+    """Atomic pickle of the warm store (own file in STATE_DIR). Fail-soft."""
+    now = time.time() if now is None else now
+    try:
+        import pickle
+        tmp = path + ".tmp"
+        with open(tmp, "wb") as _f:
+            pickle.dump({"saved": now, "store": dict(store)}, _f,
+                        protocol=pickle.HIGHEST_PROTOCOL)
+        os.replace(tmp, path)
+        return True
+    except Exception:
+        return False
+
+
+def _warm_disk_load(path: str, max_age: float, now=None) -> tuple:
+    """(store, info): the previous process's warm entries younger than
+    max_age — each value is the (timestamp, result) pair _warm_put
+    wrote, so _warm_get ages them exactly as before. Missing or
+    unreadable file -> empty store, never raises."""
+    now = time.time() if now is None else now
+    try:
+        import pickle
+        with open(path, "rb") as _f:
+            blob = pickle.load(_f)
+        raw = dict(blob.get("store") or {})
+        store = {k: v for k, v in raw.items()
+                 if isinstance(v, tuple) and len(v) == 2
+                 and 0 <= now - float(v[0]) <= max_age}
+        return store, {"restored": len(store), "dropped": len(raw) - len(store),
+                       "saved": blob.get("saved"), "restored_at": now}
+    except FileNotFoundError:
+        return {}, {"restored": 0, "dropped": 0, "saved": None, "restored_at": now}
+    except Exception as exc:
+        return {}, {"restored": 0, "dropped": 0, "saved": None, "restored_at": now,
+                    "error": str(exc)[:160]}
 
 
 @st.cache_resource(show_spinner=False)
@@ -8555,10 +8602,12 @@ def _warm_state() -> dict:
     """ONE process-global home for the warm results. Streamlit re-runs
     this script with a fresh namespace on every page load, so a plain
     module dict would be empty again each run; cache_resource hands
-    back the same object to every run and to the warmer thread."""
-    return {"store": {},
+    back the same object to every run and to the warmer thread.
+    Seeded from the previous process's pickle (see _WARM_DISK_FILE)."""
+    _store, _info = _warm_disk_load(_WARM_DISK_FILE, WARM_MAX_AGE)
+    return {"store": _store,
             "status": {"last_sweep": None, "sweep_s": None, "jobs": {},
-                       "errors": {}, "sweeps": 0}}
+                       "errors": {}, "sweeps": 0, "disk": _info}}
 
 
 _WARM_STORE: dict = _warm_state()["store"]
@@ -8685,7 +8734,8 @@ def _warm_sweep() -> None:
     _WARM_STATUS.update(last_sweep=time.time(),
                         sweep_s=round(time.time() - t_all, 1),
                         jobs=durs, errors=errs,
-                        sweeps=int(_WARM_STATUS.get("sweeps") or 0) + 1)
+                        sweeps=int(_WARM_STATUS.get("sweeps") or 0) + 1,
+                        saved=_warm_disk_save(_WARM_STORE, _WARM_DISK_FILE))
     try:
         with open(_WARM_STATUS_FILE, "w", encoding="utf-8") as _f:
             json.dump(_WARM_STATUS, _f)
@@ -8726,18 +8776,23 @@ def _warm_caption() -> str:
     """One line for the boards: how fresh the pre-computed scans are."""
     ls = _WARM_STATUS.get("last_sweep")
     if not ls:
-        try:   # fall back to the status file the sweep writes
-            with open(_WARM_STATUS_FILE, encoding="utf-8") as _f:
-                _st_f = json.load(_f)
-            if _st_f.get("last_sweep"):
-                _WARM_STATUS.update(_st_f)
-                ls = _WARM_STATUS.get("last_sweep")
+        # before the first in-process sweep: honest about the source —
+        # restored boards from the previous process, or truly computing
+        # in the page (the old status-file fallback could claim
+        # "pre-computed N min ago" while the store was empty).
+        try:
+            _ages = [time.time() - float(v[0]) for v in _WARM_STORE.values()
+                     if isinstance(v, tuple) and v]
         except Exception:
-            pass
-    if not ls:
+            _ages = []
+        if _ages:
+            return (f"⚡ scanner boards restored from the last sweep before the "
+                    f"restart ({max(_ages) / 60:.0f} min old, {len(_ages)} boards); "
+                    f"the warmer re-sweeps in the background every "
+                    f"{WARM_EVERY // 60} min.")
         return ("⚡ boards computing in the page this time — the background "
                 "warmer has not finished its first sweep since the app "
-                "restarted.")
+                "restarted and nothing fresh enough was saved before it.")
     return (f"⚡ scanner boards pre-computed {(time.time() - ls) / 60:.0f} min "
             f"ago in {_WARM_STATUS.get('sweep_s')}s (refreshed every "
             f"{WARM_EVERY // 60} min; worker signal cadence unchanged).")
