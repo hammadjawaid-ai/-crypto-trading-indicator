@@ -50,8 +50,8 @@ i_sent = W.find('if _bell9.startswith("sent"):\n                                
 if not (0 < i_dead < i_thr < i_live < i_sent):
     fails.append(f"GO branch order wrong: dead {i_dead} thread {i_thr} live {i_live} sent {i_sent}")
 blk = W[i_live:i_sent]
-for need, lab in (('if not _ew.get("appr"):', "approved only"), ('elif not TG_GO_LIVE:', "switch"),
-                  ('tg.send(_go9.replace(\n                                                "\\n", "\\n" + GO_LIVE_LINE + "\\n", 1))', "standalone send with the class line"),
+for need, lab in (('if not TG_GO_LIVE:', "switch"), ('else GO_LIVE_UNAPPR)', "unapproved tag"),
+                  ('tg.send(_go9.replace(\n                                                "\\n", "\\n" + _cl9 + "\\n", 1))', "standalone send with the class line"),
                   ('"sent-standalone" if _ok9', "bell stamp")):
     if need not in blk:
         fails.append(f"LIVE branch missing: {lab}")
@@ -62,8 +62,10 @@ i_lv = W.find('store.record_signal("go_live", _lv_sig)')
 i_ch = W.find('if _ew["go"] == "FAST" and _ew.get("star"):')
 if not (0 < i_rv < i_lv < i_ch):
     fails.append(f"go_live tier block misplaced: revived {i_rv} live {i_lv} chase {i_ch}")
-if 'if (_ew.get("oneh") == "LIVE" and not _ew.get("star")\n                                and _ew.get("appr")):' not in W:
-    fails.append("go_live tier must be LIVE + not star + approved")
+if 'if _ew.get("oneh") == "LIVE" and not _ew.get("star"):' not in W or '"appr": bool(_ew.get("appr")),' not in W:
+    fails.append("go_live tier must be LIVE + not star, approved or not, stamping appr")
+if 'if not _ew.get("appr"):\n                                            _bell9 = ("not-approved (unapproved "' in W[W.find('elif (_ew.get("oneh") == "LIVE"'):W.find('elif (_ew.get("oneh") == "LIVE"') + 1500]:
+    fails.append("unapproved fires must ring too (user 2026-10-12)")
 # the star paths are byte-identical to HEAD: the verdict block and the DEAD/thread branches
 head = subprocess.run(["git", "show", "HEAD:agent_worker.py"], capture_output=True, cwd=ROOT).stdout.decode("utf-8")
 def seg(src, a, b):
@@ -71,7 +73,7 @@ def seg(src, a, b):
     return src[i:j] if i >= 0 and j > i else None
 for a, b, lab in (('if _ew.get("oneh") == "DEAD":\n                                        # GO REVIVED is its own bell', 'elif (_ew.get("oneh") == "LIVE"', "DEAD + thread branches"),
                   ("_ew[\"oneh\"] = (\"LIVE\" if _prg >= 0.10", "# ⭐ GO — certified HOLD bell", "verdict block"),
-                  ('store.record_signal(\n                            "star_go" if _ew.get("star") else "elite_go", {', 'if (_ew.get("oneh") == "LIVE" and not _ew.get("star")', "stamp + go_revived tier")):
+                  ('store.record_signal(\n                            "star_go" if _ew.get("star") else "elite_go", {', 'if _ew.get("oneh") == "LIVE" and not _ew.get("star"):', "stamp + go_revived tier")):
     now_, old_ = seg(W, a, b), seg(head, a, 'elif _ew.get("buzzed"):\n                                        _ok9, _m9x, _ = tg.send_thread(' if lab == "DEAD + thread branches" else b)
     if lab == "DEAD + thread branches":
         old_ = seg(head, a, 'if _bell9.startswith("sent"):')
@@ -80,7 +82,13 @@ for a, b, lab in (('if _ew.get("oneh") == "DEAD":\n                             
         if old_ is None or now_ is None or not old_.startswith(now_.rstrip()) and old_.rstrip() != now_.rstrip():
             fails.append("DEAD / thread branches changed")
     elif lab == "stamp + go_revived tier":
-        old_ = seg(head, a, 'if _ew["go"] == "FAST" and _ew.get("star"):')
+        old_ = None
+        for _end in ('if _ew.get("oneh") == "LIVE" and not _ew.get("star"):',
+                     'if (_ew.get("oneh") == "LIVE" and not _ew.get("star")',
+                     'if _ew["go"] == "FAST" and _ew.get("star"):'):
+            old_ = seg(head, a, _end)
+            if old_ is not None:
+                break
         if old_ is None or now_ is None or old_.rstrip() != now_.rstrip():
             fails.append("stamp + go_revived tier changed vs HEAD")
     elif old_ != now_ or old_ is None:

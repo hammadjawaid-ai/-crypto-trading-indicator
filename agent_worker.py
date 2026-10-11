@@ -322,7 +322,9 @@ REVIVED_LONG_FAST = False
 # "go for elite convictions … similar to what we have for elite star"). The
 # plain conviction fire bell is muted, so these GOs had no thread and never
 # reached the phone (stamp "not-buzzed"). Now their own message, APPROVED
-# fires only (the revived rule); stars untouched — their LIVE GO stays a
+# fires AND unapproved (user, same day: "this is for elite approve and
+# unapproved as well" — unapproved carry a tag with their thin cell: LIVE then
+# ignited 40% / +0.51R over 15); stars untouched — their LIVE GO stays a
 # thread reply. Sep desk from the fire price, non-star elite conviction LIVE
 # then ignited: 61% / +0.69R (171) · longs 63% / +0.78R (129) · shorts 55% /
 # +0.38R (42) · FAST 62% / +0.70R (162) · LATE 44% / +0.36R (9); LIVE that
@@ -332,6 +334,8 @@ TG_GO_LIVE = True
 GO_LIVE_LINE = ("class: 💎 LIVE then GO — elite conviction, from the fire price: "
                 "61% / +0.69R (171) · longs 63% / +0.78R (129) · shorts 55% / "
                 "+0.38R (42) · desk 01 Sep → 28 Sep")
+GO_LIVE_UNAPPR = (" · this one is an UNAPPROVED fire: LIVE then GO 40% / +0.51R "
+                  "(15), thin — size down")
 # 🧵 thread memory: (symbol, side) -> {ts, ids} of the fire bell the phone
 # heard, so a watch entry created after the send still answers in-thread.
 _TG_THREADS: dict = {}
@@ -5648,14 +5652,14 @@ def cycle() -> None:
                                         # 💎⚡ LIVE then GO, elite conviction
                                         # with no thread (fire bell muted):
                                         # its own message (user 2026-10-12).
-                                        if not _ew.get("appr"):
-                                            _bell9 = ("not-approved (unapproved "
-                                                      "elite fire; records only)")
-                                        elif not TG_GO_LIVE:
+                                        if not TG_GO_LIVE:
                                             _bell9 = "muted (TG_GO_LIVE off)"
                                         else:
+                                            _cl9 = GO_LIVE_LINE + (
+                                                "" if _ew.get("appr")
+                                                else GO_LIVE_UNAPPR)
                                             _ok9, _m9x = tg.send(_go9.replace(
-                                                "\n", "\n" + GO_LIVE_LINE + "\n", 1))
+                                                "\n", "\n" + _cl9 + "\n", 1))
                                             _bell9 = ("sent-standalone" if _ok9
                                                       else f"failed: {_m9x}")
                                     if _bell9.startswith("sent"):
@@ -5726,8 +5730,7 @@ def cycle() -> None:
                             except Exception as _rv_exc:
                                 print("  go_revived tier error:", _rv_exc,
                                       flush=True)
-                        if (_ew.get("oneh") == "LIVE" and not _ew.get("star")
-                                and _ew.get("appr")):
+                        if _ew.get("oneh") == "LIVE" and not _ew.get("star"):
                             # 📥 go_live desk tier (user 2026-10-12, the GO
                             # LIVE section of the board): the forward record
                             # of ENTERING at an elite conviction GO after a
@@ -5742,6 +5745,7 @@ def cycle() -> None:
                                     "tp1": _ew["tp1"], "tp2": _ew.get("tp2"),
                                     "tier": _ew["go"],
                                     "star": False,
+                                    "appr": bool(_ew.get("appr")),
                                     "fire_entry": _e0}
                                 store.record_signal("go_live", _lv_sig)
                                 shadow_trader.open_from_signal(
