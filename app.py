@@ -2771,6 +2771,52 @@ def _render_true_signal(pb_state, live_prices=None):
         pass
 
 
+_TP1_CARD_TIERS = {"elite_star": "⭐ ELITE STAR", "elite_conv": "💎 ELITE CONVICTION",
+                   "go_revived": "⭐⚡ GO REVIVED", "go_live": "💎⚡ GO LIVE"}
+
+
+def _desk_tp1_line(tiers, sym, side, ts, before_s=1800.0, after_s=6 * 3600.0) -> str:
+    """🏦 'TP1 hit' line for a board card (user 2026-10-12): the desk trade
+    for this coin+side opened within -before_s .. +after_s of the card's
+    time, own tier first then the fire tier. The ladder's tp1_hit flag is
+    set when TP1 trades and never unset, so the line survives a fall-back
+    in price. '' when no desk trade or TP1 not reached. Read-only."""
+    try:
+        import sqlite3 as _sq_tp
+        _c = _sq_tp.connect(f"file:{_ws_c.DB_PATH}?mode=ro", uri=True)
+        try:
+            rows = _c.execute(
+                "SELECT tier, opened_at, tp1_hit, status, exit_reason, pnl_r "
+                "FROM shadow_trades WHERE symbol=? AND upper(side)=? AND "
+                "opened_at BETWEEN ? AND ? AND tier IN ("
+                + ",".join("?" * len(tiers)) + ") ORDER BY opened_at",
+                (sym, (side or "").upper(), float(ts) - float(before_s),
+                 float(ts) + float(after_s), *tiers)).fetchall()
+        finally:
+            _c.close()
+    except Exception:
+        return ""
+    best = None
+    for pref in tiers:                 # own tier first, then the fire tier
+        for r in rows:
+            if r[0] == pref and int(r[2] or 0):
+                best = r
+                break
+        if best:
+            break
+    if not best:
+        return ""
+    tier, opened, _hit, status, reason, pnl = best
+    lab = _TP1_CARD_TIERS.get(tier, tier)
+    opened_pkt = time.strftime("%H:%M", time.gmtime(float(opened or 0) + 5 * 3600))
+    if str(status or "").upper() == "CLOSED":
+        tail = f"closed {reason or '—'} {float(pnl or 0):+.2f}R"
+    else:
+        tail = "still open on the desk, trailing past TP1"
+    return (f"<br><span style='color:#ffd700;font-size:0.8rem'>🏦 TP1 HIT on the "
+            f"desk — {lab} trade opened {opened_pkt} PKT · {tail}</span>")
+
+
 def _render_star_board(pb_state, live_prices=None) -> None:
     """💎⭐ ELITE STAR — openable now (user 2026-10-05: "an elite star board
     on paper trading for my view ... openable trades on it"). Every ⭐ fire
@@ -2918,7 +2964,8 @@ def _render_star_board(pb_state, live_prices=None) -> None:
                 f"margin:4px 0'>⭐ <b>{_b}</b> <span style='color:{_sc};"
                 f"font-weight:800'>{_sd}</span> · fired {_pkt} PKT "
                 f"({_ago:.1f}h ago) · <span style='color:{_scol}'>{_status}</span>"
-                f"<br><span style='color:#8b93a7;font-size:0.8rem'>entry "
+                + _desk_tp1_line(("elite_star",), _sym, _sd, _ts)
+                + f"<br><span style='color:#8b93a7;font-size:0.8rem'>entry "
                 f"{_e:g} · SL {_stp:g} · TP1 {_t1:g}"
                 + (f" · TP2 {_t2f:g}" if _t2f else "")
                 + (f" · live {_live:g}" if _live else "")
@@ -3149,7 +3196,11 @@ def _render_revived_board(pb_state, live_prices=None) -> None:
                     f"margin:4px 0'>{_emo_c} <b>{_b}</b> <span style='color:{_sc};"
                     f"font-weight:800'>{_sd}</span> · GO at {_pkt} PKT "
                     f"({_ago:.1f}h ago) · <span style='color:{_scol}'>{_status}</span>"
-                    f"<br><span style='color:#8b93a7;font-size:0.8rem'>fire entry "
+                    + _desk_tp1_line(
+                        (_src_c, "elite_star" if _ex.get("star") else "elite_conv"),
+                        _sym, _sd, _ts,
+                        before_s=float(_mins or 0) * 60 + 3600)
+                    + f"<br><span style='color:#8b93a7;font-size:0.8rem'>fire entry "
                     f"{_e:g} · SL {_stp:g} · TP1 {_t1:g}"
                     + (f" · TP2 {_t2f:g}" if _t2f else "")
                     + (f" · live {_live:g}" if _live else "")

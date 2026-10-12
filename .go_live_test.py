@@ -117,8 +117,18 @@ except SyntaxError as exc:
 head_app = subprocess.run(["git", "show", "HEAD:app.py"], capture_output=True, cwd=ROOT).stdout.decode("utf-8")
 sb_now = seg(A, "def _render_star_board(", "def _render_revived_board(")
 sb_old = seg(head_app, "def _render_star_board(", "def _render_revived_board(")
-if sb_now != sb_old:
-    fails.append("the ⭐ star board changed")
+# the only sanctioned star-board edit since GO LIVE: the 🏦 TP1 HIT line (user 2026-10-12)
+_TP1_INS = ('                + _desk_tp1_line(("elite_star",), _sym, _sd, _ts)\n'
+            '                + f"<br><span style=\'color:#8b93a7;font-size:0.8rem\'>entry "')
+_TP1_WAS = '                f"<br><span style=\'color:#8b93a7;font-size:0.8rem\'>entry "'
+
+
+def _norm_sb(x):
+    return (x or "").replace(_TP1_INS, _TP1_WAS)
+
+
+if _norm_sb(sb_now) != _norm_sb(sb_old):
+    fails.append("the ⭐ star board changed beyond the TP1 line")
 
 
 def ghosts(src):
