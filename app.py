@@ -10944,6 +10944,29 @@ if active_section == "🧪 Paper Trader":
                            f"{paper_bot.WEEKLY_RESET_DAYS} days."))
 
     @st.fragment(run_every=10)
+    def _paper_tp1_mark(p: dict, cur) -> str:
+        """🏦 TP1 marker for a Paper Trader position (user 2026-10-12:
+        'inside paper trading … if it hit TP1 it should mention it'):
+        the bot's own state first (chase upgrade / partial take), else
+        the live price sitting at or past TP1 right now."""
+        try:
+            _long = str(p.get("side") or "").upper() == "LONG"
+            _tp1 = float(p.get("original_target") or p.get("target") or 0)
+            if p.get("chasing_tp2") or p.get("original_target"):
+                _tp2 = float(p.get("target_2") or p.get("target") or 0)
+                return (f"🏦 TP1 HIT {fmt_price(_tp1)} · stop locked at TP1, "
+                        f"riding to TP2 {fmt_price(_tp2)}")
+            _parts = []
+            if cur and _tp1 > 0 and ((float(cur) >= _tp1) if _long
+                                      else (float(cur) <= _tp1)):
+                _parts.append(f"🏦 at TP1 {fmt_price(_tp1)} now — books on the "
+                              f"next tick")
+            if p.get("partial_taken"):
+                _parts.append(f"💰 partial banked at +{paper_bot.PARTIAL_TAKE_R:.1f}R")
+            return " · ".join(_parts)
+        except Exception:
+            return ""
+
     def _live_paper_positions():
         """Open-position cards, live-updating. Also re-runs the stop/target
         evaluator on every tick so a hit fires in seconds, not minutes."""
@@ -11015,6 +11038,7 @@ if active_section == "🧪 Paper Trader":
             health = int(max(0, min(100, prog)))
             hold_txt = p.get("hold_horizon") or "—"
             str_label = p.get("strength_label", "")
+            _tp1_txt = _paper_tp1_mark(p, cur)   # 🏦 TP1 (user 2026-10-12)
             be_badge = (" · ✓ break-even"
                         if p.get("break_even_set") else "")
             lev_txt = f" · {lev_v}× lev" if lev_v > 1 else ""
@@ -11037,7 +11061,10 @@ if active_section == "🧪 Paper Trader":
                     f"{fmt_price(stop_v)} · Target {fmt_price(target_v)}"
                     f" · hold: {hold_txt}"
                     + (f" · {str_label}" if str_label else "")
-                    + be_badge + "</div>",
+                    + be_badge
+                    + (("<br><span style='color:#ffd700'>" + _tp1_txt + "</span>")
+                       if _tp1_txt else "")
+                    + "</div>",
                     unsafe_allow_html=True)
                 pnl_col.markdown(
                     f"<div style='text-align:right;font-size:1.15rem;"
@@ -17815,6 +17842,13 @@ if active_section == "🧪 Paper Trader":
                  or (c.get("qty", 0) or 0) * (c.get("entry", 0) or 0)),
                 2),
             "Reason": c.get("exit_reason", ""),
+            # 🏦 TP1 column (user 2026-10-12): closed at its target, or
+            # carried the chase upgrade (TP2 / TP1-locked stop) = hit;
+            # the partial-take rows say so.
+            "TP1": ("💰 partial" if c.get("partial") else
+                    "🏦 hit" if (c.get("exit_reason") == "target"
+                                or c.get("original_target")
+                                or c.get("chasing_tp2")) else ""),
             "PnL $": c.get("pnl_usd", 0.0),
             "PnL %": c.get("pnl_pct", 0.0),
             "Conf": c.get("confidence", 0),
