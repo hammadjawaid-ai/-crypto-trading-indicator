@@ -677,6 +677,18 @@ def _arrival_grade(d15, side) -> dict | None:
         return None
 
 
+# ⚡🔥 T1 by the fire's PKT window (replay 15 Aug → 28 Sep, 154 fires; user
+# 2026-10-13: "add time line to the t1 notifications and add percentage to
+# it which reached tp1"): light, record, share that reached TP1. 🟢 5+ trades,
+# win >= 50% and avg >= +0.10R · 🔴 5+ trades, avg <= 0 · 🟡 thin / flat.
+T1_WINDOWS = {
+    "05–09": ("🟢", "87% / +0.26R (30)", "90%"),
+    "09–13": ("🟢", "100% / +0.35R (18)", "100%"),
+    "13–17": ("🟢", "89% / +0.26R (37)", "92%"),
+    "17–21": ("🟢", "95% / +0.25R (22)", "95%"),
+    "21–01": ("🔴", "71% / -0.01R (24)", "67%"),
+    "01–05": ("🟢", "78% / +0.16R (23)", "83%")}
+T1_TP1_ALL = "88%"            # 135 of 154 replay fires reached TP1
 ARRIVAL_TIERS = {
     1: ("⚡🔥", "HOT strong coil", "86% / +0.21R over 154 replay breaks"),
     2: ("⚡🔥", "HOT arrival", "83% / +0.23R over 197 replay breaks"),
@@ -720,6 +732,7 @@ def _fmt_arrival(a: dict, px: float, tier: int, now=None) -> str:
     src = str(a.get("src") or "").strip()
     head = f"{emo} *ARRIVAL T{int(tier)} — {a['base']} LONG · {label}*"
     tail = ""
+    win_line = ""
     if now is not None:
         head = (f"{emo} *ARRIVAL T{int(tier)} — {a['base']} LONG · {label} · "
                 f"TAKE · {rung_stats.pkt_hm(now)} PKT*")
@@ -727,10 +740,23 @@ def _fmt_arrival(a: dict, px: float, tier: int, now=None) -> str:
             tail = "\n" + rung_stats.arrival_record(int(tier), now)
         except Exception:
             tail = ""
+        if int(tier) == 1:
+            # ⏰ the T1 window line (user 2026-10-13): this window's
+            # replay record, its light, and the share that reached TP1
+            try:
+                _wn = buzz_clock.window_of(rung_stats.pkt_hour(now))
+                _lt, _wrec, _wtp = T1_WINDOWS.get(_wn, ("🟡", "no read", "?"))
+                win_line = (f"window: {_lt} {_wn} PKT — T1 here {_wrec} · "
+                            f"TP1 reached {_wtp} · all T1 TP1 reached "
+                            f"{T1_TP1_ALL} · replay 15 Aug → 28 Sep · 🟢 5+ "
+                            f"trades earning · 🔴 5+ trades losing · 🟡 thin\n")
+            except Exception:
+                win_line = ""
     return (head + "\n"
             f"{src} number `{float(a['trigger']):g}` broke · {how}\n"
             f"entry `{float(px):g}` · SL `{float(a['stop']):g}` · TP1 "
             f"`{float(a['tp1']):g}`{t2}\n"
+            + win_line +
             f"_this tier: {rec}. T1 HOT strong coil 86% / +0.21R · T2 HOT "
             f"83% / +0.23R · T3 any long break 76% / +0.11R (Aug 15 - Sep 28). "
             f"Shorts at the number lost 58% / -0.11R, so only longs ring. "

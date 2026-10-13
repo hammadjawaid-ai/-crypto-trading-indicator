@@ -18,11 +18,12 @@ U = open(r"F:\Trading Indicator\auditor.py", encoding="utf-8").read()
 fails = []
 tree = ast.parse(W)
 import rung_stats
-ns = {"np": np, "pd": pd, "rung_stats": rung_stats}
+import buzz_clock
+ns = {"np": np, "pd": pd, "rung_stats": rung_stats, "buzz_clock": buzz_clock}
 for n in tree.body:
     if isinstance(n, ast.FunctionDef) and n.name in ("_arrival_grade", "_arrival_tier", "_fmt_arrival"):
         exec(compile(ast.Module(body=[n], type_ignores=[]), n.name, "exec"), ns)
-    elif isinstance(n, ast.Assign) and isinstance(n.targets[0], ast.Name) and n.targets[0].id == "ARRIVAL_TIERS":
+    elif isinstance(n, ast.Assign) and isinstance(n.targets[0], ast.Name) and n.targets[0].id in ("ARRIVAL_TIERS", "T1_WINDOWS", "T1_TP1_ALL"):
         exec(compile(ast.Module(body=[n], type_ignores=[]), "tiers", "exec"), ns)
 grade, tier, fmt = ns["_arrival_grade"], ns["_arrival_tier"], ns["_fmt_arrival"]
 
@@ -94,6 +95,22 @@ if "*ARRIVAL T1 — XLM LONG · HOT strong coil · TAKE · 05:40 PKT*" not in m5
     fails.append("TG RULES arrival header/record line wrong")
 if m5.count('*') % 2 or m5.count('`') % 2:
     fails.append("TG RULES arrival markdown unbalanced")
+# ⏰ T1 window line (2026-10-13): light + record + TP1 share for the fire's PKT window
+if "window: 🟢 05–09 PKT — T1 here 87% / +0.26R (30) · TP1 reached 90% · all T1 TP1 reached 88% · replay 15 Aug → 28 Sep" not in m5:
+    fails.append(f"T1 window line missing / wrong:\n{m5}")
+m6 = fmt(a, 0.2268, 1, now=float(calendar.timegm((2026, 10, 3, 17, 40, 0))))   # 22:40 PKT -> 21–01 red
+if "window: 🔴 21–01 PKT — T1 here 71% / -0.01R (24) · TP1 reached 67%" not in m6:
+    fails.append("T1 red window line wrong")
+if m6.index("window:") < m6.index("TP1 `") or m6.index("window:") > m6.index("_this tier:"):
+    fails.append("window line must sit between the plan and the footer")
+m7 = fmt(a, 0.2268, 2, now=float(calendar.timegm((2026, 10, 3, 0, 40, 0))))
+if "window:" in m7 or "window:" in fmt(a, 0.2268, 1):
+    fails.append("window line is T1 + TAKE only")
+if set(ns["T1_WINDOWS"]) != set(buzz_clock.WINDOWS) or any(len(v) != 3 for v in ns["T1_WINDOWS"].values()):
+    fails.append("T1_WINDOWS must cover the six PKT windows with (light, record, tp1 share)")
+for m in (m6, m7):
+    if m.count('*') % 2 or m.count('`') % 2 or m.count('_') % 2:
+        fails.append("window line markdown unbalanced")
 if "arrival: no read" not in m4:
     fails.append("no-read banner wrong")
 for m in (m1, m2, m3, m4):
