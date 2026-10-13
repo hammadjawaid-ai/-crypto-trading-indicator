@@ -2772,7 +2772,8 @@ def _render_true_signal(pb_state, live_prices=None):
 
 
 _TP1_CARD_TIERS = {"elite_star": "⭐ ELITE STAR", "elite_conv": "💎 ELITE CONVICTION",
-                   "go_revived": "⭐⚡ GO REVIVED", "go_live": "💎⚡ GO LIVE"}
+                   "go_revived": "⭐⚡ GO REVIVED", "go_live": "💎⚡ GO LIVE",
+                   "trig_hot": "⚡🔥 ARRIVAL T1"}
 
 
 def _desk_tp1_line(tiers, sym, side, ts, before_s=1800.0, after_s=6 * 3600.0) -> str:
@@ -3232,6 +3233,167 @@ def _render_revived_board(pb_state, live_prices=None) -> None:
                         st.error(f"Open failed: {_op_exc}")
             except Exception:
                 continue
+
+def _render_t1_board(pb_state, live_prices=None) -> None:
+    """⚡🔥 ARRIVAL T1 — openable now (user 2026-10-13: "T1 have its own board
+    with cards on it like we have for elite star … openable trades"). Every T1
+    fire of the last 24h — a HOT long break at a ⚡ strong-coil number — as a
+    card: the plan, how the price arrived, the live price and how far it has
+    travelled, the desk's TP1 line, and a 📥 Open button that puts the trade
+    into the Paper Trader at the live price with the plan's stop / TP1 / TP2.
+    No verdict / GO chips: the 1h-verdict rule does not sort T1 (replay 15 Aug
+    → 28 Sep: DEAD at 1h still 82% / +0.17R, 94% of fires ignite). Its own
+    board, separate from the elite ones. Read-only on the worker DB; fail-soft."""
+    st.markdown("#### ⚡🔥 ARRIVAL T1 — openable now")
+    st.caption(
+        "A HOT arrival at a ⚡ strong-coil number, longs only: two-bar volume "
+        "1.3-3x the 7-day bar and a 0.3-1.5 ATR drift into the number. Replay "
+        "15 Aug → 28 Sep: 86% / +0.21R over 154, TP1 reached 88%, about 3 a day; "
+        "the forward judge is the desk's own T1 tier below. Each card is a T1 "
+        "fire from the last 24 hours with its plan and live progress; 📥 Open "
+        "takes it into the Paper Trader at the live price with the plan's stop "
+        "and targets. No 1h verdict or GO here — on T1 that rule sorts nothing.")
+    try:
+        import sqlite3 as _sq_t1
+        _now_t1 = time.time()
+        _since = _now_t1 - 24 * 3600
+        _ct1 = _sq_t1.connect(f"file:{_ws_c.DB_PATH}?mode=ro", uri=True)
+        try:
+            _fires = _ct1.execute(
+                "SELECT ts, symbol, base, side, entry, stop, tp1, tp2, extra "
+                "FROM signals WHERE stream='trig_hot' AND ts>=? "
+                "ORDER BY ts DESC", (_since,)).fetchall()
+            _led = _ct1.execute(
+                "SELECT COUNT(*), SUM(CASE WHEN pnl_r>0 THEN 1 ELSE 0 END), "
+                "COALESCE(SUM(pnl_r),0), "
+                "SUM(CASE WHEN closed_at>=? THEN 1 ELSE 0 END), "
+                "COALESCE(SUM(CASE WHEN closed_at>=? THEN pnl_r ELSE 0 END),0) "
+                "FROM shadow_trades WHERE tier='trig_hot' AND status='CLOSED' "
+                "AND abs(entry-stop0)/entry>=0.005",
+                (_now_t1 - 14 * 86400, _now_t1 - 14 * 86400)).fetchone()
+            _open_desk = _ct1.execute(
+                "SELECT symbol, side FROM shadow_trades WHERE "
+                "tier='trig_hot' AND status='OPEN'").fetchall()
+        finally:
+            _ct1.close()
+    except Exception as _t1_exc:
+        st.caption(f"⚡🔥 board unavailable right now: {_t1_exc}")
+        return
+    _n, _w, _net, _n14, _net14 = (int(_led[0] or 0), int(_led[1] or 0),
+                                  float(_led[2] or 0), int(_led[3] or 0),
+                                  float(_led[4] or 0))
+    if _n:
+        _cc = "#2ed47a" if _net > 0 else "#ff5c5c"
+        st.markdown(
+            f"**forward ledger (the desk's T1 tier):** {_n} closed · win "
+            f"{_w / _n * 100:.0f}% · <b style='color:{_cc}'>{_net:+.1f}R</b> "
+            f"· last 14 days {_n14} closed {_net14:+.1f}R · "
+            f"{len(_open_desk)} ⚡🔥 open on the desk", unsafe_allow_html=True)
+    else:
+        st.caption("forward ledger (the desk's T1 tier): no closes yet")
+    _seen, _cards = set(), []
+    for _r in _fires:
+        _k = (_r[1], (_r[3] or "").upper())
+        if _k in _seen:
+            continue
+        _seen.add(_k)
+        _cards.append(_r)
+    if not _cards:
+        st.caption("· no ⚡🔥 T1 fire in the last 24 hours — the next HOT break "
+                   "at a strong-coil number appears here")
+        return
+    _held = ({p.get("symbol") for p in (pb_state.get("open") or [])}
+             if pb_state else set())
+    try:
+        binance_client.prime_prices([r[1] for r in _cards])
+    except Exception:
+        pass
+    for _i, _r in enumerate(_cards[:12]):
+        try:
+            _ts, _sym, _b, _sd, _e, _stp, _t1, _t2, _extra = _r
+            try:
+                _ex = json.loads(_extra or "{}")
+            except Exception:
+                _ex = {}
+            _e, _stp, _t1 = float(_e), float(_stp), float(_t1)
+            _t2f = float(_t2) if _t2 else None
+            _sd = (_sd or "").upper()
+            _lng = _sd == "LONG"
+            _live = None
+            try:
+                _live = float((live_prices or {}).get(_sym) or
+                              binance_client.get_ticker_price(_sym) or 0) or None
+            except Exception:
+                _live = None
+            _prog = None
+            if _live and _t1 != _e:
+                _prog = ((_live - _e) / (_t1 - _e) if _lng
+                         else (_e - _live) / (_e - _t1))
+            _stopped = bool(_live) and ((_live <= _stp) if _lng
+                                        else (_live >= _stp))
+            if _stopped:
+                _status, _scol = "🔴 stopped", "#ff5c5c"
+            elif _prog is None:
+                _status, _scol = "price n/a", "#8b93a7"
+            elif _prog >= 1:
+                _status, _scol = f"🏆 past TP1 ({_prog * 100:.0f}%)", "#ffd700"
+            elif _prog > 0.25:
+                _status, _scol = f"🟡 en route ({_prog * 100:.0f}% to TP1)", "#ffd54a"
+            elif _prog >= 0:
+                _status, _scol = f"🟢 at the number ({_prog * 100:.0f}% to TP1)", "#2ed47a"
+            else:
+                _status, _scol = f"🟠 back under the number ({_prog * 100:.0f}%)", "#ffb347"
+            _chips = []
+            _v2, _m3 = _ex.get("arr_vol2"), _ex.get("arr_mom3")
+            if _v2 is not None and _m3 is not None:
+                _chips.append(f"arrived HOT: {_v2}x vol · {_m3} ATR drift")
+            if _ex.get("src"):
+                _chips.append(f"number {str(_ex.get('src'))[:24]}")
+            if _ex.get("conf") is not None:
+                _chips.append(f"🎯 conf {_ex.get('conf')}")
+            _pkt = time.strftime("%H:%M", time.gmtime(float(_ts) + 5 * 3600))
+            _ago = (_now_t1 - float(_ts)) / 3600
+            _sc = "#2ed47a" if _lng else "#ff5c5c"
+            _c1, _c2 = st.columns([5, 1])
+            _c1.markdown(
+                f"<div style='background:rgba(255,140,0,0.06);border:1px solid "
+                f"rgba(255,140,0,0.32);border-radius:10px;padding:8px 13px;"
+                f"margin:4px 0'>⚡🔥 <b>{_b}</b> <span style='color:{_sc};"
+                f"font-weight:800'>{_sd}</span> · fired {_pkt} PKT "
+                f"({_ago:.1f}h ago) · <span style='color:{_scol}'>{_status}</span>"
+                + _desk_tp1_line(("trig_hot",), _sym, _sd, _ts)
+                + f"<br><span style='color:#8b93a7;font-size:0.8rem'>entry "
+                f"{_e:g} · SL {_stp:g} · TP1 {_t1:g}"
+                + (f" · TP2 {_t2f:g}" if _t2f else "")
+                + (f" · live {_live:g}" if _live else "")
+                + (" · " + " · ".join(_chips) if _chips else "")
+                + "</span></div>", unsafe_allow_html=True)
+            _openable = (pb_state is not None and _live and not _stopped
+                         and (_prog is None or _prog < 1))
+            if _sym in _held:
+                _c2.caption("✓ open")
+            elif not _openable:
+                _c2.caption("—")
+            elif _c2.button("📥 Open", key=f"t1_open_{_sym}_{_i}",
+                            use_container_width=True):
+                try:
+                    _alert = {
+                        "symbol": _sym, "base": _b, "side": _sd,
+                        "entry_low": _live, "stop": _stp, "target": _t1,
+                        "target_2": _t2f, "chase_tp2_eligible": False,
+                        "confidence": 70, "strength_factor": 0.7,
+                        "_unified_source": "trig_hot"}
+                    _pos = paper_bot.open_position(pb_state, _alert, _live)
+                    paper_bot.save_state(PAPER_BOT_FILE, pb_state)
+                    if _pos:
+                        st.success(f"Opened {_sd} {_b} (⚡🔥 ARRIVAL T1) at {_live:g}")
+                        st.rerun()
+                    else:
+                        st.warning("Not opened — Paper Trader rejected.")
+                except Exception as _op_exc:
+                    st.error(f"Open failed: {_op_exc}")
+        except Exception:
+            continue
 
 
 _PAIR_SPLIT_TIERS = ("star_prime", "conv_prime", "trigkr_prime", "leg2_prime")
@@ -4246,6 +4408,10 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
             _render_revived_board(pb_state, live_prices)
         except Exception as _rb_exc2:
             st.caption(f"⭐⚡ revived board error: {_rb_exc2}")
+        try:   # ⚡🔥 the T1 board — its own thing (user 2026-10-13)
+            _render_t1_board(pb_state, live_prices)
+        except Exception as _t1_exc2:
+            st.caption(f"⚡🔥 T1 board error: {_t1_exc2}")
     st.markdown("### ✳️ DECISION DESK — live forward proof")
     st.caption("The brain **takes every signal itself** at live prices with "
                "real fees and manages the exit (BE→TP1 lock→trail, 48h max "
