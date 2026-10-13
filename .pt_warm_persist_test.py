@@ -68,12 +68,14 @@ i_file = A.find('_WARM_DISK_FILE = str(config.state_path(".app_warm_store.pkl"))
 i_save = A.find("def _warm_disk_save(")
 i_load = A.find("def _warm_disk_load(")
 i_state = A.find("def _warm_state() -> dict:")
-i_seed = A.find("_store, _info = _warm_disk_load(_WARM_DISK_FILE, WARM_MAX_AGE)")
+i_seed = A.find("_store, _info = _warm_disk_load(_WARM_DISK_FILE, 6 * 3600)")
 i_store = A.find('_WARM_STORE: dict = _warm_state()["store"]')
 i_sweep_save = A.find("saved=_warm_disk_save(_WARM_STORE, _WARM_DISK_FILE))")
 i_cap = A.find("scanner boards restored from the last sweep before the")
 if not (0 < i_file < i_save < i_load < i_state < i_seed < i_store < i_sweep_save < i_cap):
     fails.append(f"wiring order wrong: file {i_file} save {i_save} load {i_load} state {i_state} seed {i_seed} store {i_store} sweep {i_sweep_save} caption {i_cap}")
+if 'or not _WARM_STATUS.get("last_sweep")):' not in A:
+    fails.append("restored boards must stay in service until the first in-process sweep")
 if "fall back to the status file the sweep writes" in A:
     fails.append("the misleading status-file caption fallback is still there")
 for need in ('"disk": _info}}', 'WARM_MAX_AGE = 3 * WARM_EVERY', "pickle.HIGHEST_PROTOCOL", "os.replace(tmp, path)"):

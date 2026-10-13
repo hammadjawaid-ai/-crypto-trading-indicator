@@ -48,7 +48,7 @@ def seg(src, a, b):
 if seg(A, "def _render_star_board(", "def _render_revived_board(") != seg(head, "def _render_star_board(", "def _render_revived_board("):
     fails.append("the ⭐ star board changed")
 _rv_now = (seg(A, "def _render_revived_board(", "def _render_t1_board(") or "").rstrip()
-_rv_old = (seg(head, "def _render_revived_board(", "_PAIR_SPLIT_TIERS = (") or "").rstrip()
+_rv_old = (seg(head, "def _render_revived_board(", "def _render_t1_board(") or seg(head, "def _render_revived_board(", "_PAIR_SPLIT_TIERS = (") or "").rstrip()
 if _rv_now != _rv_old:
     fails.append("the GO REVIVED board changed")
 try:

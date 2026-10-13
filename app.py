@@ -8821,7 +8821,9 @@ def _warm_state() -> dict:
     module dict would be empty again each run; cache_resource hands
     back the same object to every run and to the warmer thread.
     Seeded from the previous process's pickle (see _WARM_DISK_FILE)."""
-    _store, _info = _warm_disk_load(_WARM_DISK_FILE, WARM_MAX_AGE)
+    # restore anything up to 6h old: staleness is bounded by the first sweep
+    # (see _warm_get), and the caption prints the age honestly
+    _store, _info = _warm_disk_load(_WARM_DISK_FILE, 6 * 3600)
     return {"store": _store,
             "status": {"last_sweep": None, "sweep_s": None, "jobs": {},
                        "errors": {}, "sweeps": 0, "disk": _info}}
@@ -8833,7 +8835,13 @@ _WARM_STATUS: dict = _warm_state()["status"]
 
 def _warm_get(key):
     hit = _WARM_STORE.get(key)
-    if hit is not None and time.time() - hit[0] <= WARM_MAX_AGE:
+    # 2026-10-13: a board restored from the previous process stays in
+    # service until THIS process's first sweep lands. Before, it expired at
+    # WARM_MAX_AGE while the first sweep was still running and the page fell
+    # back to computing the boards in the request (minutes per load for
+    # half an hour after every deploy).
+    if hit is not None and (time.time() - hit[0] <= WARM_MAX_AGE
+                            or not _WARM_STATUS.get("last_sweep")):
         try:
             return _copy.deepcopy(hit[1])
         except Exception:
