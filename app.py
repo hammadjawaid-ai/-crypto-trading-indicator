@@ -9465,7 +9465,7 @@ if active_section == "🎮 Demo Trading":
         "REVIVED</b> (a star or approved elite fire graded DEAD at the hour "
         "that then ignited — entry at the GO price with the fire's plan, "
         "FAST or LATE, any conf — seats only when its Telegram fire read "
-        "passes: conf not 65–84, not a MAX card, score under 90, BTC day "
+        "passes: not a MAX card, score under 90, BTC day "
         "≥ −1.5%) · <b>2. ⚡🔥 ARRIVAL T1</b> (HOT long break at "
         "a ⚡ strong-coil number, its own plan, any conf) · <b>3. 💥 STRONG "
         "TRIGGER conf ≥65</b> (its measured red windows stay closed: longs "
