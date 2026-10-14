@@ -442,6 +442,9 @@ _DEMO_STARS: list = []
 # (appended at the arrival site, tier 1 only). Same TTL/drain as _DEMO_STARS.
 _DEMO_GO: list = []
 _DEMO_T1: list = []
+# 🎮 GEN 17.2 seat feed (user 2026-10-14): ⭐🥇 STAR × PRIME — a star fire with
+# a PRIME signal on the same coin+side, appended by the pairing pass.
+_DEMO_SP: list = []
 _DEMO_PB: list = []     # 🔶💥 GEN 16.5 pressed-first breaks, LONGS ONLY
 # 🗞 NEWS RADAR runs off the main loop (its RSS pass takes ~16-18s);
 # news_radar holds its own lock, this just avoids piling up threads.
@@ -4131,6 +4134,15 @@ def cycle() -> None:
                         _px_pp = None
                     store.record_signal(_tier_pp, _sig_pp)
                     shadow_trader.open_from_signal(_tier_pp, _sig_pp, _px_pp)
+                    if _kind == "star":
+                        # 🎮 GEN 17.2 P5 seat feed (user 2026-10-14: "elite
+                        # star … if its aligned with prime"): the star
+                        # fire's own plan, every band.
+                        _DEMO_SP.append(dict(
+                            _sig_pp, src="star_prime",
+                            score=float(_sig_pp.get("score") or 85),
+                            burst=0.0, fired_at=_now_pp))
+                        del _DEMO_SP[:-12]
                     _bell_pp = ("off" if not _on_pp else
                                 "band-out" if (_bands_pp is not None
                                                and _band_pp not in _bands_pp) else
@@ -5410,7 +5422,8 @@ def cycle() -> None:
         for _dt, _sh in (("go_revived", "go_revived"),         # GEN 17
                          ("arrival_t1", "trig_hot"),
                          ("strong_trigger", "trig_strong"),
-                         ("early_lane", "early_lane")):     # GEN 17.1
+                         ("early_lane", "early_lane"),      # GEN 17.1
+                         ("star_prime", "star_prime")):     # GEN 17.2
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_sh)["net_r"]
             except Exception:
@@ -5949,7 +5962,14 @@ def cycle() -> None:
             # as 4th stream thats it") — the lanes-flag half of early_strong
             "early_lane": (_g16(em_big, "early_lane")
                            + [d for d in _dz_reo
-                              if d["src"] == "early_lane"])}
+                              if d["src"] == "early_lane"]),
+            # 5. ⭐🥇 STAR × PRIME (GEN 17.2): star fire + PRIME on the coin
+            "star_prime": ([dict(d) for d in _DEMO_SP
+                            if _now - d["fired_at"] <= DEMO_FIRE_TTL_S
+                            and d.get("entry") and d.get("stop")
+                            and d.get("tp1")]
+                           + [d for d in _dz_reo
+                              if d["src"] == "star_prime"])}
         # 🔄 GEN 7 rotation input: every (coin, side) with a LIVE
         # signal this cycle — positions outside this set are the
         # rotation candidates ("a losing trade stands only while
@@ -6013,8 +6033,9 @@ def cycle() -> None:
                      "src": (_rec8.get("src")
                              if _rec8.get("src") in
                              ("go_revived", "arrival_t1",
-                              "strong_trigger", "early_lane")
-                             else "strong_trigger"),   # GEN 17.1
+                              "strong_trigger", "early_lane",
+                              "star_prime")
+                             else "strong_trigger"),   # GEN 17.2
                      "chain": int(_rp8.get("chain") or 0) + 1,
                      "fired_at": _now})
                 print(f"[gen8] 🔁 momentum re-entry queued "
