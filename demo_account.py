@@ -169,7 +169,9 @@ NEAR_TP_SRC: set = {"go_revived", "arrival_t1"}
 # again: the profile was measured at TP1 within 1.2R, and the trades
 # that killed it in September (PUMP rr 1.81, CHIP 1.22) were drifted
 # entries outside it. Re-checked at the LIVE fill in try_open.
-RR_OPEN_BOUNDS: dict = {"elite_star": (None, 1.2)}
+# GEN 17.3 (user 2026-10-14: "same rules" as the phone): the ⭐ seat follows
+# the four-rule read alone — no rr law on top; the seat is the bell.
+RR_OPEN_BOUNDS: dict = {}
 LEV_GEN13 = 10.0             # fallback only; the GEN 14 per-stream
                              # ladder lives in lev_for() below
 DAY_MAX_LOSS_PCT = 0.15      # of day-start equity; stops NEW seats
@@ -258,7 +260,7 @@ ELITE_FAMILY_CAP = 0
 ROTATE_MAX = 0   # GEN 9 user order: rotation REMOVED
 SMART_EXIT_SKIP: set = {"go_revived", "arrival_t1",
                         "strong_trigger", "early_lane",
-                        "star_prime"}                      # GEN 17.2
+                        "star_prime", "elite_star"}        # GEN 17.3
 # GEN 12: kronos smart-exit off for all. Exits: SL-or-TP1-bank-100%
 # everywhere EXCEPT ⭐ elite_star's near-TP bank (own block) and
 # 💎🔮 elite_kr's RIDE (half-bank TP1 + BE + trail, in the TP1
@@ -365,8 +367,12 @@ CLASS_W = {"go_revived": 107,     # 1. ⭐⚡/💎⚡ GO REVIVED — star + appr
            "arrival_t1": 106,     # 2. ⚡🔥 ARRIVAL T1 — HOT long at a ⚡ number
            "strong_trigger": 105,  # 3. 💥 STRONG TRIGGER conf >=65
            "early_lane": 104,     # 4. ⭐🚀 EARLY LANE conf >=85 (GEN 17.1)
-           "star_prime": 103}     # 5. ⭐🥇 STAR × PRIME — star fire + PRIME on
+           "star_prime": 103,     # 5. ⭐🥇 STAR × PRIME — star fire + PRIME on
                                   #    the coin, every band (GEN 17.2)
+           "elite_star": 102}     # 6. ⭐ ELITE STAR — the star fire that PASSED
+                                  #    the phone's four-rule read (GEN 17.3,
+                                  #    user 2026-10-14: "embed elite star on
+                                  #    it too with same rules")
 # 🪑 SPARE-SEAT RULE: a listed stream may open only while at least
 # this many seats stay free after it, so the priority three always
 # find room — rotation is off (ROTATE_MAX = 0) and a seat once taken
@@ -523,7 +529,8 @@ def lev_for(src: str, conf=None, burst=None) -> float:
     (The GEN 15 star 6x/8x-by-burst ladder is in git at 2a56c58.)"""
     return {"go_revived": 10.0, "arrival_t1": 10.0,
             "strong_trigger": 10.0, "early_lane": 10.0,
-            "star_prime": 10.0}.get(src, LEV_GEN13)       # GEN 17.2
+            "star_prime": 10.0,
+            "elite_star": 10.0}.get(src, LEV_GEN13)       # GEN 17.3
 
 
 def load() -> dict:

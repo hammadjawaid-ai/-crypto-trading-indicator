@@ -2830,6 +2830,15 @@ def cycle() -> None:
                             pass
                     if _star9:
                         try:
+                            # 🎮 GEN 17.3 (user 2026-10-14: "embed elite
+                            # star on it too with same rules"): the demo
+                            # seat follows the four-rule read even when
+                            # the phone gates are off.
+                            try:
+                                _sg9 = (_gate9 if TG_GATES else _star_gate(
+                                    _pmx, time.time(), _btc_day_pct()))
+                            except Exception as _sg_exc:
+                                _sg9 = (False, f"read: error {_sg_exc}")
                             _st_sig = {
                                 "symbol": _pmx.get("symbol"),
                                 "base": _pmx.get("base")
@@ -2881,6 +2890,9 @@ def cycle() -> None:
                                  "burst": (_b9v if _b9v < 900
                                            else 0.0),
                                  "src": "elite_star",
+                                 # GEN 17.3: seat only on a passed read
+                                 "seat": bool(_sg9[0]),
+                                 "gate_read": _sg9[1],
                                  "fired_at": time.time()})
                             del _DEMO_STARS[:-12]
                             _ego_add(dict(_st_sig,
@@ -5584,7 +5596,8 @@ def cycle() -> None:
                          ("arrival_t1", "trig_hot"),
                          ("strong_trigger", "trig_strong"),
                          ("early_lane", "early_lane"),      # GEN 17.1
-                         ("star_prime", "star_prime")):     # GEN 17.2
+                         ("star_prime", "star_prime"),      # GEN 17.2
+                         ("elite_star", "elite_star")):     # GEN 17.3
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_sh)["net_r"]
             except Exception:
@@ -6016,13 +6029,28 @@ def cycle() -> None:
                                 # the same entry the tier takes — at the
                                 # GO price with the fire's plan, star or
                                 # approved elite, FAST or LATE.
-                                _DEMO_GO.append(dict(
-                                    _rv_sig, src="go_revived",
-                                    score=(90.0 if _ew.get("star")
-                                           else 85.0),
-                                    burst=0.0, conf=None,
-                                    fired_at=_ew_now))
-                                del _DEMO_GO[:-12]
+                                # 🎮 GEN 17.3 (user 2026-10-14: the demo
+                                # "as per the telegram notifications"):
+                                # the seat needs the same fire read the
+                                # bell needs.
+                                try:
+                                    _rgd = _revived_gate(
+                                        _ew, _ew_px, _ew_now,
+                                        _btc_day_pct())
+                                except Exception as _rgd_exc:
+                                    _rgd = (True, f"read: error {_rgd_exc}", "")
+                                if _rgd[0]:
+                                    _DEMO_GO.append(dict(
+                                        _rv_sig, src="go_revived",
+                                        score=(90.0 if _ew.get("star")
+                                               else 85.0),
+                                        burst=0.0, conf=None,
+                                        fired_at=_ew_now))
+                                    del _DEMO_GO[:-12]
+                                else:
+                                    print(f"  [gen17.3] GO REVIVED "
+                                          f"{_ew['symbol']} {_ew['side']} "
+                                          f"no seat — {_rgd[1]}", flush=True)
                             except Exception as _rv_exc:
                                 print("  go_revived tier error:", _rv_exc,
                                       flush=True)
@@ -6161,7 +6189,15 @@ def cycle() -> None:
                             and d.get("entry") and d.get("stop")
                             and d.get("tp1")]
                            + [d for d in _dz_reo
-                              if d["src"] == "star_prime"])}
+                              if d["src"] == "star_prime"]),
+            # 6. ⭐ ELITE STAR (GEN 17.3): the star fire that PASSED the
+            # phone's four-rule read (heat >= 25 · BTC day <= +1.5% ·
+            # not 01–05 PKT · stop <= 7%) — the fire's plan, every band
+            "elite_star": ([dict(d) for d in _DEMO_STARS
+                            if d.get("seat") and d.get("entry")
+                            and d.get("stop") and d.get("tp1")]
+                           + [d for d in _dz_reo
+                              if d["src"] == "elite_star"])}
         # 🔄 GEN 7 rotation input: every (coin, side) with a LIVE
         # signal this cycle — positions outside this set are the
         # rotation candidates ("a losing trade stands only while
@@ -6235,8 +6271,8 @@ def cycle() -> None:
                              if _rec8.get("src") in
                              ("go_revived", "arrival_t1",
                               "strong_trigger", "early_lane",
-                              "star_prime")
-                             else "strong_trigger"),   # GEN 17.2
+                              "star_prime", "elite_star")
+                             else "strong_trigger"),   # GEN 17.3
                      "chain": int(_rp8.get("chain") or 0) + 1,
                      "fired_at": _now})
                 print(f"[gen8] 🔁 momentum re-entry queued "

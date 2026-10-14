@@ -12,11 +12,11 @@ sys.path.insert(0, ROOT)
 import demo_account as da  # noqa: E402
 
 fails = []
-THREE = {"go_revived", "arrival_t1", "strong_trigger", "early_lane", "star_prime"}   # GEN 17.2: five
+THREE = {"go_revived", "arrival_t1", "strong_trigger", "early_lane", "star_prime", "elite_star"}   # GEN 17.3: six
 if set(da.CLASS_W) != THREE:
     fails.append(f"roster must be exactly the three: {sorted(da.CLASS_W)}")
-if not (da.CLASS_W["go_revived"] > da.CLASS_W["arrival_t1"] > da.CLASS_W["strong_trigger"] > da.CLASS_W["early_lane"] > da.CLASS_W["star_prime"]):
-    fails.append("ladder must be GO REVIVED > ARRIVAL T1 > STRONG TRIGGER > EARLY LANE > STAR × PRIME")
+if not (da.CLASS_W["go_revived"] > da.CLASS_W["arrival_t1"] > da.CLASS_W["strong_trigger"] > da.CLASS_W["early_lane"] > da.CLASS_W["star_prime"] > da.CLASS_W["elite_star"]):
+    fails.append("ladder must be GO REVIVED > ARRIVAL T1 > STRONG TRIGGER > EARLY LANE > STAR × PRIME > ELITE STAR")
 if da.SPARE_RESERVE:
     fails.append("no spare lanes in GEN 17")
 if set(da.CONF_GATE) != {"strong_trigger", "early_lane"} or da.CONF_GATE["strong_trigger"] != ((65.0, 1000.0),) or da.CONF_GATE["early_lane"] != ((85.0, 1000.0),):
@@ -41,7 +41,7 @@ pools = {"strong_trigger": [mk("AAAUSDT", "strong_trigger", 99, conf=80)],
          "moonshot": [mk("FFFUSDT", "moonshot", 99, conf=60)]}
 ranked = da.rank_candidates(pools, {})
 order = [c["src"] for c in ranked]
-if order[:5] != ["go_revived", "arrival_t1", "strong_trigger", "early_lane", "star_prime"] or len(ranked) != 5:
+if order[:6] != ["go_revived", "arrival_t1", "strong_trigger", "early_lane", "star_prime", "elite_star"] or len(ranked) != 6:
     fails.append(f"ranking wrong: {order} ({len(ranked)})")
 if any(c["symbol"] == "SHRTUSDT" for c in ranked):
     fails.append("arrival_t1 shorts must not seat")
@@ -62,7 +62,7 @@ def _pos(src):
     return {"symbol": "ZZZUSDT", "base": "ZZZ", "side": "LONG", "entry": 1.0, "stop": 0.97, "tp1": 1.10, "tp2": 1.20,
             "qty": 100.0, "peak": 1.09, "opened_at": _t.time() - 3600, "src": src, "notional": 100.0, "lev": 10.0,
             "risk_usd": 3.0, "risk_pct": 0.15, "score": 85}
-for src, should_close in (("go_revived", True), ("arrival_t1", True), ("strong_trigger", False), ("early_lane", False), ("star_prime", False)):
+for src, should_close in (("go_revived", True), ("arrival_t1", True), ("strong_trigger", False), ("early_lane", False), ("star_prime", False), ("elite_star", False)):
     st = {"open": [_pos(src)], "closed": [], "balance": 2000.0, "starting_balance": 2000.0, "equity_hist": []}
     try:
         ev = da.manage(st, lambda s: 1.05, None)   # printed 90% of the path, now at 50%
@@ -80,7 +80,7 @@ for src, should_close in (("go_revived", True), ("arrival_t1", True), ("strong_t
 # worker wiring
 W = open(os.path.join(ROOT, "agent_worker.py"), encoding="utf-8").read()
 i_go_rec = W.find('store.record_signal("go_revived", _rv_sig)')
-i_go_feed = W.find('_DEMO_GO.append(dict(\n                                    _rv_sig, src="go_revived",')
+i_go_feed = W.find('_DEMO_GO.append(dict(\n                                        _rv_sig, src="go_revived",')   # GEN 17.3: inside the gate
 i_t1_tiers = W.find("for _tn in _tiers_a:\n                            store.record_signal(_tn, _sig_a)")
 i_t1_feed = W.find('_DEMO_T1.append(dict(\n                                    _sig_a, src="arrival_t1",')
 i_pools = W.find('        _dz_pools = {\n')
@@ -92,13 +92,13 @@ if not (0 < i_t1_tiers < i_t1_feed < i_t1_tiers + 900) or "if _atier == 1:\n    
 if not (0 < i_pools < i_rank):
     fails.append("pools must be built before ranking")
 pools_src = W[i_pools:i_rank]
-for key in ('"go_revived": ([dict(d) for d in _DEMO_GO', '"arrival_t1": ([dict(d) for d in _dz_t1', '"strong_trigger": ([f for f in _dz_fires', '"early_lane": (_g16(em_big, "early_lane")', '"star_prime": ([dict(d) for d in _DEMO_SP'):
+for key in ('"go_revived": ([dict(d) for d in _DEMO_GO', '"arrival_t1": ([dict(d) for d in _dz_t1', '"strong_trigger": ([f for f in _dz_fires', '"early_lane": (_g16(em_big, "early_lane")', '"star_prime": ([dict(d) for d in _DEMO_SP', '"elite_star": ([dict(d) for d in _DEMO_STARS'):
     if key not in pools_src:
         fails.append(f"pool missing: {key[:30]}")
-for gone in ('"press_break": (', '"moonshot": (', '"elite_star": (', '"early_movers": (', '"strig_kr": ('):
+for gone in ('"press_break": (', '"moonshot": (', '"early_movers": (', '"strig_kr": ('):
     if gone in pools_src:
         fails.append(f"removed stream still pooled: {gone}")
-if '("go_revived", "arrival_t1",\n                              "strong_trigger", "early_lane",\n                              "star_prime")\n                             else "strong_trigger"),   # GEN 17.2' not in W:
+if '("go_revived", "arrival_t1",\n                              "strong_trigger", "early_lane",\n                              "star_prime", "elite_star")\n                             else "strong_trigger"),   # GEN 17.3' not in W:
     fails.append("momentum re-entry whitelist must be the three")
 if '(("go_revived", "go_revived"),         # GEN 17' not in W or '("arrival_t1", "trig_hot")' not in W:
     fails.append("form list must map the three to their desk tiers")
@@ -113,7 +113,7 @@ for keep in ('record_signal("moonshot", p)', 'store.record_signal("elite_star",'
     if keep not in W:
         fails.append(f"a removed stream's record site vanished: {keep}")
 A = open(os.path.join(ROOT, "app.py"), encoding="utf-8").read()
-if "🎮 DEMO $2,000 — GEN 17.2 · THE FIVE" not in A or "<b>THE FIVE, in order:</b>" not in A or "<b>5. ⭐🥇 STAR × PRIME</b>" not in A:
+if "🎮 DEMO $2,000 — GEN 17.3 · THE SIX" not in A or "<b>THE SIX, in order:</b>" not in A or "<b>5. ⭐🥇 STAR × PRIME</b>" not in A or "<b>6. ⭐ ELITE STAR</b>" not in A:
     fails.append("demo header not updated")
 if "GEN 16.5 · THE PRIORITY FOUR" in A:
     fails.append("old header still present")

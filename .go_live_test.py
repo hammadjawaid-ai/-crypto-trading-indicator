@@ -100,8 +100,9 @@ for a, b, lab in (('if _ew.get("oneh") == "DEAD":\n                             
         # seat feed right after the go_revived tier record (user 2026-10-14)
         def _strip_feed(x):
             i = (x or "").find("                                # 🎮 GEN 17 P1 seat feed")
-            j = (x or "").find("                                del _DEMO_GO[:-12]\n", i)
-            return x if (i < 0 or j < 0) else x[:i] + x[j + len("                                del _DEMO_GO[:-12]\n"):]
+            # GEN 17.3: the feed now sits inside the revived-gate block — cut to the tier block's except
+            j = (x or "").find("                            except Exception as _rv_exc:", i)
+            return x if (i < 0 or j < 0) else x[:i] + x[j:]
         old_ = _strip_feed(old_)
         now_ = _strip_feed(now_)
         if old_ is None or now_ is None or old_.rstrip() != now_.rstrip():
