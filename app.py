@@ -9466,7 +9466,7 @@ if active_section == "🎮 Demo Trading":
         "that then ignited — entry at the GO price with the fire's plan, "
         "FAST or LATE, any conf — seats only when its Telegram fire read "
         "passes: conf not 65–84, not a MAX card, score under 90, BTC day "
-        "≥ −1.5%, not fired 13–17 PKT) · <b>2. ⚡🔥 ARRIVAL T1</b> (HOT long break at "
+        "≥ −1.5%) · <b>2. ⚡🔥 ARRIVAL T1</b> (HOT long break at "
         "a ⚡ strong-coil number, its own plan, any conf) · <b>3. 💥 STRONG "
         "TRIGGER conf ≥65</b> (its measured red windows stay closed: longs "
         "21-05 PKT, shorts 09-13 / 17-21) · <b>4. ⭐🚀 EARLY LANE conf ≥85</b> "

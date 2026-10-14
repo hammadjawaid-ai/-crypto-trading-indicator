@@ -53,14 +53,17 @@ if not ok or "🟡 heat ?" not in line or "🟡 BTC today ?" not in line:
 # ⭐⚡ revived read
 ew = {"symbol": "AAVEUSDT", "side": "LONG", "entry0": 100.0, "stop": 96.0, "tp1": 105.0, "conf": 40, "score": 82, "tier": "HIGH", "fired_at": T1740}
 ok, line, entry = rg(ew, 103.0, T1740 + 5400, btc=0.5)
-if not ok or "✅ conf 40" not in line or "✅ HIGH card" not in line or "✅ score 82" not in line or "✅ fired 17–21 PKT" not in line:
+if not ok or "✅ conf 40" not in line or "✅ HIGH card" not in line or "✅ score 82" not in line or "fired" in line:
     fails.append(f"revived pass read wrong: {line}")
 if not entry.startswith("✅ entry cell") or "0.50R left now" not in entry:
     fails.append(f"entry cell line wrong: {entry}")
 if rg(dict(ew, conf=70), 103.0, T1740 + 5400, btc=0.5)[0] or rg(dict(ew, tier="MAX"), 103.0, T1740 + 5400, btc=0.5)[0] \
-        or rg(dict(ew, score=92), 103.0, T1740 + 5400, btc=0.5)[0] or rg(ew, 103.0, T1740 + 5400, btc=-2.0)[0] \
-        or rg(dict(ew, fired_at=T1440), 103.0, T1440 + 5400, btc=0.5)[0]:
-    fails.append("revived gate must fail on conf 65-84 / MAX / score 90+ / BTC < -1.5% / 13–17 fire")
+        or rg(dict(ew, score=92), 103.0, T1740 + 5400, btc=0.5)[0] or rg(ew, 103.0, T1740 + 5400, btc=-2.0)[0]:
+    fails.append("revived gate must fail on conf 65-84 / MAX / score 90+ / BTC < -1.5%")
+if not rg(dict(ew, fired_at=T1440), 103.0, T1440 + 5400, btc=0.5)[0]:
+    fails.append("a 13–17 PKT fire must PASS — the clock rule was dropped 2026-10-14 evening (user: 'yes drop it')")
+if "70% / +0.54R (93)" not in ns.get("REVIVED_GATE_REC", ""):
+    fails.append("revived record line must carry the four-rule cell")
 if not rg(ew, 104.5, T1740 + 5400, btc=0.5)[2].startswith("⚠️ hold only"):
     fails.append("0.125R left must read hold only")
 if not rg(ew, 103.0, T2240, btc=0.5)[2].startswith("⚠️ hold only"):

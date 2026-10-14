@@ -381,8 +381,8 @@ STAR_BTC_MAX = 1.5
 GATE_BTC_MIN = -1.5
 STAR_GATE_REC = ("gated set 71% / +0.45R (146) vs rejected 48% / -0.05R (205) · "
                  "desk 09 Sep → 14 Oct")
-REVIVED_GATE_REC = ("gated set 74% / +0.60R (78) vs rejected 41% / +0.01R (88) · "
-                    "from the fire price, 13 Sep → 14 Oct")
+REVIVED_GATE_REC = ("gated set 70% / +0.54R (93) vs rejected 40% / -0.03R (73) · "
+                    "from the fire price, 13 Sep → 14 Oct · four rules")
 REVIVED_ENTRY_OK = ("✅ entry cell — 0.3–0.6R left to TP1, BTC not down >1.5%, "
                     "not 21–05 PKT: 80% / +0.31R (20) entered at the GO")
 REVIVED_ENTRY_NO = ("⚠️ hold only — outside the entry cell (49% / -0.11R entered "
@@ -450,7 +450,9 @@ def _star_gate(p, now, btc=None):
 
 def _revived_gate(ew, px, now, btc=None):
     """⭐⚡/💎⚡ GO REVIVED: the FIRE read (conf not 65–84 · not MAX · score < 90
-    · BTC day >= -1.5% · fire not 13–17 PKT) -> (passed, line, entry_line);
+    · BTC day >= -1.5%) -> (passed, line, entry_line); the 'fire not 13–17
+    PKT' rule was DROPPED 2026-10-14 evening (user: "yes drop it") — the 7-week
+    candle replay (.revived_clock_history.py) showed it was noise;
     entry_line = the ENTRY-cell read at the GO (0.3–0.6R left to TP1, BTC day
     >= -1.5%, GO not 21–05 PKT)."""
     try:
@@ -462,13 +464,11 @@ def _revived_gate(ew, px, now, btc=None):
     except (TypeError, ValueError):
         score = None
     tier = str(ew.get("tier") or "").upper() or None
-    fwin = buzz_clock.window_of(rung_stats.pkt_hour(float(ew.get("fired_at") or now)))
     passed, line = _gate_bits([
         (conf, conf is not None and not (65 <= conf < 85), f"conf {conf:g}" if conf is not None else "conf"),
         (tier, tier != "MAX", f"{tier} card" if tier else "card"),
         (score, score is not None and score < 90, f"score {score:g}" if score is not None else "score"),
-        (btc, btc is not None and btc >= GATE_BTC_MIN, f"BTC {btc:+.2f}% today" if btc is not None else "BTC today"),
-        (fwin, fwin != "13–17", f"fired {fwin} PKT")])
+        (btc, btc is not None and btc >= GATE_BTC_MIN, f"BTC {btc:+.2f}% today" if btc is not None else "BTC today")])
     try:
         e0, st, t1 = float(ew.get("entry0") or 0), float(ew["stop"]), float(ew["tp1"])
         sgn = 1.0 if ew.get("side") == "LONG" else -1.0
