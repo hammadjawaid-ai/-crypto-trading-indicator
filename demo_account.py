@@ -257,7 +257,7 @@ ELITE_FAMILY_CAP = 0
 # NEVER rotated, and at most this many rotations happen per cycle.
 ROTATE_MAX = 0   # GEN 9 user order: rotation REMOVED
 SMART_EXIT_SKIP: set = {"go_revived", "arrival_t1",
-                        "strong_trigger"}                  # GEN 17
+                        "strong_trigger", "early_lane"}    # GEN 17.1
 # GEN 12: kronos smart-exit off for all. Exits: SL-or-TP1-bank-100%
 # everywhere EXCEPT ⭐ elite_star's near-TP bank (own block) and
 # 💎🔮 elite_kr's RIDE (half-bank TP1 + BE + trail, in the TP1
@@ -362,7 +362,8 @@ MIN_RANK = 85.0  # GEN 9: anyone can take any place
 CLASS_W = {"go_revived": 107,     # 1. ⭐⚡/💎⚡ GO REVIVED — star + approved elite,
                                   #    FAST or LATE, entry at the GO price
            "arrival_t1": 106,     # 2. ⚡🔥 ARRIVAL T1 — HOT long at a ⚡ number
-           "strong_trigger": 105}  # 3. 💥 STRONG TRIGGER conf >=65
+           "strong_trigger": 105,  # 3. 💥 STRONG TRIGGER conf >=65
+           "early_lane": 104}     # 4. ⭐🚀 EARLY LANE conf >=85 (GEN 17.1)
 # 🪑 SPARE-SEAT RULE: a listed stream may open only while at least
 # this many seats stay free after it, so the priority three always
 # find room — rotation is off (ROTATE_MAX = 0) and a seat once taken
@@ -411,6 +412,8 @@ _RED_LONG = {"21-01", "01-05"}
 TIME_CLOSED: dict = {
     ("strong_trigger", "LONG"): set(_RED_LONG),
     ("strong_trigger", "SHORT"): {"09-13", "17-21"},
+    ("early_lane", "LONG"): set(_RED_LONG),       # GEN 17.1, as before
+    ("early_lane", "SHORT"): set(),
 }
 TIME_GATED: set = {s for s, _ in TIME_CLOSED}
 PKT_OFFSET_S = 5 * 3600
@@ -494,6 +497,7 @@ CONF_GATE: dict = {
     # GEN 17: strong_trigger keeps its measured-green band; GO REVIVED and
     # ARRIVAL T1 have no conf gate ("star and elite go fast or late").
     "strong_trigger": ((65.0, 1000.0),),
+    "early_lane": ((85.0, 1000.0),),             # GEN 17.1, as before
 }
 # GEN 6: no conditional seats — the pool is exactly the named three.
 CONDITIONAL_SRC: set = set()
@@ -515,7 +519,8 @@ def lev_for(src: str, conf=None, burst=None) -> float:
     ONE source of truth — the 💸 live executor calls this too.
     (The GEN 15 star 6x/8x-by-burst ladder is in git at 2a56c58.)"""
     return {"go_revived": 10.0, "arrival_t1": 10.0,
-            "strong_trigger": 10.0}.get(src, LEV_GEN13)   # GEN 17
+            "strong_trigger": 10.0,
+            "early_lane": 10.0}.get(src, LEV_GEN13)       # GEN 17.1
 
 
 def load() -> dict:

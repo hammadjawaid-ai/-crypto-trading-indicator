@@ -5409,7 +5409,8 @@ def cycle() -> None:
         _dz_form = {}
         for _dt, _sh in (("go_revived", "go_revived"),         # GEN 17
                          ("arrival_t1", "trig_hot"),
-                         ("strong_trigger", "trig_strong")):
+                         ("strong_trigger", "trig_strong"),
+                         ("early_lane", "early_lane")):     # GEN 17.1
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_sh)["net_r"]
             except Exception:
@@ -5943,7 +5944,12 @@ def cycle() -> None:
             "strong_trigger": ([f for f in _dz_fires
                                 if f["src"] == "strong_trigger"]
                                + [d for d in _dz_reo
-                                  if d["src"] == "strong_trigger"])}
+                                  if d["src"] == "strong_trigger"]),
+            # 4. ⭐🚀 EARLY LANE conf >= 85 (GEN 17.1, user: "add early lane
+            # as 4th stream thats it") — the lanes-flag half of early_strong
+            "early_lane": (_g16(em_big, "early_lane")
+                           + [d for d in _dz_reo
+                              if d["src"] == "early_lane"])}
         # 🔄 GEN 7 rotation input: every (coin, side) with a LIVE
         # signal this cycle — positions outside this set are the
         # rotation candidates ("a losing trade stands only while
@@ -6007,8 +6013,8 @@ def cycle() -> None:
                      "src": (_rec8.get("src")
                              if _rec8.get("src") in
                              ("go_revived", "arrival_t1",
-                              "strong_trigger")
-                             else "strong_trigger"),   # GEN 17
+                              "strong_trigger", "early_lane")
+                             else "strong_trigger"),   # GEN 17.1
                      "chain": int(_rp8.get("chain") or 0) + 1,
                      "fired_at": _now})
                 print(f"[gen8] 🔁 momentum re-entry queued "
