@@ -141,8 +141,8 @@ for gone in ('_sig_h = dict(_sig_t, tier="HOT")', "_fmt_hot_arrival", "trighot:"
         fails.append(f"stale text still present: {gone}")
 if "_MUTE_R9(_fmt_arrival" in W:
     fails.append("ARRIVAL bell must be live")
-if '"apex", "prime", "best"):' in W or '(("moon",) if TG_RULES else' not in W:
-    fails.append("push roster must be moon-only under TG_RULES (best/apex/prime/em off)")
+if '"apex", "prime", "best"):' in W or '(() if TG_RULES else' not in W:
+    fails.append("push roster must be empty under TG_RULES (moonshot muted 2026-10-14; best/apex/prime/em off)")
 for need in ('"trig_hot": "\u26a1\U0001F525 ARRIVAL T1', '"arr_hot": "\u26a1\U0001F525 ARRIVAL T2', '"arr_long": "\u26a1 ARRIVAL T3'):
     if need not in A:
         fails.append(f"app name missing: {need}")

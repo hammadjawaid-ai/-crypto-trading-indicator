@@ -268,6 +268,7 @@ def _ego_add(p, star=False, fam="elite"):
              "tp1": float(p["tp1"]), "tp2": p.get("tp2"),
              "tier": str(p.get("tier") or "HIGH"),
              "star": bool(star), "appr": bool(p.get("appr")),
+             "conf": p.get("conf"), "score": p.get("score"),
              "entry0": None, "go": None, "oneh": None,
              "froze": False, "buzzed": False, "fam": fam,
              "fired_at": _t9})
@@ -363,6 +364,136 @@ TP1_STREAMS = {
 _RG_DONE: set = set()      # (stream, symbol, side, ts) already banked / stopped
 GO_LIVE_UNAPPR = (" · this one is an UNAPPROVED fire: LIVE then GO 40% / +0.51R "
                   "(15), thin — size down")
+# 🚦 TELEGRAM GATES (user 2026-10-14, from the winners-vs-losers splits on
+# his 10-14 backup; restore point git tag telegram-baseline-2026-10-14):
+# ⭐ star fire, ⭐⚡/💎⚡ GO REVIVED and 💎⚡ GO LIVE ring only when the read
+# below passes; muted fires still record, open their desk trade and sit
+# on the boards (stamp "gate"). Each read uses only what is known at the
+# bell; a missing input passes (🟡). TG_GATES = False = the ungated phone.
+TG_GATES = True
+# BTC day-move thresholds (user 2026-10-14 asked 1.5 vs 2.5 for the star cap:
+# on the ledger +1.5..+2.5 is the bad band — 35% / -0.33R (17) — while >+4% is
+# fine; with heat / window / stop held the cap is the weakest rule either way:
+# 1.5 -> 71% / +0.45R (146), 2.5 -> 69% / +0.42R (154), none -> 69% / +0.40R (173)).
+# One line to change. GATE_BTC_MIN is the down-side floor for the GO classes
+# (< -2.5% ran 33% / -0.01R).
+STAR_BTC_MAX = 1.5
+GATE_BTC_MIN = -1.5
+STAR_GATE_REC = ("gated set 71% / +0.45R (146) vs rejected 48% / -0.05R (205) · "
+                 "desk 09 Sep → 14 Oct")
+REVIVED_GATE_REC = ("gated set 74% / +0.60R (78) vs rejected 41% / +0.01R (88) · "
+                    "from the fire price, 13 Sep → 14 Oct")
+REVIVED_ENTRY_OK = ("✅ entry cell — 0.3–0.6R left to TP1, BTC not down >1.5%, "
+                    "not 21–05 PKT: 80% / +0.31R (20) entered at the GO")
+REVIVED_ENTRY_NO = ("⚠️ hold only — outside the entry cell (49% / -0.11R entered "
+                    "at the GO): hold the fire seat, do not enter here")
+GOLIVE_GATE_REC = ("gated set 65% / +1.27R (23) vs rejected 45% / +0.36R (42) · "
+                   "from the fire price")
+_BTC_DAY_CACHE: dict = {"t": 0.0, "v": None}
+
+
+def _btc_day_pct():
+    """BTC's last-24h move in %, cached 5 min (a gate input). None when
+    unreadable — and an unreadable input passes every gate."""
+    try:
+        if time.time() - _BTC_DAY_CACHE["t"] < 300:
+            return _BTC_DAY_CACHE["v"]
+        _d = binance_client.get_klines("BTCUSDT", "1h", limit=26)
+        _c = _d["close"].to_numpy(float)
+        _v = ((float(_c[-1]) / float(_c[-25]) - 1.0) * 100.0
+              if len(_c) >= 25 and float(_c[-25]) > 0 else None)
+        _BTC_DAY_CACHE.update(t=time.time(), v=_v)
+        return _v
+    except Exception:
+        return None
+
+
+def _stop_pct(entry, stop):
+    try:
+        e, s = float(entry), float(stop)
+        return abs(e - s) / e * 100.0 if e > 0 and s > 0 else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _gate_bits(rules):
+    """rules: [(value_or_None, passes_bool, label)] -> (passed, 'read: …').
+    A None value is unknown: shown 🟡, never blocks."""
+    passed, bits = True, []
+    for val, ok, lab in rules:
+        if val is None:
+            bits.append(f"🟡 {lab} ?")
+        elif ok:
+            bits.append(f"✅ {lab}")
+        else:
+            bits.append(f"⚠️ {lab}")
+            passed = False
+    return passed, "read: " + " · ".join(bits)
+
+
+def _star_gate(p, now, btc=None):
+    """⭐ four-rule read: heat >= 25 · BTC day <= +1.5% · not 01–05 PKT ·
+    stop <= 7%. Returns (passed, line)."""
+    try:
+        heat = float(p.get("heat")) if p.get("heat") is not None else None
+    except (TypeError, ValueError):
+        heat = None
+    win = buzz_clock.window_of(rung_stats.pkt_hour(now))
+    sp = _stop_pct(p.get("entry"), p.get("stop"))
+    passed, line = _gate_bits([
+        (heat, heat is not None and heat >= 25, f"heat {heat:g}" if heat is not None else "heat"),
+        (btc, btc is not None and btc <= STAR_BTC_MAX, f"BTC {btc:+.2f}% today" if btc is not None else "BTC today"),
+        (win, win != "01–05", f"{win} PKT"),
+        (sp, sp is not None and sp <= 7.0, f"stop {sp:.1f}%" if sp is not None else "stop")])
+    return passed, line + " — " + STAR_GATE_REC
+
+
+def _revived_gate(ew, px, now, btc=None):
+    """⭐⚡/💎⚡ GO REVIVED: the FIRE read (conf not 65–84 · not MAX · score < 90
+    · BTC day >= -1.5% · fire not 13–17 PKT) -> (passed, line, entry_line);
+    entry_line = the ENTRY-cell read at the GO (0.3–0.6R left to TP1, BTC day
+    >= -1.5%, GO not 21–05 PKT)."""
+    try:
+        conf = float(ew.get("conf")) if ew.get("conf") is not None else None
+    except (TypeError, ValueError):
+        conf = None
+    try:
+        score = float(ew.get("score")) if ew.get("score") is not None else None
+    except (TypeError, ValueError):
+        score = None
+    tier = str(ew.get("tier") or "").upper() or None
+    fwin = buzz_clock.window_of(rung_stats.pkt_hour(float(ew.get("fired_at") or now)))
+    passed, line = _gate_bits([
+        (conf, conf is not None and not (65 <= conf < 85), f"conf {conf:g}" if conf is not None else "conf"),
+        (tier, tier != "MAX", f"{tier} card" if tier else "card"),
+        (score, score is not None and score < 90, f"score {score:g}" if score is not None else "score"),
+        (btc, btc is not None and btc >= GATE_BTC_MIN, f"BTC {btc:+.2f}% today" if btc is not None else "BTC today"),
+        (fwin, fwin != "13–17", f"fired {fwin} PKT")])
+    try:
+        e0, st, t1 = float(ew.get("entry0") or 0), float(ew["stop"]), float(ew["tp1"])
+        sgn = 1.0 if ew.get("side") == "LONG" else -1.0
+        risk = abs(e0 - st)
+        r_left = ((t1 - float(px)) * sgn / risk) if (risk > 0 and px) else None
+    except (TypeError, ValueError, KeyError):
+        r_left = None
+    gwin = buzz_clock.window_of(rung_stats.pkt_hour(now))
+    in_cell = (r_left is not None and 0.3 <= r_left <= 0.6
+               and (btc is None or btc >= GATE_BTC_MIN)
+               and gwin not in ("21–01", "01–05"))
+    entry_line = ((REVIVED_ENTRY_OK if in_cell else REVIVED_ENTRY_NO)
+                  + (f" · {r_left:.2f}R left now" if r_left is not None else ""))
+    return passed, line + " — " + REVIVED_GATE_REC, entry_line
+
+
+def _golive_gate(ew, btc=None):
+    """💎⚡ GO LIVE: HIGH card · stop < 5% · BTC day >= -1.5% -> (passed, line)."""
+    tier = str(ew.get("tier") or "").upper() or None
+    sp = _stop_pct(ew.get("entry0"), ew.get("stop"))
+    passed, line = _gate_bits([
+        (tier, tier == "HIGH", f"{tier} card" if tier else "card"),
+        (sp, sp is not None and sp < 5.0, f"stop {sp:.1f}%" if sp is not None else "stop"),
+        (btc, btc is not None and btc >= GATE_BTC_MIN, f"BTC {btc:+.2f}% today" if btc is not None else "BTC today")])
+    return passed, line + " — " + GOLIVE_GATE_REC
 # 🧵 thread memory: (symbol, side) -> {ts, ids} of the fire bell the phone
 # heard, so a watch entry created after the send still answers in-thread.
 _TG_THREADS: dict = {}
@@ -2014,7 +2145,7 @@ TG_CONV_PRIME = True   # 💎🥇 bell. False = silent; desk tier conv_prime con
 # Prime"): .prime_pairs_all.py — the strongest win-rate pair and the
 # biggest-lift pair on the board. No band rule: every band rings and records,
 # the desk splits the record by band.
-TG_TRIGKR_PRIME = True   # 💥🔮🥇 bell. False = silent; tier trigkr_prime continues.
+TG_TRIGKR_PRIME = False  # 💥🔮🥇 bell OFF 2026-10-14 (user: "remove or mute"); tier trigkr_prime continues.
 TG_LEG2_PRIME = True     # 🔥🥇 bell. False = silent; tier leg2_prime continues.
 PRIME_PAIR_BEFORE, PRIME_PAIR_AFTER = 2 * 3600, 30 * 60
 PRIME_PAIR_FRESH = 35 * 60       # an elite record pairs only while this fresh
@@ -2257,8 +2388,11 @@ def cycle() -> None:
                     # closed apex v2 from telegram as well? bring it
                     # back") — the 2026-10-05 APEX mute covers the plain
                     # APEX stack bell only; V2 rings as before.
-                    tg.send(_fmt_apex_v2(_sig2, _px2, _rv2)
-                            + _kr_note(_sig2))
+                    # 📵 muted 2026-10-14 (user: "remove or mute: Apex v2"; forward
+                    # 47% / +0.07R over 98). Records / tier / board continue.
+                    # Revert: _MUTE_RULES -> tg.send.
+                    _MUTE_RULES(_fmt_apex_v2(_sig2, _px2, _rv2)
+                                + _kr_note(_sig2))
                 except Exception as _v2b_exc:
                     print("  apexv2 bell error:", _v2b_exc, flush=True)
             print(f"[apexv2] 🏆² {_sig2['base']} {_sd2} score "
@@ -2339,7 +2473,9 @@ def cycle() -> None:
         # (user 2026-09-13 later, "bring back": 🏆 APEX ×4/×5 conf>=70
         # · 🥇 PRIME conf>=55 · 💎 BEST OF THE BEST with its 🎯 conf
         # chip — all three back on the phone, gates as they were.)
-        if key_prefix not in (("moon",) if TG_RULES else
+        # 📵 2026-10-14: 🌙 moonshot off the phone too (user: "remove or mute:
+        # moonshot"; last 14 days 40% / -0.18R over 47). Revert: (("moon",) if …
+        if key_prefix not in (() if TG_RULES else
                               ("moon", "em", "emrest",
                                "apex", "prime")):
             # 📵 TG RULES 2026-10-05: 🏆 APEX, 🥇 PRIME, ⭐🚀 PRIME ENTRY
@@ -2615,6 +2751,7 @@ def cycle() -> None:
                     except Exception:
                         pass
                     _ids9 = None
+                    _gate9 = (True, "")
                     if TG_RULES and (_star9 or _ag9):
                         # 🧵 TG RULES (user 2026-10-05): the rung-1 bells
                         # are thread anchors — the ⏱ verdict / ⭐⚡ GO /
@@ -2635,7 +2772,24 @@ def cycle() -> None:
                             except Exception as _rs_exc:
                                 print("  star fire format error:",
                                       _rs_exc, flush=True)
-                        ok, _m9, _ids9 = tg.send_thread(_msg9)
+                        if _star9 and TG_GATES:
+                            # 🚦 the four-rule read (user 2026-10-14):
+                            # muted stars keep their record / desk /
+                            # board; no thread -> no replies.
+                            try:
+                                _gate9 = _star_gate(_pmx, time.time(),
+                                                    _btc_day_pct())
+                                _msg9 = _msg9.replace(
+                                    "\n", "\n" + _gate9[1] + "\n", 1)
+                            except Exception as _gt_exc:
+                                _gate9 = (True, f"read: error {_gt_exc}")
+                        if _star9 and TG_GATES and not _gate9[0]:
+                            ok, _m9, _ids9 = False, "gated", None
+                            print(f"  [gate] ⭐ {_pmx.get('symbol')} "
+                                  f"{_pmx.get('side')} muted: {_gate9[1]}",
+                                  flush=True)
+                        else:
+                            ok, _m9, _ids9 = tg.send_thread(_msg9)
                     elif TG_RULES:
                         # 📵 plain 💎 conviction OFF the phone — Claude's
                         # call on the user's "your call" (2026-10-05):
@@ -2688,7 +2842,11 @@ def cycle() -> None:
                                 "tp2": _pmx.get("tp2"),
                                 "conf": _cf9,
                                 "heat": _pmx.get("heat"),
-                                "tier": "HIGH"}
+                                "tier": "HIGH",
+                                "gate": (("pass" if _gate9[0] else
+                                          "muted") if TG_GATES
+                                         else "off"),
+                                "gate_read": _gate9[1]}
                             store.record_signal("elite_star",
                                                 _st_sig)
                             _st_px = None
@@ -4004,7 +4162,10 @@ def cycle() -> None:
                         continue
                     _kp_t2 = (f" · TP2 `{float(_sp2['tp2']):g}`"
                               if _sp2.get("tp2") else "")
-                    ok, _ = tg.send(
+                    # 📵 muted 2026-10-14 (user: "remove or mute: kr strong";
+                    # the bell's 83% never reproduced — 56% / +0.38R over 71).
+                    # Records / stamp continue. Revert: _MUTE_RULES -> tg.send.
+                    ok, _ = _MUTE_RULES(
                         f"⚡🔮 *KR-STRONG PREMIUM — "
                         f"{_sp2.get('base')} LONG*\n"
                         f"strong setup · calm kronos wind "
@@ -5728,9 +5889,27 @@ def cycle() -> None:
                                                       "-1.9% / late -1.7% measured; "
                                                       "records only)")
                                         elif _ew.get("star") or _ew.get("appr"):
-                                            _ok9, _m9x = tg.send(_go9)
-                                            _bell9 = ("sent-standalone" if _ok9
-                                                      else f"failed: {_m9x}")
+                                            # 🚦 revived gate (user 2026-10-14):
+                                            # the fire read decides the bell;
+                                            # the entry-cell read rides on it.
+                                            _rg9 = (True, "", "")
+                                            if TG_GATES:
+                                                try:
+                                                    _rg9 = _revived_gate(
+                                                        _ew, _ew_px, _ew_now,
+                                                        _btc_day_pct())
+                                                except Exception as _rg_exc:
+                                                    _rg9 = (True, f"read: error {_rg_exc}", "")
+                                            if TG_GATES and not _rg9[0]:
+                                                _bell9 = f"gated: {_rg9[1]}"
+                                            else:
+                                                _go9x = (_go9.replace(
+                                                    "\n", "\n" + _rg9[1] + "\n"
+                                                    + _rg9[2] + "\n", 1)
+                                                    if TG_GATES else _go9)
+                                                _ok9, _m9x = tg.send(_go9x)
+                                                _bell9 = ("sent-standalone" if _ok9
+                                                          else f"failed: {_m9x}")
                                         else:
                                             _bell9 = ("not-approved (unapproved "
                                                       "elite fire; records only)")
@@ -5751,10 +5930,23 @@ def cycle() -> None:
                                             _cl9 = GO_LIVE_LINE + (
                                                 "" if _ew.get("appr")
                                                 else GO_LIVE_UNAPPR)
-                                            _ok9, _m9x = tg.send(_go9.replace(
-                                                "\n", "\n" + _cl9 + "\n", 1))
-                                            _bell9 = ("sent-standalone" if _ok9
-                                                      else f"failed: {_m9x}")
+                                            # 🚦 GO LIVE gate (user 2026-10-14)
+                                            _gl9 = (True, "")
+                                            if TG_GATES:
+                                                try:
+                                                    _gl9 = _golive_gate(
+                                                        _ew, _btc_day_pct())
+                                                except Exception as _gl_exc:
+                                                    _gl9 = (True, f"read: error {_gl_exc}")
+                                            if TG_GATES and not _gl9[0]:
+                                                _bell9 = f"gated: {_gl9[1]}"
+                                            else:
+                                                if TG_GATES:
+                                                    _cl9 = _gl9[1] + "\n" + _cl9
+                                                _ok9, _m9x = tg.send(_go9.replace(
+                                                    "\n", "\n" + _cl9 + "\n", 1))
+                                                _bell9 = ("sent-standalone" if _ok9
+                                                          else f"failed: {_m9x}")
                                     if _bell9.startswith("sent"):
                                         n_alerts += 1
                                 except Exception as _go_exc:

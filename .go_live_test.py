@@ -51,7 +51,7 @@ if not (0 < i_dead < i_thr < i_live < i_sent):
     fails.append(f"GO branch order wrong: dead {i_dead} thread {i_thr} live {i_live} sent {i_sent}")
 blk = W[i_live:i_sent]
 for need, lab in (('if not TG_GO_LIVE:', "switch"), ('else GO_LIVE_UNAPPR)', "unapproved tag"),
-                  ('tg.send(_go9.replace(\n                                                "\\n", "\\n" + _cl9 + "\\n", 1))', "standalone send with the class line"),
+                  ('tg.send(_go9.replace(\n                                                    "\\n", "\\n" + _cl9 + "\\n", 1))', "standalone send with the class line"),
                   ('"sent-standalone" if _ok9', "bell stamp")):
     if need not in blk:
         fails.append(f"LIVE branch missing: {lab}")
@@ -78,7 +78,14 @@ for a, b, lab in (('if _ew.get("oneh") == "DEAD":\n                             
     if lab == "DEAD + thread branches":
         old_ = seg(head, a, 'if _bell9.startswith("sent"):')
         now_ = seg(W, a, 'elif (_ew.get("oneh") == "LIVE"')
-        # HEAD's segment ends at the sent-check; ours ends at the new elif — compare the common prefix
+        # HEAD's segment ends at the sent-check; ours ends at the new elif — compare the common prefix.
+        # 2026-10-14: the revived standalone send inside this segment is now gated (user call) —
+        # drop that send block from both sides before comparing.
+        def _cut_rev(x):
+            i = (x or "").find('elif _ew.get("star") or _ew.get("appr"):')
+            j = (x or "").find('_bell9 = ("not-approved (unapproved', i)
+            return x if (i < 0 or j < 0) else x[:i] + x[j:]
+        old_, now_ = _cut_rev(old_), _cut_rev(now_)
         if old_ is None or now_ is None or not old_.startswith(now_.rstrip()) and old_.rstrip() != now_.rstrip():
             fails.append("DEAD / thread branches changed")
     elif lab == "stamp + go_revived tier":

@@ -231,8 +231,8 @@ ast.parse(W)
 for need, lab in (("TG_RULES = True\n", "switch on"),
                   ("_MUTE_RULES = _MUTE_R9 if TG_RULES else tg.send\n", "mute lambda"),
                   ("import rung_stats\n", "import"),
-                  ('if key_prefix not in (("moon",) if TG_RULES else\n', "roster moon-only"),
-                  ("tg.send(_fmt_apex_v2(_sig2, _px2, _rv2)", "apex v2 bell live again (user 2026-10-06)"),
+                  ('if key_prefix not in (() if TG_RULES else\n', "roster: no push stream on the phone (moonshot muted 2026-10-14)"),
+                  ("_MUTE_RULES(_fmt_apex_v2(_sig2, _px2, _rv2)", "apex v2 muted (user 2026-10-14)"),
                   ('ok, _m9, _ids9 = tg.send_thread(_msg9)', "star/A-grade send as thread anchor"),
                   ("ok, _m9 = _MUTE_RULES(_msg9)", "plain conviction muted"),
                   ('_ewb["tg_ids"] = _ids9', "ids stored on the watch entry"),
@@ -243,11 +243,11 @@ for need, lab in (("TG_RULES = True\n", "switch on"),
                   ("_go9 = rung_stats.go_text(\n                                        _ew, _prg, _age, _ew_px,\n                                        _ew_now)", "GO text built"),
                   ('if _ew.get("oneh") == "DEAD":\n                                        # GO REVIVED is its own bell', "revived branch"),
                   ("int(1.0 * 3600)):   # 1h (user 2026-10-06", "elite re-buzz key 1h"),
-                  ('elif _ew.get("star") or _ew.get("appr"):\n                                            _ok9, _m9x = tg.send(_go9)', "revived: stars + approved elite only"),
+                  ('elif _ew.get("star") or _ew.get("appr"):\n                                            # 🚦 revived gate (user 2026-10-14):', "revived: stars + approved elite only, gated"),
                   ("REVIVED_LONG_FAST = False\n", "every revived class rings (user 2026-10-09)"),
                   ('and REVIVED_LONG_FAST\n                                                and not (_ew["side"] == "LONG"\n                                                         and _ew["go"] == "FAST")):', "revived bell skips shorts and late GOs"),
                   ('_bell9 = ("not-approved (unapproved "', "unapproved elite stays records-only"),
-                  ("_ok9, _m9x = tg.send(_go9)", "GO REVIVED standalone"),
+                  ("_ok9, _m9x = tg.send(_go9x)", "GO REVIVED standalone (gated 2026-10-14)"),
                   ('_bell9 = "not-buzzed (LIVE fire not on the phone)"', "GO bell status default"),
                   ('if (_ew.get("fam", "elite") == "elite"\n                            and _ew.get("go") is None', "GO for the whole elite family"),
                   ('"star_go" if _ew.get("star") else "elite_go", {', "elite_go stamp"),
@@ -307,7 +307,7 @@ if "is_night" in blk or "pkt_hour" in blk:
 if not (0 < W.find("_bell9 = \"not-buzzed") < W.find('"bell": _bell9})') < W.find('if _ew["go"] == "FAST" and _ew.get("star"):')):
     fails.append("GO stamp must follow the send and precede the chase tier")
 _i_d = W.find('if _ew.get("oneh") == "DEAD":\n                                        # GO REVIVED is its own bell')
-_i_s = W.find("_ok9, _m9x = tg.send(_go9)")
+_i_s = W.find("_ok9, _m9x = tg.send(_go9x)")
 if not (0 < _i_d < _i_s) or "buzzed" in W[_i_d:_i_s]:
     fails.append("the revived bell must ring whether or not the fire was on the phone")
 # persistence round-trip (the two helpers run standalone)

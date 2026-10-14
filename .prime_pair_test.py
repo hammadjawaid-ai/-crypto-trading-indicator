@@ -76,7 +76,7 @@ if "window: 🟡 13–17 PKT — this pair here 0% / -0.09R (1)" not in m7:
     fails.append("thin window line wrong")
 if ns["PAIR_KEY_H"] != {"star": 1.0, "conv": 1.0, "trigkr": 3.0, "leg2": 3.0}:
     fails.append("pair keys: star/conv 1h (user 2026-10-12), trigkr/leg2 3h")
-if not (ns["TG_TRIGKR_PRIME"] is True and ns["TG_LEG2_PRIME"] is True) or set(ns["PAIR_KINDS"]) != {"star", "conv", "trigkr", "leg2"}:
+if not (ns["TG_TRIGKR_PRIME"] is False and ns["TG_LEG2_PRIME"] is True) or set(ns["PAIR_KINDS"]) != {"star", "conv", "trigkr", "leg2"}:   # trigkr muted 2026-10-14
     fails.append("new pair switches / kinds wrong")
 if "🎯 conf ? (? band)" not in m3 or "this band —" not in m3:
     fails.append("unreadable conf must print ? and —")
