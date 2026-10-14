@@ -6186,6 +6186,15 @@ def cycle() -> None:
                 return _v
             except Exception:
                 return None
+        # 🎮 GEN 17 cut-over (user 2026-10-14): seats from the old roster
+        # close at the live price once; the new streams start clean.
+        try:
+            for _ev17, _rec17 in demo_account.close_before(
+                    _dz, demo_account.DEMO_RESET_BEFORE, _live):
+                print(f"[gen17] cut-over close {_rec17['base']} "
+                      f"{_rec17['side']} {_rec17['pnl']:+.2f}$", flush=True)
+        except Exception as _co_exc:
+            print("  gen17 cut-over error:", _co_exc, flush=True)
         _dz_events = demo_account.manage(_dz, _live, _dz_kr)
         # 🔁 GEN 8 MOMENTUM RE-ENTRY (user 2026-09-05: "let it ride
         # to tp1 and close it. if the momentum is still there open

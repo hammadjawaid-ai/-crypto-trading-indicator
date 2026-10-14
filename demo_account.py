@@ -892,6 +892,37 @@ def _close_qty(state, p, qty, px, reason) -> dict:
     return rec
 
 
+# 🎮 GEN 17 CUT-OVER (user 2026-10-14: "close the ones that are open and with
+# new stream start with them"): seats opened before this moment are closed
+# at the live price on the next cycle, once. 0 = off.
+DEMO_RESET_BEFORE = 1791980100.0      # 2026-10-14 12:15 UTC = 17:15 PKT
+
+
+def close_before(state: dict, ts: float, live_fn) -> list:
+    """Close every open seat opened before `ts` at the live price (fees paid,
+    balance updated, closed-trade record with the cut-over reason). Returns
+    [("close", rec)]; a seat whose price is unreadable waits for the next tick."""
+    out = []
+    if not ts:
+        return out
+    for p in list(state.get("open") or []):
+        try:
+            if float(p.get("opened_at") or 0) >= float(ts):
+                continue
+            live = float(live_fn(p["symbol"]) or 0)
+            if live <= 0:
+                continue
+            rec = _close_qty(state, p, p["qty"], live,
+                             "GEN 17 cut-over — closed at live, new roster "
+                             "from here (user 2026-10-14)")
+            state["closed"].append(rec)
+            state["open"].remove(p)
+            out.append(("close", rec))
+        except Exception:
+            continue
+    return out
+
+
 def manage(state: dict, live_fn, kr_get=None) -> list:
     """GEN 15 EXIT LAW (user 2026-09-13: "its sl and tp that should be
     set with it nothing less, just a smart exit when its close to tp
