@@ -156,6 +156,11 @@ HEAT_CAP = 0.35              # open risk (sum of risk_usd) / equity
 # raising FADE; make it rarer by raising PEAK.
 NEAR_TP_PEAK = 0.85          # how far it must have travelled
 NEAR_TP_FADE = 0.60          # how far it has given back
+# 🎮 GEN 17 (user 2026-10-14): the near-TP bank is for GO REVIVED and
+# ARRIVAL T1 only ("when the signal has run 85-90% to TP1 we close them …
+# nothing before if it goes positive, TP1 and SL remain intact");
+# STRONG TRIGGER exits at SL or TP1 only.
+NEAR_TP_SRC: set = {"go_revived", "arrival_t1"}
 # 📐 rr re-checked at the LIVE entry for streams whose edge IS an rr
 # law — (lo, hi) half-open, None = unbounded on that side. The star
 # profile was measured at TP1 within 1.2R; the premium cell at
@@ -251,9 +256,8 @@ ELITE_FAMILY_CAP = 0
 # positives banked first, then negatives cut. Healthy signals are
 # NEVER rotated, and at most this many rotations happen per cycle.
 ROTATE_MAX = 0   # GEN 9 user order: rotation REMOVED
-SMART_EXIT_SKIP: set = {"moonshot", "strong_trigger", "elite_star",
-                        "early_movers", "early_lane",
-                        "strig_kr", "press_break"}         # GEN 16.5
+SMART_EXIT_SKIP: set = {"go_revived", "arrival_t1",
+                        "strong_trigger"}                  # GEN 17
 # GEN 12: kronos smart-exit off for all. Exits: SL-or-TP1-bank-100%
 # everywhere EXCEPT ⭐ elite_star's near-TP bank (own block) and
 # 💎🔮 elite_kr's RIDE (half-bank TP1 + BE + trail, in the TP1
@@ -349,13 +353,16 @@ MIN_RANK = 85.0  # GEN 9: anyone can take any place
 # break takes the TOP rung, longs only, any conf, no time gate; the
 # rest of the ladder is unchanged below it. GEN stays 16 (balance and
 # history carry on).
-CLASS_W = {"press_break": 107,    # 1. 🔶💥 PRESSED & BROKE, LONGS ONLY (GEN 16.5)
-           "elite_star": 106,     # 2. ⭐ conf 40-54 / 65+   PRIORITY
-           "strong_trigger": 105,  # 2. 💥 conf >=65           PRIORITY
-           "moonshot": 104,       # 3. 🚀 conf 55-64          PRIORITY
-           "early_lane": 103,     # 4. ⭐🚀 PRIME ENTRY conf >=85 (spare)
-           "strig_kr": 102,       # 5. 💥🔮 TRIG×KR conf >=40  (spare)
-           "early_movers": 101}   # 6. ⚡ conf 55-64 or 85+    (spare)
+# 🎮 GEN 17 — THE THREE (user 2026-10-14, from the closed-trade ranking:
+# early_lane +1011$ and strong_trigger +598$ made the money, press_break
+# -485$, strig_kr -228$, elite_star -120$, moonshot -5$): "we will only go
+# with only these streams on demo trading nothing else … remove everything
+# else". CLASS_W IS the roster and the ladder — a stream not listed here
+# takes no seat (rank_candidates roster guard).
+CLASS_W = {"go_revived": 107,     # 1. ⭐⚡/💎⚡ GO REVIVED — star + approved elite,
+                                  #    FAST or LATE, entry at the GO price
+           "arrival_t1": 106,     # 2. ⚡🔥 ARRIVAL T1 — HOT long at a ⚡ number
+           "strong_trigger": 105}  # 3. 💥 STRONG TRIGGER conf >=65
 # 🪑 SPARE-SEAT RULE: a listed stream may open only while at least
 # this many seats stay free after it, so the priority three always
 # find room — rotation is off (ROTATE_MAX = 0) and a seat once taken
@@ -364,15 +371,14 @@ CLASS_W = {"press_break": 107,    # 1. 🔶💥 PRESSED & BROKE, LONGS ONLY (GEN
 # on GEN 16's own 242 trades: the board peaked at 18/20 and sat ~8-9
 # typically; a 5-seat reserve would have blocked 3 of early lane's 92
 # opens.
-SPARE_RESERVE: dict = {"early_lane": 5, "strig_kr": 5,
-                       "early_movers": 5}
+SPARE_RESERVE: dict = {}          # GEN 17: no spare lanes
 # 🔶💥 GEN 16.5 (user 2026-10-04: "add PRESSED & BROKE to priority 1 but
 # only longs no shorts"): an armed ⚡/🔥/💎 number that was PRESSED
 # (price within 0.4% of it for a while) before it broke, from the
 # worker's _trigger_watch; desk tier press_break (17 closed, 71%,
 # +3.6R at wiring — young, proving). LONG only, any conf, no spare
 # reserve, no time gate (his call), flat 10x like every lane.
-LONG_ONLY: set = {"press_break"}
+LONG_ONLY: set = {"arrival_t1"}    # T1 is long by construction; guard anyway
 # ⏰ GEN 16.5 TIME GATE (user 2026-10-04: "timings should matter — we
 # will take long trades as per our finding for elite star with yellow
 # and green timings not red timings; same goes for early lane and
@@ -400,17 +406,11 @@ LONG_ONLY: set = {"press_break"}
 # re-entries are gated too: a seat taken at 23:00 is taken at 23:00.
 TIME_WINDOWS = ("05-09", "09-13", "13-17", "17-21", "21-01", "01-05")
 _RED_LONG = {"21-01", "01-05"}
+# GEN 17: the time gate stays for strong_trigger only (its measured red
+# windows); GO REVIVED and ARRIVAL T1 seat all day as the user named them.
 TIME_CLOSED: dict = {
-    ("elite_star", "LONG"): set(_RED_LONG),
     ("strong_trigger", "LONG"): set(_RED_LONG),
-    ("strig_kr", "LONG"): set(_RED_LONG),
-    ("early_lane", "LONG"): set(_RED_LONG),
-    ("early_movers", "LONG"): set(_RED_LONG),
-    ("elite_star", "SHORT"): {"09-13", "21-01", "01-05"},
     ("strong_trigger", "SHORT"): {"09-13", "17-21"},
-    ("strig_kr", "SHORT"): {"09-13", "17-21"},
-    ("early_lane", "SHORT"): set(),
-    ("early_movers", "SHORT"): set(),
 }
 TIME_GATED: set = {s for s, _ in TIME_CLOSED}
 PKT_OFFSET_S = 5 * 3600
@@ -491,17 +491,9 @@ def time_gate_ok(src, side, now=None) -> bool:
 # cuts volume ~4x AND expectancy ~40%. His call, his system; revert
 # by deleting the two early_* lines.
 CONF_GATE: dict = {
-    "early_lane": ((85.0, 1000.0),),
-    "early_movers": ((55.0, 65.0), (85.0, 1000.0)),
+    # GEN 17: strong_trigger keeps its measured-green band; GO REVIVED and
+    # ARRIVAL T1 have no conf gate ("star and elite go fast or late").
     "strong_trigger": ((65.0, 1000.0),),
-    "strig_kr": ((40.0, 1000.0),),
-    # ⭐ user 2026-09-21: "confidence score of 65 and above and the
-    # 40-54 one" — the 55-64 band (0-for-3 live, -0.12R replay)
-    # stays out of the money exactly as it is out of the buzz.
-    "elite_star": ((40.0, 55.0), (65.0, 1000.0)),
-    # 🚀 GEN 16.4: the measured band only — 40-54 ran 33% / -0.23R
-    # pre-rally and -0.38R in the rally; 65+ is 1-for-7.
-    "moonshot": ((55.0, 65.0),),
 }
 # GEN 6: no conditional seats — the pool is exactly the named three.
 CONDITIONAL_SRC: set = set()
@@ -522,10 +514,8 @@ def lev_for(src: str, conf=None, burst=None) -> float:
     3.25%, so that guard bites only on the genuinely wild plans.
     ONE source of truth — the 💸 live executor calls this too.
     (The GEN 15 star 6x/8x-by-burst ladder is in git at 2a56c58.)"""
-    return {"moonshot": 10.0, "strong_trigger": 10.0,
-            "elite_star": 10.0, "early_movers": 10.0,
-            "early_lane": 10.0, "strig_kr": 10.0,
-            "press_break": 10.0}.get(src, LEV_GEN13)      # GEN 16.5
+    return {"go_revived": 10.0, "arrival_t1": 10.0,
+            "strong_trigger": 10.0}.get(src, LEV_GEN13)   # GEN 17
 
 
 def load() -> dict:
@@ -950,7 +940,8 @@ def manage(state: dict, live_fn, kr_get=None) -> list:
         # since given back to <=60% of it while still in profit —
         # i.e. it went for the target, stalled, and is rolling over.
         # This is the ONLY exit in GEN 15 that is neither SL nor TP.
-        if not hit_stop and not hit_tp1 and p["qty"] > 0:
+        if (not hit_stop and not hit_tp1 and p["qty"] > 0
+                and p.get("src") in NEAR_TP_SRC):    # GEN 17
             _tpd = abs(p["tp1"] - p["entry"]) or 1e-12
             _pk_pr = abs(_pk - p["entry"]) / _tpd
             _now_pr = ((live - p["entry"])

@@ -437,6 +437,11 @@ _DEMO_CONFIRMS: list = []
 # 🎮 GEN 11 (user 2026-09-10): 💎⭐ elite star fires are the demo's
 # TOP priority seat. Cycle-thread only; TTL-drained like the rest.
 _DEMO_STARS: list = []
+# 🎮 GEN 17 seat feeds (user 2026-10-14): ⭐⚡/💎⚡ GO REVIVED entries (appended
+# where the go_revived desk tier is recorded) and ⚡🔥 ARRIVAL T1 fires
+# (appended at the arrival site, tier 1 only). Same TTL/drain as _DEMO_STARS.
+_DEMO_GO: list = []
+_DEMO_T1: list = []
 _DEMO_PB: list = []     # 🔶💥 GEN 16.5 pressed-first breaks, LONGS ONLY
 # 🗞 NEWS RADAR runs off the main loop (its RSS pass takes ~16-18s);
 # news_radar holds its own lock, this just avoids piling up threads.
@@ -1067,6 +1072,16 @@ def _trigger_watch() -> None:
                         for _tn in _tiers_a:
                             store.record_signal(_tn, _sig_a)
                             shadow_trader.open_from_signal(_tn, _sig_a, px)
+                        if _atier == 1:
+                            # 🎮 GEN 17 P2 seat feed (user 2026-10-14):
+                            # the T1 fire with its own plan.
+                            with _TRIG_LOCK:
+                                _DEMO_T1.append(dict(
+                                    _sig_a, src="arrival_t1",
+                                    score=float(a.get("score") or 85),
+                                    burst=float(a.get("burst") or 0),
+                                    fired_at=_now))
+                                del _DEMO_T1[:-12]
                         # user 2026-10-05 (same hour): "make it 1.5 hrs
                         # and remove T3, T1 and T2 works" -> the HOT
                         # tiers ring, 1.5h per coin; T3 stays a desk-only
@@ -5392,13 +5407,9 @@ def cycle() -> None:
         # GEN 8 form boosts: each pool's own live desk ledger (duo
         # form = the duo85 tier; young tiers just read ~0 = neutral).
         _dz_form = {}
-        for _dt, _sh in (("moonshot", "moonshot"),
-                         ("strong_trigger", "trig_strong"),
-                         ("elite_star", "elite_star"),
-                         ("early_movers", "early_movers"),
-                         ("early_lane", "early_lane"),
-                         ("strig_kr", "trig_strong_kr"),
-                         ("press_break", "press_break")):   # GEN 16.5
+        for _dt, _sh in (("go_revived", "go_revived"),         # GEN 17
+                         ("arrival_t1", "trig_hot"),
+                         ("strong_trigger", "trig_strong")):
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_sh)["net_r"]
             except Exception:
@@ -5483,6 +5494,10 @@ def cycle() -> None:
                           if _now - d["fired_at"] <= DEMO_FIRE_TTL_S]
         _DEMO_PB[:] = [d for d in _DEMO_PB
                        if _now - d["fired_at"] <= DEMO_FIRE_TTL_S]
+        with _TRIG_LOCK:   # GEN 17 feeds
+            _DEMO_T1[:] = [d for d in _DEMO_T1
+                           if _now - d["fired_at"] <= DEMO_FIRE_TTL_S]
+            _dz_t1 = list(_DEMO_T1)
         # 💎🔮 elite_kr candidates: live elite MAX/HIGH cards whose
         # coin+side has a fresh KR-STRONG/TRIG×KR fire behind it
         _dz_ekr = []
@@ -5791,6 +5806,17 @@ def cycle() -> None:
                                 store.record_signal("go_revived", _rv_sig)
                                 shadow_trader.open_from_signal(
                                     "go_revived", _rv_sig, _ew_px)
+                                # 🎮 GEN 17 P1 seat feed (user 2026-10-14):
+                                # the same entry the tier takes — at the
+                                # GO price with the fire's plan, star or
+                                # approved elite, FAST or LATE.
+                                _DEMO_GO.append(dict(
+                                    _rv_sig, src="go_revived",
+                                    score=(90.0 if _ew.get("star")
+                                           else 85.0),
+                                    burst=0.0, conf=None,
+                                    fired_at=_ew_now))
+                                del _DEMO_GO[:-12]
                             except Exception as _rv_exc:
                                 print("  go_revived tier error:", _rv_exc,
                                       flush=True)
@@ -5897,51 +5923,27 @@ def cycle() -> None:
                     continue
             return out
 
+        # 🎮 GEN 17 POOLS (user 2026-10-14): exactly the three, in his order.
+        _DEMO_GO[:] = [d for d in _DEMO_GO
+                       if _now - d["fired_at"] <= DEMO_FIRE_TTL_S]
         _dz_pools = {
-            # 🔶💥 GEN 16.5 (user 2026-10-04): PRESSED & BROKE longs
-            # lead the ladder (priority 1). Fed by _trigger_watch's
-            # pressed-first break record (LONG filter at the feed,
-            # LONG_ONLY guard again in rank_candidates).
-            "press_break": ([dict(d) for d in _DEMO_PB
-                             if d.get("entry") and d.get("stop")
-                             and d.get("tp1")]
-                            + [d for d in _dz_reo
-                               if d["src"] == "press_break"]),
-            # 🚀 GEN 16.4 (user 2026-09-28): moonshot fires take the
-            # top of the ladder — conf stamped by _g16 exactly as the
-            # desk stamps it, so the 55-64 gate reads the measured
-            # number. LONG-only by construction.
-            "moonshot": (_g16(_moon_fires, "moonshot")
-                         + [d for d in _dz_reo
-                            if d["src"] == "moonshot"]),
-            # ⭐ GEN 16.4 FIX: GEN 16.3 put elite_star on the ladder,
-            # the conf gate and the reopen list but never into THIS
-            # dict, so _DEMO_STARS never reached rank_candidates — 0
-            # demo trades 09-21 -> 09-28 while the desk logged ~150.
-            # The star's own conf (_cf9) rides in unchanged.
-            "elite_star": ([dict(d) for d in _DEMO_STARS
+            # 1. ⭐⚡/💎⚡ GO REVIVED — entry at the GO price, fire's plan
+            "go_revived": ([dict(d) for d in _DEMO_GO
                             if d.get("entry") and d.get("stop")
                             and d.get("tp1")]
                            + [d for d in _dz_reo
-                              if d["src"] == "elite_star"]),
-            "early_lane": (_g16(em_big, "early_lane")
+                              if d["src"] == "go_revived"]),
+            # 2. ⚡🔥 ARRIVAL T1 — the HOT long break at a ⚡ number
+            "arrival_t1": ([dict(d) for d in _dz_t1
+                            if d.get("entry") and d.get("stop")
+                            and d.get("tp1")]
                            + [d for d in _dz_reo
-                              if d["src"] == "early_lane"]),
-            "early_movers": (_g16(_em_rest, "early_movers")
-                             + [d for d in _dz_reo
-                                if d["src"] == "early_movers"]),
-            # (💎 best_zone dropped from the money 2026-09-14
-            # "just have these and nothing else" — buzz/desk stay.)
-            # 💥 plain strong trigger rejoins 2026-09-14, conf>=65
-            # only (its measured-positive half: +0.117R vs +0.006R).
+                              if d["src"] == "arrival_t1"]),
+            # 3. 💥 STRONG TRIGGER conf >= 65 (gate in demo_account)
             "strong_trigger": ([f for f in _dz_fires
                                 if f["src"] == "strong_trigger"]
                                + [d for d in _dz_reo
-                                  if d["src"] == "strong_trigger"]),
-            "strig_kr": ([f for f in _dz_fires
-                          if f["src"] == "strig_kr"]
-                         + [d for d in _dz_reo
-                            if d["src"] == "strig_kr"])}
+                                  if d["src"] == "strong_trigger"])}
         # 🔄 GEN 7 rotation input: every (coin, side) with a LIVE
         # signal this cycle — positions outside this set are the
         # rotation candidates ("a losing trade stands only while
@@ -6004,11 +6006,9 @@ def cycle() -> None:
                      "score": float(_rp8.get("score") or 80),
                      "src": (_rec8.get("src")
                              if _rec8.get("src") in
-                             ("moonshot", "strong_trigger",
-                              "elite_star", "early_movers",
-                              "early_lane", "strig_kr",
-                              "press_break")
-                             else "strong_trigger"),   # GEN 16.5
+                             ("go_revived", "arrival_t1",
+                              "strong_trigger")
+                             else "strong_trigger"),   # GEN 17
                      "chain": int(_rp8.get("chain") or 0) + 1,
                      "fired_at": _now})
                 print(f"[gen8] 🔁 momentum re-entry queued "
