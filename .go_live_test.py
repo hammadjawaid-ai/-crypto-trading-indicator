@@ -82,8 +82,13 @@ for a, b, lab in (('if _ew.get("oneh") == "DEAD":\n                             
         # 2026-10-14: the revived standalone send inside this segment is now gated (user call) —
         # drop that send block from both sides before comparing.
         def _cut_rev(x):
-            i = (x or "").find('elif _ew.get("star") or _ew.get("appr"):')
-            j = (x or "").find('_bell9 = ("not-approved (unapproved', i)
+            # 2026-10-15: the revived send block covers unapproved fires too — cut the
+            # whole revived block (branch head -> thread branch) on both sides.
+            x = x or ""
+            i = x.find('elif _ew.get("star") or _ew.get("appr"):')
+            if i < 0:
+                i = x.find('else:\n                                            # 🚦 revived gate')
+            j = x.find('elif _ew.get("buzzed"):', i)
             return x if (i < 0 or j < 0) else x[:i] + x[j:]
         old_, now_ = _cut_rev(old_), _cut_rev(now_)
         if old_ is None or now_ is None or not old_.startswith(now_.rstrip()) and old_.rstrip() != now_.rstrip():
@@ -105,6 +110,12 @@ for a, b, lab in (('if _ew.get("oneh") == "DEAD":\n                             
             return x if (i < 0 or j < 0) else x[:i] + x[j:]
         old_ = _strip_feed(old_)
         now_ = _strip_feed(now_)
+
+        # 2026-10-15: unapproved fires enter the go_revived tier (appr clause gone, appr stamped)
+        def _norm_tier(x):
+            return (x or "").replace('                                and (_ew.get("star") or _ew.get("appr"))\n', "") \
+                            .replace('                                    "appr": bool(_ew.get("appr")),\n                                    "fire_entry": _e0}', '                                    "fire_entry": _e0}')
+        old_, now_ = _norm_tier(old_), _norm_tier(now_)
         if old_ is None or now_ is None or old_.rstrip() != now_.rstrip():
             fails.append("stamp + go_revived tier changed vs HEAD")
     elif old_ != now_ or old_ is None:

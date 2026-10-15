@@ -3005,7 +3005,7 @@ def _render_revived_board(pb_state, live_prices=None) -> None:
     """⭐⚡ GO REVIVED — openable now (user 2026-10-06: "build go revived
     board on the paper trading under the elite star same like we have for
     elite star with openable trades"). Every revived GO of the last 24h —
-    a star or approved elite fire graded DEAD at the hour that then ignited
+    a star or elite fire, approved or not, graded DEAD at the hour that then ignited
     to +25% of its path — as a card: the fire's plan, where price sits now
     on the path, how long after the fire it ignited, whether the phone got
     the bell, and a 📥 Open button that takes it into the Paper Trader at
@@ -9462,11 +9462,10 @@ if active_section == "🎮 Demo Trading":
         "$2,000 ledger (2026-09-14; GEN 17 roster 2026-10-14, from the "
         "closed-trade ranking; GEN 17.3 the same evening: the seats follow the "
         "phone's gates). <b>THE SIX, in order:</b> <b>1. ⭐⚡/💎⚡ GO "
-        "REVIVED</b> (a star or approved elite fire graded DEAD at the hour "
+        "REVIVED</b> (a star or elite fire, approved or not, graded DEAD at the hour "
         "that then ignited — entry at the GO price with the fire's plan, "
         "FAST or LATE, any conf — seats only when its Telegram fire read "
-        "passes: not a MAX card, score under 90, BTC day "
-        "≥ −1.5%) · <b>2. ⚡🔥 ARRIVAL T1</b> (HOT long break at "
+        "passes: not a MAX card, score under 90) · <b>2. ⚡🔥 ARRIVAL T1</b> (HOT long break at "
         "a ⚡ strong-coil number, its own plan, any conf) · <b>3. 💥 STRONG "
         "TRIGGER conf ≥65</b> (its measured red windows stay closed: longs "
         "21-05 PKT, shorts 09-13 / 17-21) · <b>4. ⭐🚀 EARLY LANE conf ≥85</b> "

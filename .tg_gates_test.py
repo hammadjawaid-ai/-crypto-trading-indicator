@@ -53,19 +53,30 @@ if not ok or "🟡 heat ?" not in line or "🟡 BTC today ?" not in line:
 # ⭐⚡ revived read
 ew = {"symbol": "AAVEUSDT", "side": "LONG", "entry0": 100.0, "stop": 96.0, "tp1": 105.0, "conf": 40, "score": 82, "tier": "HIGH", "fired_at": T1740}
 ok, line, entry = rg(ew, 103.0, T1740 + 5400, btc=0.5)
-if not ok or "conf" in line or "✅ HIGH card" not in line or "✅ score 82" not in line or "fired" in line:
+if not ok or "conf" in line or "✅ HIGH card" not in line or "✅ score 82" not in line or "fired" in line or "BTC" in line:
     fails.append(f"revived pass read wrong: {line}")
 if not entry.startswith("✅ entry cell") or "0.50R left now" not in entry:
     fails.append(f"entry cell line wrong: {entry}")
 if rg(dict(ew, tier="MAX"), 103.0, T1740 + 5400, btc=0.5)[0] \
-        or rg(dict(ew, score=92), 103.0, T1740 + 5400, btc=0.5)[0] or rg(ew, 103.0, T1740 + 5400, btc=-2.0)[0]:
-    fails.append("revived gate must fail on MAX / score 90+ / BTC < -1.5%")
+        or rg(dict(ew, score=92), 103.0, T1740 + 5400, btc=0.5)[0]:
+    fails.append("revived gate must fail on MAX / score 90+")
+_b2 = rg(ew, 103.0, T1740 + 5400, btc=-2.0)
+if not _b2[0] or not _b2[2].startswith("✅ entry cell"):
+    fails.append("BTC -2% must PASS the gate and the entry cell — the BTC rule left GO REVIVED 2026-10-15 (user: 'remove btc movement')")
+for need, lab in (('_un9 = not (_ew.get("star")', "unapproved flag"), ('+ ("\\n" + REVIVED_UNAPPR', "unapproved tag on the bell"),
+                  ('"sent-standalone-unapproved"', "unapproved bell stamp"), ('"appr": bool(_ew.get("appr")),\n                                    "fire_entry": _e0}', "go_revived record stamps appr")):
+    if need not in W:
+        fails.append(f"unapproved wiring missing: {lab}")
+if '"not-approved (unapproved "' in W or 'and (_ew.get("star") or _ew.get("appr"))\n                                and (not REVIVED_LONG_FAST' in W:
+    fails.append("unapproved elite fires must ring on GO REVIVED and enter the go_revived ledger (user 2026-10-15: 'do both')")
 if not rg(dict(ew, conf=70), 103.0, T1740 + 5400, btc=0.5)[0]:
     fails.append("conf 70 must PASS — the conf rule was dropped 2026-10-14 evening (user: 'drop the conf rule too')")
 if not rg(dict(ew, fired_at=T1440), 103.0, T1440 + 5400, btc=0.5)[0]:
     fails.append("a 13–17 PKT fire must PASS — the clock rule was dropped 2026-10-14 evening (user: 'yes drop it')")
-if "65% / +0.42R (116)" not in ns.get("REVIVED_GATE_REC", ""):
-    fails.append("revived record line must carry the three-rule cell")
+if "62% / +0.36R (143)" not in ns.get("REVIVED_GATE_REC", ""):
+    fails.append("revived record line must carry the two-rule cell")
+if "82% / +0.35R (22)" not in ns.get("REVIVED_ENTRY_OK", "") or "BTC" in ns.get("REVIVED_ENTRY_OK", ""):
+    fails.append("entry-cell line must be the no-BTC cell")
 if not rg(ew, 104.5, T1740 + 5400, btc=0.5)[2].startswith("⚠️ hold only"):
     fails.append("0.125R left must read hold only")
 if not rg(ew, 103.0, T2240, btc=0.5)[2].startswith("⚠️ hold only"):

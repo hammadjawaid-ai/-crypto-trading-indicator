@@ -49,7 +49,7 @@ if '    "go_revived": "go_revived",\n' not in U:
     fails.append("auditor map missing")
 # worker: tp2 on the stamp, the tier opened at the GO price for rung bells only
 for need, lab in (('"tp2": _ew.get("tp2"),\n                            "bell": _bell9})', "tp2 on the GO stamp"),
-                  ('if (_ew.get("oneh") == "DEAD"\n                                and (_ew.get("star") or _ew.get("appr"))\n                                and (not REVIVED_LONG_FAST', "tier gated like the bell (long + fast)"),
+                  ('if (_ew.get("oneh") == "DEAD"\n                                and (not REVIVED_LONG_FAST', "tier gated like the bell (long + fast; every elite-family fire since 2026-10-15)"),
                   ('store.record_signal("go_revived", _rv_sig)', "go_revived record"),
                   ('shadow_trader.open_from_signal(\n                                    "go_revived", _rv_sig, _ew_px)', "go_revived desk open at the GO price"),
                   ('"fire_entry": _e0}', "fire entry kept on the record")):

@@ -381,12 +381,16 @@ STAR_BTC_MAX = 1.5
 GATE_BTC_MIN = -1.5
 STAR_GATE_REC = ("gated set 71% / +0.45R (146) vs rejected 48% / -0.05R (205) · "
                  "desk 09 Sep → 14 Oct")
-REVIVED_GATE_REC = ("gated set 65% / +0.42R (116) vs rejected 38% / -0.02R (50) · "
-                    "from the fire price, 13 Sep → 14 Oct · three rules")
-REVIVED_ENTRY_OK = ("✅ entry cell — 0.3–0.6R left to TP1, BTC not down >1.5%, "
-                    "not 21–05 PKT: 80% / +0.31R (20) entered at the GO")
-REVIVED_ENTRY_NO = ("⚠️ hold only — outside the entry cell (49% / -0.11R entered "
+REVIVED_GATE_REC = ("gated set 62% / +0.36R (143) vs rejected 26% / -0.15R (23) · "
+                    "from the fire price, 13 Sep → 14 Oct · two card rules")
+REVIVED_ENTRY_OK = ("✅ entry cell — 0.3–0.6R left to TP1, not 21–05 PKT: "
+                    "82% / +0.35R (22) entered at the GO")
+REVIVED_ENTRY_NO = ("⚠️ hold only — outside the entry cell (46% / -0.16R entered "
                     "at the GO): hold the fire seat, do not enter here")
+# 💎 unapproved elite fires ring on GO REVIVED too (user 2026-10-15: "do both" —
+# OP went past TP1 silently); tagged the way GO LIVE tags them.
+REVIVED_UNAPPR = ("💎 this one is an UNAPPROVED elite fire: DEAD then ignited "
+                  "41% / +0.49R (17), thin — size down")
 GOLIVE_GATE_REC = ("gated set 65% / +1.27R (23) vs rejected 45% / +0.36R (42) · "
                    "from the fire price")
 _BTC_DAY_CACHE: dict = {"t": 0.0, "v": None}
@@ -449,13 +453,14 @@ def _star_gate(p, now, btc=None):
 
 
 def _revived_gate(ew, px, now, btc=None):
-    """⭐⚡/💎⚡ GO REVIVED: the FIRE read (not MAX · score < 90 · BTC day >= -1.5%)
-    -> (passed, line, entry_line). DROPPED 2026-10-14 evening on the 7-week
-    candle replay (.revived_clock_history.py): the 'fire not 13–17 PKT' rule
-    (user: "yes drop it") and the 'conf not 65–84' rule (user: "drop the conf
-    rule too") — neither sorted outside the 13 Sep -> 14 Oct desk window;
-    entry_line = the ENTRY-cell read at the GO (0.3–0.6R left to TP1, BTC day
-    >= -1.5%, GO not 21–05 PKT)."""
+    """⭐⚡/💎⚡ GO REVIVED: the FIRE read (not MAX · score < 90) -> (passed, line,
+    entry_line). DROPPED on the 7-week candle replay (.revived_clock_history.py):
+    2026-10-14 the 'fire not 13–17 PKT' and 'conf not 65–84' rules (neither
+    sorted outside the 13 Sep -> 14 Oct desk window); 2026-10-15 the 'BTC day
+    >= -1.5%' rule (user: "remove btc movement" — the BTC axis is flat at the
+    GO, the rejects were 48% / +0.09R on the desk, RLC hit TP1 gated on it).
+    entry_line = the ENTRY-cell read at the GO (0.3–0.6R left to TP1, GO not
+    21–05 PKT; its BTC condition dropped the same day: 82% / +0.35R (22))."""
     try:
         score = float(ew.get("score")) if ew.get("score") is not None else None
     except (TypeError, ValueError):
@@ -463,8 +468,7 @@ def _revived_gate(ew, px, now, btc=None):
     tier = str(ew.get("tier") or "").upper() or None
     passed, line = _gate_bits([
         (tier, tier != "MAX", f"{tier} card" if tier else "card"),
-        (score, score is not None and score < 90, f"score {score:g}" if score is not None else "score"),
-        (btc, btc is not None and btc >= GATE_BTC_MIN, f"BTC {btc:+.2f}% today" if btc is not None else "BTC today")])
+        (score, score is not None and score < 90, f"score {score:g}" if score is not None else "score")])
     try:
         e0, st, t1 = float(ew.get("entry0") or 0), float(ew["stop"]), float(ew["tp1"])
         sgn = 1.0 if ew.get("side") == "LONG" else -1.0
@@ -474,7 +478,6 @@ def _revived_gate(ew, px, now, btc=None):
         r_left = None
     gwin = buzz_clock.window_of(rung_stats.pkt_hour(now))
     in_cell = (r_left is not None and 0.3 <= r_left <= 0.6
-               and (btc is None or btc >= GATE_BTC_MIN)
                and gwin not in ("21–01", "01–05"))
     entry_line = ((REVIVED_ENTRY_OK if in_cell else REVIVED_ENTRY_NO)
                   + (f" · {r_left:.2f}R left now" if r_left is not None else ""))
@@ -5897,10 +5900,12 @@ def cycle() -> None:
                                                       f"{_ew['go'].lower()}: shorts "
                                                       "-1.9% / late -1.7% measured; "
                                                       "records only)")
-                                        elif _ew.get("star") or _ew.get("appr"):
+                                        else:
                                             # 🚦 revived gate (user 2026-10-14):
                                             # the fire read decides the bell;
                                             # the entry-cell read rides on it.
+                                            # 2026-10-15: unapproved elite fires
+                                            # ring too, tagged (user: "do both").
                                             _rg9 = (True, "", "")
                                             if TG_GATES:
                                                 try:
@@ -5912,16 +5917,20 @@ def cycle() -> None:
                                             if TG_GATES and not _rg9[0]:
                                                 _bell9 = f"gated: {_rg9[1]}"
                                             else:
+                                                _un9 = not (_ew.get("star")
+                                                            or _ew.get("appr"))
                                                 _go9x = (_go9.replace(
                                                     "\n", "\n" + _rg9[1] + "\n"
-                                                    + _rg9[2] + "\n", 1)
+                                                    + _rg9[2]
+                                                    + ("\n" + REVIVED_UNAPPR
+                                                       if _un9 else "")
+                                                    + "\n", 1)
                                                     if TG_GATES else _go9)
                                                 _ok9, _m9x = tg.send(_go9x)
-                                                _bell9 = ("sent-standalone" if _ok9
-                                                          else f"failed: {_m9x}")
-                                        else:
-                                            _bell9 = ("not-approved (unapproved "
-                                                      "elite fire; records only)")
+                                                _bell9 = ((("sent-standalone-unapproved"
+                                                            if _un9 else "sent-standalone")
+                                                           if _ok9
+                                                           else f"failed: {_m9x}"))
                                     elif _ew.get("buzzed"):
                                         _ok9, _m9x, _ = tg.send_thread(
                                             _go9,
@@ -5999,7 +6008,6 @@ def cycle() -> None:
                             "tp2": _ew.get("tp2"),
                             "bell": _bell9})
                         if (_ew.get("oneh") == "DEAD"
-                                and (_ew.get("star") or _ew.get("appr"))
                                 and (not REVIVED_LONG_FAST
                                      or (_ew["side"] == "LONG"
                                          and _ew["go"] == "FAST"))):
@@ -6017,6 +6025,7 @@ def cycle() -> None:
                                     "tp1": _ew["tp1"], "tp2": _ew.get("tp2"),
                                     "tier": _ew["go"],
                                     "star": bool(_ew.get("star")),
+                                    "appr": bool(_ew.get("appr")),
                                     "fire_entry": _e0}
                                 store.record_signal("go_revived", _rv_sig)
                                 shadow_trader.open_from_signal(
