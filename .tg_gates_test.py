@@ -53,7 +53,7 @@ if not ok or "🟡 heat ?" not in line or "🟡 BTC today ?" not in line:
 # ⭐⚡ revived read
 ew = {"symbol": "AAVEUSDT", "side": "LONG", "entry0": 100.0, "stop": 96.0, "tp1": 105.0, "conf": 40, "score": 82, "tier": "HIGH", "fired_at": T1740}
 ok, line, entry = rg(ew, 103.0, T1740 + 5400, btc=0.5)
-if not ok or "conf" in line or "✅ HIGH card" not in line or "✅ score 82" not in line or "fired" in line or "BTC" in line:
+if not ok or "conf" in line or "✅ HIGH card" not in line or "✅ score 82" not in line or "fired" in line or "✅ BTC +0.50% today" not in line:
     fails.append(f"revived pass read wrong: {line}")
 if not entry.startswith("✅ entry cell") or "0.50R left now" not in entry:
     fails.append(f"entry cell line wrong: {entry}")
@@ -63,6 +63,10 @@ if rg(dict(ew, tier="MAX"), 103.0, T1740 + 5400, btc=0.5)[0] \
 _b2 = rg(ew, 103.0, T1740 + 5400, btc=-2.0)
 if not _b2[0] or not _b2[2].startswith("✅ entry cell"):
     fails.append("BTC -2% must PASS the gate and the entry cell — the BTC rule left GO REVIVED 2026-10-15 (user: 'remove btc movement')")
+if "⚠️ BTC -2.00% today (caution, not a gate)" not in _b2[1]:
+    fails.append(f"BTC must still SHOW on the read as a caution (user: 'btc with caution'): {_b2[1]}")
+if "🟡 BTC today ?" not in rg(dict(ew, conf=None, score=None), 103.0, T1740 + 5400, btc=None)[1]:
+    fails.append("unknown BTC must show 🟡 on the read")
 for need, lab in (('_un9 = not (_ew.get("star")', "unapproved flag"), ('+ ("\\n" + REVIVED_UNAPPR', "unapproved tag on the bell"),
                   ('"sent-standalone-unapproved"', "unapproved bell stamp"), ('"appr": bool(_ew.get("appr")),\n                                    "fire_entry": _e0}', "go_revived record stamps appr")):
     if need not in W:

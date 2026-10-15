@@ -458,7 +458,8 @@ def _revived_gate(ew, px, now, btc=None):
     2026-10-14 the 'fire not 13–17 PKT' and 'conf not 65–84' rules (neither
     sorted outside the 13 Sep -> 14 Oct desk window); 2026-10-15 the 'BTC day
     >= -1.5%' rule (user: "remove btc movement" — the BTC axis is flat at the
-    GO, the rejects were 48% / +0.09R on the desk, RLC hit TP1 gated on it).
+    GO, the rejects were 48% / +0.09R on the desk, RLC hit TP1 gated on it);
+    the BTC day stays on the read as a third, non-gating item (✅ / ⚠️ caution).
     entry_line = the ENTRY-cell read at the GO (0.3–0.6R left to TP1, GO not
     21–05 PKT; its BTC condition dropped the same day: 82% / +0.35R (22))."""
     try:
@@ -469,6 +470,15 @@ def _revived_gate(ew, px, now, btc=None):
     passed, line = _gate_bits([
         (tier, tier != "MAX", f"{tier} card" if tier else "card"),
         (score, score is not None and score < 90, f"score {score:g}" if score is not None else "score")])
+    # 🟡 BTC day — SHOWN as the third item, never a gate (user 2026-10-15:
+    # "btc with caution … it still can fire … the notification on telegram
+    # should be similar" to the board card's read).
+    if btc is None:
+        line += " · 🟡 BTC today ?"
+    elif btc >= GATE_BTC_MIN:
+        line += f" · ✅ BTC {btc:+.2f}% today"
+    else:
+        line += f" · ⚠️ BTC {btc:+.2f}% today (caution, not a gate)"
     try:
         e0, st, t1 = float(ew.get("entry0") or 0), float(ew["stop"]), float(ew["tp1"])
         sgn = 1.0 if ew.get("side") == "LONG" else -1.0
