@@ -2805,6 +2805,29 @@ def _desk_tp1_line(tiers, sym, side, ts, before_s=1800.0, after_s=6 * 3600.0) ->
                 break
         if best:
             break
+    held = ""
+    if not best:
+        # 2026-10-16 (user: PLUME hit TP1, card silent): a re-fire while the
+        # desk still HOLDS the earlier trade of the same tier opens no new
+        # trade (one per coin+side), so the covering trade is the one that
+        # banked TP1 for this fire. Same tier, opened up to 24h before the
+        # card's window, still open at the card's time, TP1 flag set.
+        try:
+            _c = _sq_tp.connect(f"file:{_ws_c.DB_PATH}?mode=ro", uri=True)
+            try:
+                rows2 = _c.execute(
+                    "SELECT tier, opened_at, tp1_hit, status, exit_reason, pnl_r "
+                    "FROM shadow_trades WHERE symbol=? AND upper(side)=? AND "
+                    "opened_at BETWEEN ? AND ? AND (closed_at IS NULL OR closed_at > ?) "
+                    "AND tp1_hit=1 AND tier=? ORDER BY opened_at DESC LIMIT 1",
+                    (sym, (side or "").upper(), float(ts) - 24 * 3600.0,
+                     float(ts) - float(before_s), float(ts), tiers[0])).fetchall()
+            finally:
+                _c.close()
+        except Exception:
+            rows2 = []
+        if rows2:
+            best, held = rows2[0], ", held through this fire"
     if not best:
         return ""
     tier, opened, _hit, status, reason, pnl = best
@@ -2815,7 +2838,7 @@ def _desk_tp1_line(tiers, sym, side, ts, before_s=1800.0, after_s=6 * 3600.0) ->
     else:
         tail = "still open on the desk, trailing past TP1"
     return (f"<br><span style='color:#ffd700;font-size:0.8rem'>🏦 TP1 HIT on the "
-            f"desk — {lab} trade opened {opened_pkt} PKT · {tail}</span>")
+            f"desk — {lab} trade opened {opened_pkt} PKT{held} · {tail}</span>")
 
 
 def _render_star_board(pb_state, live_prices=None) -> None:

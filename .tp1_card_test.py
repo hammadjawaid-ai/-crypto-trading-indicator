@@ -18,15 +18,19 @@ os.makedirs(D)
 DB = os.path.join(D, "desk.db")
 con = sqlite3.connect(DB)
 con.execute("CREATE TABLE shadow_trades (id INTEGER PRIMARY KEY, tier TEXT, symbol TEXT, side TEXT, opened_at REAL, "
-            "tp1_hit INTEGER, status TEXT, exit_reason TEXT, pnl_r REAL)")
+            "tp1_hit INTEGER, status TEXT, exit_reason TEXT, pnl_r REAL, closed_at REAL)")
 T0 = 1_800_000_000.0
 rows = [("elite_star", "XLMUSDT", "LONG", T0 + 120, 1, "CLOSED", "TP2", 1.46),      # star fire -> banked TP2
         ("elite_star", "SUIUSDT", "LONG", T0 + 120, 0, "OPEN", None, None),          # star fire, TP1 not yet
         ("elite_conv", "FETUSDT", "LONG", T0 - 7200, 1, "OPEN", None, None),         # conviction fire 2h before its GO, past TP1
         ("go_live", "FETUSDT", "LONG", T0 + 60, 0, "OPEN", None, None),              # the GO entry itself, not yet
         ("go_revived", "NEOUSDT", "long", T0 + 30, 1, "CLOSED", "TP1_LOCK", 0.62),  # lower-case side on purpose
-        ("elite_star", "XLMUSDT", "LONG", T0 + 30 * 3600, 1, "CLOSED", "TP2", 2.0)]  # a later fire, outside the window
-con.executemany("INSERT INTO shadow_trades (tier, symbol, side, opened_at, tp1_hit, status, exit_reason, pnl_r) VALUES (?,?,?,?,?,?,?,?)", rows)
+        ("elite_star", "XLMUSDT", "LONG", T0 + 30 * 3600, 1, "CLOSED", "TP2", 2.0),  # a later fire, outside the window
+        ("elite_star", "PLUMEUSDT", "LONG", T0 - 2 * 3600, 1, "CLOSED", "TP1_LOCK", 0.51),  # opened 2h before, held through the re-fire
+        ("elite_star", "ONDOUSDT", "LONG", T0 - 2 * 3600, 1, "CLOSED", "TP1_LOCK", 0.40)]  # opened 2h before but closed BEFORE the re-fire
+closed_at = {"PLUMEUSDT": T0 + 3 * 3600, "ONDOUSDT": T0 - 600}
+rows = [r + (closed_at.get(r[1]),) for r in rows]
+con.executemany("INSERT INTO shadow_trades (tier, symbol, side, opened_at, tp1_hit, status, exit_reason, pnl_r, closed_at) VALUES (?,?,?,?,?,?,?,?,?)", rows)
 con.commit()
 con.close()
 
@@ -61,6 +65,12 @@ if "⭐⚡ GO REVIVED trade opened" not in r or "closed TP1_LOCK +0.62R" not in 
 # a fire 30h later must not be picked for the earlier card
 if "+2.00R" in line(("elite_star",), "XLMUSDT", "LONG", T0):
     fails.append("window leaked a later trade")
+# 2026-10-16: a re-fire covered by the desk trade the earlier fire opened (PLUME case)
+p = line(("elite_star",), "PLUMEUSDT", "LONG", T0)
+if "held through this fire" not in p or "closed TP1_LOCK +0.51R" not in p:
+    fails.append(f"covering trade must show for the re-fire: {p!r}")
+if line(("elite_star",), "ONDOUSDT", "LONG", T0) != "":
+    fails.append("a trade closed before the re-fire must not be picked")
 # fail-soft on a missing DB
 _WS.DB_PATH = os.path.join(D, "nope.db")
 if line(("elite_star",), "XLMUSDT", "LONG", T0) != "":
