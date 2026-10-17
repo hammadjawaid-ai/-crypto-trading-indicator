@@ -25,14 +25,37 @@ for h, side, want in ((6, "LONG", "TAKE"), (22, "LONG", "TAKE"), (14, "LONG", "T
     e, c, d = cc.verdict(cc.STAR_CELLS, side, T(h))
     if c != want:
         fails.append(f"star {side} {h}:00 PKT -> {c} ({d}), want {want}")
-# revived verdicts (by the fire's window)
-for h, side, want in ((10, "LONG", "TAKE"), (22, "LONG", "TAKE"), (14, "LONG", "DON'T"), (6, "LONG", "HALF"), (18, "SHORT", "TAKE"), (22, "SHORT", "THIN"), (2, "LONG", "HALF")):
-    e, c, d = cc.verdict(cc.REVIVED_CELLS, side, T(h))
+# revived verdicts (by the fire's window) — desk cell first, replay cell when the desk is thin
+for h, side, want in ((10, "LONG", "TAKE"), (22, "LONG", "TAKE"), (14, "LONG", "DON'T"), (6, "LONG", "HALF"), (18, "SHORT", "TAKE"), (22, "SHORT", "HALF"), (2, "LONG", "HALF"), (10, "SHORT", "DON'T")):
+    e, c, d = cc.verdict2(cc.REVIVED_CELLS, cc.REVIVED_REPLAY_CELLS, side, T(h), cc.REVIVED_MEASURED)
     if c != want:
         fails.append(f"revived {side} fired {h}:00 PKT -> {c} ({d}), want {want}")
-# ⭐⚡ ELITE GO cells (user 2026-10-17: "do this for elite go as well")
-for h, side, want in ((18, "LONG", "TAKE"), (22, "LONG", "TAKE"), (14, "LONG", "THIN"), (6, "LONG", "THIN"), (18, "SHORT", "THIN"), (10, "SHORT", "THIN")):
-    e, c, d = cc.verdict(cc.ELITE_GO_CELLS, side, T(h))
+# the 21–01 short that started this (user 2026-10-18): desk had 1 trade -> replay 29 at 59% / +0.07R -> HALF, source named
+_e, _c, _d = cc.verdict2(cc.REVIVED_CELLS, cc.REVIVED_REPLAY_CELLS, "SHORT", T(22), cc.REVIVED_MEASURED)
+if _c != "HALF" or "59% / +0.07R (29)" not in _d or "7-week candle replay" not in _d or "desk thin: 1" not in _d:
+    fails.append(f"21–01 short fallback wrong: {_c} {_d}")
+# GO REVIVED by FAMILY (user 2026-10-18: star and conviction read different cells)
+for h, side, star, want, frag in ((14, "SHORT", False, "HALF", "67% / +0.21R (18)"),      # the MEGA card: conviction short 13–17 -> replay
+                                  (14, "SHORT", True, "THIN", "thin on the desk (4)"),      # star short 13–17: thin both ways
+                                  (10, "LONG", True, "TAKE", "92% / +0.75R (12)"),         # star long 09–13: desk
+                                  (6, "LONG", False, "HALF", "63% / +0.51R (27)"),          # conviction long 05–09: desk 6 -> replay
+                                  (18, "LONG", False, "DON'T", "46% / -0.01R (57)"),        # conviction long 17–21: desk 5 -> replay
+                                  (18, "SHORT", True, "TAKE", "79% / +0.60R (14)")):        # star short 17–21: desk
+    out = cc.revived_line(side, T(h), star)
+    if f" {want} — " not in out or frag not in out:
+        fails.append(f"revived by family {('star' if star else 'conviction')} {side} {h}:00 -> {out}")
+if "💎 conviction revivals, 7-week candle replay" not in cc.revived_line("LONG", T(22), False) or "gated ⭐ star revived record" not in cc.revived_line("LONG", T(10), True) \
+        or "⭐ star revivals, 7-week candle replay" not in cc.revived_line("LONG", T(14), True):
+    fails.append("family labels must name the family on both the desk and the replay source")
+if 'bool(_ew.get("star")))' not in W or 'clock_cells.revived_line(\n                                                        _ew["side"],' not in W:
+    fails.append("the bell must pass the star flag to the revived line")
+# both thin -> THIN, says so
+_e, _c, _d = cc.verdict2(cc.ELITE_GO_CELLS, cc.ELITE_GO_REPLAY_CELLS, "SHORT", T(10), cc.ELITE_GO_MEASURED)
+if _c != "THIN" or "thin on the desk (1) and in the replay" not in _d:
+    fails.append(f"double-thin wrong: {_c} {_d}")
+# ⭐⚡ ELITE GO cells (user 2026-10-17: "do this for elite go as well"), replay fallback for thin desk cells
+for h, side, want in ((18, "LONG", "TAKE"), (22, "LONG", "TAKE"), (14, "LONG", "TAKE"), (6, "LONG", "THIN"), (18, "SHORT", "HALF"), (10, "SHORT", "THIN")):
+    e, c, d = cc.verdict2(cc.ELITE_GO_CELLS, cc.ELITE_GO_REPLAY_CELLS, side, T(h), cc.ELITE_GO_MEASURED)
     if c != want:
         fails.append(f"elite go {side} fired {h}:00 PKT -> {c} ({d}), want {want}")
 eg = cc.elite_go_line("LONG", T(18))
@@ -49,17 +72,17 @@ i_dead = W.find('if _ew.get("oneh") == "DEAD":\n                                
 if not (0 < i_eg < i_dead):
     fails.append("the ELITE GO line must be added to _go9 before the bell branches (branches untouched)")
 # 💎⚡ GO LIVE cells on the conviction cards (user 2026-10-18)
-for h, side, want in ((22, "LONG", "TAKE"), (22, "SHORT", "DON'T"), (6, "LONG", "THIN"), (10, "SHORT", "THIN")):
-    e, c, d = cc.verdict(cc.GOLIVE_CELLS, side, T(h))
+for h, side, want in ((22, "LONG", "TAKE"), (22, "SHORT", "DON'T"), (6, "LONG", "TAKE"), (10, "SHORT", "THIN")):
+    e, c, d = cc.verdict2(cc.GOLIVE_CELLS, cc.GOLIVE_REPLAY_CELLS, side, T(h), cc.GOLIVE_MEASURED)
     if c != want:
         fails.append(f"go live {side} fired {h}:00 PKT -> {c} ({d}), want {want}")
 gl = cc.golive_line("LONG", T(22))
 if not gl.startswith("🕐 🟢 TAKE — fired 21–01 PKT longs 68% / +1.13R (19)") or "GO LIVE record" not in gl:
     fails.append(f"go live line: {gl}")
-if "no record" not in cc.golive_line("SHORT", T(10)):
-    fails.append("a missing cell must read 'no record'")
-if ("+ (clock_cells.revived_line if _sect == \"rev\"\n                       else clock_cells.golive_line)(_sd, float(_ts) - float(_mins or 0) * 60)") not in A:
-    fails.append("revived board must pick revived cells for the rev section and GO LIVE cells for the live section")
+if "7-week candle replay" not in cc.golive_line("LONG", T(6)) or "75% / +1.20R (24)" not in cc.golive_line("LONG", T(6)):
+    fails.append(f"GO LIVE 05–09 long must fall back to the replay cell: {cc.golive_line('LONG', T(6))}")
+if ("+ (clock_cells.revived_line(_sd, float(_ts) - float(_mins or 0) * 60,\n                                                bool(_ex.get(\"star\")))\n                       if _sect == \"rev\"\n                       else clock_cells.golive_line(_sd, float(_ts) - float(_mins or 0) * 60))") not in A:
+    fails.append("revived board must pick revived cells (by family) for the rev section and GO LIVE cells for the live section")
 # the 13–17 caution says PASSED / FAILED
 if ('+ (" · read PASSED — would have rung anyway"\n                                       if (not TG_GATES or _gate9[0]) else\n                                       " · read FAILED — ringing ONLY because "\n                                       "13–17 PKT is ungated (unmuted star)")') not in W:
     fails.append("13–17 caution must say whether the read passed or failed")
@@ -93,7 +116,7 @@ for need, lab in (("import clock_cells\n", "worker import"),
         fails.append(f"worker missing: {lab}")
 for need, lab in (("import clock_cells\n", "app import"),
                   ("+ clock_cells.star_line(_sd, _ts) + \"</span>\"", "star card line"),
-                  ("else clock_cells.golive_line)(_sd, float(_ts) - float(_mins or 0) * 60)", "revived / GO LIVE card line (fire time)")):
+                  ("+ (clock_cells.revived_line(_sd, float(_ts) - float(_mins or 0) * 60,\n                                                bool(_ex.get(\"star\")))\n                       if _sect == \"rev\"\n                       else clock_cells.golive_line(_sd, float(_ts) - float(_mins or 0) * 60))", "revived (by family) / GO LIVE card line (fire time)")):
     if need not in A:
         fails.append(f"app missing: {lab}")
 # 🕐 13–17 PKT = the one UNGATED window for the ⭐ bell (user 2026-10-17), phone only

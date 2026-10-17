@@ -6039,7 +6039,8 @@ def cycle() -> None:
                                                     + clock_cells.revived_line(
                                                         _ew["side"],
                                                         float(_ew.get("fired_at")
-                                                              or _ew_now))
+                                                              or _ew_now),
+                                                        bool(_ew.get("star")))
                                                     + ("\n" + REVIVED_UNAPPR
                                                        if _un9 else "")
                                                     + "\n", 1)
