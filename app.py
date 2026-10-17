@@ -3231,7 +3231,8 @@ def _render_revived_board(pb_state, live_prices=None) -> None:
                         _sym, _sd, _ts,
                         before_s=float(_mins or 0) * 60 + 3600)
                     + f"<br><span style='color:#ffd54a;font-size:0.8rem'>"
-                    + clock_cells.revived_line(_sd, float(_ts) - float(_mins or 0) * 60)
+                    + (clock_cells.revived_line if _sect == "rev"
+                       else clock_cells.golive_line)(_sd, float(_ts) - float(_mins or 0) * 60)
                     + "</span>"
                     + f"<br><span style='color:#8b93a7;font-size:0.8rem'>fire entry "
                     f"{_e:g} · SL {_stp:g} · TP1 {_t1:g}"

@@ -2817,7 +2817,12 @@ def cycle() -> None:
                                 # line first (user 2026-10-17).
                                 _msg9 = _msg9.replace(
                                     "\n", "\n" + clock_cells.star_1317_caution(
-                                        _pmx.get("side")) + "\n", 1)
+                                        _pmx.get("side"))
+                                    + (" · read PASSED — would have rung anyway"
+                                       if (not TG_GATES or _gate9[0]) else
+                                       " · read FAILED — ringing ONLY because "
+                                       "13–17 PKT is ungated (unmuted star)")
+                                    + "\n", 1)
                             ok, _m9, _ids9 = tg.send_thread(_msg9)
                     elif TG_RULES:
                         # 📵 plain 💎 conviction OFF the phone — Claude's

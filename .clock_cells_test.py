@@ -48,6 +48,21 @@ i_eg = W.find('if _ew.get("oneh") == "LIVE" and _ew.get("star"):\n              
 i_dead = W.find('if _ew.get("oneh") == "DEAD":\n                                        # GO REVIVED is its own bell')
 if not (0 < i_eg < i_dead):
     fails.append("the ELITE GO line must be added to _go9 before the bell branches (branches untouched)")
+# 💎⚡ GO LIVE cells on the conviction cards (user 2026-10-18)
+for h, side, want in ((22, "LONG", "TAKE"), (22, "SHORT", "DON'T"), (6, "LONG", "THIN"), (10, "SHORT", "THIN")):
+    e, c, d = cc.verdict(cc.GOLIVE_CELLS, side, T(h))
+    if c != want:
+        fails.append(f"go live {side} fired {h}:00 PKT -> {c} ({d}), want {want}")
+gl = cc.golive_line("LONG", T(22))
+if not gl.startswith("🕐 🟢 TAKE — fired 21–01 PKT longs 68% / +1.13R (19)") or "GO LIVE record" not in gl:
+    fails.append(f"go live line: {gl}")
+if "no record" not in cc.golive_line("SHORT", T(10)):
+    fails.append("a missing cell must read 'no record'")
+if ("+ (clock_cells.revived_line if _sect == \"rev\"\n                       else clock_cells.golive_line)(_sd, float(_ts) - float(_mins or 0) * 60)") not in A:
+    fails.append("revived board must pick revived cells for the rev section and GO LIVE cells for the live section")
+# the 13–17 caution says PASSED / FAILED
+if ('+ (" · read PASSED — would have rung anyway"\n                                       if (not TG_GATES or _gate9[0]) else\n                                       " · read FAILED — ringing ONLY because "\n                                       "13–17 PKT is ungated (unmuted star)")') not in W:
+    fails.append("13–17 caution must say whether the read passed or failed")
 # lines
 s = cc.star_line("LONG", T(6)); r = cc.revived_line("SHORT", T(18))
 if not s.startswith("🕐 🟢 TAKE — 05–09 PKT longs 75% / +0.52R (20)") or "09 Sep → 14 Oct" not in s:
@@ -70,7 +85,7 @@ for need, lab in (("import clock_cells\n", "worker import"),
         fails.append(f"worker missing: {lab}")
 for need, lab in (("import clock_cells\n", "app import"),
                   ("+ clock_cells.star_line(_sd, _ts) + \"</span>\"", "star card line"),
-                  ("+ clock_cells.revived_line(_sd, float(_ts) - float(_mins or 0) * 60)", "revived card line (fire time)")):
+                  ("else clock_cells.golive_line)(_sd, float(_ts) - float(_mins or 0) * 60)", "revived / GO LIVE card line (fire time)")):
     if need not in A:
         fails.append(f"app missing: {lab}")
 # 🕐 13–17 PKT = the one UNGATED window for the ⭐ bell (user 2026-10-17), phone only

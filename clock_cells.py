@@ -102,6 +102,24 @@ def elite_go_line(side: str, fired_at: float) -> str:
     return f"🕐 {e} {c} — fired {d} · {ELITE_GO_MEASURED}"
 
 
+# (win %, avg R, n) — 💎⚡ GO LIVE: conviction fire LIVE at the hour, then
+# ignited; by the FIRE's window (user 2026-10-18: conviction cards too).
+GOLIVE_MEASURED = "💎⚡ GO LIVE record 13 Sep → 14 Oct"
+GOLIVE_CELLS = {
+    ("LONG", "05–09"): (60, 1.48, 5), ("LONG", "09–13"): (33, 0.08, 6),
+    ("LONG", "13–17"): (40, 0.45, 5), ("LONG", "17–21"): (50, 0.33, 4),
+    ("LONG", "21–01"): (68, 1.13, 19), ("LONG", "01–05"): (50, 0.27, 2),
+    ("SHORT", "05–09"): (50, -0.06, 2), ("SHORT", "13–17"): (75, 0.43, 4),
+    ("SHORT", "17–21"): (83, 2.02, 6), ("SHORT", "21–01"): (18, -0.28, 11),
+    ("SHORT", "01–05"): (0, -0.02, 1),
+}
+
+
+def golive_line(side: str, fired_at: float) -> str:
+    e, c, d = verdict(GOLIVE_CELLS, side, fired_at)
+    return f"🕐 {e} {c} — fired {d} · {GOLIVE_MEASURED}"
+
+
 def star_line(side: str, ts: float) -> str:
     e, c, d = verdict(STAR_CELLS, side, ts)
     return f"🕐 {e} {c} — {d} · {STAR_MEASURED}"
