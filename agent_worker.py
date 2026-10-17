@@ -27,6 +27,7 @@ import btc2h
 import bottom_watch
 import shock_watch
 import buzz_clock
+import clock_cells
 import rung_stats
 import news_radar
 import btc_outlook
@@ -378,6 +379,13 @@ TG_GATES = True
 # One line to change. GATE_BTC_MIN is the down-side floor for the GO classes
 # (< -2.5% ran 33% / -0.01R).
 STAR_BTC_MAX = 1.5
+# 🕐 ⭐ 13–17 PKT is the ONE UNGATED WINDOW for the star bell (user 2026-10-17:
+# "should also ring … with caution and it is the only time that can remain
+# ungated"): the rung cell read 33% / -0.40R (9) while the muted ones read
+# 68% / +0.25R (25) — too thin to flip the rules, so the window rings as a
+# whole with a caution line and the record stamps 1317-pass / 1317-muted
+# for the forward split. Phone only: the demo seat still follows the read.
+STAR_UNGATED_1317 = True
 GATE_BTC_MIN = -1.5
 STAR_GATE_REC = ("gated set 71% / +0.45R (146) vs rejected 48% / -0.05R (205) · "
                  "desk 09 Sep → 14 Oct")
@@ -2761,6 +2769,7 @@ def cycle() -> None:
                         pass
                     _ids9 = None
                     _gate9 = (True, "")
+                    _w1317 = False      # 🕐 set in the star send branch below
                     if TG_RULES and (_star9 or _ag9):
                         # 🧵 TG RULES (user 2026-10-05): the rung-1 bells
                         # are thread anchors — the ⏱ verdict / ⭐⚡ GO /
@@ -2789,15 +2798,26 @@ def cycle() -> None:
                                 _gate9 = _star_gate(_pmx, time.time(),
                                                     _btc_day_pct())
                                 _msg9 = _msg9.replace(
-                                    "\n", "\n" + _gate9[1] + "\n", 1)
+                                    "\n", "\n" + _gate9[1] + "\n"
+                                    + clock_cells.star_line(
+                                        _pmx.get("side"), time.time())
+                                    + "\n", 1)
                             except Exception as _gt_exc:
                                 _gate9 = (True, f"read: error {_gt_exc}")
-                        if _star9 and TG_GATES and not _gate9[0]:
+                        _w1317 = (_star9 and STAR_UNGATED_1317
+                                  and clock_cells.window_of(time.time()) == "13–17")
+                        if _star9 and TG_GATES and not _gate9[0] and not _w1317:
                             ok, _m9, _ids9 = False, "gated", None
                             print(f"  [gate] ⭐ {_pmx.get('symbol')} "
                                   f"{_pmx.get('side')} muted: {_gate9[1]}",
                                   flush=True)
                         else:
+                            if _w1317:
+                                # 🕐 the ungated window rings with a caution
+                                # line first (user 2026-10-17).
+                                _msg9 = _msg9.replace(
+                                    "\n", "\n" + clock_cells.star_1317_caution(
+                                        _pmx.get("side")) + "\n", 1)
                             ok, _m9, _ids9 = tg.send_thread(_msg9)
                     elif TG_RULES:
                         # 📵 plain 💎 conviction OFF the phone — Claude's
@@ -2861,9 +2881,10 @@ def cycle() -> None:
                                 "conf": _cf9,
                                 "heat": _pmx.get("heat"),
                                 "tier": "HIGH",
-                                "gate": (("pass" if _gate9[0] else
-                                          "muted") if TG_GATES
-                                         else "off"),
+                                "gate": ((("1317-pass" if _gate9[0] else
+                                           "1317-muted") if _w1317 else
+                                          ("pass" if _gate9[0] else "muted"))
+                                         if TG_GATES else "off"),
                                 "gate_read": _gate9[1]}
                             store.record_signal("elite_star",
                                                 _st_sig)
@@ -5931,7 +5952,11 @@ def cycle() -> None:
                                                             or _ew.get("appr"))
                                                 _go9x = (_go9.replace(
                                                     "\n", "\n" + _rg9[1] + "\n"
-                                                    + _rg9[2]
+                                                    + _rg9[2] + "\n"
+                                                    + clock_cells.revived_line(
+                                                        _ew["side"],
+                                                        float(_ew.get("fired_at")
+                                                              or _ew_now))
                                                     + ("\n" + REVIVED_UNAPPR
                                                        if _un9 else "")
                                                     + "\n", 1)

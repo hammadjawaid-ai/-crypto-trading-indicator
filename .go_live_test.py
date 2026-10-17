@@ -150,8 +150,12 @@ _TP1_INS = ('                + _desk_tp1_line(("elite_star",), _sym, _sd, _ts)\n
 _TP1_WAS = '                f"<br><span style=\'color:#8b93a7;font-size:0.8rem\'>entry "'
 
 
+_CLOCK_INS = ("                + f\"<br><span style='color:#ffd54a;font-size:0.8rem'>\"\n"
+              "                + clock_cells.star_line(_sd, _ts) + \"</span>\"\n")   # 2026-10-17 🕐 clock line
+
+
 def _norm_sb(x):
-    return (x or "").replace(_TP1_INS, _TP1_WAS)
+    return (x or "").replace(_CLOCK_INS, "").replace(_TP1_INS, _TP1_WAS)
 
 
 if _norm_sb(sb_now) != _norm_sb(sb_old):

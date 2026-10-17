@@ -98,8 +98,8 @@ if gg(dict(ew2, tier="MAX"), btc=0.2)[0] or gg(dict(ew2, stop=94.0), btc=0.2)[0]
 
 # wiring
 for need, lab in (('_gate9 = _star_gate(_pmx, time.time(),', "star gate call"),
-                  ('if _star9 and TG_GATES and not _gate9[0]:\n                            ok, _m9, _ids9 = False, "gated", None', "muted star never sends, never threads"),
-                  ('"gate": (("pass" if _gate9[0] else', "star record stamp"),
+                  ('if _star9 and TG_GATES and not _gate9[0] and not _w1317:\n                            ok, _m9, _ids9 = False, "gated", None', "muted star never sends, never threads (13–17 PKT ungated, 2026-10-17)"),
+                  ('"gate": ((("1317-pass" if _gate9[0] else', "star record stamp (13–17 ungated window tagged, 2026-10-17)"),
                   ('_rg9 = _revived_gate(', "revived gate call"),
                   ('if TG_GATES and not _rg9[0]:\n                                                _bell9 = f"gated: {_rg9[1]}"', "revived gated stamp"),
                   ('_gl9 = _golive_gate(', "go live gate call"),

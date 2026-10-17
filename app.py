@@ -20,6 +20,7 @@ from plotly.subplots import make_subplots
 
 import alerts
 import binance_client
+import clock_cells
 import worker_store as _ws_c   # desk DB path for the read-only boards
 import breakout
 import btc_outlook
@@ -2989,6 +2990,8 @@ def _render_star_board(pb_state, live_prices=None) -> None:
                 f"font-weight:800'>{_sd}</span> · fired {_pkt} PKT "
                 f"({_ago:.1f}h ago) · <span style='color:{_scol}'>{_status}</span>"
                 + _desk_tp1_line(("elite_star",), _sym, _sd, _ts)
+                + f"<br><span style='color:#ffd54a;font-size:0.8rem'>"
+                + clock_cells.star_line(_sd, _ts) + "</span>"
                 + f"<br><span style='color:#8b93a7;font-size:0.8rem'>entry "
                 f"{_e:g} · SL {_stp:g} · TP1 {_t1:g}"
                 + (f" · TP2 {_t2f:g}" if _t2f else "")
@@ -3224,6 +3227,9 @@ def _render_revived_board(pb_state, live_prices=None) -> None:
                         (_src_c, "elite_star" if _ex.get("star") else "elite_conv"),
                         _sym, _sd, _ts,
                         before_s=float(_mins or 0) * 60 + 3600)
+                    + f"<br><span style='color:#ffd54a;font-size:0.8rem'>"
+                    + clock_cells.revived_line(_sd, float(_ts) - float(_mins or 0) * 60)
+                    + "</span>"
                     + f"<br><span style='color:#8b93a7;font-size:0.8rem'>fire entry "
                     f"{_e:g} · SL {_stp:g} · TP1 {_t1:g}"
                     + (f" · TP2 {_t2f:g}" if _t2f else "")
