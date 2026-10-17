@@ -83,6 +83,25 @@ def star_1317_caution(side: str) -> str:
     return STAR_1317_CAUTION.get((side or "").upper(), STAR_1317_CAUTION["LONG"])
 
 
+# (win %, avg R, n) — ⭐⚡ ELITE GO: star LIVE at the hour, then ignited; by the
+# FIRE's window. Most cells are thin and say so (user 2026-10-17: "do this for
+# elite go as well … same time logic").
+ELITE_GO_MEASURED = "⭐⚡ ELITE GO record 13 Sep → 14 Oct"
+ELITE_GO_CELLS = {
+    ("LONG", "05–09"): (100, 0.93, 7), ("LONG", "09–13"): (80, 0.87, 5),
+    ("LONG", "13–17"): (67, 0.26, 9), ("LONG", "17–21"): (82, 0.60, 17),
+    ("LONG", "21–01"): (83, 0.83, 12), ("LONG", "01–05"): (67, 0.37, 3),
+    ("SHORT", "05–09"): (100, 1.19, 2), ("SHORT", "09–13"): (0, -1.02, 1),
+    ("SHORT", "13–17"): (80, 0.26, 5), ("SHORT", "17–21"): (50, -0.02, 6),
+    ("SHORT", "21–01"): (67, 0.50, 3), ("SHORT", "01–05"): (100, 0.77, 3),
+}
+
+
+def elite_go_line(side: str, fired_at: float) -> str:
+    e, c, d = verdict(ELITE_GO_CELLS, side, fired_at)
+    return f"🕐 {e} {c} — fired {d} · {ELITE_GO_MEASURED}"
+
+
 def star_line(side: str, ts: float) -> str:
     e, c, d = verdict(STAR_CELLS, side, ts)
     return f"🕐 {e} {c} — {d} · {STAR_MEASURED}"

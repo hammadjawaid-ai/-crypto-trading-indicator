@@ -5911,6 +5911,14 @@ def cycle() -> None:
                                     _go9 = rung_stats.go_text(
                                         _ew, _prg, _age, _ew_px,
                                         _ew_now)
+                                    if _ew.get("oneh") == "LIVE" and _ew.get("star"):
+                                        # 🕐 ELITE GO clock line (user
+                                        # 2026-10-17), by the fire's window.
+                                        _go9 = _go9.replace(
+                                            "\n", "\n" + clock_cells.elite_go_line(
+                                                _ew["side"],
+                                                float(_ew.get("fired_at") or _ew_now))
+                                            + "\n", 1)
                                     if _ew.get("oneh") == "DEAD":
                                         # GO REVIVED is its own bell
                                         # for EVERY elite-family fire,

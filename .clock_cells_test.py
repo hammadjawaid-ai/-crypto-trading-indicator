@@ -30,6 +30,24 @@ for h, side, want in ((10, "LONG", "TAKE"), (22, "LONG", "TAKE"), (14, "LONG", "
     e, c, d = cc.verdict(cc.REVIVED_CELLS, side, T(h))
     if c != want:
         fails.append(f"revived {side} fired {h}:00 PKT -> {c} ({d}), want {want}")
+# ⭐⚡ ELITE GO cells (user 2026-10-17: "do this for elite go as well")
+for h, side, want in ((18, "LONG", "TAKE"), (22, "LONG", "TAKE"), (14, "LONG", "THIN"), (6, "LONG", "THIN"), (18, "SHORT", "THIN"), (10, "SHORT", "THIN")):
+    e, c, d = cc.verdict(cc.ELITE_GO_CELLS, side, T(h))
+    if c != want:
+        fails.append(f"elite go {side} fired {h}:00 PKT -> {c} ({d}), want {want}")
+eg = cc.elite_go_line("LONG", T(18))
+if not eg.startswith("🕐 🟢 TAKE — fired 17–21 PKT longs 82% / +0.60R (17)") or "ELITE GO record" not in eg:
+    fails.append(f"elite go line: {eg}")
+for need, lab in (('if _ew.get("oneh") == "LIVE" and _ew.get("star"):\n                                        # 🕐 ELITE GO clock line', "elite go bell line, LIVE stars only"),
+                  ("+ clock_cells.elite_go_line(\n                                                _ew[\"side\"],", "elite go bell call")):
+    if need not in W:
+        fails.append(f"worker missing: {lab}")
+if "+ clock_cells.elite_go_line(_sd, _ts) + \"</span>\")\n                   if (_vt and str(_vt[-1]).upper() == \"LIVE\" and _gt) else \"\")" not in A:
+    fails.append("star card must carry the ELITE GO line only on LIVE + GO cards")
+i_eg = W.find('if _ew.get("oneh") == "LIVE" and _ew.get("star"):\n                                        # 🕐 ELITE GO clock line')
+i_dead = W.find('if _ew.get("oneh") == "DEAD":\n                                        # GO REVIVED is its own bell')
+if not (0 < i_eg < i_dead):
+    fails.append("the ELITE GO line must be added to _go9 before the bell branches (branches untouched)")
 # lines
 s = cc.star_line("LONG", T(6)); r = cc.revived_line("SHORT", T(18))
 if not s.startswith("🕐 🟢 TAKE — 05–09 PKT longs 75% / +0.52R (20)") or "09 Sep → 14 Oct" not in s:

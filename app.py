@@ -2992,6 +2992,9 @@ def _render_star_board(pb_state, live_prices=None) -> None:
                 + _desk_tp1_line(("elite_star",), _sym, _sd, _ts)
                 + f"<br><span style='color:#ffd54a;font-size:0.8rem'>"
                 + clock_cells.star_line(_sd, _ts) + "</span>"
+                + ((f"<br><span style='color:#ffd54a;font-size:0.8rem'>"
+                    + clock_cells.elite_go_line(_sd, _ts) + "</span>")
+                   if (_vt and str(_vt[-1]).upper() == "LIVE" and _gt) else "")
                 + f"<br><span style='color:#8b93a7;font-size:0.8rem'>entry "
                 f"{_e:g} · SL {_stp:g} · TP1 {_t1:g}"
                 + (f" · TP2 {_t2f:g}" if _t2f else "")

@@ -152,10 +152,13 @@ _TP1_WAS = '                f"<br><span style=\'color:#8b93a7;font-size:0.8rem\'
 
 _CLOCK_INS = ("                + f\"<br><span style='color:#ffd54a;font-size:0.8rem'>\"\n"
               "                + clock_cells.star_line(_sd, _ts) + \"</span>\"\n")   # 2026-10-17 🕐 clock line
+_EGO_INS = ("                + ((f\"<br><span style='color:#ffd54a;font-size:0.8rem'>\"\n"
+            "                    + clock_cells.elite_go_line(_sd, _ts) + \"</span>\")\n"
+            "                   if (_vt and str(_vt[-1]).upper() == \"LIVE\" and _gt) else \"\")\n")   # 2026-10-17 🕐 ELITE GO line
 
 
 def _norm_sb(x):
-    return (x or "").replace(_CLOCK_INS, "").replace(_TP1_INS, _TP1_WAS)
+    return (x or "").replace(_EGO_INS, "").replace(_CLOCK_INS, "").replace(_TP1_INS, _TP1_WAS)
 
 
 if _norm_sb(sb_now) != _norm_sb(sb_old):
