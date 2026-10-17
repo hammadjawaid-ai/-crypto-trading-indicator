@@ -114,7 +114,8 @@ for a, b, lab in (('if _ew.get("oneh") == "DEAD":\n                             
         # 2026-10-15: unapproved fires enter the go_revived tier (appr clause gone, appr stamped)
         def _norm_tier(x):
             return (x or "").replace('                                and (_ew.get("star") or _ew.get("appr"))\n', "") \
-                            .replace('                                    "appr": bool(_ew.get("appr")),\n                                    "fire_entry": _e0}', '                                    "fire_entry": _e0}')
+                            .replace('                                    "appr": bool(_ew.get("appr")),\n                                    "fire_entry": _e0}', '                                    "fire_entry": _e0}') \
+                            .replace('                            "star_gate": _ew.get("star_gate"),\n                            "star_read": _ew.get("star_read"),\n', "")   # 2026-10-18 star fire read on the GO stamp
         old_, now_ = _norm_tier(old_), _norm_tier(now_)
         if old_ is None or now_ is None or old_.rstrip() != now_.rstrip():
             fails.append("stamp + go_revived tier changed vs HEAD")

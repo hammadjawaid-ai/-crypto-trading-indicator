@@ -283,6 +283,15 @@ def _ego_add(p, star=False, fam="elite"):
                 _EGO_WATCH[-1]["tg_ids"] = _th.get("ids")
         except Exception:
             pass
+        try:
+            # ⭐ adopt the fire read the star bell remembered (2026-10-18)
+            _sr = _STAR_READS.get((sym, side))
+            if (_sr and fam == "elite"
+                    and _t9 - float(_sr.get("ts") or 0) < 2 * 3600):
+                _EGO_WATCH[-1]["star_gate"] = _sr.get("gate")
+                _EGO_WATCH[-1]["star_read"] = _sr.get("read")
+        except Exception:
+            pass
         del _EGO_WATCH[:-80]
     except Exception:
         pass
@@ -399,6 +408,33 @@ REVIVED_ENTRY_NO = ("⚠️ hold only — outside the entry cell (46% / -0.16R e
 # OP went past TP1 silently); tagged the way GO LIVE tags them.
 REVIVED_UNAPPR = ("💎 this one is an UNAPPROVED elite fire: DEAD then ignited "
                   "41% / +0.49R (17), thin — size down")
+# ⭐ a STAR's revival is sorted by the star's own fire read, not by the card
+# rules every star passes (user 2026-10-18): revived stars whose fire RANG
+# 80% / +0.64R (46), FAST 87% / +0.74R (30); whose fire was MUTED 58% /
+# +0.12R (55); all 68% / +0.36R (101). Both still ring; the line tells them
+# apart. The read reaches the watch entry via _STAR_READS (memo + adoption,
+# persisted with the watch) because the entry may be created after the bell.
+STAR_REV_RANG_REC = ("revivals of rung stars 80% / +0.64R (46), FAST 87% / "
+                     "+0.74R (30) · desk 13 Sep → 14 Oct")
+STAR_REV_MUTED_REC = "revivals of muted stars 58% / +0.12R (55) · desk 13 Sep → 14 Oct"
+STAR_REV_ALL_REC = "all star revivals 68% / +0.36R (101) · desk 13 Sep → 14 Oct"
+_STAR_READS: dict = {}     # (symbol, side) -> {ts, gate, read} from the fire bell
+
+
+def _star_revived_line(ew) -> str:
+    """The ⭐⚡ GO REVIVED read line: the star's fire-read outcome + its cell."""
+    g = str(ew.get("star_gate") or "")
+    bits = str(ew.get("star_read") or "").strip()
+    if g in ("pass", "1317-pass"):
+        return f"⭐ fire read: RANG — {bits} — {STAR_REV_RANG_REC}"
+    if g == "1317-muted":
+        return (f"⭐ fire read: FAILED (rang only via the 13–17 ungated window) — "
+                f"{bits} — {STAR_REV_MUTED_REC}")
+    if g == "muted":
+        return f"⭐ fire read: MUTED — this star never rang — {bits} — {STAR_REV_MUTED_REC}"
+    if g == "off":
+        return f"⭐ fire read: gates were off — {STAR_REV_ALL_REC}"
+    return f"⭐ fire read: unknown (fired before this build or across a restart) — {STAR_REV_ALL_REC}"
 GOLIVE_GATE_REC = ("gated set 65% / +1.27R (23) vs rejected 45% / +0.36R (42) · "
                    "from the fire price")
 _BTC_DAY_CACHE: dict = {"t": 0.0, "v": None}
@@ -532,7 +568,11 @@ def _ego_save() -> None:
                            "threads": {f"{k[0]}|{k[1]}": v
                                        for k, v in _TG_THREADS.items()
                                        if _now - float((v or {}).get("ts")
-                                                       or 0) < 2 * 3600}},
+                                                       or 0) < 2 * 3600},
+                           "star_reads": {f"{k[0]}|{k[1]}": v
+                                          for k, v in _STAR_READS.items()
+                                          if _now - float((v or {}).get("ts")
+                                                          or 0) < 2 * 3600}},
                           _fd, default=str)
     except Exception as _eg_exc:
         print("  ego save error:", _eg_exc, flush=True)
@@ -560,6 +600,12 @@ def _ego_load() -> int:
             try:
                 sym, side = k.split("|", 1)
                 _TG_THREADS[(sym, side)] = v
+            except Exception:
+                continue
+        for k, v in (_d.get("star_reads") or {}).items():
+            try:
+                sym, side = k.split("|", 1)
+                _STAR_READS[(sym, side)] = v
             except Exception:
                 continue
         return n
@@ -2824,6 +2870,27 @@ def cycle() -> None:
                                        "13–17 PKT is ungated (unmuted star)")
                                     + "\n", 1)
                             ok, _m9, _ids9 = tg.send_thread(_msg9)
+                        if _star9:
+                            # ⭐ remember the fire read for the revived bell
+                            # (user 2026-10-18); rides the watch entry.
+                            try:
+                                _lab9 = ((("1317-" if _w1317 else "")
+                                          + ("pass" if _gate9[0] else "muted"))
+                                         if TG_GATES else "off")
+                                _bits9 = (_gate9[1].split(" — ")[0]
+                                          .replace("read: ", "") if TG_GATES else "")
+                                _key9 = (_pmx.get("symbol"),
+                                         (_pmx.get("side") or "").upper())
+                                _STAR_READS[_key9] = {"ts": time.time(),
+                                                      "gate": _lab9, "read": _bits9}
+                                for _ewb in _EGO_WATCH:
+                                    if ((_ewb.get("symbol"), _ewb.get("side")) == _key9
+                                            and _ewb.get("fam", "elite") == "elite"
+                                            and time.time() - float(_ewb.get("fired_at")
+                                                                     or 0) < 2 * 3600):
+                                        _ewb["star_gate"], _ewb["star_read"] = _lab9, _bits9
+                            except Exception:
+                                pass
                     elif TG_RULES:
                         # 📵 plain 💎 conviction OFF the phone — Claude's
                         # call on the user's "your call" (2026-10-05):
@@ -5964,7 +6031,10 @@ def cycle() -> None:
                                                 _un9 = not (_ew.get("star")
                                                             or _ew.get("appr"))
                                                 _go9x = (_go9.replace(
-                                                    "\n", "\n" + _rg9[1] + "\n"
+                                                    "\n", "\n"
+                                                    + (_star_revived_line(_ew)
+                                                       if _ew.get("star") else _rg9[1])
+                                                    + "\n"
                                                     + _rg9[2] + "\n"
                                                     + clock_cells.revived_line(
                                                         _ew["side"],
@@ -6054,6 +6124,8 @@ def cycle() -> None:
                             "tp1": _ew["tp1"], "oneh": _ew.get("oneh"),
                             "star": bool(_ew.get("star")),
                             "tp2": _ew.get("tp2"),
+                            "star_gate": _ew.get("star_gate"),
+                            "star_read": _ew.get("star_read"),
                             "bell": _bell9})
                         if (_ew.get("oneh") == "DEAD"
                                 and (not REVIVED_LONG_FAST

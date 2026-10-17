@@ -3230,6 +3230,16 @@ def _render_revived_board(pb_state, live_prices=None) -> None:
                     _chips.append("🔔 bell ✓")
                 elif _bell:
                     _chips.append(f"🔕 no bell: {_bell}")
+                # ⭐ the star's own fire read (user 2026-10-18): what sorts a
+                # star's revival — RANG 80% / +0.64R vs MUTED 58% / +0.12R.
+                _sg = str(_ex.get("star_gate") or "")
+                if _ex.get("star") and _sg:
+                    _chips.append(
+                        ("⭐ fire read: RANG" if _sg in ("pass", "1317-pass")
+                         else "⭐ fire read: FAILED, rang via the 13–17 ungated window" if _sg == "1317-muted"
+                         else "⭐ fire read: MUTED, never rang" if _sg == "muted"
+                         else "⭐ fire read: gates off")
+                        + (f" — {_ex.get('star_read')}" if _ex.get("star_read") else ""))
                 _pkt = time.strftime("%H:%M", time.gmtime(float(_ts) + 5 * 3600))
                 _ago = (_now_rb - float(_ts)) / 3600
                 _sc = "#2ed47a" if _lng else "#ff5c5c"

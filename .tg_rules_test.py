@@ -253,7 +253,7 @@ for need, lab in (("TG_RULES = True\n", "switch on"),
                   ('"star_go" if _ew.get("star") else "elite_go", {', "elite_go stamp"),
                   ('if _ew["go"] == "FAST" and _ew.get("star"):', "chase tier star-only"),
                   ('elif (_ew.get("buzzed") and _ew.get("star")\n                                and _ew.get("oneh") == "DEAD"):', "old path stays star-only"),
-                  ('"tp2": _ew.get("tp2"),\n                            "bell": _bell9})', "GO stamp carries the bell status"),
+                  ('"tp2": _ew.get("tp2"),\n                            "star_gate": _ew.get("star_gate"),\n                            "star_read": _ew.get("star_read"),\n                            "bell": _bell9})', "GO stamp carries the bell status"),
                   ("def _ego_save() -> None:", "watch persisted"),
                   ("def _ego_load() -> int:", "watch restored"),
                   ("        _ego_save()\n", "save each cycle"),
@@ -312,7 +312,7 @@ if not (0 < _i_d < _i_s) or "buzzed" in W[_i_d:_i_s]:
     fails.append("the revived bell must ring whether or not the fire was on the phone")
 # persistence round-trip (the two helpers run standalone)
 import ast as _ast
-_ns = {"time": time, "_EGO_WATCH": [], "_TG_THREADS": {}, "_EGO_FILE": os.path.join(tmp, "ego.json"), "print": print}
+_ns = {"time": time, "_EGO_WATCH": [], "_TG_THREADS": {}, "_STAR_READS": {}, "_EGO_FILE": os.path.join(tmp, "ego.json"), "print": print}   # _STAR_READS: 2026-10-18 star fire-read memo
 for _n in _ast.parse(W).body:
     if isinstance(_n, _ast.FunctionDef) and _n.name in ("_ego_save", "_ego_load"):
         exec(compile(_ast.Module(body=[_n], type_ignores=[]), _n.name, "exec"), _ns)
