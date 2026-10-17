@@ -63,6 +63,14 @@ if ("+ (clock_cells.revived_line if _sect == \"rev\"\n                       els
 # the 13–17 caution says PASSED / FAILED
 if ('+ (" · read PASSED — would have rung anyway"\n                                       if (not TG_GATES or _gate9[0]) else\n                                       " · read FAILED — ringing ONLY because "\n                                       "13–17 PKT is ungated (unmuted star)")') not in W:
     fails.append("13–17 caution must say whether the read passed or failed")
+# ⭐ card gate chip (user 2026-10-18: tally the board with the phone)
+for need in ('_gs = str(_ex.get("gate") or "")', '_chips.append("🔔 RANG — read passed")', '_chips.append("🔕 MUTED on the phone — " + (_gr or "read failed"))',
+             '_chips.append("🔔 RANG — 13–17 PKT ungated window, read passed")', '_chips.append("🔔 RANG (unmuted) — 13–17 PKT ungated window, read FAILED: " + (_gr or ""))'):
+    if need not in A:
+        fails.append(f"star card gate chip missing: {need[:50]}")
+i_chip = A.find('_gs = str(_ex.get("gate") or "")'); i_sb = A.find("def _render_star_board("); i_rb = A.find("def _render_revived_board(")
+if not (0 < i_sb < i_chip < i_rb):
+    fails.append("the gate chip must live inside the ⭐ star board")
 # lines
 s = cc.star_line("LONG", T(6)); r = cc.revived_line("SHORT", T(18))
 if not s.startswith("🕐 🟢 TAKE — 05–09 PKT longs 75% / +0.52R (20)") or "09 Sep → 14 Oct" not in s:

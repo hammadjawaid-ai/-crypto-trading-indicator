@@ -157,8 +157,15 @@ _EGO_INS = ("                + ((f\"<br><span style='color:#ffd54a;font-size:0.8
             "                   if (_vt and str(_vt[-1]).upper() == \"LIVE\" and _gt) else \"\")\n")   # 2026-10-17 🕐 ELITE GO line
 
 
+def _strip_gate_chip(x):
+    # 2026-10-18: the ⭐ card's 🔔/🔕 gate chip block (phone outcome) — sanctioned
+    i = (x or "").find("            # 🔔/🔕 what the PHONE did with this fire")
+    j = (x or "").find("            if _isag:\n", i)
+    return x if (i < 0 or j < 0) else x[:i] + x[j:]
+
+
 def _norm_sb(x):
-    return (x or "").replace(_EGO_INS, "").replace(_CLOCK_INS, "").replace(_TP1_INS, _TP1_WAS)
+    return _strip_gate_chip((x or "")).replace(_EGO_INS, "").replace(_CLOCK_INS, "").replace(_TP1_INS, _TP1_WAS)
 
 
 if _norm_sb(sb_now) != _norm_sb(sb_old):

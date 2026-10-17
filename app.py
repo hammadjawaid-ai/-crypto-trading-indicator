@@ -2973,6 +2973,20 @@ def _render_star_board(pb_state, live_prices=None) -> None:
                 _chips.append("⭐⚡ GO " + str(_gt[-1][0])
                               + (" (bell ✓)" if _gb.startswith("sent")
                                  else f" (no bell: {_gb})" if _gb else ""))
+            # 🔔/🔕 what the PHONE did with this fire (user 2026-10-18): the
+            # record's gate stamp; the board itself is ungated and shows all.
+            _gs = str(_ex.get("gate") or "")
+            _gr = str(_ex.get("gate_read") or "").split(" — ")[0].replace("read: ", "")
+            if _gs == "pass":
+                _chips.append("🔔 RANG — read passed")
+            elif _gs == "muted":
+                _chips.append("🔕 MUTED on the phone — " + (_gr or "read failed"))
+            elif _gs == "1317-pass":
+                _chips.append("🔔 RANG — 13–17 PKT ungated window, read passed")
+            elif _gs == "1317-muted":
+                _chips.append("🔔 RANG (unmuted) — 13–17 PKT ungated window, read FAILED: " + (_gr or ""))
+            elif _gs == "off":
+                _chips.append("🔔 RANG — gates off")
             if _isag:
                 _chips.append("🏆 A-GRADE")
             if _ex.get("conf") is not None:
