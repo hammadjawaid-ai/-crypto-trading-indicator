@@ -107,7 +107,9 @@ for need, lab in (('_gate9 = _star_gate(_pmx, time.time(),', "star gate call"),
                   ('"conf": p.get("conf"), "score": p.get("score"),\n             "entry0": None', "watch entry carries conf + score"),
                   ('_MUTE_RULES(_fmt_apex_v2(_sig2, _px2, _rv2)', "APEX V2 muted"),
                   ('if key_prefix not in (() if TG_RULES else', "moonshot muted"),
-                  ('ok, _ = _MUTE_RULES(\n                        f"⚡🔮 *KR-STRONG PREMIUM — "', "premium muted"),
+                  ('ok, _ = tg.send(\n                        f"⚡🔮 *KR-STRONG PREMIUM — "', "premium back on the phone (user 2026-10-19), measured record, read not a gate"),
+                  ('f"read (not a gate): {_kp_bits} — both ✅ ran 65% / +0.56R (71); "', "premium read line"),
+                  ('f"the premium cell 58% / +0.41R (114), TP1 54% · desk 16 Aug → 14 Oct\\n"', "premium honest record"),
                   ("TG_TRIGKR_PRIME = False", "TRIG×KR×PRIME muted")):
     if need not in W:
         fails.append(f"wiring missing: {lab}")

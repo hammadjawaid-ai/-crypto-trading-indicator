@@ -4304,21 +4304,36 @@ def cycle() -> None:
                         continue
                     _kp_t2 = (f" · TP2 `{float(_sp2['tp2']):g}`"
                               if _sp2.get("tp2") else "")
-                    # 📵 muted 2026-10-14 (user: "remove or mute: kr strong";
-                    # the bell's 83% never reproduced — 56% / +0.38R over 71).
-                    # Records / stamp continue. Revert: _MUTE_RULES -> tg.send.
-                    ok, _ = _MUTE_RULES(
+                    # 🔔 back on the phone 2026-10-19 (user: "bring KR STRONG
+                    # PREMIUM rings back"); muted 2026-10-14 → 10-19. The old
+                    # 83% claim is gone: the full-ledger cell is 58% / +0.41R
+                    # (114). The read below is information, never a gate.
+                    try:
+                        _kp_btc = _btc_day_pct()
+                    except Exception:
+                        _kp_btc = None
+                    try:
+                        _kp_scf = float(_sp2.get("score"))
+                    except (TypeError, ValueError):
+                        _kp_scf = None
+                    _kp_bits = " · ".join([
+                        (f"✅ BTC {_kp_btc:+.2f}% today" if (_kp_btc is not None and _kp_btc >= GATE_BTC_MIN)
+                         else f"⚠️ BTC {_kp_btc:+.2f}% today" if _kp_btc is not None else "🟡 BTC today ?"),
+                        (f"✅ score {_kp_scf:g}" if (_kp_scf is not None and _kp_scf < 90)
+                         else f"⚠️ score {_kp_scf:g}" if _kp_scf is not None else "🟡 score ?")])
+                    ok, _ = tg.send(
                         f"⚡🔮 *KR-STRONG PREMIUM — "
                         f"{_sp2.get('base')} LONG*\n"
+                        f"read (not a gate): {_kp_bits} — both ✅ ran 65% / +0.56R (71); "
+                        f"the premium cell 58% / +0.41R (114), TP1 54% · desk 16 Aug → 14 Oct\n"
                         f"strong setup · calm kronos wind "
                         f"({_sp2.get('kr_dir')} {_kp_x:+.1f}%/24h) "
                         f"· TP1 in the goldilocks zone "
                         f"({_kp_rr:.2f}R away)\n"
                         f"entry `{_kp_e:g}` · SL `{_kp_s:g}` · TP1 "
                         f"`{_kp_t:g}`{_kp_t2}\n"
-                        f"_the validated premium cell: 83.1% / "
-                        f"+1.07R live (n=83, all thirds green). "
-                        f"Bank at TP1._")
+                        f"_bank at TP1 · hold through the hour: a LIVE 60m read "
+                        f"lifts the cell to 73% / +0.80R (22)._")
                     n_alerts += 1 if ok else 0
                     # records-only stamp of the bell that rang, so the
                     # 🏦 TP1 watch can see it (user 2026-10-12); the
