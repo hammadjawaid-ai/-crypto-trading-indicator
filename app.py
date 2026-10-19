@@ -3455,7 +3455,8 @@ def _render_t1_board(pb_state, live_prices=None) -> None:
             continue
 
 
-_PAIR_SPLIT_TIERS = ("star_prime", "conv_prime", "trigkr_prime", "leg2_prime")
+_PAIR_SPLIT_TIERS = ("star_prime", "conv_prime", "trigkr_prime", "leg2_prime",
+                     "prime_trig")   # 💥🥇 records-only tier, 2026-10-19
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -4558,6 +4559,11 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "leg2_prime": "🔥🥇 SECOND LEG × PRIME — second-leg fire + 🥇 "
                                  "PRIME on the coin (73%/+0.47R over 37, Sep desk; "
                                  "every band records, proving)",
+                   "prime_trig": "💥🥇 PRIME × STRONG TRIGGER — 🥇 PRIME fire + 💥 "
+                                 "strong trigger on the coin and side, 2h before → "
+                                 "30 min after (64%/+0.32R over 155 on the 07 Aug → "
+                                 "12 Oct desk replay; PRIME read stamped, never a "
+                                 "gate; records only, no bell, proving)",
                    "go_live": "💎⚡ GO LIVE — entry at an elite conviction GO after "
                               "a LIVE verdict (not stars; Sep desk from the fire "
                               "price 61%/+0.69R over 171; records only, proving)",

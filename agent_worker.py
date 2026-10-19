@@ -524,6 +524,25 @@ def _star_gate(p, now, btc=None):
     return passed, line + " — " + STAR_GATE_REC
 
 
+def _prime_read(p, now, btc=None):
+    """🥇 PRIME read (2026-10-19, .prime_native_read.py): TP1 < 1.5R away ·
+    stop >= 3% · BTC day <= +1.5% · fire not 01–05 and not 13–17 PKT. A stamp
+    on the record, never a gate. Returns (passed, line)."""
+    try:
+        e, s, t = float(p.get("entry")), float(p.get("stop")), float(p.get("tp1"))
+        rr = abs(t - e) / abs(e - s) if e > 0 and s > 0 and t > 0 and e != s else None
+    except (TypeError, ValueError):
+        rr = None
+    sp = _stop_pct(p.get("entry"), p.get("stop"))
+    win = buzz_clock.window_of(rung_stats.pkt_hour(now))
+    passed, line = _gate_bits([
+        (rr, rr is not None and rr < 1.5, f"TP1 {rr:.2f}R away" if rr is not None else "TP1 distance"),
+        (sp, sp is not None and sp >= 3.0, f"stop {sp:.1f}%" if sp is not None else "stop"),
+        (btc, btc is not None and btc <= STAR_BTC_MAX, f"BTC {btc:+.2f}% today" if btc is not None else "BTC today"),
+        (win, win not in ("01–05", "13–17"), f"{win} PKT")])
+    return passed, line + " — " + PRIME_READ_REC
+
+
 def _revived_gate(ew, px, now, btc=None):
     """⭐⚡/💎⚡ GO REVIVED: the FIRE read (not MAX · score < 90) -> (passed, line,
     entry_line). DROPPED on the 7-week candle replay (.revived_clock_history.py):
@@ -2238,6 +2257,19 @@ TG_CONV_PRIME = True   # 💎🥇 bell. False = silent; desk tier conv_prime con
 # the desk splits the record by band.
 TG_TRIGKR_PRIME = False  # 💥🔮🥇 bell OFF 2026-10-14 (user: "remove or mute"); tier trigkr_prime continues.
 TG_LEG2_PRIME = True     # 🔥🥇 bell. False = silent; tier leg2_prime continues.
+# 💥🥇 PRIME × STRONG TRIGGER (user 2026-10-19: "build the prime x strong trigger
+# records tier and deploy"). Records-only desk tier prime_trig: a fresh 🥇 PRIME
+# fire with a 💥 strong trigger on the same coin + side 2h before → 30 min after
+# it. Study .prime_improve_study.py / .prime_pairs_detail.py on the 07 Aug → 12
+# Oct desk: PRIME with the trigger 64% / +0.32R (155), without 47% / +0.04R
+# (434); Aug +0.41R · Sep +0.32R · Oct +0.22R; inside the PRIME read 73% /
+# +0.35R (64); LIVE at the hour 83% / +0.69R (60). The bell stays OFF until 30
+# forward trades confirm; the PRIME read is stamped on every record, never gates.
+TG_PRIME_TRIG = False    # 💥🥇 bell OFF — records only (no send path exists yet).
+PRIME_TRIG_REC = ("PRIME with a 💥 strong trigger 64% / +0.32R (155) vs PRIME "
+                  "without 47% / +0.04R (434) · desk replay 07 Aug → 12 Oct")
+PRIME_READ_REC = ("gated 63% / +0.27R (230) vs rejected 43% / +0.02R (359) · "
+                  "desk 07 Aug → 12 Oct, in-sample")
 PRIME_PAIR_BEFORE, PRIME_PAIR_AFTER = 2 * 3600, 30 * 60
 PRIME_PAIR_FRESH = 35 * 60       # an elite record pairs only while this fresh
 STAR_PRIME_BANDS = ("40-54", "55-64", "75-84", "85+")   # user: "just not 65 to 74"
@@ -4479,6 +4511,74 @@ def cycle() -> None:
                     print("  prime-pair item error:", _pp1, flush=True)
     except Exception as _pp_exc:
         print("  prime-pair error:", _pp_exc, flush=True)
+
+    # 💥🥇 PRIME × STRONG TRIGGER — records-only pass (user 2026-10-19). The
+    # anchor is the 🥇 PRIME fire (its own plan is the trade, as the study
+    # measured); the partner is a 💥 strong trigger on the same coin + side
+    # 2h before → 30 min after it. No bell: TG_PRIME_TRIG is False and no
+    # send path exists here — the desk tier prime_trig is the whole build.
+    try:
+        import json as _json_pt
+        _now_pt = time.time()
+        try:
+            _btc_pt = _btc_day_pct()
+        except Exception:
+            _btc_pt = None
+        for _sg in store.recent_by_stream("prime", 80):
+            try:
+                _ts_pt = float(_sg.get("ts") or 0)
+                if _now_pt - _ts_pt > PRIME_PAIR_FRESH:
+                    continue
+                _sym_pt = _sg.get("symbol")
+                _sd_pt = (_sg.get("side") or "").upper()
+                if not _sym_pt or _sd_pt not in ("LONG", "SHORT"):
+                    continue
+                if not (_sg.get("entry") and _sg.get("stop") and _sg.get("tp1")):
+                    continue
+                if not store.seen_between(
+                        "trig_strong", _sym_pt, _sd_pt,
+                        _ts_pt - PRIME_PAIR_BEFORE,
+                        _ts_pt + PRIME_PAIR_AFTER):
+                    continue
+                if not store.should_alert(
+                        f"prime_trig:{_sym_pt}:{_sd_pt}", int(3.0 * 3600)):
+                    continue
+                try:
+                    _ex_pt = _json_pt.loads(_sg.get("extra") or "{}")
+                except Exception:
+                    _ex_pt = {}
+                _conf_pt = _ex_pt.get("conf")
+                if _conf_pt is None:
+                    try:   # PRIME carries no conf — read the board now
+                        _conf_pt = best_board.confidence(_sym_pt, _sd_pt)
+                    except Exception:
+                        _conf_pt = None
+                _sig_pt = {"symbol": _sym_pt,
+                           "base": _sg.get("base")
+                           or str(_sym_pt).replace("USDT", ""),
+                           "side": _sd_pt, "entry": _sg.get("entry"),
+                           "stop": _sg.get("stop"), "tp1": _sg.get("tp1"),
+                           "tp2": _sg.get("tp2"), "tier": _sg.get("tier"),
+                           "score": _sg.get("score"), "conf": _conf_pt,
+                           "band": _conf_band(_conf_pt), "prime_ts": _ts_pt,
+                           "atr_pct": _ex_pt.get("atr_pct"), "c6": _ex_pt.get("c6"),
+                           "btc_day": _btc_pt, "partner": "trig_strong"}
+                _rd_pt = _prime_read(_sig_pt, _now_pt, _btc_pt)
+                _sig_pt["read"] = "pass" if _rd_pt[0] else "fail"
+                _sig_pt["read_line"] = _rd_pt[1]
+                _px_pt = None
+                try:
+                    _px_pt = binance_client.get_ticker_price(_sym_pt)
+                except Exception:
+                    _px_pt = None
+                store.record_signal("prime_trig", _sig_pt)
+                shadow_trader.open_from_signal("prime_trig", _sig_pt, _px_pt)
+                print(f"  [prime-trig] {_sym_pt} {_sd_pt} band={_sig_pt['band']} "
+                      f"read={_sig_pt['read']} bell=off", flush=True)
+            except Exception as _pt1:
+                print("  prime-trig item error:", _pt1, flush=True)
+    except Exception as _pt_exc:
+        print("  prime-trig error:", _pt_exc, flush=True)
 
     # 💯 CONVICTION v2 (user 2026-08-23: "remove kronos its not even
     # proven effective anyway... make it better somehow"). Kronos is
