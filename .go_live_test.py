@@ -44,7 +44,7 @@ if msg.count("*") % 2 or msg.count("`") % 2 or "\ufffd" in msg:
 
 # wiring: branch order inside the GO block, tier block placement, stars untouched
 i_dead = W.find('if _ew.get("oneh") == "DEAD":\n                                        # GO REVIVED is its own bell')
-i_thr = W.find('elif _ew.get("buzzed"):\n                                        _ok9, _m9x, _ = tg.send_thread(')
+i_thr = W.find('elif _ew.get("buzzed"):')   # 2026-10-19: the reply now skips LATE before the send
 i_live = W.find('elif (_ew.get("oneh") == "LIVE"\n                                          and not _ew.get("star")):')
 i_sent = W.find('if _bell9.startswith("sent"):\n                                        n_alerts += 1')
 if not (0 < i_dead < i_thr < i_live < i_sent):
@@ -88,8 +88,13 @@ for a, b, lab in (('if _ew.get("oneh") == "DEAD":\n                             
             i = x.find('elif _ew.get("star") or _ew.get("appr"):')
             if i < 0:
                 i = x.find('else:\n                                            # 🚦 revived gate')
-            j = x.find('elif _ew.get("buzzed"):', i)
-            return x if (i < 0 or j < 0) else x[:i] + x[j:]
+            # 2026-10-19: the thread branch itself changed (LATE reply skipped) — cut through to the LIVE branch
+            j = x.find('elif (_ew.get("oneh") == "LIVE"', i)
+            if j < 0:
+                j = x.find('if _bell9.startswith("sent"):', i)
+            if i < 0:
+                return x
+            return x[:i] if j < 0 else x[:i] + x[j:]
         old_, now_ = _cut_rev(old_), _cut_rev(now_)
         if old_ is None or now_ is None or not old_.startswith(now_.rstrip()) and old_.rstrip() != now_.rstrip():
             fails.append("DEAD / thread branches changed")

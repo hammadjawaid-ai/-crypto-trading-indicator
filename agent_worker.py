@@ -435,6 +435,34 @@ def _star_revived_line(ew) -> str:
     if g == "off":
         return f"⭐ fire read: gates were off — {STAR_REV_ALL_REC}"
     return f"⭐ fire read: unknown (fired before this build or across a restart) — {STAR_REV_ALL_REC}"
+
+
+# 🔔 revival bells by family (user 2026-10-19): the header names the family
+# and the class, the class line carries the family's FAST / LATE record.
+STAR_REV_CLASS_REC = ("star revivals FAST 72% / +0.45R (58) · LATE 63% / +0.24R (43) · "
+                      "desk 13 Sep → 14 Oct")
+CONV_REV_CLASS_REC = ("conviction revivals FAST 57% / +0.63R (28) · LATE 21% / -0.15R (14) · "
+                      "desk 13 Sep → 14 Oct; 7-week replay LATE 52% / +0.04R (201)")
+
+
+def _revival_dress(msg, ew, age_s, now):
+    """Rename a revived GO's header by family (⭐ STAR REVIVAL / 💎 CONVICTION
+    REVIVAL · FAST|LATE · time) and swap the generic class line for the
+    family's FAST / LATE record. Fail-soft: returns msg unchanged on error."""
+    try:
+        lines = str(msg).split("\n")
+        star = bool(ew.get("star"))
+        cls = str(ew.get("go") or ("LATE" if float(age_s) > 4 * 3600 else "FAST")).upper()
+        head = (f"{'⭐' if star else '💎'} *{'STAR' if star else 'CONVICTION'} REVIVAL — "
+                f"{ew.get('base')} {ew.get('side')} · {cls} · {rung_stats.pkt_hm(now)} PKT "
+                f"({float(age_s) / 3600:.1f}h after the fire)*")
+        body = [ln for ln in lines[1:] if not ln.startswith("class:")]
+        cls_line = f"class: {cls} — " + (STAR_REV_CLASS_REC if star else CONV_REV_CLASS_REC)
+        at = next((i for i, ln in enumerate(body) if ln.startswith("fire entry")), len(body))
+        body.insert(at, cls_line)
+        return "\n".join([head] + body)
+    except Exception:
+        return msg
 GOLIVE_GATE_REC = ("gated set 65% / +1.27R (23) vs rejected 45% / +0.36R (42) · "
                    "from the fire price")
 _BTC_DAY_CACHE: dict = {"t": 0.0, "v": None}
@@ -6027,6 +6055,12 @@ def cycle() -> None:
                                                     _rg9 = (True, f"read: error {_rg_exc}", "")
                                             if TG_GATES and not _rg9[0]:
                                                 _bell9 = f"gated: {_rg9[1]}"
+                                            elif (TG_GATES and not _ew.get("star")
+                                                  and not str(_rg9[2]).startswith("✅")):
+                                                # 💎 conviction revivals ring only inside
+                                                # the entry cell (user 2026-10-19): at the
+                                                # GO the class is breakeven everywhere else.
+                                                _bell9 = f"gated: entry cell not met — {_rg9[2]}"
                                             else:
                                                 _un9 = not (_ew.get("star")
                                                             or _ew.get("appr"))
@@ -6045,17 +6079,23 @@ def cycle() -> None:
                                                        if _un9 else "")
                                                     + "\n", 1)
                                                     if TG_GATES else _go9)
+                                                _go9x = _revival_dress(_go9x, _ew, _age, _ew_now)
                                                 _ok9, _m9x = tg.send(_go9x)
                                                 _bell9 = ((("sent-standalone-unapproved"
                                                             if _un9 else "sent-standalone")
                                                            if _ok9
                                                            else f"failed: {_m9x}"))
                                     elif _ew.get("buzzed"):
-                                        _ok9, _m9x, _ = tg.send_thread(
-                                            _go9,
-                                            reply_to=_ew.get("tg_ids"))
-                                        _bell9 = ("sent-thread" if _ok9
-                                                  else f"failed: {_m9x}")
+                                        if _ew.get("go") == "LATE":
+                                            # ⭐⚡ LATE ELITE GO reply skipped (user
+                                            # 2026-10-19): 3 trades a month.
+                                            _bell9 = "skipped (LATE elite GO reply)"
+                                        else:
+                                            _ok9, _m9x, _ = tg.send_thread(
+                                                _go9,
+                                                reply_to=_ew.get("tg_ids"))
+                                            _bell9 = ("sent-thread" if _ok9
+                                                      else f"failed: {_m9x}")
                                     elif (_ew.get("oneh") == "LIVE"
                                           and not _ew.get("star")):
                                         # 💎⚡ LIVE then GO, elite conviction

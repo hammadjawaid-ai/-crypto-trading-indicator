@@ -112,8 +112,8 @@ for need, lab in (('_gate9 = _star_gate(_pmx, time.time(),', "star gate call"),
     if need not in W:
         fails.append(f"wiring missing: {lab}")
 # the star's GO reply stays as it was: the thread send for a LIVE fire is untouched
-if 'elif _ew.get("buzzed"):\n                                        _ok9, _m9x, _ = tg.send_thread(\n                                            _go9,\n                                            reply_to=_ew.get("tg_ids"))' not in W:
-    fails.append("the star's GO reply (ungated) changed")
+if 'else:\n                                            _ok9, _m9x, _ = tg.send_thread(\n                                                _go9,\n                                                reply_to=_ew.get("tg_ids"))' not in W:
+    fails.append("the star's FAST GO reply (ungated) changed")   # 2026-10-19: LATE replies skipped, FAST untouched
 for keep in ("TG_STAR_PRIME = True", "TG_LEG2_PRIME = True", "TG_CONV_PRIME = True"):
     if keep not in W:
         fails.append(f"must stay on: {keep}")
