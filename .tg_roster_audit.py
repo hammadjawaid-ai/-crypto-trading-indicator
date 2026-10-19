@@ -22,7 +22,7 @@ for n in ("TG_RULES", "TG_FREEZE", "TG_GATES", "TG_GO_LIVE", "STAR_BTC_MAX", "GA
           "REVIVED_LONG_FAST", "TG_STAR_PRIME", "TG_CONV_PRIME", "TG_LEG2_PRIME", "TG_TRIGKR_PRIME",
           "TG_PRIME_TRIG"):
     print(f"  {n:20s} {flag(n)}")
-sg = W[W.find("def _star_gate("):W.find("def _revived_gate(")]
+sg = W[W.find("def _star_gate("):W.find("def _prime_read(")]   # the star read only; _prime_read (13–17 rule) sits right after it
 rg = W[W.find("def _revived_gate("):W.find("def _golive_gate(")]
 checks = [
     ("⭐ star: four-rule read gates the send (heat / BTC day / not 01–05 / stop)",
