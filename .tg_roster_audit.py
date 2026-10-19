@@ -20,7 +20,7 @@ def flag(name):
 print("switches:")
 for n in ("TG_RULES", "TG_FREEZE", "TG_GATES", "TG_GO_LIVE", "STAR_BTC_MAX", "GATE_BTC_MIN", "STAR_UNGATED_1317",
           "REVIVED_LONG_FAST", "TG_STAR_PRIME", "TG_CONV_PRIME", "TG_LEG2_PRIME", "TG_TRIGKR_PRIME",
-          "TG_PRIME_TRIG"):
+          "TG_PRIME_TRIG", "TG_APEX_ONE"):
     print(f"  {n:20s} {flag(n)}")
 sg = W[W.find("def _star_gate("):W.find("def _prime_read(")]   # the star read only; _prime_read (13–17 rule) sits right after it
 rg = W[W.find("def _revived_gate("):W.find("def _golive_gate(")]
@@ -54,6 +54,10 @@ checks = [
     ("💥🥇 PRIME × STRONG TRIGGER: records-only tier prime_trig, PRIME read stamped, no bell (2026-10-19)",
      'store.record_signal("prime_trig", _sig_pt)' in W and flag("TG_PRIME_TRIG").startswith("False")
      and "tg.send" not in W[W.find("# 💥🥇 PRIME × STRONG TRIGGER — records-only pass"):W.find("# 💯 CONVICTION v2")]),
+    ("🏆²👑 APEX V2 × ONE TRADE: records-only tier apex_one, 1h verdict stamped as apex_one_1h, no bell (2026-10-19)",
+     'store.record_signal("apex_one", _sig_ao)' in W and 'store.record_signal("apex_one_1h", {' in W
+     and flag("TG_APEX_ONE").startswith("False")
+     and "tg.send" not in W[W.find("# 🏆²👑 APEX V2 × ONE TRADE — records-only pass"):W.find("# 💯 CONVICTION v2")]),
 ]
 bad = 0
 print("roster audit:")

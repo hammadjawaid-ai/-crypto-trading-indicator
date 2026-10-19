@@ -109,7 +109,7 @@ if blk.index("store.record_signal(_tier_pp, _sig_pp)") > blk.index('if _bell_pp 
     fails.append("the record must happen before the bell decision")
 for need in ('"star_prime": "⭐🥇 STAR × PRIME', '"conv_prime": "💎🥇 ELITE × PRIME', '"trigkr_prime": "💥🔮🥇 TRIG × KR × PRIME',
              '"leg2_prime": "🔥🥇 SECOND LEG × PRIME', 'def _pair_band_split(tier: str) -> str:', 'st.caption(_pair_band_split(rec.get("tier")))',
-             '_PAIR_SPLIT_TIERS = ("star_prime", "conv_prime", "trigkr_prime", "leg2_prime")'):
+             '_PAIR_SPLIT_TIERS = ("star_prime", "conv_prime", "trigkr_prime", "leg2_prime",'):
     if need not in A:
         fails.append(f"app name missing: {need}")
 for need in ('    "star_prime": "star_prime",\n', '    "conv_prime": "conv_prime",\n', '    "trigkr_prime": "trigkr_prime",\n', '    "leg2_prime": "leg2_prime",\n'):

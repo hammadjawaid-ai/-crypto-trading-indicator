@@ -3456,7 +3456,8 @@ def _render_t1_board(pb_state, live_prices=None) -> None:
 
 
 _PAIR_SPLIT_TIERS = ("star_prime", "conv_prime", "trigkr_prime", "leg2_prime",
-                     "prime_trig")   # 💥🥇 records-only tier, 2026-10-19
+                     "prime_trig",   # 💥🥇 records-only tier, 2026-10-19
+                     "apex_one")     # 🏆²👑 records-only tier, 2026-10-19
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -4564,6 +4565,12 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                                  "30 min after (64%/+0.32R over 155 on the 07 Aug → "
                                  "12 Oct desk replay; PRIME read stamped, never a "
                                  "gate; records only, no bell, proving)",
+                   "apex_one": "🏆²👑 APEX V2 × ONE TRADE — APEX V2 fire + 👑 "
+                               "ONE TRADE pick on the coin and side, 2h before → "
+                               "30 min after (48%/+0.45R over 29 on the desk, "
+                               "68%/+0.39R over 19 on the replay, thin; the 1h "
+                               "LIVE/DEAD verdict is recorded against it; records "
+                               "only, no bell, proving)",
                    "go_live": "💎⚡ GO LIVE — entry at an elite conviction GO after "
                               "a LIVE verdict (not stars; Sep desk from the fire "
                               "price 61%/+0.69R over 171; records only, proving)",

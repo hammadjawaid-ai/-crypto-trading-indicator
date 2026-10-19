@@ -2270,6 +2270,20 @@ PRIME_TRIG_REC = ("PRIME with a 💥 strong trigger 64% / +0.32R (155) vs PRIME 
                   "without 47% / +0.04R (434) · desk replay 07 Aug → 12 Oct")
 PRIME_READ_REC = ("gated 63% / +0.27R (230) vs rejected 43% / +0.02R (359) · "
                   "desk 07 Aug → 12 Oct, in-sample")
+# 🏆²👑 APEX V2 × ONE TRADE (user 2026-10-19: "build the apex v2 x one trade
+# records tier and deploy, and have apex v2 as 1h verdict to it"). Records-only
+# desk tier apex_one: a fresh 🏆² APEX V2 fire with a 👑 ONE TRADE pick on the
+# same coin + side 2h before → 30 min after it. Study .apex_v2_conv_study.py:
+# desk 22 Sep → 14 Oct 48% / +0.45R (29) vs 46% / -0.08R (69) without; the
+# 78-day replay core 68% / +0.39R (19) vs 58% / +0.12R (332) — thin, positive
+# on both records, unproven. The hour's LIVE / DEAD verdict (ignition watch,
+# fam apexv2) is recorded against the pair as stream apex_one_1h: the forward
+# split LIVE vs DEAD reads off it (all APEX V2: LIVE 78% / +0.58R vs DEAD 48% /
+# -0.12R on the replay). No bell until 30 forward trades say so.
+TG_APEX_ONE = False      # 🏆²👑 bell OFF — records only (no send path exists).
+APEX_ONE_REC = ("APEX V2 with a 👑 ONE TRADE pick 48% / +0.45R (29) vs without "
+                "46% / -0.08R (69) · desk 22 Sep → 14 Oct · replay core 68% / "
+                "+0.39R (19) vs 58% / +0.12R (332) · thin")
 PRIME_PAIR_BEFORE, PRIME_PAIR_AFTER = 2 * 3600, 30 * 60
 PRIME_PAIR_FRESH = 35 * 60       # an elite record pairs only while this fresh
 STAR_PRIME_BANDS = ("40-54", "55-64", "75-84", "85+")   # user: "just not 65 to 74"
@@ -4580,6 +4594,71 @@ def cycle() -> None:
     except Exception as _pt_exc:
         print("  prime-trig error:", _pt_exc, flush=True)
 
+    # 🏆²👑 APEX V2 × ONE TRADE — records-only pass (user 2026-10-19). The
+    # anchor is the 🏆² APEX V2 fire (its plan is the trade); the partner is a
+    # 👑 ONE TRADE pick on the same coin + side 2h before → 30 min after it.
+    # The hour's verdict lands later from the ignition watch (apex_one_1h).
+    # No bell: TG_APEX_ONE is False and no send path exists here.
+    try:
+        import json as _json_ao
+        _now_ao = time.time()
+        try:
+            _btc_ao = _btc_day_pct()
+        except Exception:
+            _btc_ao = None
+        for _sg in store.recent_by_stream("apex_v2", 60):
+            try:
+                _ts_ao = float(_sg.get("ts") or 0)
+                if _now_ao - _ts_ao > PRIME_PAIR_FRESH:
+                    continue
+                _sym_ao = _sg.get("symbol")
+                _sd_ao = (_sg.get("side") or "").upper()
+                if not _sym_ao or _sd_ao not in ("LONG", "SHORT"):
+                    continue
+                if not (_sg.get("entry") and _sg.get("stop") and _sg.get("tp1")):
+                    continue
+                if not store.seen_between(
+                        "one_trade", _sym_ao, _sd_ao,
+                        _ts_ao - PRIME_PAIR_BEFORE,
+                        _ts_ao + PRIME_PAIR_AFTER):
+                    continue
+                if not store.should_alert(
+                        f"apex_one:{_sym_ao}:{_sd_ao}", int(3.0 * 3600)):
+                    continue
+                try:
+                    _ex_ao = _json_ao.loads(_sg.get("extra") or "{}")
+                except Exception:
+                    _ex_ao = {}
+                _conf_ao = _ex_ao.get("conf")
+                if _conf_ao is None:
+                    try:   # APEX V2 carries no conf — read the board now
+                        _conf_ao = best_board.confidence(_sym_ao, _sd_ao)
+                    except Exception:
+                        _conf_ao = None
+                _sig_ao = {"symbol": _sym_ao,
+                           "base": _sg.get("base")
+                           or str(_sym_ao).replace("USDT", ""),
+                           "side": _sd_ao, "entry": _sg.get("entry"),
+                           "stop": _sg.get("stop"), "tp1": _sg.get("tp1"),
+                           "tp2": _sg.get("tp2"), "tier": _sg.get("tier"),
+                           "score": _sg.get("score"), "conf": _conf_ao,
+                           "band": _conf_band(_conf_ao), "apex_ts": _ts_ao,
+                           "heat": _ex_ao.get("heat"), "btc_day": _btc_ao,
+                           "partner": "one_trade"}
+                _px_ao = None
+                try:
+                    _px_ao = binance_client.get_ticker_price(_sym_ao)
+                except Exception:
+                    _px_ao = None
+                store.record_signal("apex_one", _sig_ao)
+                shadow_trader.open_from_signal("apex_one", _sig_ao, _px_ao)
+                print(f"  [apex-one] {_sym_ao} {_sd_ao} band={_sig_ao['band']} "
+                      f"heat={_sig_ao['heat']} bell=off (1h verdict follows)", flush=True)
+            except Exception as _ao1:
+                print("  apex-one item error:", _ao1, flush=True)
+    except Exception as _ao_exc:
+        print("  apex-one error:", _ao_exc, flush=True)
+
     # 💯 CONVICTION v2 (user 2026-08-23: "remove kronos its not even
     # proven effective anyway... make it better somehow"). Kronos is
     # OUT — the old 88.6% backtest cell collapsed to 39% live, and
@@ -6027,6 +6106,27 @@ def cycle() -> None:
                                 _prg * 100, 999.0)), 1),
                             "entry": _e0, "stop": _ew["stop"],
                             "tp1": _ew["tp1"]})
+                        # 🏆²👑 APEX V2 × ONE TRADE (user 2026-10-19: "have
+                        # apex v2 as 1h verdict to it"): the same hour read
+                        # is recorded against the pair tier when this
+                        # APEX V2 fire opened an apex_one record — stream
+                        # apex_one_1h, records only, nothing sent.
+                        if _ew.get("fam") == "apexv2":
+                            try:
+                                if store.seen_between(
+                                        "apex_one", _ew["symbol"], _ew["side"],
+                                        _ew["fired_at"] - 60,
+                                        _ew["fired_at"] + PRIME_PAIR_FRESH + 1200):
+                                    store.record_signal("apex_one_1h", {
+                                        "symbol": _ew["symbol"], "base": _ew["base"],
+                                        "side": _ew["side"], "tier": _ew["oneh"],
+                                        "score": round(max(-99.0, min(_prg * 100, 999.0)), 1),
+                                        "entry": _e0, "stop": _ew["stop"],
+                                        "tp1": _ew["tp1"], "fired_at": _ew["fired_at"]})
+                                    print(f"  [apex-one] 1h verdict {_ew['base']} "
+                                          f"{_ew['side']} {_ew['oneh']} recorded", flush=True)
+                            except Exception as _ao1h_exc:
+                                print("  apex-one 1h stamp error:", _ao1h_exc, flush=True)
                         # buzz: approved fires, HIGH and MAX, no
                         # cap (user item 2). One verdict per fire
                         # by construction — no cooldown needed.
