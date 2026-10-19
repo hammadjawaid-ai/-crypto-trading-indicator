@@ -31,9 +31,12 @@ checks = [
      "_w1317 = (_star9 and STAR_UNGATED_1317" in W and "read FAILED — ringing ONLY because" in W and "read PASSED — would have rung anyway" in W),
     ("⭐ star: record stamps pass / muted / 1317-pass / 1317-muted", '"1317-pass" if _gate9[0] else' in W),
     ("⭐ star: clock line under the read", 'clock_cells.star_line(\n                                        _pmx.get("side"), time.time())' in W),
-    ("⭐⚡ ELITE GO reply: ungated thread send, clock line added before the branches",
-     'elif _ew.get("buzzed"):\n                                        _ok9, _m9x, _ = tg.send_thread(\n                                            _go9,\n                                            reply_to=_ew.get("tg_ids"))' in W
+    ("⭐⚡ ELITE GO reply: FAST sends in the thread (ungated), LATE skipped since 2026-10-19, clock line before the branches",
+     'elif _ew.get("buzzed"):\n                                        if _ew.get("go") == "LATE":' in W
+     and 'else:\n                                            _ok9, _m9x, _ = tg.send_thread(\n                                                _go9,\n                                                reply_to=_ew.get("tg_ids"))' in W
      and "clock_cells.elite_go_line(" in W),
+    ("revival bells: ⭐ STAR REVIVAL rings FAST + LATE; 💎 CONVICTION REVIVAL only inside the entry cell",
+     "_go9x = _revival_dress(_go9x, _ew, _age, _ew_now)" in W and '_bell9 = f"gated: entry cell not met — {_rg9[2]}"' in W),
     ("GO REVIVED: gate = not MAX + score < 90 only", 'tier != "MAX"' in rg and "score < 90" in rg and "(conf," not in rg and "fwin" not in rg and 'btc >= GATE_BTC_MIN, f"BTC' not in rg),
     ("GO REVIVED: BTC day shown as a caution, never a gate", "(caution, not a gate)" in rg),
     ("GO REVIVED: unapproved elite fires ring, tagged, stamped", '"sent-standalone-unapproved"' in W and "REVIVED_UNAPPR" in W),
