@@ -6874,8 +6874,10 @@ def _scan_one(symbol: str, interval: str, funding: float | None = None,
 
 
 @st.cache_data(ttl=config.MARKET_CACHE_TTL, show_spinner=False)
-def scan_market(symbols: tuple[str, ...], interval: str,
-                mode: str = "futures") -> pd.DataFrame:
+def _scan_market_raw(symbols: tuple[str, ...], interval: str,
+                     mode: str = "futures", _bucket: int = 0) -> pd.DataFrame:
+    """The market scan itself (unchanged). scan_market() below is the
+    same-name wrapper that serves the board warmer's copy first."""
     try:
         funding = derivatives.all_funding_rates()
     except Exception:
@@ -8933,6 +8935,32 @@ def compute_unified_best_picks(interval: str, scan_n: int = 50,
     return _compute_unified_best_picks_raw(interval, scan_n, _cache_version)
 
 
+def scan_market(symbols: tuple[str, ...], interval: str,
+                mode: str = "futures") -> pd.DataFrame:
+    """Same-name wrapper (2026-10-22, "reduce the loading time"): the
+    module-scope Trade Alerts strip scanned the whole universe INSIDE the
+    page request whenever its 10-min cache lapsed — minutes per load, on
+    every auto-refresh and after every restart. The board warmer now runs
+    that scan on its 10-min cadence; a page run takes the warm frame when
+    it covers >= 90% of the requested coins (the top-100 by volume drifts
+    a little between refreshes) and falls back to the cached scan
+    otherwise. Freshness is unchanged: the same 10 minutes."""
+    w = _warm_get(("market", interval, mode))
+    if w is not None:
+        try:
+            df, wsyms = w
+            req = {str(s) for s in symbols}
+            if req and len(req & {str(s) for s in wsyms}) >= 0.9 * len(req):
+                if df is None:
+                    return pd.DataFrame()
+                if df.empty or "symbol" not in df.columns:
+                    return df
+                return df[df["symbol"].isin(req)].reset_index(drop=True)
+        except Exception:
+            pass
+    return _scan_market_raw(symbols, interval, mode)
+
+
 def compute_convergence_picks(interval: str, scan_n: int = 50,
                               _cache_version: int = 2) -> list:
     w = _warm_get(("convergence", interval, int(scan_n)))
@@ -9001,13 +9029,24 @@ def _warm_universe():
     return syms40, syms100
 
 
+def _warm_market(tf: str, b: int):
+    """The Trade Alerts strip's universe scan (sidebar defaults: top-100
+    by volume, futures) — stored with the symbol tuple it covered so the
+    wrapper can judge the overlap with what a page run asks for."""
+    syms = tuple(load_top_symbols(min(100, config.TOP_N))["symbol"])
+    return (_scan_market_raw(syms, tf, "futures", _bucket=b), syms)
+
+
 def _warm_sweep() -> None:
     b = int(time.time() // WARM_EVERY)
     tf = config.DEFAULT_TIMEFRAME
     syms40, syms100 = _warm_universe()
     # dependency order: the unified board calls convergence / scout /
     # approach through the wrappers above, so those are warmed first.
+    # The market scan goes FIRST: it is the first thing every page run
+    # needs (the Trade Alerts strip at module scope).
     jobs = [
+        (("market", tf, "futures"), lambda: _warm_market(tf, b)),
         (("approach", tf, 30), lambda: _run_reversal_approach_scan_raw(tf, 30, _bucket=b)),
         (("approach", tf, 100), lambda: _run_reversal_approach_scan_raw(tf, 100, _bucket=b)),
         (("scout", tf, 50), lambda: _run_pattern_scout_raw(tf, 50, _bucket=b)),

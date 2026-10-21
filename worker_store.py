@@ -56,11 +56,33 @@ CREATE TABLE IF NOT EXISTS event_flags (
   ts REAL, symbol TEXT, direction TEXT, category TEXT,
   impact REAL, title TEXT
 );
+-- 2026-10-22 (page speed round 3): the ledger reached 166 MB / 461k signal
+-- rows with no index, so every board query and every seen_between() read
+-- the whole table. IF NOT EXISTS keeps this a no-op after the first open.
+CREATE INDEX IF NOT EXISTS idx_signals_stream_ts ON signals(stream, ts);
+CREATE INDEX IF NOT EXISTS idx_signals_symbol_ts ON signals(symbol, ts);
+CREATE INDEX IF NOT EXISTS idx_shadow_tier_status ON shadow_trades(tier, status);
+CREATE INDEX IF NOT EXISTS idx_shadow_symbol_opened ON shadow_trades(symbol, opened_at);
+CREATE INDEX IF NOT EXISTS idx_cycles_ts ON cycles(ts);
+CREATE INDEX IF NOT EXISTS idx_event_flags_ts ON event_flags(ts);
 """
+_WAL_SET = False   # journal_mode is persistent in the file; ask once per process
 
 
 def _open() -> sqlite3.Connection:
+    global _WAL_SET
     c = sqlite3.connect(DB_PATH, timeout=10)
+    # 2026-10-22: WAL lets the page read while the worker commits (DELETE
+    # journal blocked readers on every one of the thousands of commits a
+    # cycle makes); synchronous=NORMAL drops the per-commit fsync. The
+    # backup zip uses sqlite's backup API, which reads through the WAL.
+    try:
+        c.execute("PRAGMA synchronous=NORMAL")
+        if not _WAL_SET:
+            row = c.execute("PRAGMA journal_mode=WAL").fetchone()
+            _WAL_SET = bool(row and str(row[0]).lower() == "wal")
+    except Exception:
+        pass
     c.executescript(_SCHEMA)
     return c
 
