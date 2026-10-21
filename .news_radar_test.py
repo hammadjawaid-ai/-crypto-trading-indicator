@@ -24,6 +24,7 @@ import numpy as np
 import pandas as pd
 
 import news_radar as nr
+nr.COIN_WATCH = {}   # 2026-10-21: the baseline radar tests predate the coin watch; .aero_watch_test.py covers it
 
 UTC = timezone.utc
 KST = timezone(timedelta(hours=9))

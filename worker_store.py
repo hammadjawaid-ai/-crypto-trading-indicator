@@ -152,6 +152,14 @@ def recent_signals(limit: int = 40) -> list[dict]:
         (limit,))
 
 
+def recent_for_symbol(symbol: str, hours: float = 24.0, limit: int = 40) -> list[dict]:
+    """👁 coin-watch context: this symbol's signal records in the last `hours`."""
+    return _rows(
+        "SELECT ts,stream,symbol,base,side,tier,score FROM signals "
+        "WHERE symbol=? AND ts>=? ORDER BY ts DESC LIMIT ?",
+        (symbol, time.time() - float(hours) * 3600.0, int(limit)))
+
+
 def recent_by_stream(stream: str, limit: int = 12) -> list[dict]:
     # `symbol` MUST be selected — the app's Open button builds the paper
     # trade from r["symbol"]; without it open_position rejects (sym=None)

@@ -131,6 +131,35 @@ NEWS_BEAR_LINE = ("Risk prompt: if you hold it, check your stop now. "
                   "Information, not a trade signal.")
 MACRO_TAIL = ("expect a volatile hour; avoid fresh entries right before the "
               "print")
+# 👁 COIN WATCH (user 2026-10-21: "we are going to have a news today or tmw on
+# aerodrome you have to give the notification for it on my telegram, if its
+# either bullish or bearish and give your analysis for it as well"). While a
+# watch is active EVERY headline naming the coin rings — no BIG rule, no 6h
+# coin cooldown, one bell per distinct headline, WATCH_MAX_PER_DAY cap — with
+# the bull / bear / neutral read, the tape at the headline, the scanner's view
+# and an analysis built only from our measured lines. Unusual moves on a
+# watched coin ring too. An expired watch falls silent on its own (one ended
+# bell). This dict is the whole switch: add a coin, set its until, deploy.
+COIN_WATCH: dict[str, dict] = {
+    "AERO": {"until": "2026-10-23T12:00:00+05:00",
+             "why": "Aerodrome news expected 21–22 Oct (user 2026-10-21)"},
+}
+WATCH_MAX_PER_DAY = 6
+WATCH_LINE = ("Information, not a trade signal — headline buying has no measured "
+              "edge here; a ⭐ star / 💥 trigger fire on the coin is the only entry "
+              "we trust, and it rings on its own.")
+
+
+def watched(now_ts: float) -> set[str]:
+    """Tickers whose COIN_WATCH window is open at now_ts."""
+    out: set[str] = set()
+    for t, w in COIN_WATCH.items():
+        try:
+            if float(now_ts) <= datetime.fromisoformat(str(w["until"])).timestamp():
+                out.add(str(t).upper())
+        except Exception:
+            continue
+    return out
 
 # --------------------------------------------------------------- coin tagger
 # Tickers that are English words / common acronyms, plus every ticker of two
@@ -192,6 +221,7 @@ _NAME_PATTERNS: list[tuple[str, str, bool]] = [
     (r"Worldcoin|World Network", "WLD", False),
     (r"Ondo", "ONDO", False),
     (r"Pendle", "PENDLE", False),
+    (r"Aerodrome(?:\s+Finance)?", "AERO", False),   # 👁 watch 2026-10-21
     (r"Jupiter", "JUP", True),
     (r"Ethena", "ENA", False),
     (r"Hyperliquid", "HYPE", False),
@@ -1015,16 +1045,17 @@ def _link(url: str, label: str = "open") -> str:
     return f"[{label}]({u})"
 
 
-def _fit(lines: list[str]) -> str:
-    """Join lines; if over MAX_MSG drop middle lines (keeping header + the
-    honest last line) until it fits."""
+def _fit(lines: list[str], limit: int | None = None) -> str:
+    """Join lines; if over the limit (MAX_MSG by default) drop middle lines
+    (keeping header + the honest last line) until it fits."""
+    lim = int(limit or MAX_MSG)
     lines = [ln for ln in lines if ln]
     msg = "\n".join(lines)
-    while len(msg) > MAX_MSG and len(lines) > 2:
+    while len(msg) > lim and len(lines) > 2:
         lines.pop(-2)
         msg = "\n".join(lines)
-    if len(msg) > MAX_MSG:
-        msg = lines[0][:MAX_MSG]
+    if len(msg) > lim:
+        msg = lines[0][:lim]
     return msg
 
 
@@ -1104,6 +1135,138 @@ def fmt_news(it: dict) -> str:
     lines.append(" · ".join(m for m in meta if m))
     lines.append(f"_{NEWS_BEAR_LINE if d == 'bear' else NEWS_BULL_LINE}_")
     return _fit(lines)
+
+
+def _watch_tape(get_klines, base: str) -> dict:
+    """👁 the tape at the headline: 1h / 4h / 24h change, volume vs the coin's
+    20-day average, place in the 24h range, BTC 24h. Fail-soft: {} on any error."""
+    out: dict = {}
+    if get_klines is None:
+        return out
+    sym = f"{base}USDT"
+    try:
+        d = get_klines(sym, "1h", limit=30)
+        c = d["close"].astype(float).to_numpy()
+        if len(c) >= 26 and c[-2] > 0 and c[-5] > 0 and c[-25] > 0:
+            out["px"] = float(c[-1])
+            out["r1"] = float(c[-1] / c[-2] - 1)
+            out["r4"] = float(c[-1] / c[-5] - 1)
+            out["r24"] = float(c[-1] / c[-25] - 1)
+            hi = float(d["high"].astype(float).to_numpy()[-24:].max())
+            lo = float(d["low"].astype(float).to_numpy()[-24:].min())
+            out["range_pos"] = (float(c[-1]) - lo) / (hi - lo) if hi > lo else None
+    except Exception:
+        pass
+    try:
+        dd = get_klines(sym, "1d", limit=22)
+        vc = next((k for k in ("volume", "vol", "v") if k in dd.columns), None)
+        if vc is not None:
+            v = dd[vc].astype(float).to_numpy()
+            if len(v) >= 11 and float(v[:-1][-20:].mean()) > 0:
+                out["vol_x"] = float(v[-1] / v[:-1][-20:].mean())
+    except Exception:
+        pass
+    try:
+        b = get_klines("BTCUSDT", "1h", limit=26)
+        bc = b["close"].astype(float).to_numpy()
+        if len(bc) >= 25 and bc[-25] > 0:
+            out["btc24"] = float(bc[-1] / bc[-25] - 1)
+    except Exception:
+        pass
+    return out
+
+
+def _watch_analysis(direction, t: dict) -> str:
+    """Rule-based read from our measured lines only (surge / drop studies,
+    the headline law). No forecast, no invented numbers."""
+    r24, vx = t.get("r24"), t.get("vol_x")
+    if direction == "bull":
+        if r24 is not None and r24 >= 0.08:
+            return (f"the coin is already {_pct(r24)} on the day, so the headline lands on a "
+                    f"move that is largely priced. {SURGE_LINE}"
+                    + (SURGE_BIG_LINE if r24 >= 0.14 else "")
+                    + " If you hold it, this is where the stop trails, not where you add.")
+        if r24 is not None and abs(r24) < 0.03:
+            return ("the tape has not reacted yet"
+                    + (" and volume is quiet" if (vx or 1.0) < 1.5 else " but volume is already building")
+                    + " — the reaction is still ahead. " + NEWS_BULL_LINE)
+        return ("a moderate move is in; the headline can extend it or mark the top and "
+                "we have no measured edge either way. " + NEWS_BULL_LINE)
+    if direction == "bear":
+        if r24 is not None and r24 <= -0.08:
+            return (f"already {_pct(r24)} on the day — much of the damage is in. {DROP_LINE} "
+                    "If you hold it, keep the stop where the plan put it; this is not a short signal.")
+        return ("the tape has not priced it yet — if you hold the coin, check your stop now. "
+                "A drop from here is the risk case; it is not a short signal.")
+    return ("no direction in the wording — read the tape line above; a quiet tape means "
+            "the market has not judged it yet.")
+
+
+def fmt_watch(it: dict, tape: dict | None = None, ctx: str | None = None) -> str:
+    """📰👁 coin-watch bell: headline, read, tape, scanner view, analysis."""
+    base = clean((it.get("tickers") or ["?"])[0])
+    d = it.get("direction")
+    dword = "BULLISH" if d == "bull" else ("BEARISH" if d == "bear" else "NEUTRAL")
+    kind = KIND_LABEL.get(it.get("kind"), clean(it.get("kind")))
+    lines = [f"📰👁 *{base} WATCH — {dword} headline*", clean(it.get("title"), 220)]
+    meta = [clean(it.get("source"), 40)]
+    if it.get("ts"):
+        meta.append(fmt_pkt(it["ts"]))
+    lk = _link(it.get("link"))
+    if lk:
+        meta.append(lk)
+    lines.append(" · ".join(m for m in meta if m))
+    rd = [f"read: {clean(kind)}"]
+    if it.get("names"):
+        rd.append("big name: " + ", ".join(clean(n) for n in it["names"][:3]))
+    if it.get("speculative"):
+        rd.append("⚠️ speculative wording (could / may / ?) — not a confirmed event")
+    if it.get("big"):
+        rd.append("qualifies as BIG news on its own")
+    lines.append(" · ".join(rd))
+    t = tape or {}
+    if t.get("px") is not None:
+        pos = t.get("range_pos")
+        where = ("at the top of its 24h range" if pos is not None and pos >= 0.85
+                 else "at the bottom of its 24h range" if pos is not None and pos <= 0.15
+                 else "mid-range on the day")
+        lines.append(f"tape: {base} {_pct(t['r1'])} 1h · {_pct(t['r4'])} 4h · {_pct(t['r24'])} 24h"
+                     + (f" · volume {t['vol_x']:.1f}× its 20-day average" if t.get("vol_x") else "")
+                     + f" · {where} · now {_fmt_price(t['px'])}"
+                     + (f" · BTC {_pct(t['btc24'])} 24h" if t.get("btc24") is not None else ""))
+    else:
+        lines.append("tape: price feed unavailable at the headline")
+    if ctx:
+        lines.append(f"scanner: {clean(ctx, 260)}")
+    # the analysis closes the bell (the trimmer keeps the last line); the
+    # measured law already sits inside every analysis branch.
+    an = _watch_analysis(d, t)
+    if "Information, not" not in an:
+        an += " Information, not a trade signal."
+    lines.append(f"_analysis: {an}_")
+    return _fit(lines, 1500)   # a watch bell carries more than a radar bell; Telegram allows 4096
+
+
+def fmt_watch_armed(base: str, cfg: dict, now_ts: float) -> str:
+    try:
+        until = to_pkt(datetime.fromisoformat(str(cfg.get("until")))).strftime("%d %b %H:%M") + " PKT"
+    except Exception:
+        until = "its window closes"
+    return _fit([
+        f"👁 *{clean(base)} WATCH armed* — until {until}",
+        f"{clean(cfg.get('why'), 120)}. Every headline naming {clean(base)} rings here with a "
+        "BULLISH / BEARISH / NEUTRAL read, the tape at that moment, the scanner's view of the "
+        "coin and the analysis; unusual moves on it ring too.",
+        "Sources: the radar's news feeds (CoinDesk, Cointelegraph, Blockworks, The Defiant, "
+        "CoinGape, crypto.news, U.Today and the app's feeds) every 10 min + Binance / Upbit / "
+        "OKX / Bybit notices every 3 min. Not seen: posts that live only on X — if the news is a "
+        "tweet, the move itself is what rings (unusual-move scan every 15 min).",
+        f"_{WATCH_LINE}_"])
+
+
+def fmt_watch_ended(base: str, hits: int) -> str:
+    return _fit([f"👁 *{clean(base)} WATCH ended* — {int(hits)} headline bell(s) over the window; "
+                 "the regular radar rules apply to it again."])
 
 
 def fmt_surge(ev: dict, headlines=None) -> str:
@@ -1393,7 +1556,7 @@ def _btc_since(get_klines, event_ts: float) -> dict | None:
 def _blank_state() -> dict:
     return {"v": 1, "seen": {}, "primed": [], "last_bell": {}, "memory": [],
             "surges": [], "surge_cd": {}, "cal_events": [], "macro_sent": {},
-            "digest_date": "", "last_run": {}}
+            "digest_date": "", "last_run": {}, "watch": {}}
 
 
 def _load_state() -> dict:
@@ -1586,8 +1749,10 @@ def _process_exchange(items, st, now_ts, bases, rec) -> list[tuple[int, str]]:
     return out
 
 
-def _process_rss(rows, st, now_ts, bases, rec) -> list[tuple[int, str]]:
+def _process_rss(rows, st, now_ts, bases, rec, get_klines=None, coin_ctx=None,
+                 watch_set=frozenset()) -> list[tuple[int, str]]:
     out: list[tuple[int, str]] = []
+    wst = st.setdefault("watch", {})
     seen_sets: dict = {}
     primed_now: set[str] = set()
     for r in rows:
@@ -1614,6 +1779,27 @@ def _process_rss(rows, st, now_ts, bases, rec) -> list[tuple[int, str]]:
             if tickers or cls["direction"] != "neutral":
                 rec(_payload(it))
             _remember(st, it, now_ts)
+            # 👁 COIN WATCH: a watched coin rings on EVERY fresh headline (one
+            # per distinct headline, WATCH_MAX_PER_DAY cap); the richer watch
+            # bell replaces the plain BIG bell for that headline.
+            wt = [t for t in tickers if t in watch_set]
+            if wt and not priming and now_ts - ts <= RSS_MAX_AGE_H * 3600:
+                day = _as_dt(now_ts).date().isoformat()
+                cnt = wst.setdefault("count", {})
+                ck = f"{wt[0]}|{day}"
+                if int(cnt.get(ck, 0)) < WATCH_MAX_PER_DAY:
+                    cnt[ck] = int(cnt.get(ck, 0)) + 1
+                    hits = wst.setdefault("hits", {})
+                    hits[wt[0]] = int(hits.get(wt[0], 0)) + 1
+                    tape = _watch_tape(get_klines, wt[0])
+                    ctx = None
+                    if coin_ctx is not None:
+                        try:
+                            ctx = coin_ctx(wt[0])
+                        except Exception:
+                            ctx = None
+                    out.append((2, fmt_watch(it, tape, ctx)))
+                    continue
             if priming or not big:
                 continue
             if now_ts - ts > RSS_MAX_AGE_H * 3600:
@@ -1629,7 +1815,7 @@ def _process_rss(rows, st, now_ts, bases, rec) -> list[tuple[int, str]]:
     return out
 
 
-def _process_surges(evs, st, now_ts, rec) -> list[tuple[int, str]]:
+def _process_surges(evs, st, now_ts, rec, watch_set=frozenset()) -> list[tuple[int, str]]:
     out: list[tuple[int, str]] = []
     for ev in evs or []:
         try:
@@ -1652,7 +1838,7 @@ def _process_surges(evs, st, now_ts, rec) -> list[tuple[int, str]]:
                  "sigma": ev["sigma"], "vol_mult": ev["vol_mult"],
                  "btc_r4": ev["btc_r4"], "price": ev["price"],
                  "headlines": [h.get("title") for h in heads]})
-            if SURGE_BELL:
+            if SURGE_BELL or ev.get("base") in watch_set:   # 👁 watched coins ring
                 out.append((2, msg))
         except Exception:
             continue
@@ -1686,7 +1872,7 @@ _RUN_LOCK = threading.Lock()
 
 
 def run(get_klines, symbols, send, record=None, now=None,
-        fetch=None) -> list[str]:
+        fetch=None, coin_ctx=None) -> list[str]:
     """One NEWS RADAR cycle. Call every worker cycle (~2-5 min); internal
     throttles: exchanges 3 min, RSS 10 min, surge scan 15 min, calendar 6 h,
     digest once a day 04:00-07:00 UTC. Never raises. Returns the messages
@@ -1701,9 +1887,25 @@ def run(get_klines, symbols, send, record=None, now=None,
         st = _load_state()
         fetchers = dict(DEFAULT_FETCHERS)
         fetchers.update(fetch or {})
-        bases = {_base_of(s) for s in (symbols or [])} | {"BTC", "ETH"}
+        watch_set = watched(now_ts)                       # 👁 COIN WATCH
+        syms = list(symbols or [])
+        syms += [f"{t}USDT" for t in sorted(watch_set) if f"{t}USDT" not in set(syms)]
+        bases = {_base_of(s) for s in syms} | {"BTC", "ETH"} | watch_set
         rec = _safe_record(record)
         outbox: list[tuple[int, str]] = []
+        # 👁 arm once when a watch opens, say so once when it lapses
+        try:
+            wst = st.setdefault("watch", {})
+            for t in sorted(watch_set):
+                if t not in (wst.get("armed") or []):
+                    wst.setdefault("armed", []).append(t)
+                    outbox.append((0, fmt_watch_armed(t, COIN_WATCH.get(t, {}), now_ts)))
+            for t in list(wst.get("armed") or []):
+                if t not in watch_set and t not in (wst.get("ended") or []):
+                    wst.setdefault("ended", []).append(t)
+                    outbox.append((0, fmt_watch_ended(t, int((wst.get("hits") or {}).get(t, 0)))))
+        except Exception:
+            pass
 
         # 1) calendar refresh (time-gated bells below)
         try:
@@ -1732,7 +1934,8 @@ def run(get_klines, symbols, send, record=None, now=None,
         try:
             if _due(st, "rss", RSS_EVERY, now_ts):
                 outbox += _process_rss(_call(fetchers.get("rss")), st,
-                                       now_ts, bases, rec)
+                                       now_ts, bases, rec, get_klines, coin_ctx,
+                                       frozenset(watch_set))
         except Exception:
             pass
 
@@ -1740,8 +1943,8 @@ def run(get_klines, symbols, send, record=None, now=None,
         try:
             if get_klines is not None and symbols and \
                     _due(st, "surge", SURGE_EVERY, now_ts):
-                evs = scan_surges(get_klines, symbols, now_dt)
-                outbox += _process_surges(evs, st, now_ts, rec)
+                evs = scan_surges(get_klines, syms, now_dt)
+                outbox += _process_surges(evs, st, now_ts, rec, frozenset(watch_set))
         except Exception:
             pass
 

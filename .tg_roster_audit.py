@@ -51,6 +51,7 @@ checks = [
     ("⚡🔮 KR-STRONG PREMIUM rings (back 2026-10-19), honest record + non-gating read, 83% claim gone",
      'ok, _ = tg.send(\n                        f"⚡🔮 *KR-STRONG PREMIUM — "' in W and "83.1%" not in W[W.find('f"⚡🔮 *KR-STRONG PREMIUM — "'):W.find('f"⚡🔮 *KR-STRONG PREMIUM — "') + 1500]),
     ("clock_cells imported by the worker", "import clock_cells" in W),
+    ("👁 COIN WATCH wired: radar gets the scanner context (2026-10-21)", "coin_ctx=_nr_coin_ctx" in W),
     ("💥🥇 PRIME × STRONG TRIGGER: records-only tier prime_trig, PRIME read stamped, no bell (2026-10-19)",
      'store.record_signal("prime_trig", _sig_pt)' in W and flag("TG_PRIME_TRIG").startswith("False")
      and "tg.send" not in W[W.find("# 💥🥇 PRIME × STRONG TRIGGER — records-only pass"):W.find("# 💯 CONVICTION v2")]),

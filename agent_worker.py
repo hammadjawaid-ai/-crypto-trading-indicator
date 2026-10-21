@@ -524,6 +524,45 @@ def _star_gate(p, now, btc=None):
     return passed, line + " — " + STAR_GATE_REC
 
 
+_NR_CTX_STREAMS = {"elite_star": "⭐ star", "elite_conv": "💎 conviction", "prime": "🥇 PRIME",
+                   "trig_strong": "💥 strong trigger", "trigger_fire": "💥 trigger",
+                   "apex_v2": "🏆² APEX V2", "kr_strong": "🔮 KR-STRONG", "one_trade": "👑 one trade",
+                   "trig_hot": "⚡🔥 arrival T1", "arr_long": "⚡ arrival", "early_strong": "🚀 early",
+                   "second_leg": "🔥 second leg", "star_prime": "⭐🥇 star×prime",
+                   "go_revived": "⭐⚡ GO revived", "go_live": "💎⚡ GO live"}
+
+
+def _nr_coin_ctx(base):
+    """👁 coin-watch context for the news radar (user 2026-10-21): what our own
+    scanner says about the coin — fires in the last 24h by stream + side and the
+    board's confidence both ways. Information for the bell, never a gate."""
+    sym = f"{base}USDT"
+    bits = []
+    try:
+        seen = {}
+        for r in store.recent_for_symbol(sym, 24.0, 60):
+            lab = _NR_CTX_STREAMS.get(r.get("stream"))
+            if not lab:
+                continue
+            k = (lab, (r.get("side") or "").upper())
+            if k in seen:
+                seen[k]["n"] += 1
+                continue
+            seen[k] = {"n": 1, "ts": float(r.get("ts") or 0)}
+        for (lab, sd), v in sorted(seen.items(), key=lambda kv: -kv[1]["ts"])[:4]:
+            bits.append(f"{lab} {sd} {rung_stats.pkt_hm(v['ts'])} PKT" + (f" ×{v['n']}" if v["n"] > 1 else ""))
+        if not bits:
+            bits.append("no fire on the coin in the last 24h")
+    except Exception:
+        bits.append("fire history unavailable")
+    try:
+        cl, cs = best_board.confidence(sym, "LONG"), best_board.confidence(sym, "SHORT")
+        bits.append(f"board conf long {cl if cl is not None else '?'} · short {cs if cs is not None else '?'}")
+    except Exception:
+        pass
+    return " · ".join(bits)
+
+
 def _prime_read(p, now, btc=None):
     """🥇 PRIME read (2026-10-19, .prime_native_read.py): TP1 < 1.5R away ·
     stop >= 3% · BTC day <= +1.5% · fire not 01–05 and not 13–17 PKT. A stamp
@@ -4876,7 +4915,8 @@ def cycle() -> None:
                     _nr_sent = news_radar.run(
                         binance_client.get_klines, _NR["syms"], tg.send,
                         record=lambda _st, _pl: store.record_signal(
-                            _st, _pl))
+                            _st, _pl),
+                        coin_ctx=_nr_coin_ctx)   # 👁 COIN WATCH context
                     if _nr_sent:
                         print(f"[news_radar] 🗞 {len(_nr_sent)} bell(s)",
                               flush=True)
