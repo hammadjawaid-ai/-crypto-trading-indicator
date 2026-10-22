@@ -89,8 +89,11 @@ def block(src, start, end):
     return src[i:j] if i >= 0 and j >= 0 else None
 jobs_now, jobs_head = block(A, "    jobs = [\n", "    t_all = time.time()"), block(head, "    jobs = [\n", "    t_all = time.time()")
 # 2026-10-22 (speed round 3): the ONE sanctioned addition is the market-scan job at the top of the list
+_mkt_line = '        (("market", tf, "futures"), lambda: _warm_market(tf, b)),\n'
 if jobs_now:
-    jobs_now = jobs_now.replace('        (("market", tf, "futures"), lambda: _warm_market(tf, b)),\n', "")
+    jobs_now = jobs_now.replace(_mkt_line, "")
+if jobs_head:
+    jobs_head = jobs_head.replace(_mkt_line, "")   # HEAD may still carry the 90e9329 job line
 if jobs_now != jobs_head or jobs_now is None:
     fails.append("the warmer's job list changed")
 for fn in ("_compute_unified_best_picks_raw", "_compute_convergence_picks_raw", "_run_reversal_approach_scan_raw",

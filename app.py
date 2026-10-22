@@ -9043,10 +9043,9 @@ def _warm_sweep() -> None:
     syms40, syms100 = _warm_universe()
     # dependency order: the unified board calls convergence / scout /
     # approach through the wrappers above, so those are warmed first.
-    # The market scan goes FIRST: it is the first thing every page run
-    # needs (the Trade Alerts strip at module scope).
+    # The market scan (the Trade Alerts strip) runs in its OWN thread
+    # (_warm_market_loop) so neither side can hold the other back.
     jobs = [
-        (("market", tf, "futures"), lambda: _warm_market(tf, b)),
         (("approach", tf, 30), lambda: _run_reversal_approach_scan_raw(tf, 30, _bucket=b)),
         (("approach", tf, 100), lambda: _run_reversal_approach_scan_raw(tf, 100, _bucket=b)),
         (("scout", tf, 50), lambda: _run_pattern_scout_raw(tf, 50, _bucket=b)),
@@ -9079,6 +9078,25 @@ def _warm_sweep() -> None:
         pass
 
 
+def _warm_market_loop() -> None:
+    """2026-10-22: the Trade Alerts universe scan on its own 10-min clock.
+    Starts 20 s after boot (the strip is the first thing a page run needs),
+    records its seconds in _WARM_STATUS['market']."""
+    time.sleep(20)
+    while True:
+        t0 = time.time()
+        try:
+            b = int(time.time() // WARM_EVERY)
+            _warm_put(("market", config.DEFAULT_TIMEFRAME, "futures"),
+                      _warm_market(config.DEFAULT_TIMEFRAME, b))
+            _WARM_STATUS["market"] = {"at": time.time(), "s": round(time.time() - t0, 1)}
+            _warm_disk_save(_WARM_STORE, _WARM_DISK_FILE)
+        except Exception as exc:
+            _WARM_STATUS["market"] = {"at": time.time(), "error": str(exc)[:160]}
+            print("market warmer error:", exc, flush=True)
+        time.sleep(max(15.0, WARM_EVERY - (time.time() - t0)))
+
+
 def _warm_loop() -> None:
     # let Streamlit answer the Render health check before the first heavy
     # sweep competes for the box (2026-10-06: three restarts in twenty
@@ -9098,6 +9116,8 @@ def _warm_loop() -> None:
 def _start_board_warmer() -> bool:
     _threading.Thread(target=_warm_loop, name="board-warmer",
                       daemon=True).start()
+    _threading.Thread(target=_warm_market_loop, name="market-warmer",
+                      daemon=True).start()        # 2026-10-22
     return True
 
 
@@ -9123,7 +9143,7 @@ def _warm_caption() -> str:
             _ages = []
         if _ages:
             return (f"⚡ scanner boards restored from the last sweep before the "
-                    f"restart ({max(_ages) / 60:.0f} min old, {len(_ages)} boards); "
+                    f"restart (newest {min(_ages) / 60:.0f} min old, {len(_ages)} boards); "
                     f"the warmer re-sweeps in the background every "
                     f"{WARM_EVERY // 60} min.")
         return ("⚡ boards computing in the page this time — the background "

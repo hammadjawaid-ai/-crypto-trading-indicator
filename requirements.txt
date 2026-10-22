@@ -1,4 +1,8 @@
-streamlit>=1.31
+# streamlit pinned 2026-10-22: the unpinned builds of 21–22 Oct pulled 1.66.1
+# (released 21 Oct) whose front-end chunks (Metric, styled-components, katex)
+# failed to load in the browser — every metric tile rendered as error text.
+# 1.66.0 ran clean 19–21 Oct. Bump on purpose, after a look at the page.
+streamlit==1.66.0
 # starlette cap 2026-08-05: 0.47+ changed GZipResponder's signature
 # (requires thread_minimum_size) and streamlit's gzip middleware
 # 500-crashes on every request with it installed.
