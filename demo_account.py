@@ -75,7 +75,11 @@ STATE_FILE = os.environ.get("DEMO_STATE") or \
 # ... maximum 8 slots and anyone can take any place" + the named seven
 # streams). Open seating: no family caps, rotation OFF, rank floor
 # lowered so any listed stream can seat on its own merits.
-GEN = 16
+# 🎮 GEN 18 (user 2026-10-22: "close all the trades and restart with the fresh
+# account 2000 dollars"): load() starts a fresh $2,000 book the first time it
+# sees a file on an older GEN; cutover_gen18() (called by the worker first)
+# closes the old seats at live into THEIR ledger and archives it beside this file.
+GEN = 18
 START_BAL = 2000.0
 # 🎮 GEN 16 (user 2026-09-14: "Demo Trading Start Again now. We will
 # have only this and no limit on slots can be 20 at a time depending
@@ -160,7 +164,7 @@ NEAR_TP_FADE = 0.60          # how far it has given back
 # ARRIVAL T1 only ("when the signal has run 85-90% to TP1 we close them …
 # nothing before if it goes positive, TP1 and SL remain intact");
 # STRONG TRIGGER exits at SL or TP1 only.
-NEAR_TP_SRC: set = {"go_revived", "arrival_t1"}
+NEAR_TP_SRC: set = set()          # GEN 18: exits are the plan's SL / TP1 / TP2 only
 # 📐 rr re-checked at the LIVE entry for streams whose edge IS an rr
 # law — (lo, hi) half-open, None = unbounded on that side. The star
 # profile was measured at TP1 within 1.2R; the premium cell at
@@ -258,9 +262,8 @@ ELITE_FAMILY_CAP = 0
 # positives banked first, then negatives cut. Healthy signals are
 # NEVER rotated, and at most this many rotations happen per cycle.
 ROTATE_MAX = 0   # GEN 9 user order: rotation REMOVED
-SMART_EXIT_SKIP: set = {"go_revived", "arrival_t1",
-                        "strong_trigger", "early_lane",
-                        "star_prime", "elite_star"}        # GEN 17.3
+SMART_EXIT_SKIP: set = {"elite_star", "strong_trigger",
+                        "star_prime", "conv_revival"}         # GEN 18: no kronos exit anywhere
 # GEN 12: kronos smart-exit off for all. Exits: SL-or-TP1-bank-100%
 # everywhere EXCEPT ⭐ elite_star's near-TP bank (own block) and
 # 💎🔮 elite_kr's RIDE (half-bank TP1 + BE + trail, in the TP1
@@ -362,17 +365,17 @@ MIN_RANK = 85.0  # GEN 9: anyone can take any place
 # with only these streams on demo trading nothing else … remove everything
 # else". CLASS_W IS the roster and the ladder — a stream not listed here
 # takes no seat (rank_candidates roster guard).
-CLASS_W = {"go_revived": 107,     # 1. ⭐⚡/💎⚡ GO REVIVED — star + approved elite,
-                                  #    FAST or LATE, entry at the GO price
-           "arrival_t1": 106,     # 2. ⚡🔥 ARRIVAL T1 — HOT long at a ⚡ number
-           "strong_trigger": 105,  # 3. 💥 STRONG TRIGGER conf >=65
-           "early_lane": 104,     # 4. ⭐🚀 EARLY LANE conf >=85 (GEN 17.1)
-           "star_prime": 103,     # 5. ⭐🥇 STAR × PRIME — star fire + PRIME on
-                                  #    the coin, every band (GEN 17.2)
-           "elite_star": 102}     # 6. ⭐ ELITE STAR — the star fire that PASSED
-                                  #    the phone's four-rule read (GEN 17.3,
-                                  #    user 2026-10-14: "embed elite star on
-                                  #    it too with same rules")
+# 🎮 GEN 18 — THE FOUR (user 2026-10-22): "only trade on the ELITE STAR gated and
+# strong triggers at priority", then Star × Prime and the conviction revival; GO
+# REVIVED, ARRIVAL T1 and EARLY LANE leave the money (bells, tiers, boards go on).
+CLASS_W = {"elite_star": 104,     # 1. ⭐ ELITE STAR — the star fire that PASSED the
+                                  #    phone's four-rule read, on a 🟢/🟡 clock only;
+                                  #    ⭐➕ adds 2 seats' margin on 1H LIVE or GO FAST
+           "strong_trigger": 103,  # 2. 💥 STRONG TRIGGER conf >=65 (red windows closed)
+           "star_prime": 102,     # 3. ⭐🥇 STAR × PRIME — star fire + PRIME on the coin
+           "conv_revival": 101}   # 4. 💎 CONVICTION REVIVAL — the bell's own rule:
+                                  #    not a star, fire read passed, GO inside the
+                                  #    entry cell (0.3–0.6R left, not 21–05 PKT)
 # 🪑 SPARE-SEAT RULE: a listed stream may open only while at least
 # this many seats stay free after it, so the priority three always
 # find room — rotation is off (ROTATE_MAX = 0) and a seat once taken
@@ -388,7 +391,7 @@ SPARE_RESERVE: dict = {}          # GEN 17: no spare lanes
 # worker's _trigger_watch; desk tier press_break (17 closed, 71%,
 # +3.6R at wiring — young, proving). LONG only, any conf, no spare
 # reserve, no time gate (his call), flat 10x like every lane.
-LONG_ONLY: set = {"arrival_t1"}    # T1 is long by construction; guard anyway
+LONG_ONLY: set = set()             # GEN 18: no long-only lane on the roster
 # ⏰ GEN 16.5 TIME GATE (user 2026-10-04: "timings should matter — we
 # will take long trades as per our finding for elite star with yellow
 # and green timings not red timings; same goes for early lane and
@@ -419,10 +422,8 @@ _RED_LONG = {"21-01", "01-05"}
 # GEN 17: the time gate stays for strong_trigger only (its measured red
 # windows); GO REVIVED and ARRIVAL T1 seat all day as the user named them.
 TIME_CLOSED: dict = {
-    ("strong_trigger", "LONG"): set(_RED_LONG),
+    ("strong_trigger", "LONG"): set(_RED_LONG),   # GEN 18: unchanged, his earlier rule
     ("strong_trigger", "SHORT"): {"09-13", "17-21"},
-    ("early_lane", "LONG"): set(_RED_LONG),       # GEN 17.1, as before
-    ("early_lane", "SHORT"): set(),
 }
 TIME_GATED: set = {s for s, _ in TIME_CLOSED}
 PKT_OFFSET_S = 5 * 3600
@@ -466,6 +467,35 @@ def time_gate_ok(src, side, now=None) -> bool:
     if not closed:
         return True
     return pkt_window4(now) not in closed
+
+
+# 🕐 GEN 18 STAR CLOCK (user 2026-10-22: "timings are important here, green and
+# yellow are the ones when you take the trade; if it's red for the signal on
+# timing you won't"): the star seat reads the SAME clock cells the phone
+# prints under the star card (clock_cells.STAR_CELLS, the gated-star desk by
+# PKT window and side). 🔴 DON'T = no seat; 🟢 TAKE, 🟡 HALF and 🟡 THIN seat.
+CLOCK_GATED: set = {"elite_star"}
+# ⭐➕ GEN 18 ADD-ON (user: "open with 1000 on 10x with our money of 100; if it
+# is GO FAST or the 1H verdict is LIVE we add 200 dollars more and it will be
+# 3000 on leverage"): once per star seat, 2 seats' margin at the seat's
+# leverage, at the live price, averaged into the position.
+ADDON_SRC: set = {"elite_star"}
+ADDON_MARGIN_X = 2.0
+
+
+def clock_ok(src, side, now=None):
+    """-> (ok, call). Only CLOCK_GATED streams are read; DON'T blocks the seat."""
+    if src not in CLOCK_GATED:
+        return True, None
+    try:
+        import clock_cells
+        _e, call, _d = clock_cells.verdict(
+            clock_cells.STAR_CELLS, side, float(_clock() if now is None else now))
+    except Exception:
+        return True, None
+    return call != "DON'T", call
+
+
 # 🎯 CONF-BAND SEAT GATES (user 2026-09-07, read off the live desk
 # ledger): a stream's candidate takes a seat ONLY when its conf falls
 # in a band that measured green on its own closed trades. Bands are
@@ -503,10 +533,9 @@ def time_gate_ok(src, side, now=None) -> bool:
 # cuts volume ~4x AND expectancy ~40%. His call, his system; revert
 # by deleting the two early_* lines.
 CONF_GATE: dict = {
-    # GEN 17: strong_trigger keeps its measured-green band; GO REVIVED and
-    # ARRIVAL T1 have no conf gate ("star and elite go fast or late").
+    # GEN 18: strong_trigger keeps its measured-green band; the star, Star ×
+    # Prime and the conviction revival carry their own gates upstream.
     "strong_trigger": ((65.0, 1000.0),),
-    "early_lane": ((85.0, 1000.0),),             # GEN 17.1, as before
 }
 # GEN 6: no conditional seats — the pool is exactly the named three.
 CONDITIONAL_SRC: set = set()
@@ -527,10 +556,9 @@ def lev_for(src: str, conf=None, burst=None) -> float:
     3.25%, so that guard bites only on the genuinely wild plans.
     ONE source of truth — the 💸 live executor calls this too.
     (The GEN 15 star 6x/8x-by-burst ladder is in git at 2a56c58.)"""
-    return {"go_revived": 10.0, "arrival_t1": 10.0,
-            "strong_trigger": 10.0, "early_lane": 10.0,
+    return {"elite_star": 10.0, "strong_trigger": 10.0,
             "star_prime": 10.0,
-            "elite_star": 10.0}.get(src, LEV_GEN13)       # GEN 17.3
+            "conv_revival": 10.0}.get(src, LEV_GEN13)     # GEN 18: flat 10x
 
 
 def load() -> dict:
@@ -769,6 +797,9 @@ def try_open(state: dict, cands: list, live_fn, active=None,
             continue
         if not time_gate_ok(c["src"], c["side"], _t):
             continue            # ⏰ GEN 16.5: 🔴 21-05 PKT, long seat closed
+        _ck = clock_ok(c["src"], c["side"], _t)   # 🕐 GEN 18: the star's clock
+        if not _ck[0]:
+            continue            # 🔴 DON'T window for this side — no seat
         _res = SPARE_RESERVE.get(c["src"])
         if _res is not None and len(state["open"]) >= _slot_cap - _res:
             continue            # 🪑 spare-only stream: seats kept free
@@ -876,7 +907,8 @@ def try_open(state: dict, cands: list, live_fn, active=None,
                "agree": c.get("agree", 1),
                "srcs": c.get("srcs", c["src"]),
                "opened_at": _t, "fees": fee_in,
-               "tp1_banked": 0.0, "be_set": False, "peak": live}
+               "tp1_banked": 0.0, "be_set": False, "peak": live,
+               "clock": _ck[1], "adds": []}          # GEN 18 stamps
         state["balance"] -= fee_in
         state["open"].append(pos)
         held.add(c["symbol"])
@@ -902,7 +934,7 @@ def _close_qty(state, p, qty, px, reason) -> dict:
 # 🎮 GEN 17 CUT-OVER (user 2026-10-14: "close the ones that are open and with
 # new stream start with them"): seats opened before this moment are closed
 # at the live price on the next cycle, once. 0 = off.
-DEMO_RESET_BEFORE = 1791980100.0      # 2026-10-14 12:15 UTC = 17:15 PKT
+DEMO_RESET_BEFORE = 0.0      # GEN 17 cut-over done; GEN 18 uses cutover_gen18()
 
 
 def close_before(state: dict, ts: float, live_fn) -> list:
@@ -930,7 +962,108 @@ def close_before(state: dict, ts: float, live_fn) -> list:
     return out
 
 
-def manage(state: dict, live_fn, kr_get=None) -> list:
+def cutover_gen18(live_fn) -> list:
+    """🎮 GEN 18 (user 2026-10-22: "close all the trades and restart with the
+    fresh account 2000 dollars"): the previous generation's open seats close at
+    the live price INTO THEIR OWN ledger, that ledger is archived beside the state
+    file, and the fresh $2,000 book is written. Runs once; a file already on GEN
+    18 is left alone; a seat whose price is unreadable makes the whole cut-over
+    wait for the next tick (the old file stays in place)."""
+    out = []
+    try:
+        with open(STATE_FILE, encoding="utf-8") as f:
+            old = json.load(f)
+    except Exception:
+        return out
+    if not isinstance(old, dict) or old.get("gen") == GEN:
+        return out
+    for p in list(old.get("open") or []):
+        try:
+            live = float(live_fn(p["symbol"]) or 0)
+            if live <= 0:
+                continue
+            rec = _close_qty(old, p, p["qty"], live,
+                             "GEN 18 cut-over — closed at live, fresh $2,000 "
+                             "book from here (user 2026-10-22)")
+            old.setdefault("closed", []).append(rec)
+            old["open"].remove(p)
+            out.append(("close", rec))
+        except Exception:
+            continue
+    if old.get("open"):
+        try:
+            with open(STATE_FILE, "w", encoding="utf-8") as f:
+                json.dump(old, f)       # keep the closes already made
+        except Exception:
+            pass
+        return out
+    arch = f"{STATE_FILE}.gen{old.get('gen', 'x')}_{time.strftime('%Y%m%d')}.json"
+    try:
+        with open(arch, "w", encoding="utf-8") as f:
+            json.dump(old, f)
+    except Exception:
+        pass
+    save({"gen": GEN, "balance": START_BAL, "start": START_BAL,
+          "started_at": time.time(), "open": [], "closed": [],
+          "equity_hist": [], "from": arch, "cutover_closed": len(out)})
+    return out
+
+
+def _add_on(state: dict, p: dict, live: float, why: str, now: float):
+    """⭐➕ GEN 18: add ADDON_MARGIN_X seats' margin to an open star seat at the
+    live price (same leverage), averaging the entry. Refused — and the reason
+    stamped in p['added'] so it is never retried — when free collateral is
+    short, the heat cap would be crossed, the price already sits through the
+    stop, or the averaged position's stop would land past the 8%-at-10x
+    liquidation guard that every seat passes at open."""
+    lng = p["side"] == "LONG"
+    bal = max(1.0, float(state["balance"]))
+    lev = float(p.get("lev") or 10.0)
+    margin_add = round(bal / MAX_SLOTS * ADDON_MARGIN_X, 2)
+    m_used = sum(float(q.get("margin") or 0) for q in state["open"])
+    if margin_add > bal - m_used:
+        p["added"] = "skipped — no free collateral"
+        return None
+    stop_d = (live - float(p["stop"])) if lng else (float(p["stop"]) - live)
+    if stop_d <= 0:
+        p["added"] = "skipped — price through the stop"
+        return None
+    notional_add = margin_add * lev
+    qty_add = notional_add / live
+    new_qty = float(p["qty"]) + qty_add
+    new_entry = (float(p["entry"]) * float(p["qty"]) + live * qty_add) / new_qty
+    if abs(new_entry - float(p["stop"])) / new_entry >= 0.8 / lev:
+        p["added"] = "skipped — averaged stop past the 8% guard"
+        return None
+    heat = 0.0
+    for q in state["open"]:
+        try:
+            d = ((float(q["entry"]) - float(q["stop"])) if q.get("side") == "LONG"
+                 else (float(q["stop"]) - float(q["entry"])))
+            heat += float(q.get("qty") or 0) * max(0.0, d)
+        except Exception:
+            continue
+    if (heat + qty_add * stop_d) / bal > HEAT_CAP:
+        p["added"] = "skipped — heat cap"
+        return None
+    fee = notional_add * FEE
+    state["balance"] -= fee
+    p["fees"] = float(p.get("fees") or 0) + fee
+    p["entry"] = new_entry
+    p["qty"] = new_qty
+    p["notional"] = round(float(p.get("notional") or 0) + notional_add, 2)
+    p["margin"] = round(float(p.get("margin") or 0) + margin_add, 2)
+    p["risk_usd"] = round(float(p.get("risk_usd") or 0) + qty_add * stop_d, 2)
+    p["added"] = why
+    p.setdefault("adds", []).append({"ts": now, "px": live, "margin": margin_add,
+                                     "notional": notional_add, "why": why})
+    return {"symbol": p["symbol"], "base": p["base"], "side": p["side"], "px": live,
+            "margin": margin_add, "notional": notional_add, "why": why,
+            "entry_avg": new_entry, "notional_total": p["notional"],
+            "margin_total": p["margin"]}
+
+
+def manage(state: dict, live_fn, kr_get=None, addon_fn=None) -> list:
     """GEN 15 EXIT LAW (user 2026-09-13: "its sl and tp that should be
     set with it nothing less, just a smart exit when its close to tp
     and you sense momentum is dropping"). A position can close for
@@ -977,6 +1110,23 @@ def manage(state: dict, live_fn, kr_get=None) -> list:
                          else min(p["stop"], _cand))
         hit_stop = live <= p["stop"] if lng else live >= p["stop"]
         hit_tp1 = live >= p["tp1"] if lng else live <= p["tp1"]
+        # ⭐➕ GEN 18 ADD-ON (user 2026-10-22): an open star seat whose own
+        # ignition watch reads 1H LIVE or GO FAST gets 2 seats' margin more,
+        # once, at the live price — never on a seat already at its stop or TP1.
+        if (addon_fn is not None and p.get("src") in ADDON_SRC
+                and not p.get("added") and not hit_stop and not hit_tp1
+                and p["qty"] > 0):
+            try:
+                _ws = addon_fn(p["symbol"], p["side"]) or {}
+            except Exception:
+                _ws = {}
+            _why = ("1H LIVE" if str(_ws.get("oneh") or "").upper() == "LIVE"
+                    else "GO FAST" if str(_ws.get("go") or "").upper() == "FAST"
+                    else None)
+            if _why:
+                _ar = _add_on(state, p, live, _why, float(_clock()))
+                if _ar:
+                    events.append(("add", _ar))
         # 🎯 NEAR-TP BANK — GEN 15: EVERY STREAM (user 2026-09-13:
         # "its sl and tp that should be set with it nothing less,
         # just a smart exit when its close to tp and you sense

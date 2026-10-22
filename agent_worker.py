@@ -5947,6 +5947,15 @@ def cycle() -> None:
     # TP2/48h exits. Simulated only — no real orders; buzzes every
     # move so the user watches it trade.
     try:
+        # 🎮 GEN 18 cut-over (user 2026-10-22): the GEN 17 seats close at the
+        # live price into their own ledger (archived beside the state file),
+        # then load() starts the fresh $2,000 book. Runs once.
+        try:
+            for _ev18, _rec18 in demo_account.cutover_gen18(_live):
+                print(f"[gen18] cut-over close {_rec18['base']} "
+                      f"{_rec18['side']} {_rec18['pnl']:+.2f}$", flush=True)
+        except Exception as _c18_exc:
+            print("  gen18 cut-over error:", _c18_exc, flush=True)
         _dz = demo_account.load()
         # GEN 6 (user 2026-08-23: "we only go with Strong triggers
         # and Re Run, and Elite conviction max... nothing else should
@@ -5956,12 +5965,10 @@ def cycle() -> None:
         # GEN 8 form boosts: each pool's own live desk ledger (duo
         # form = the duo85 tier; young tiers just read ~0 = neutral).
         _dz_form = {}
-        for _dt, _sh in (("go_revived", "go_revived"),         # GEN 17
-                         ("arrival_t1", "trig_hot"),
+        for _dt, _sh in (("elite_star", "elite_star"),         # GEN 18
                          ("strong_trigger", "trig_strong"),
-                         ("early_lane", "early_lane"),      # GEN 17.1
-                         ("star_prime", "star_prime"),      # GEN 17.2
-                         ("elite_star", "elite_star")):     # GEN 17.3
+                         ("star_prime", "star_prime"),
+                         ("conv_revival", "go_revived")):
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_sh)["net_r"]
             except Exception:
@@ -6460,18 +6467,24 @@ def cycle() -> None:
                                         _btc_day_pct())
                                 except Exception as _rgd_exc:
                                     _rgd = (True, f"read: error {_rgd_exc}", "")
-                                if _rgd[0]:
+                                # 🎮 GEN 18 (user 2026-10-22): only 💎 CONVICTION
+                                # REVIVALS seat — the bell's own rule (not a star,
+                                # fire read passed, GO inside the entry cell). A
+                                # star's GO FAST is the ⭐➕ add-on on its open
+                                # star seat instead; star revivals seat nothing.
+                                if (_rgd[0] and not _ew.get("star")
+                                        and str(_rgd[2]).startswith("✅")):
                                     _DEMO_GO.append(dict(
-                                        _rv_sig, src="go_revived",
-                                        score=(90.0 if _ew.get("star")
-                                               else 85.0),
-                                        burst=0.0, conf=None,
+                                        _rv_sig, src="conv_revival",
+                                        score=85.0, burst=0.0, conf=None,
                                         fired_at=_ew_now))
                                     del _DEMO_GO[:-12]
                                 else:
-                                    print(f"  [gen17.3] GO REVIVED "
-                                          f"{_ew['symbol']} {_ew['side']} "
-                                          f"no seat — {_rgd[1]}", flush=True)
+                                    print(f"  [gen18] revival {_ew['symbol']} "
+                                          f"{_ew['side']} no seat — "
+                                          + ("star revival (add-on law)" if _ew.get("star")
+                                             else f"{_rgd[1]} / {str(_rgd[2])[:48]}"),
+                                          flush=True)
                             except Exception as _rv_exc:
                                 print("  go_revived tier error:", _rv_exc,
                                       flush=True)
@@ -6581,44 +6594,36 @@ def cycle() -> None:
         # 🎮 GEN 17 POOLS (user 2026-10-14): exactly the three, in his order.
         _DEMO_GO[:] = [d for d in _DEMO_GO
                        if _now - d["fired_at"] <= DEMO_FIRE_TTL_S]
+        # 🎮 GEN 18 POOLS (user 2026-10-22): THE FOUR, nothing else.
         _dz_pools = {
-            # 1. ⭐⚡/💎⚡ GO REVIVED — entry at the GO price, fire's plan
-            "go_revived": ([dict(d) for d in _DEMO_GO
-                            if d.get("entry") and d.get("stop")
-                            and d.get("tp1")]
+            # 1. ⭐ ELITE STAR — the star fire that PASSED the phone's four-rule
+            # read (heat >= 25 · BTC day <= +1.5% · not 01–05 PKT · stop <= 7%);
+            # the star's clock (🔴 = no seat) is read in demo_account.try_open
+            "elite_star": ([dict(d) for d in _DEMO_STARS
+                            if d.get("seat") and d.get("entry")
+                            and d.get("stop") and d.get("tp1")]
                            + [d for d in _dz_reo
-                              if d["src"] == "go_revived"]),
-            # 2. ⚡🔥 ARRIVAL T1 — the HOT long break at a ⚡ number
-            "arrival_t1": ([dict(d) for d in _dz_t1
-                            if d.get("entry") and d.get("stop")
-                            and d.get("tp1")]
-                           + [d for d in _dz_reo
-                              if d["src"] == "arrival_t1"]),
-            # 3. 💥 STRONG TRIGGER conf >= 65 (gate in demo_account)
+                              if d["src"] == "elite_star"]),
+            # 2. 💥 STRONG TRIGGER conf >= 65 (gate in demo_account)
             "strong_trigger": ([f for f in _dz_fires
                                 if f["src"] == "strong_trigger"]
                                + [d for d in _dz_reo
                                   if d["src"] == "strong_trigger"]),
-            # 4. ⭐🚀 EARLY LANE conf >= 85 (GEN 17.1, user: "add early lane
-            # as 4th stream thats it") — the lanes-flag half of early_strong
-            "early_lane": (_g16(em_big, "early_lane")
-                           + [d for d in _dz_reo
-                              if d["src"] == "early_lane"]),
-            # 5. ⭐🥇 STAR × PRIME (GEN 17.2): star fire + PRIME on the coin
+            # 3. ⭐🥇 STAR × PRIME: star fire + PRIME on the coin, every band
             "star_prime": ([dict(d) for d in _DEMO_SP
                             if _now - d["fired_at"] <= DEMO_FIRE_TTL_S
                             and d.get("entry") and d.get("stop")
                             and d.get("tp1")]
                            + [d for d in _dz_reo
                               if d["src"] == "star_prime"]),
-            # 6. ⭐ ELITE STAR (GEN 17.3): the star fire that PASSED the
-            # phone's four-rule read (heat >= 25 · BTC day <= +1.5% ·
-            # not 01–05 PKT · stop <= 7%) — the fire's plan, every band
-            "elite_star": ([dict(d) for d in _DEMO_STARS
-                            if d.get("seat") and d.get("entry")
-                            and d.get("stop") and d.get("tp1")]
-                           + [d for d in _dz_reo
-                              if d["src"] == "elite_star"])}
+            # 4. 💎 CONVICTION REVIVAL — entry at the GO price with the fire's
+            # plan, only when the bell's rule held (fed above)
+            "conv_revival": ([dict(d) for d in _DEMO_GO
+                              if d.get("src") == "conv_revival"
+                              and d.get("entry") and d.get("stop")
+                              and d.get("tp1")]
+                             + [d for d in _dz_reo
+                                if d["src"] == "conv_revival"])}
         # 🔄 GEN 7 rotation input: every (coin, side) with a LIVE
         # signal this cycle — positions outside this set are the
         # rotation candidates ("a losing trade stands only while
@@ -6643,16 +6648,22 @@ def cycle() -> None:
                 return _v
             except Exception:
                 return None
-        # 🎮 GEN 17 cut-over (user 2026-10-14): seats from the old roster
-        # close at the live price once; the new streams start clean.
-        try:
-            for _ev17, _rec17 in demo_account.close_before(
-                    _dz, demo_account.DEMO_RESET_BEFORE, _live):
-                print(f"[gen17] cut-over close {_rec17['base']} "
-                      f"{_rec17['side']} {_rec17['pnl']:+.2f}$", flush=True)
-        except Exception as _co_exc:
-            print("  gen17 cut-over error:", _co_exc, flush=True)
-        _dz_events = demo_account.manage(_dz, _live, _dz_kr)
+        def _dz_star_state(sym, side):
+            """⭐➕ GEN 18 add-on read: the open star seat's own ignition
+            watch — its 1H verdict and GO (newest watch for the coin+side)."""
+            best = None
+            for _w18 in list(_EGO_WATCH):
+                try:
+                    if (_w18.get("symbol") == sym and _w18.get("star")
+                            and (_w18.get("side") or "").upper() == (side or "").upper()
+                            and _w18.get("fam", "elite") == "elite"):
+                        if best is None or float(_w18.get("fired_at") or 0) > float(best.get("fired_at") or 0):
+                            best = _w18
+                except Exception:
+                    continue
+            return {"oneh": best.get("oneh"), "go": best.get("go")} if best else None
+        _dz_events = demo_account.manage(_dz, _live, _dz_kr,
+                                         addon_fn=_dz_star_state)
         # 🔁 GEN 8 MOMENTUM RE-ENTRY (user 2026-09-05: "let it ride
         # to tp1 and close it. if the momentum is still there open
         # the trade again"): every TP1 bank gets a 1h-burst check —
@@ -6690,10 +6701,9 @@ def cycle() -> None:
                      "score": float(_rp8.get("score") or 80),
                      "src": (_rec8.get("src")
                              if _rec8.get("src") in
-                             ("go_revived", "arrival_t1",
-                              "strong_trigger", "early_lane",
-                              "star_prime", "elite_star")
-                             else "strong_trigger"),   # GEN 17.3
+                             ("elite_star", "strong_trigger",
+                              "star_prime", "conv_revival")
+                             else "strong_trigger"),   # GEN 18
                      "chain": int(_rp8.get("chain") or 0) + 1,
                      "fired_at": _now})
                 print(f"[gen8] 🔁 momentum re-entry queued "
@@ -6774,6 +6784,18 @@ def cycle() -> None:
                     f"{_rec['reason']}\nstop now "
                     f"`{_rec['stop']:g}` · balance "
                     f"`${_dz['balance']:,.2f}`")
+                n_alerts += 1 if ok else 0
+                continue
+            if _ev == "add":
+                print(f"[gen18] ⭐➕ add-on {_rec['base']} {_rec['side']} "
+                      f"+${_rec['margin']:,.0f} margin at {_rec['px']:g} "
+                      f"({_rec['why']}) → notional ${_rec['notional_total']:,.0f}",
+                      flush=True)
+                ok, _ = _dz_tg(
+                    f"🎮⭐➕ *DEMO GEN18* — ADDED {_rec['base']} {_rec['side']} "
+                    f"+${_rec['margin']:,.0f} margin at `{_rec['px']:g}` ({_rec['why']}) · "
+                    f"avg entry `{_rec['entry_avg']:g}` · notional "
+                    f"${_rec['notional_total']:,.0f}")
                 n_alerts += 1 if ok else 0
                 continue
             _tag = ("💰 TP1 half-banked" if _ev == "tp1"
