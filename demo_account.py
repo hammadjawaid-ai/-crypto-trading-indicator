@@ -168,7 +168,7 @@ NEAR_TP_FADE = 0.60          # how far it has given back
 # bank beat the full TP1 on every stream, both halves, both sides — star
 # +0.184R vs +0.166R, conviction +0.125R vs +0.101R, trigger +0.099R vs
 # +0.050R, PRIME +0.127R vs +0.100R): back on for all four.
-NEAR_TP_SRC: set = {"elite_star", "strong_trigger", "star_prime", "conv_revival"}
+NEAR_TP_SRC: set = {"elite_star", "strong_trigger", "star_prime", "conv_revival", "prime_trig"}
 # 📐 rr re-checked at the LIVE entry for streams whose edge IS an rr
 # law — (lo, hi) half-open, None = unbounded on that side. The star
 # profile was measured at TP1 within 1.2R; the premium cell at
@@ -267,7 +267,7 @@ ELITE_FAMILY_CAP = 0
 # NEVER rotated, and at most this many rotations happen per cycle.
 ROTATE_MAX = 0   # GEN 9 user order: rotation REMOVED
 SMART_EXIT_SKIP: set = {"elite_star", "strong_trigger",
-                        "star_prime", "conv_revival"}         # GEN 18: no kronos exit anywhere
+                        "star_prime", "conv_revival", "prime_trig"}   # GEN 18.2: no kronos exit anywhere
 # GEN 12: kronos smart-exit off for all. Exits: SL-or-TP1-bank-100%
 # everywhere EXCEPT ⭐ elite_star's near-TP bank (own block) and
 # 💎🔮 elite_kr's RIDE (half-bank TP1 + BE + trail, in the TP1
@@ -377,9 +377,13 @@ CLASS_W = {"elite_star": 104,     # 1. ⭐ ELITE STAR — the star fire that PAS
                                   #    ⭐➕ adds 2 seats' margin on 1H LIVE or GO FAST
            "strong_trigger": 103,  # 2. 💥 STRONG TRIGGER conf >=65 (red windows closed)
            "star_prime": 102,     # 3. ⭐🥇 STAR × PRIME — star fire + PRIME on the coin
-           "conv_revival": 101}   # 4. 💎 CONVICTION REVIVAL — the bell's own rule:
+           "conv_revival": 101,   # 4. 💎 CONVICTION REVIVAL — the bell's own rule:
                                   #    not a star, fire read passed, GO inside the
                                   #    entry cell (0.3–0.6R left, not 21–05 PKT)
+           "prime_trig": 100}     # 5. 💥🥇 PRIME × STRONG TRIGGER (GEN 18.2, user
+                                  #    2026-10-24: "move it to demo trading with full
+                                  #    leverage") — PRIME fire + strong trigger on the
+                                  #    coin+side; desk replay 64% / +0.32R (155)
 # 🪑 SPARE-SEAT RULE: a listed stream may open only while at least
 # this many seats stay free after it, so the priority three always
 # find room — rotation is off (ROTATE_MAX = 0) and a seat once taken
@@ -561,8 +565,8 @@ def lev_for(src: str, conf=None, burst=None) -> float:
     ONE source of truth — the 💸 live executor calls this too.
     (The GEN 15 star 6x/8x-by-burst ladder is in git at 2a56c58.)"""
     return {"elite_star": 10.0, "strong_trigger": 10.0,
-            "star_prime": 10.0,
-            "conv_revival": 10.0}.get(src, LEV_GEN13)     # GEN 18: flat 10x
+            "star_prime": 10.0, "conv_revival": 10.0,
+            "prime_trig": 10.0}.get(src, LEV_GEN13)       # GEN 18.2: flat 10x
 
 
 def load() -> dict:

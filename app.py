@@ -4574,7 +4574,12 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                                  "strong trigger on the coin and side, 2h before → "
                                  "30 min after (64%/+0.32R over 155 on the 07 Aug → "
                                  "12 Oct desk replay; PRIME read stamped, never a "
-                                 "gate; records only, no bell, proving)",
+                                 "gate; 🎮 demo seat + 💥🥇 bell since 24 Oct, proving)",
+                   "confirm_room": "💎✅ ROOM — a confirmed entry whose close still "
+                                   "leaves TP1 ≥ 1R away, on a plain elite pick (no "
+                                   "conviction / star bell behind it), BTC day ≤ +1.5% "
+                                   "(50%/+0.47R over 166 on the 23 Aug → 14 Oct desk, "
+                                   "both halves; decision desk first, no bell, proving)",
                    "apex_one": "🏆²👑 APEX V2 × ONE TRADE — APEX V2 fire + 👑 "
                                "ONE TRADE pick on the coin and side, 2h before → "
                                "30 min after (48%/+0.45R over 29 on the desk, "
@@ -9612,7 +9617,9 @@ if active_section == "🎮 Demo Trading":
         "PKT, shorts 09-13 / 17-21) · <b>3. ⭐🥇 STAR × PRIME</b>, 10x (a star fire with "
         "a PRIME on the same coin and side) · <b>4. 💎 CONVICTION REVIVAL</b>, 10x (the "
         "bell's own rule: not a star, fire read passed, GO inside the 0.3–0.6R entry "
-        "cell, not 21–05 PKT). Nothing else seats — GO REVIVED star revivals, ARRIVAL "
+        "cell, not 21–05 PKT) · <b>5. 💥🥇 PRIME × STRONG TRIGGER</b>, 10x (a PRIME fire with a "
+        "strong trigger on the coin and side 2h before → 30 min after; its own bell since 24 Oct; "
+        "desk replay 64%/+0.32R over 155). Nothing else seats — GO REVIVED star revivals, ARRIVAL "
         "T1 and EARLY LANE left the money today (bells, desk tiers and boards go on). "
         "Exits: the plan's SL / TP1 (banked 100%) / TP2, no near-TP bank, no time stop."
         "</span><br><span style='color:#6b7390;font-size:0.72rem'>"

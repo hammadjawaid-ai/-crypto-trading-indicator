@@ -124,6 +124,16 @@ for a, b, lab in (('if _ew.get("oneh") == "DEAD":\n                             
         old_, now_ = _norm_tier(old_), _norm_tier(now_)
         if old_ is None or now_ is None or old_.rstrip() != now_.rstrip():
             fails.append("stamp + go_revived tier changed vs HEAD")
+    elif lab == "verdict block":
+        # 2026-10-19: the one sanctioned edit inside the verdict block since — the
+        # 🏆²👑 apex_one_1h stamp (records only, fam apexv2) between the apexv2_1h
+        # record and the buzz branch. Cut it on both sides; the rest stays byte-identical.
+        def _strip_ao(x):
+            i = (x or "").find('                        # 🏆²👑 APEX V2 × ONE TRADE (user 2026-10-19: "have')
+            j = (x or "").find("                        # buzz: approved fires, HIGH and MAX, no", i)
+            return x if (i < 0 or j < 0) else x[:i] + x[j:]
+        if old_ is None or now_ is None or _strip_ao(old_) != _strip_ao(now_):
+            fails.append("verdict block changed vs HEAD")
     elif old_ != now_ or old_ is None:
         fails.append(f"{lab} changed vs HEAD")
 
@@ -170,8 +180,15 @@ def _strip_gate_chip(x):
     return x if (i < 0 or j < 0) else x[:i] + x[j:]
 
 
+def _strip_bank_chip(x):
+    # 2026-10-24: the 🎯 bank-zone chip block on the star card (user order)
+    i = (x or "").find("            try:   # 🎯 bank zone (user 2026-10-24): same number as the bell")
+    j = (x or "").find("            _pkt = time.strftime(", i)
+    return x if (i < 0 or j < 0) else x[:i] + x[j:]
+
+
 def _norm_sb(x):
-    return _strip_gate_chip((x or "")).replace(_EGO_INS, "").replace(_CLOCK_INS, "").replace(_TP1_INS, _TP1_WAS)
+    return _strip_bank_chip(_strip_gate_chip((x or ""))).replace(_EGO_INS, "").replace(_CLOCK_INS, "").replace(_TP1_INS, _TP1_WAS)
 
 
 if _norm_sb(sb_now) != _norm_sb(sb_old):

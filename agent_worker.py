@@ -369,6 +369,7 @@ GO_LIVE_LINE = ("class: 💎 LIVE then GO — elite conviction, from the fire pr
 # the band list can still ping — the line names the stream either way.
 TP1_STREAMS = {
     "elite_star": "⭐ ELITE STAR",
+    "prime_trig": "💥🥇 PRIME × STRONG TRIGGER",   # bell since 2026-10-24
     "elite_agrade": "💎🏆 A-GRADE",
     "trig_hot": "⚡🔥 ARRIVAL T1",
     "kr_premium_bell": "⚡🔮 KR-STRONG PREMIUM",
@@ -586,6 +587,34 @@ def _sr_levels(sym, side):
         return []
 
 
+def _fmt_prime_trig(sig, px, now):
+    """💥🥇 PRIME × STRONG TRIGGER bell (user 2026-10-24): the two fires, the plan,
+    the PRIME read (information), the bank zone, the pair record + forward ledger."""
+    side = (sig.get("side") or "").upper()
+    head = (f"💥🥇 *PRIME × STRONG TRIGGER — {sig.get('base')} {side} · TAKE · "
+            f"{rung_stats.pkt_hm(now)} PKT*")
+    l2 = ("🥇 PRIME fire + 💥 strong trigger on the same coin and side (trigger within "
+          "2h before → 30 min after the PRIME)")
+    t2 = f" · TP2 `{float(sig['tp2']):g}`" if sig.get("tp2") else ""
+    plan = (f"entry `{float(sig['entry']):g}` · live `{float(px):g}` · SL "
+            f"`{float(sig['stop']):g}` · TP1 `{float(sig['tp1']):g}`{t2}")
+    rd = str(sig.get("read_line") or "")
+    try:
+        bl = bank_zone.line(bank_zone.compute(sig.get("entry"), sig.get("stop"), sig.get("tp1"),
+                                              side, _sr_levels(sig.get("symbol"), side)))
+    except Exception:
+        bl = ""
+    try:
+        fwd = rung_stats.rec(rung_stats.tier_rec("prime_trig", None, now))
+    except Exception:
+        fwd = "record unavailable"
+    l5 = (f"pair record: {PRIME_TRIG_REC} · forward ledger (💥🥇 tier since 19 Oct): {fwd} · "
+          f"{rung_stats.stamp_now(now)}")
+    l6 = ("_bank at TP1 · hold through the hour: a LIVE 60m read ran 83% / +0.69R (60) on the "
+          "replay · the PRIME read above is information, not a gate._")
+    return "\n".join(x for x in (head, l2, plan, rd, bl, l5, l6) if x)
+
+
 def _prime_read(p, now, btc=None):
     """🥇 PRIME read (2026-10-19, .prime_native_read.py): TP1 < 1.5R away ·
     stop >= 3% · BTC day <= +1.5% · fire not 01–05 and not 13–17 PKT. A stamp
@@ -748,6 +777,7 @@ _DEMO_T1: list = []
 # 🎮 GEN 17.2 seat feed (user 2026-10-14): ⭐🥇 STAR × PRIME — a star fire with
 # a PRIME signal on the same coin+side, appended by the pairing pass.
 _DEMO_SP: list = []
+_DEMO_PT: list = []     # 💥🥇 GEN 18.2 seat feed (user 2026-10-24)
 _DEMO_PB: list = []     # 🔶💥 GEN 16.5 pressed-first breaks, LONGS ONLY
 # 🗞 NEWS RADAR runs off the main loop (its RSS pass takes ~16-18s);
 # news_radar holds its own lock, this just avoids piling up threads.
@@ -2327,7 +2357,7 @@ TG_LEG2_PRIME = True     # 🔥🥇 bell. False = silent; tier leg2_prime contin
 # (434); Aug +0.41R · Sep +0.32R · Oct +0.22R; inside the PRIME read 73% /
 # +0.35R (64); LIVE at the hour 83% / +0.69R (60). The bell stays OFF until 30
 # forward trades confirm; the PRIME read is stamped on every record, never gates.
-TG_PRIME_TRIG = False    # 💥🥇 bell OFF — records only (no send path exists yet).
+TG_PRIME_TRIG = True     # 💥🥇 bell ON 2026-10-24 (user: "on our telegram notifications we have this buzzed as well"); False = silent, tier + demo continue.
 PRIME_TRIG_REC = ("PRIME with a 💥 strong trigger 64% / +0.32R (155) vs PRIME "
                   "without 47% / +0.04R (434) · desk replay 07 Aug → 12 Oct")
 PRIME_READ_REC = ("gated 63% / +0.27R (230) vs rejected 43% / +0.02R (359) · "
@@ -3820,6 +3850,39 @@ def cycle() -> None:
             store.record_signal("elite_confirm", _sig9)
             shadow_trader.open_from_signal("elite_confirm", _sig9,
                                            _cl9)
+            # 💎✅ ROOM (user 2026-10-24: "room to the decision desk only on paper
+            # trading first"): a NEW records-only tier beside the confirm — the
+            # confirm whose close still leaves TP1 >= 1R away, whose fire was a
+            # plain elite pick (no 💎 conviction / ⭐ star record on the coin+side
+            # in the prior 48h) and on a BTC day <= +1.5%. Measured 23 Aug → 14 Oct:
+            # 50% / +0.47R (166), both halves, 100th pct shuffle; what it rejects
+            # 50% / -0.01R (768). Every confirm is stamped (rr / fire kind / BTC /
+            # room pass-fail) on the elite_confirm record's sibling; only passes
+            # open the tier. No bell, no demo seat.
+            try:
+                _rr_rm = (abs(float(_w9["tp1"]) - float(_cl9))
+                          / max(1e-12, abs(float(_cl9) - float(_w9["stop"]))))
+                _pick_rm = not (store.seen_between("elite_conv", _w9["symbol"], _w9["side"],
+                                                   _now - 48 * 3600, _now + 1)
+                                or store.seen_between("elite_star", _w9["symbol"], _w9["side"],
+                                                      _now - 48 * 3600, _now + 1))
+                try:
+                    _btc_rm = _btc_day_pct()
+                except Exception:
+                    _btc_rm = None
+                _room_ok = (_rr_rm >= 1.0 and _pick_rm
+                            and (_btc_rm is None or _btc_rm <= 1.5))
+                _sig_rm = dict(_sig9, rr=round(_rr_rm, 3),
+                               fire_kind=("pick" if _pick_rm else "bell"),
+                               btc_day=_btc_rm, room=("pass" if _room_ok else "fail"))
+                if _room_ok:
+                    store.record_signal("confirm_room", _sig_rm)
+                    shadow_trader.open_from_signal("confirm_room", _sig_rm, _cl9)
+                print(f"  [room] {_w9['symbol']} {_w9['side']} rr {_rr_rm:.2f} "
+                      f"{'pick' if _pick_rm else 'bell-backed'} btc {_btc_rm} -> "
+                      f"{'ROOM' if _room_ok else 'no room'}", flush=True)
+            except Exception as _rm_exc:
+                print("  room error:", _rm_exc, flush=True)
             _ECF_FIRES.append(dict(_sig9, fired_at=_now,
                                    burst=0.0))
             del _ECF_FIRES[:-20]
@@ -4598,8 +4661,9 @@ def cycle() -> None:
     # 💥🥇 PRIME × STRONG TRIGGER — records-only pass (user 2026-10-19). The
     # anchor is the 🥇 PRIME fire (its own plan is the trade, as the study
     # measured); the partner is a 💥 strong trigger on the same coin + side
-    # 2h before → 30 min after it. No bell: TG_PRIME_TRIG is False and no
-    # send path exists here — the desk tier prime_trig is the whole build.
+    # 2h before → 30 min after it. 2026-10-24 (user): the pass now also feeds
+    # the demo (GEN 18.2, 5th rung, flat 10x) and rings its own 💥🥇 bell
+    # (TG_PRIME_TRIG); the desk tier prime_trig records every fire as before.
     try:
         import json as _json_pt
         _now_pt = time.time()
@@ -4656,8 +4720,26 @@ def cycle() -> None:
                     _px_pt = None
                 store.record_signal("prime_trig", _sig_pt)
                 shadow_trader.open_from_signal("prime_trig", _sig_pt, _px_pt)
+                # 🎮 GEN 18.2 seat feed (user 2026-10-24: "move it to demo trading
+                # with full leverage") — the PRIME plan, every band, flat 10x.
+                _DEMO_PT.append(dict(_sig_pt, src="prime_trig",
+                                     score=float(_sig_pt.get("score") or 85),
+                                     burst=0.0, fired_at=_now_pt))
+                del _DEMO_PT[:-12]
+                # 💥🥇 bell (user 2026-10-24: "on our telegram notifications we have
+                # this buzzed as well"); the switch above silences it.
+                _bell_pt = "off"
+                if TG_PRIME_TRIG and not _bstock_quiet(_sym_pt):
+                    try:
+                        ok, _m_pt = tg.send(_fmt_prime_trig(
+                            _sig_pt, float(_px_pt or _sig_pt["entry"]), _now_pt)
+                            + _kr_note(_sig_pt))
+                        n_alerts += 1 if ok else 0
+                        _bell_pt = "sent" if ok else f"failed: {_m_pt}"
+                    except Exception as _pb_exc:
+                        _bell_pt = f"error: {_pb_exc}"
                 print(f"  [prime-trig] {_sym_pt} {_sd_pt} band={_sig_pt['band']} "
-                      f"read={_sig_pt['read']} bell=off", flush=True)
+                      f"read={_sig_pt['read']} bell={_bell_pt}", flush=True)
             except Exception as _pt1:
                 print("  prime-trig item error:", _pt1, flush=True)
     except Exception as _pt_exc:
@@ -5998,7 +6080,8 @@ def cycle() -> None:
         for _dt, _sh in (("elite_star", "elite_star"),         # GEN 18
                          ("strong_trigger", "trig_strong"),
                          ("star_prime", "star_prime"),
-                         ("conv_revival", "go_revived")):
+                         ("conv_revival", "go_revived"),
+                         ("prime_trig", "prime_trig")):        # GEN 18.2
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_sh)["net_r"]
             except Exception:
@@ -6660,7 +6743,15 @@ def cycle() -> None:
                               and d.get("entry") and d.get("stop")
                               and d.get("tp1")]
                              + [d for d in _dz_reo
-                                if d["src"] == "conv_revival"])}
+                                if d["src"] == "conv_revival"]),
+            # 5. 💥🥇 PRIME × STRONG TRIGGER (GEN 18.2, user 2026-10-24: "move it to
+            # demo trading with full leverage") — the PRIME plan, every band
+            "prime_trig": ([dict(d) for d in _DEMO_PT
+                            if _now - d["fired_at"] <= DEMO_FIRE_TTL_S
+                            and d.get("entry") and d.get("stop")
+                            and d.get("tp1")]
+                           + [d for d in _dz_reo
+                              if d["src"] == "prime_trig"])}
         # 🔄 GEN 7 rotation input: every (coin, side) with a LIVE
         # signal this cycle — positions outside this set are the
         # rotation candidates ("a losing trade stands only while
@@ -6739,8 +6830,8 @@ def cycle() -> None:
                      "src": (_rec8.get("src")
                              if _rec8.get("src") in
                              ("elite_star", "strong_trigger",
-                              "star_prime", "conv_revival")
-                             else "strong_trigger"),   # GEN 18
+                              "star_prime", "conv_revival", "prime_trig")
+                             else "strong_trigger"),   # GEN 18.2
                      "chain": int(_rp8.get("chain") or 0) + 1,
                      "fired_at": _now})
                 print(f"[gen8] 🔁 momentum re-entry queued "

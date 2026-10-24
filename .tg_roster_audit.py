@@ -52,9 +52,11 @@ checks = [
      'ok, _ = tg.send(\n                        f"⚡🔮 *KR-STRONG PREMIUM — "' in W and "83.1%" not in W[W.find('f"⚡🔮 *KR-STRONG PREMIUM — "'):W.find('f"⚡🔮 *KR-STRONG PREMIUM — "') + 1500]),
     ("clock_cells imported by the worker", "import clock_cells" in W),
     ("👁 COIN WATCH wired: radar gets the scanner context (2026-10-21)", "coin_ctx=_nr_coin_ctx" in W),
-    ("💥🥇 PRIME × STRONG TRIGGER: records-only tier prime_trig, PRIME read stamped, no bell (2026-10-19)",
-     'store.record_signal("prime_trig", _sig_pt)' in W and flag("TG_PRIME_TRIG").startswith("False")
-     and "tg.send" not in W[W.find("# 💥🥇 PRIME × STRONG TRIGGER — records-only pass"):W.find("# 💯 CONVICTION v2")]),
+    ("💥🥇 PRIME × STRONG TRIGGER: tier prime_trig + demo seat + bell ON (2026-10-24), PRIME read stamped",
+     'store.record_signal("prime_trig", _sig_pt)' in W and flag("TG_PRIME_TRIG").startswith("True")
+     and "tg.send(_fmt_prime_trig(" in W and '"prime_trig": "💥🥇 PRIME × STRONG TRIGGER"' in W),
+    ("💎✅ ROOM: records-only tier confirm_room beside the confirm, no bell (2026-10-24)",
+     'store.record_signal("confirm_room", _sig_rm)' in W and "tg.send" not in W[W.find("# 💎✅ ROOM (user 2026-10-24"):W.find("# 💎✅ ROOM (user 2026-10-24") + 2600]),
     ("🏆²👑 APEX V2 × ONE TRADE: records-only tier apex_one, 1h verdict stamped as apex_one_1h, no bell (2026-10-19)",
      'store.record_signal("apex_one", _sig_ao)' in W and 'store.record_signal("apex_one_1h", {' in W
      and flag("TG_APEX_ONE").startswith("False")
