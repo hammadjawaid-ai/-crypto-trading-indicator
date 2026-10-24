@@ -31,7 +31,7 @@ band, fmt = ns["_conf_band"], ns["_fmt_prime_pair"]
 for c, want in ((40, "40-54"), (54.9, "40-54"), (55, "55-64"), (64, "55-64"), (65, "65-74"), (74.9, "65-74"), (75, "75-84"), (84, "75-84"), (85, "85+"), (98, "85+"), (None, None), ("x", None), (5.5e12, None), (-1, None)):
     if band(c) != want:
         fails.append(f"band({c}) = {band(c)}, wanted {want}")
-if ns["STAR_PRIME_BANDS"] != ("40-54", "55-64", "75-84", "85+") or ns["CONV_PRIME_BANDS"] != ("40-54", "55-64", "65-74"):
+if ns["STAR_PRIME_BANDS"] != ("40-54", "55-64", "75-84", "85+") or ns["CONV_PRIME_BANDS"] != ("40-54", "55-64", "65-74", "75-84"):
     fails.append("band lists do not match the user's call")
 if not (ns["TG_STAR_PRIME"] is True and ns["TG_CONV_PRIME"] is True):
     fails.append("both switches must start ON")

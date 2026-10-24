@@ -2379,7 +2379,7 @@ APEX_ONE_REC = ("APEX V2 with a 👑 ONE TRADE pick 48% / +0.45R (29) vs without
 PRIME_PAIR_BEFORE, PRIME_PAIR_AFTER = 2 * 3600, 30 * 60
 PRIME_PAIR_FRESH = 35 * 60       # an elite record pairs only while this fresh
 STAR_PRIME_BANDS = ("40-54", "55-64", "75-84", "85+")   # user: "just not 65 to 74"
-CONV_PRIME_BANDS = ("40-54", "55-64", "65-74")           # user: "40-54, 55-64, 65-74"
+CONV_PRIME_BANDS = ("40-54", "55-64", "65-74", "75-84")  # user 10-14: "40-54, 55-64, 65-74" · 10-24: "open 75 84 band as well" (85+ stays silent: 50% / −0.06R (10))
 STAR_PRIME_REC = {
     "window": "desk 09 Sep → 28 Sep", "all": "76% / +0.48R (33)",
     "alone": "57% / +0.15R (171)", "40-54": "92% / +0.58R (12)",
