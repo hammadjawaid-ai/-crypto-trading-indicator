@@ -19,8 +19,20 @@ class BinanceError(RuntimeError):
     """Raised when no Binance endpoint could satisfy a request."""
 
 
+# ⚡ PERP FIRST (user 2026-10-24: "from binance we should use perp not spot
+# signal readings"): every coin with a USDT-M perpetual reads its klines and
+# live price from the futures feed; spot stays the fallback (and the only
+# feed for spot-only coins); Bybit after that, as before. The top-N universe
+# is still ranked by the spot 24h ticker. Flip PERP_FIRST = False to revert.
+PERP_FIRST = True
+FUTURES_BASES = ["https://fapi.binance.com"]
+_FUT_SET: set = set()
+_FUT_TS = 0.0
+_FUT_TTL = 3600.0
+
+
 def _get(path: str, params: dict | None = None,
-         max_attempts: int = 4) -> object:
+         max_attempts: int = 4, bases=None) -> object:
     """GET a Binance endpoint with rate-limit handling.
 
     On HTTP 418 (IP banned briefly) or 429 (rate-limited), waits with
@@ -28,8 +40,9 @@ def _get(path: str, params: dict | None = None,
     base URLs on each attempt so a rate-limited mirror gets skipped.
     """
     global _active_base
-    bases = config.BINANCE_BASES
-    if _active_base:  # try the known-good base first
+    _custom = bases is not None
+    bases = list(bases) if _custom else list(config.BINANCE_BASES)
+    if _active_base and not _custom:  # try the known-good base first
         bases = [_active_base] + [b for b in bases if b != _active_base]
 
     last_err: Exception | None = None
@@ -39,7 +52,8 @@ def _get(path: str, params: dict | None = None,
                 resp = _session.get(base + path, params=params,
                                     timeout=config.HTTP_TIMEOUT)
                 if resp.status_code == 200:
-                    _active_base = base
+                    if not _custom:
+                        _active_base = base
                     return resp.json()
                 # 418 = IP banned briefly; 429 = rate-limited.
                 # Sleep longer, then retry this attempt loop on the
@@ -65,6 +79,28 @@ def _get(path: str, params: dict | None = None,
             backoff = 2.0 * (2 ** attempt)  # 2s, 4s, 8s, 16s
             time.sleep(backoff)
     raise BinanceError(f"All Binance endpoints failed for {path}: {last_err}")
+
+
+def futures_symbols() -> set:
+    """USDT-M PERPETUAL symbols in TRADING status, cached 1h. Fail-soft: on
+    an error the last good set stays (empty on the first failure -> spot)."""
+    global _FUT_SET, _FUT_TS
+    if time.time() - _FUT_TS < _FUT_TTL and _FUT_SET:
+        return _FUT_SET
+    try:
+        info = _get("/fapi/v1/exchangeInfo", bases=FUTURES_BASES, max_attempts=2)
+        got = {s["symbol"] for s in (info or {}).get("symbols", [])
+               if s.get("contractType") == "PERPETUAL" and s.get("status") == "TRADING"
+               and s.get("quoteAsset") == config.QUOTE_ASSET}
+        if got:
+            _FUT_SET, _FUT_TS = got, time.time()
+    except Exception:
+        _FUT_TS = time.time() - _FUT_TTL + 300    # retry in 5 min
+    return _FUT_SET
+
+
+def has_perp(symbol: str) -> bool:
+    return bool(PERP_FIRST) and symbol in futures_symbols()
 
 
 def _is_tradeable(symbol: str, base: str) -> bool:
@@ -193,6 +229,22 @@ def prime_prices(symbols=None) -> int:
             n += 1
         except (KeyError, TypeError, ValueError):
             continue
+    # ⚡ PERP FIRST: the futures last price overrides the spot one for every
+    # perpetual (one weight-2 call; fail-soft keeps the spot numbers).
+    if PERP_FIRST:
+        try:
+            fut = _get("/fapi/v1/ticker/price", bases=FUTURES_BASES, max_attempts=2)
+            perps = futures_symbols()
+            for row in fut or []:
+                try:
+                    sym = row["symbol"]
+                    if sym not in perps or (want is not None and sym not in want):
+                        continue
+                    _PX_CACHE[sym] = (now, float(row["price"]))
+                except (KeyError, TypeError, ValueError):
+                    continue
+        except Exception:
+            pass
     _PX_PRIME_TS = now
     return n
 
@@ -208,11 +260,20 @@ def get_ticker_price(symbol: str) -> float | None:
     hit = _cache_get(_PX_CACHE, symbol, _PX_TTL)
     if hit is not None:
         return hit
-    try:
-        data = _get("/api/v3/ticker/price", {"symbol": symbol})
-        px = float(data["price"])
-    except (BinanceError, KeyError, TypeError, ValueError):
-        return None
+    px = None
+    if has_perp(symbol):          # ⚡ PERP FIRST (2026-10-24)
+        try:
+            data = _get("/fapi/v1/ticker/price", {"symbol": symbol},
+                        bases=FUTURES_BASES, max_attempts=2)
+            px = float(data["price"])
+        except (BinanceError, KeyError, TypeError, ValueError):
+            px = None
+    if px is None:
+        try:
+            data = _get("/api/v3/ticker/price", {"symbol": symbol})
+            px = float(data["price"])
+        except (BinanceError, KeyError, TypeError, ValueError):
+            return None
     _cache_put(_PX_CACHE, symbol, px)
     return px
 
@@ -319,16 +380,25 @@ def _get_klines_uncached(symbol: str, interval: str,
     Index is the candle open time (UTC). Columns: open, high, low, close,
     volume, quote_volume, trades.
     """
-    try:
-        raw = _get(
-            "/api/v3/klines",
-            {"symbol": symbol, "interval": interval, "limit": limit},
-        )
-        if not raw:
-            raise BinanceError(f"No klines for {symbol} {interval}")
-    except BinanceError:
-        # Binance failed (rate-limit, network, etc.) — try Bybit.
-        return _bybit_klines(symbol, interval, limit)
+    raw = None
+    if has_perp(symbol):          # ⚡ PERP FIRST (2026-10-24): same 12-field rows
+        try:
+            raw = _get("/fapi/v1/klines",
+                       {"symbol": symbol, "interval": interval, "limit": limit},
+                       bases=FUTURES_BASES, max_attempts=2)
+        except BinanceError:
+            raw = None
+    if not raw:
+        try:
+            raw = _get(
+                "/api/v3/klines",
+                {"symbol": symbol, "interval": interval, "limit": limit},
+            )
+            if not raw:
+                raise BinanceError(f"No klines for {symbol} {interval}")
+        except BinanceError:
+            # Binance failed (rate-limit, network, etc.) — try Bybit.
+            return _bybit_klines(symbol, interval, limit)
 
     cols = [
         "open_time", "open", "high", "low", "close", "volume",

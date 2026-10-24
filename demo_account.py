@@ -164,7 +164,11 @@ NEAR_TP_FADE = 0.60          # how far it has given back
 # ARRIVAL T1 only ("when the signal has run 85-90% to TP1 we close them …
 # nothing before if it goes positive, TP1 and SL remain intact");
 # STRONG TRIGGER exits at SL or TP1 only.
-NEAR_TP_SRC: set = set()          # GEN 18: exits are the plan's SL / TP1 / TP2 only
+# 🎯 GEN 18.1 (user 2026-10-24, measured on 15m candles with wicks: the fade
+# bank beat the full TP1 on every stream, both halves, both sides — star
+# +0.184R vs +0.166R, conviction +0.125R vs +0.101R, trigger +0.099R vs
+# +0.050R, PRIME +0.127R vs +0.100R): back on for all four.
+NEAR_TP_SRC: set = {"elite_star", "strong_trigger", "star_prime", "conv_revival"}
 # 📐 rr re-checked at the LIVE entry for streams whose edge IS an rr
 # law — (lo, hi) half-open, None = unbounded on that side. The star
 # profile was measured at TP1 within 1.2R; the premium cell at

@@ -251,7 +251,7 @@ def next_line(now: float) -> str:
 
 # ───────────────────────── rung 1: the fire bells ─────────────────────────
 def star_fire(p: dict, conf, now: float, chips=(), kr_line: str = "",
-              db_path: str | None = None) -> str:
+              db_path: str | None = None, bank=None) -> str:
     """⭐ ELITE STAR fire bell: action word first, plan, chips, the rule, the
     window record with both stamps, what comes next, the Kronos line."""
     side = (p.get("side") or "").upper()
@@ -293,6 +293,9 @@ def star_fire(p: dict, conf, now: float, chips=(), kr_line: str = "",
                f"{hw:.0f}% / {_r(ha)} ({hn})")
     lines = [f"⭐ *ELITE STAR — {base} {side} · {action} · {pkt_hm(now)} PKT*",
              plan]
+    if bank:                      # 🎯 bank zone (user 2026-10-24)
+        import bank_zone as _bz
+        lines.append(_bz.line(bank))
     if chips_line:
         lines.append(chips_line)
     lines += ["rule: enter at the buzz, no conf filter", wl, stamp(st),
@@ -335,7 +338,7 @@ def verdict_text(ew: dict, prg: float, now: float,
 
 
 def go_text(ew: dict, prg: float, age_s: float, px: float, now: float,
-            db_path: str | None = None) -> str:
+            db_path: str | None = None, bank=None) -> str:
     star = bool(ew.get("star"))
     st = classes("elite_star" if star else "elite_conv", now, db_path)
     C = st["cls"]
@@ -377,6 +380,9 @@ def go_text(ew: dict, prg: float, age_s: float, px: float, now: float,
               f"measured {rec(st['chase'])} — small, your call")
     else:
         l4 = f"not in it: {r_left:.1f}R left to TP1 from here — PASS"
+    if bank:                      # 🎯 bank zone (user 2026-10-24)
+        import bank_zone as _bz
+        plan = plan + "\n" + _bz.line(bank)
     return "\n".join([head, cls_line, plan, l2, l3, l4, stamp(st)])
 
 

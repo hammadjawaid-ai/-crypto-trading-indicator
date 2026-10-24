@@ -43,6 +43,7 @@ import reversal_approach
 # can stay grouped with the other Phase A/B scoring helpers.
 import rs_vs_btc
 import support_resistance
+import bank_zone
 import tokenomics_unlocks
 import indicators
 import lunarcrush
@@ -2993,6 +2994,15 @@ def _render_star_board(pb_state, live_prices=None) -> None:
                 _chips.append(f"🎯 conf {_ex.get('conf')}")
             if _ex.get("heat") is not None:
                 _chips.append(f"🌡 heat {_ex.get('heat')}")
+            try:   # 🎯 bank zone (user 2026-10-24): same number as the bell
+                _srz = load_support_resistance(_sym, "1h")
+                _bzc = bank_zone.compute(
+                    _e, _stp, _t1, _sd,
+                    (_srz.get("resistances") if _lng else _srz.get("supports")) or [])
+                if _bzc:
+                    _chips = [bank_zone.chip(_bzc)] + _chips
+            except Exception:
+                pass
             _pkt = time.strftime("%H:%M", time.gmtime(float(_ts) + 5 * 3600))
             _ago = (_now_sb - float(_ts)) / 3600
             _sc = "#2ed47a" if _lng else "#ff5c5c"

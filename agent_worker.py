@@ -28,6 +28,8 @@ import bottom_watch
 import shock_watch
 import buzz_clock
 import clock_cells
+import bank_zone
+import support_resistance
 import rung_stats
 import news_radar
 import btc_outlook
@@ -259,6 +261,13 @@ def _ego_add(p, star=False, fam="elite"):
             if (w["symbol"] == sym and w["side"] == side
                     and w.get("fam", "elite") == fam
                     and _t9 - w["fired_at"] < 2 * 3600):
+                # ⭐ 2026-10-24 (ENA 23 Oct): a STAR never merges into a
+                # conviction's watch — it gets its own entry below, with
+                # its own plan and clock, so its 1H verdict and GO FAST
+                # are graded and ring. A conviction still folds into an
+                # existing entry (star or not) as before.
+                if star and not w.get("star"):
+                    continue
                 w["star"] = w["star"] or bool(star)
                 w["appr"] = w["appr"] or bool(p.get("appr"))
                 return
@@ -561,6 +570,20 @@ def _nr_coin_ctx(base):
     except Exception:
         pass
     return " · ".join(bits)
+
+
+def _sr_levels(sym, side):
+    """🎯 chart levels on the TP1 side of the trade for bank_zone: 1h
+    resistances for a long, 1h supports for a short (support_resistance
+    zones, 0.6% clusters). [] on any error — the zone then defaults to 90%."""
+    try:
+        sr = support_resistance.fetch_and_compute(
+            sym, interval="1h", limit=300, n_above=3, n_below=3,
+            window=4, lookback=200, tolerance_pct=0.6)
+        key = "resistances" if (side or "").upper() == "LONG" else "supports"
+        return list(sr.get(key) or [])
+    except Exception:
+        return []
 
 
 def _prime_read(p, now, btc=None):
@@ -2938,9 +2961,16 @@ def cycle() -> None:
                         # the A-GRADE keeps its banner + plan block.
                         if _star9:
                             try:
+                                try:   # 🎯 bank zone (user 2026-10-24)
+                                    _bank9 = bank_zone.compute(
+                                        _pmx.get("entry"), _pmx.get("stop"),
+                                        _pmx.get("tp1"), _pmx.get("side"),
+                                        _sr_levels(_pmx.get("symbol"), _pmx.get("side")))
+                                except Exception:
+                                    _bank9 = None
                                 _msg9 = rung_stats.star_fire(
                                     _pmx, _cf9, time.time(), _cbits,
-                                    _kr_note(_pmx))
+                                    _kr_note(_pmx), bank=_bank9)
                                 if _ag9:
                                     _msg9 = _agrade_banner(
                                         _seat9, _cf9, _plan_rr(_pmx),
@@ -6270,9 +6300,16 @@ def cycle() -> None:
                             _bell9 = "not-buzzed (LIVE fire not on the phone)"
                             if True:
                                 try:
+                                    try:   # 🎯 bank zone (user 2026-10-24)
+                                        _bank_go = bank_zone.compute(
+                                            _ew.get("entry0"), _ew.get("stop"),
+                                            _ew.get("tp1"), _ew.get("side"),
+                                            _sr_levels(_ew.get("symbol"), _ew.get("side")))
+                                    except Exception:
+                                        _bank_go = None
                                     _go9 = rung_stats.go_text(
                                         _ew, _prg, _age, _ew_px,
-                                        _ew_now)
+                                        _ew_now, bank=_bank_go)
                                     if _ew.get("oneh") == "LIVE" and _ew.get("star"):
                                         # 🕐 ELITE GO clock line (user
                                         # 2026-10-17), by the fire's window.
@@ -7816,6 +7853,8 @@ def cycle() -> None:
             # worker polls)
             _rg_banked = False
             _rg_stopped = False
+            _rg_n90 = False      # 🎯 90% of the TP1 path printed (2026-10-24)
+            _rg_l90 = (_rg_ent + 0.9 * (_rg_tp1 - _rg_ent)) if _rg_tp1 > 0 else 0.0
             try:
                 _rgd = binance_client.get_klines(_rg_sym, "1h",
                                                  limit=60)
@@ -7833,6 +7872,9 @@ def cycle() -> None:
                     if _hit_stop:
                         _rg_stopped = True
                         break
+                    if _rg_l90 and ((_rg_hi[_ri] >= _rg_l90) if _rg_long
+                                    else (_rg_lo[_ri] <= _rg_l90)):
+                        _rg_n90 = True
                     if _hit_tp:
                         _rg_banked = True
                         break
@@ -7866,6 +7908,26 @@ def cycle() -> None:
             if _rg_stopped:
                 _RG_DONE.add((_rg_src, _rg_sym, _rg_side, int(_rg_ts)))
                 continue    # stop did its job — silent by user rule
+            # 🎯 90% PRINTED (user 2026-10-24: "one more number close to TP,
+            # 80-90%"): the plan printed 90% of the way to TP1 and has not
+            # banked or stopped — the bank-zone ping, once per plan.
+            if _rg_n90 and store.should_alert(
+                    f"near90:{_rg_sym}:{_rg_side}:{_rg_tp1:g}", 7 * 24 * 3600):
+                try:
+                    _rg_b3 = _rg.get("base") or _rg_sym.replace("USDT", "")
+                    _rg_from3 = " · ".join(
+                        f"{TP1_STREAMS.get(_s, _s)} fired {rung_stats.pkt_hm(_t)} PKT"
+                        for _t, _s in sorted(_rg_by.get((_rg_sym, _rg_side), [])))
+                    ok, _ = tg.send(
+                        f"🎯 *{_rg_b3} {_rg_side} — 90% OF TP1 PRINTED* "
+                        f"`{_rg_l90:g}` — the bank zone; TP1 `{_rg_tp1:g}` is the plan. "
+                        f"Bank here or trail the stop — {bank_zone.REC}.\n"
+                        f"from: {_rg_from3 or TP1_STREAMS.get(_rg_src, _rg_src)}\n"
+                        f"fire entry `{_rg_ent:g}` · SL `{_rg_stp:g}` · "
+                        f"TP1 `{_rg_tp1:g}` · live `{_rg_px:g}`")
+                    n_alerts += 1 if ok else 0
+                except Exception as _n90_exc:
+                    print("  near90 ping error:", _n90_exc, flush=True)
             # 🔴 INVERSE RISK — the red signal: momentum died, trade
             # turning inverse. One-shot per entry, caution framing.
             _rg_uw = (_rg_px < _rg_ent) if _rg_long \
