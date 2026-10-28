@@ -187,8 +187,15 @@ def _strip_bank_chip(x):
     return x if (i < 0 or j < 0) else x[:i] + x[j:]
 
 
+def _strip_path_block(x):
+    # 2026-10-28: the 🏁 candle-path status block on the star card (user order: NIGHT printed TP1, card said 7%)
+    i = (x or "").find("            # 🏁 path check (user 2026-10-28")
+    j = (x or "").find("            _vt = [v[3] for v in _verd\n", i)
+    return x if (i < 0 or j < 0) else x[:i] + x[j:]
+
+
 def _norm_sb(x):
-    return _strip_bank_chip(_strip_gate_chip((x or ""))).replace(_EGO_INS, "").replace(_CLOCK_INS, "").replace(_TP1_INS, _TP1_WAS)
+    return _strip_path_block(_strip_bank_chip(_strip_gate_chip((x or "")))).replace(_EGO_INS, "").replace(_CLOCK_INS, "").replace(_TP1_INS, _TP1_WAS)
 
 
 if _norm_sb(sb_now) != _norm_sb(sb_old):
