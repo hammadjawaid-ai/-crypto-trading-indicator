@@ -374,6 +374,7 @@ TP1_STREAMS = {
     # "trig_hot": "⚡🔥 ARRIVAL T1" — off the phone roster 2026-11-01 with its bell (TG_ARRIVAL_T1)
     "kr_premium_bell": "⚡🔮 KR-STRONG PREMIUM",
     "apex_v2": "🏆💎 APEX V2",
+    "apex_v2_gated": "🏆💎 APEX V2 (gated)",   # bell since 2026-11-01
     "moonshot": "🌙 MOONSHOT",
     "star_prime": "⭐🥇 STAR × PRIME",
     "conv_prime": "💎🥇 ELITE × PRIME",
@@ -2070,6 +2071,68 @@ def _fmt_apex(p) -> str:
             f"_best of the best — {edges} all agree_")
 
 
+def _apex_v2_gate(sig, now=None):
+    """🏆💎 APEX V2 three-rule read (user 2026-11-01), all known at the fire: BTC day within
+    ±1.5% (unreadable passes, every gate's law) · stop 2–4% of entry · not fired 17–21 PKT.
+    Returns (passed, line). Study: gated 61% / +0.33R (129) vs rest 50% / −0.04R (657)."""
+    now = time.time() if now is None else float(now)
+    try:
+        btc = _btc_day_pct()
+    except Exception:
+        btc = None
+    ok_btc = btc is None or -1.5 <= float(btc) <= 1.5
+    try:
+        sp = abs(float(sig["entry"]) - float(sig["stop"])) / float(sig["entry"]) * 100
+    except Exception:
+        sp = None
+    ok_stop = sp is not None and 2.0 <= sp <= 4.0
+    h = int((now // 3600 + 5) % 24)
+    ok_clock = not (17 <= h < 21)
+    line = (f"read: {'✅' if ok_btc else '⚠️'} BTC {('%+.2f%%' % btc) if btc is not None else '?'} today · "
+            f"{'✅' if ok_stop else '⚠️'} stop {sp:.1f}%" + (" (needs 2–4%)" if not ok_stop else "") + " · "
+            f"{'✅' if ok_clock else '⚠️'} {h:02d} PKT" + (" (17–21 is the weak window)" if not ok_clock else "")
+            + f" — {APEX_V2_GATE_REC}")
+    return (ok_btc and ok_stop and ok_clock), line
+
+
+def _fmt_apex_v2_gated(sig, px, read_line, now):
+    """🏆💎 APEX V2 GATED bell (user 2026-11-01): the read that let it through, the plan at the
+    live price, the ladder, the hold law (the 1H VERDICT answers in this thread), the record."""
+    sd = (sig.get("side") or "").upper()
+    sg = 1 if sd == "LONG" else -1
+    e = float(px or sig["entry"])
+    st, t1 = float(sig["stop"]), float(sig["tp1"])
+    t2 = float(sig["tp2"]) if sig.get("tp2") else None
+    rk = max(1e-12, sg * (e - st))
+    tps = f"TP1 `{t1:g}` (+{sg * (t1 - e) / rk:.1f}R)" + (f" · TP2 `{t2:g}` (+{sg * (t2 - e) / rk:.1f}R)" if t2 else "")
+    try:
+        fwd = rung_stats.rec(rung_stats.tier_rec("apex_v2_gated", None, now))
+    except Exception:
+        fwd = "record unavailable"
+    return (f"🏆💎 *APEX V2 GATED — {sig['base']} {sd} · TAKE · {rung_stats.pkt_hm(now)} PKT*\n"
+            f"{read_line}\n"
+            f"STRONG · score {float(sig.get('score') or 0):.0f} · heat {float(sig.get('heat') or 0):.0f} · "
+            f"entry `{float(sig['entry']):g}` · live `{e:g}` · SL `{st:g}` · {tps}\n"
+            f"🪜 plan: at +1R move SL to entry · at TP1 lock SL at TP1 and ride to TP2, trailing 1.2R · 48h max\n"
+            f"⏱ the 1H VERDICT answers in this thread — {APEX_V2_LIVE_REC}\n"
+            f"forward ledger (gated tier since 01 Nov): {fwd} · {rung_stats.stamp_now(now)}\n"
+            f"_two months of evidence behind the gate (10 Sep → 24 Oct); the 14 Oct 78-day replay did not find the "
+            f"BTC rule — re-read at 30 gated closes. Gate fails record silently on the desk._")
+
+
+def _fmt_apex_v2_verdict(ew, prg):
+    """⏱🏆 the 1H VERDICT reply under a gated APEX V2 bell (user 2026-11-01)."""
+    if ew.get("oneh") == "LIVE":
+        return (f"⏱🏆 *{ew['base']} {ew['side']} — 1H VERDICT: 🟢 LIVE* (APEX V2 gated)\n"
+                f"covered {prg * 100:.0f}% of the path to TP1 in the first hour.\n"
+                f"_{APEX_V2_LIVE_REC}. In from the fire? Hold the plan, don't add. Not in? Entering at the hour "
+                f"measured +0.2R on gated fires — the fire was the entry._")
+    return (f"⏱🏆 *{ew['base']} {ew['side']} — 1H VERDICT: 🔴 DEAD* (APEX V2 gated)\n"
+            f"flat/under water at the hour ({prg * 100:+.0f}% of path).\n"
+            f"_gated + DEAD finished ≈ flat (47–56% win, −0.1…+0.2R held) — not the loser an ungated DEAD is. "
+            f"The plan's SL / TP stay in charge; no add._")
+
+
 def _fmt_apex_v2(sig, px=None, rec=None) -> str:
     """🏆💎 APEX V2 bell (user 2026-09-29: "keep the desk ladder for apex
     v2 so its like tp1 and tp2 in it and we should have a telegram
@@ -2358,6 +2421,11 @@ TG_LEG2_PRIME = True     # 🔥🥇 bell. False = silent; tier leg2_prime contin
 # +0.35R (64); LIVE at the hour 83% / +0.69R (60). The bell stays OFF until 30
 # forward trades confirm; the PRIME read is stamped on every record, never gates.
 TG_ARRIVAL_T1 = False    # ⚡🔥 ARRIVAL T1 bell MUTED 2026-11-01 (user: "mute t1 from the telegram notifications"; desk 5 Oct → 25 Oct 53% / −0.15R (64), last 14 days 43% / −0.34R); tiers arr_long / arr_hot / trig_hot, the demo feed and the T1 board continue. True = ring again.
+TG_APEX_V2_GATED = True  # 🏆💎 APEX V2 GATED bell ON 2026-11-01 (user); the ungated APEX V2 bell stays muted. False = silent, tiers continue.
+APEX_V2_GATE_REC = ("gated 61% / +0.33R (129) vs rest 50% / −0.04R (657) on the APEX core "
+                    "10 Sep → 24 Oct · the V2 stream itself 69% / +0.58R (29) · from the fire price")
+APEX_V2_LIVE_REC = ("gated + LIVE at the hour 85% / +1.01R (48) held · TP1 usually inside 2h while "
+                    "it holds above the entry · back at the entry → odds ≈ even, 8–12h more")
 TG_PRIME_TRIG = True     # 💥🥇 bell ON 2026-10-24 (user: "on our telegram notifications we have this buzzed as well"); False = silent, tier + demo continue.
 PRIME_TRIG_REC = ("PRIME with a 💥 strong trigger 64% / +0.32R (155) vs PRIME "
                   "without 47% / +0.04R (434) · desk replay 07 Aug → 12 Oct")
@@ -2602,6 +2670,15 @@ def cycle() -> None:
                      "stop": _av2["stop"], "tp1": _av2["tp1"],
                      "tp2": _av2.get("tp2"), "tier": "STRONG",
                      "score": _sc2, "heat": _ht2}
+            # 🏆💎 GATED read (user 2026-11-01): stamped on every record; only a
+            # pass opens the gated tier and rings. The ungated tier below is
+            # untouched — the two ledgers are the comparison he asked for.
+            try:
+                _gok2, _grd2 = _apex_v2_gate(_sig2, time.time())
+            except Exception:
+                _gok2, _grd2 = False, "read unavailable"
+            _sig2["gate"] = "pass" if _gok2 else "muted"
+            _sig2["gate_read"] = _grd2
             store.record_signal("apex_v2", _sig2)
             _px2 = None
             try:
@@ -2610,6 +2687,30 @@ def cycle() -> None:
                 pass
             shadow_trader.open_from_signal("apex_v2", _sig2, _px2)
             _ego_add(dict(_sig2), fam="apexv2")
+            if _gok2:
+                try:
+                    store.record_signal("apex_v2_gated", _sig2)
+                    shadow_trader.open_from_signal("apex_v2_gated", _sig2, _px2)
+                except Exception as _g2_exc:
+                    print("  apexv2 gated tier error:", _g2_exc, flush=True)
+                _gb2 = "off"
+                if TG_APEX_V2_GATED and not _bstock_quiet(_sym2):
+                    try:
+                        _okg, _mg2, _idg2 = tg.send_thread(
+                            _fmt_apex_v2_gated(_sig2, _px2, _grd2, time.time())
+                            + _kr_note(_sig2))
+                        n_alerts += 1 if _okg else 0
+                        _gb2 = "sent" if _okg else f"failed: {_mg2}"
+                        if _okg:   # the 1H VERDICT answers in this thread
+                            for _ewb2 in _EGO_WATCH:
+                                if (_ewb2["symbol"] == _sym2 and _ewb2["side"] == _sd2
+                                        and _ewb2.get("fam") == "apexv2"):
+                                    _ewb2["buzzed"] = True
+                                    _ewb2["gated"] = True
+                                    _ewb2["tg_ids"] = _idg2
+                    except Exception as _gb_exc:
+                        _gb2 = f"error: {_gb_exc}"
+                print(f"  [apexv2-gated] {_sig2['base']} {_sd2} bell={_gb2}", flush=True)
             if not _bstock_quiet(_sym2):
                 try:
                     _rv2 = next((x for x in shadow_trader.tier_records()
@@ -6310,6 +6411,19 @@ def cycle() -> None:
                                 except Exception as _vt_exc:
                                     print("  verdict thread error:",
                                           _vt_exc, flush=True)
+                        elif _ew.get("buzzed") and _ew.get("fam") == "apexv2":
+                            # 🏆💎 the gated APEX V2 bell's verdict answers in its
+                            # thread (user 2026-11-01); ungated APEX V2 never
+                            # buzzes, so it never lands here.
+                            try:
+                                _okv2, _mv2, _ = tg.send_thread(
+                                    _fmt_apex_v2_verdict(_ew, _prg),
+                                    reply_to=_ew.get("tg_ids"))
+                                n_alerts += 1 if _okv2 else 0
+                                print(f"  [thread] apexv2 verdict {_ew['base']} "
+                                      f"{_ew['side']} {_ew['oneh']} sent={_okv2} {_mv2}", flush=True)
+                            except Exception as _v2t_exc:
+                                print("  apexv2 verdict thread error:", _v2t_exc, flush=True)
                         elif _ew.get("buzzed") or _ew.get("appr"):
                             # 🔊 1H VERDICT — WIDENED (user
                             # 2026-09-18: "widen the verdict to

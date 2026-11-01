@@ -4735,7 +4735,13 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                                   "— vs gap-through, proving)",
                    "apex_v2": "🏆² APEX V2 (certified core: STRONG "
                               "· score 90-94 · heat<75 — 59%/+0.14R "
-                              "backtest, proving forward)",
+                              "backtest, proving forward; UNGATED, no bell — "
+                              "the comparison ledger)",
+                   "apex_v2_gated": "🏆💎 APEX V2 GATED (the bell since 01 Nov: "
+                                    "BTC day within ±1.5% · stop 2–4% · not 17–21 "
+                                    "PKT — 61%/+0.33R over 129 on the APEX core, "
+                                    "69%/+0.58R over 29 on the stream, 10 Sep → 24 "
+                                    "Oct; 1H verdict replies in the thread)",
                    "star_go_chase": "⭐🏃 GO CHASE (control — enter "
                                     "AT ignition; measured +0.05R, "
                                     "expected to bleed)",

@@ -47,7 +47,11 @@ checks = [
     ("🏦 TP1 HIT ping: roster streams only, with the from: line", "TP1_STREAMS" in W and "from:" in W),
     ("pairs on: STAR×PRIME, ELITE×PRIME, SECOND LEG×PRIME; TRIG×KR×PRIME off",
      flag("TG_STAR_PRIME").startswith("True") and flag("TG_CONV_PRIME").startswith("True") and flag("TG_LEG2_PRIME").startswith("True") and flag("TG_TRIGKR_PRIME").startswith("False")),
-    ("muted: APEX V2, moonshot", "_MUTE_RULES(_fmt_apex_v2(" in W and "if key_prefix not in (() if TG_RULES else" in W),
+    ("muted: APEX V2 ungated, moonshot", "_MUTE_RULES(_fmt_apex_v2(" in W and "if key_prefix not in (() if TG_RULES else" in W),
+    ("🏆💎 APEX V2 GATED rings (2026-11-01): switch True, gated tier + thread bell + 1H verdict reply, on the TP1 roster",
+     flag("TG_APEX_V2_GATED").startswith("True") and 'store.record_signal("apex_v2_gated", _sig2)' in W
+     and "tg.send_thread(\n                            _fmt_apex_v2_gated(" in W and "_fmt_apex_v2_verdict(_ew, _prg)" in W
+     and '"apex_v2_gated": "🏆💎 APEX V2 (gated)"' in W),
     ("⚡🔮 KR-STRONG PREMIUM rings (back 2026-10-19), honest record + non-gating read, 83% claim gone",
      'ok, _ = tg.send(\n                        f"⚡🔮 *KR-STRONG PREMIUM — "' in W and "83.1%" not in W[W.find('f"⚡🔮 *KR-STRONG PREMIUM — "'):W.find('f"⚡🔮 *KR-STRONG PREMIUM — "') + 1500]),
     ("clock_cells imported by the worker", "import clock_cells" in W),
