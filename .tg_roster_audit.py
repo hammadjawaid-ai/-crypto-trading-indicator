@@ -43,7 +43,7 @@ checks = [
     ("GO REVIVED: unapproved elite fires ring, tagged, stamped", '"sent-standalone-unapproved"' in W and "REVIVED_UNAPPR" in W),
     ("GO REVIVED: entry-cell line + clock line on the bell", "clock_cells.revived_line(" in W and "REVIVED_ENTRY_OK" in W),
     ("💎⚡ GO LIVE: profile gate HIGH / stop < 5 / BTC >= -1.5, approved and unapproved", "_gl9 = _golive_gate(" in W and "else GO_LIVE_UNAPPR)" in W and 'tier == "HIGH"' in W and "sp < 5.0" in W),
-    ("⚡🔥 ARRIVAL T1 rings with the window line; T2 silent", "T1_WINDOWS" in W and "_atier == 1" in W),
+    ("⚡🔥 ARRIVAL T1 MUTED (2026-11-01): switch False, send gated on it, off the TP1 roster; T2 silent", flag("TG_ARRIVAL_T1").startswith("False") and "_atier == 1 and TG_ARRIVAL_T1 and store.should_alert(" in W and (chr(10) + chr(32) * 4 + chr(34) + "trig_hot" + chr(34) + ": " + chr(34) + "⚡🔥 ARRIVAL T1" + chr(34) + "," + chr(10)) not in W),
     ("🏦 TP1 HIT ping: roster streams only, with the from: line", "TP1_STREAMS" in W and "from:" in W),
     ("pairs on: STAR×PRIME, ELITE×PRIME, SECOND LEG×PRIME; TRIG×KR×PRIME off",
      flag("TG_STAR_PRIME").startswith("True") and flag("TG_CONV_PRIME").startswith("True") and flag("TG_LEG2_PRIME").startswith("True") and flag("TG_TRIGKR_PRIME").startswith("False")),

@@ -371,7 +371,7 @@ TP1_STREAMS = {
     "elite_star": "⭐ ELITE STAR",
     "prime_trig": "💥🥇 PRIME × STRONG TRIGGER",   # bell since 2026-10-24
     "elite_agrade": "💎🏆 A-GRADE",
-    "trig_hot": "⚡🔥 ARRIVAL T1",
+    # "trig_hot": "⚡🔥 ARRIVAL T1" — off the phone roster 2026-11-01 with its bell (TG_ARRIVAL_T1)
     "kr_premium_bell": "⚡🔮 KR-STRONG PREMIUM",
     "apex_v2": "🏆💎 APEX V2",
     "moonshot": "🌙 MOONSHOT",
@@ -1425,7 +1425,7 @@ def _trigger_watch() -> None:
                         # notifications from telegram" -> only T1 (HOT at a
                         # ⚡ strong-coil number) rings; T2 keeps its desk
                         # ledgers (arr_hot / arr_long) and the scoreboard.
-                        if (_atier == 1 and store.should_alert(
+                        if (_atier == 1 and TG_ARRIVAL_T1 and store.should_alert(
                                 f"arrival:{a['symbol']}:LONG",
                                 int(1.5 * 3600))
                                 and not _bstock_quiet(a["symbol"])):
@@ -2357,6 +2357,7 @@ TG_LEG2_PRIME = True     # 🔥🥇 bell. False = silent; tier leg2_prime contin
 # (434); Aug +0.41R · Sep +0.32R · Oct +0.22R; inside the PRIME read 73% /
 # +0.35R (64); LIVE at the hour 83% / +0.69R (60). The bell stays OFF until 30
 # forward trades confirm; the PRIME read is stamped on every record, never gates.
+TG_ARRIVAL_T1 = False    # ⚡🔥 ARRIVAL T1 bell MUTED 2026-11-01 (user: "mute t1 from the telegram notifications"; desk 5 Oct → 25 Oct 53% / −0.15R (64), last 14 days 43% / −0.34R); tiers arr_long / arr_hot / trig_hot, the demo feed and the T1 board continue. True = ring again.
 TG_PRIME_TRIG = True     # 💥🥇 bell ON 2026-10-24 (user: "on our telegram notifications we have this buzzed as well"); False = silent, tier + demo continue.
 PRIME_TRIG_REC = ("PRIME with a 💥 strong trigger 64% / +0.32R (155) vs PRIME "
                   "without 47% / +0.04R (434) · desk replay 07 Aug → 12 Oct")
