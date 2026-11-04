@@ -82,3 +82,22 @@ and positions are **live memory that survives redeploys**. Still **alert-only**
   the agent learns what's working and surfaces the positive patterns.
 - **Alert-only** throughout — auto-execution on Bybit stays a separate, later,
   rails-guarded switch-on once the alerts are proven live.
+
+## 📡 CHANNEL DESK (2026-11-05) — outside Telegram signal channels, measured forward
+
+`channel_desk.py` reads posts from outside signal channels (Crypto Andrew VIP → demo **v2**, Crypto Cycle VIP → demo
+**v3**), parses each signal (coin · side · entry · targets · stop · leverage), runs it in that channel's own $1,000 demo
+book at the channel's own rule (2% margin × stated leverage, 50% off at TP1 → stop to entry, 25% at TP2, rest TP3 / 48h),
+judges it on the 15m candle path (liquidation first, then the stop, then the targets) and rings a 📡 bell with our stamp
+and the 🚦 light (⚪ UNRATED until 60 forward trades resolved, then 🟢 TAKE / 🟡 / 🔴 SKIP). Own state file
+`.channel_desk.json` on STATE_DIR; never touches GEN 18 or any desk tier. Switch: `channel_desk.TG_CHANNEL_DESK`.
+
+Reader — pick ONE, set in Render's environment (never paste values into chat):
+
+| mode | env | how |
+|---|---|---|
+| user session (recommended) | `TG_API_ID`, `TG_API_HASH`, `TG_SESSION` | my.telegram.org → API development tools → app → id + hash. Then on your PC (VPN on): `research_meta\.venv\Scripts\python.exe research_meta\tg_pull.py --session` → logs in with your phone + code once and prints the `TG_SESSION` string. Reads any channel your account is in, admin or not. |
+| bot relay group | `CHANNEL_RELAY_CHAT_ID` | a private group with the bot inside; forward the channel's posts into it. The forward header names the source channel. |
+| drop file | — | `<STATE_DIR>/.channel_inbox.jsonl`, one JSON per line `{channel, id, ts, text, reply_text}` (tests / manual). |
+
+Without any of these the worker logs `channel desk reader OFF` and the books stay empty. Guard test: `.channel_desk_test.py`.

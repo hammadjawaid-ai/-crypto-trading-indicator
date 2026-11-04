@@ -20,6 +20,7 @@ from plotly.subplots import make_subplots
 
 import alerts
 import binance_client
+import channel_desk      # 📡 outside signal channels desk (2026-11-05)
 import clock_cells
 import worker_store as _ws_c   # desk DB path for the read-only boards
 import breakout
@@ -4682,6 +4683,10 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
             _render_t1_board(pb_state, live_prices)
         except Exception as _t1_exc2:
             st.caption(f"⚡🔥 T1 board error: {_t1_exc2}")
+        try:   # 📡 CHANNEL DESK — outside channels, demo v2 / v3 (2026-11-05)
+            channel_desk.render(st)
+        except Exception as _cd_exc2:
+            st.caption(f"📡 channel desk error: {_cd_exc2}")
     st.markdown("### ✳️ DECISION DESK — live forward proof")
     st.caption("The brain **takes every signal itself** at live prices with "
                "real fees and manages the exit (BE→TP1 lock→trail, 48h max "

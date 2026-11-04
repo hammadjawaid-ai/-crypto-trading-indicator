@@ -40,6 +40,7 @@ import sentiment as _sent_w
 import signals as _sig_w
 import coinalyze_client as cz
 import config
+import channel_desk      # 📡 outside signal channels, own books (2026-11-05)
 import demo_account
 import entry_timing
 import experimental_signals as es
@@ -2552,6 +2553,16 @@ def _fmt_prime_pair(kind, sig, px, now):
 
 def cycle() -> None:
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    # 📡 CHANNEL DESK (user 2026-11-05 "yes lets do it"): outside Telegram
+    # signal channels → own demo books v2/v3 + 🚦 light. Own state, own
+    # switch (channel_desk.TG_CHANNEL_DESK); never raises, never touches
+    # GEN 18 or any desk tier.
+    try:
+        _cd = channel_desk.tick()
+        if _cd.get("ingested") or _cd.get("events"):
+            print(f"📡 channel desk: {_cd}", flush=True)
+    except Exception as _cd_exc:
+        print("channel desk error:", _cd_exc, flush=True)
     # scan_n 60 -> 100 (user 2026-08-06: "30 coins is far less, it
     # should be 100") — every stream downstream (elite, fast30, PRIME,
     # 💯, ignition, takenow) now hunts the full top-100 by volume.

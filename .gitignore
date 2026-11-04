@@ -48,3 +48,8 @@ screenshot*.png
 .plan_test.py
 .commit_msg.tmp
 .live_exec.json
+
+# research lab: private Telegram session + channel pulls (never commit)
+research_meta/tg_user.session*
+research_meta/channel_export/
+research_meta/kl_channel/
