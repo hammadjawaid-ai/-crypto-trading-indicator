@@ -21,7 +21,7 @@ for h, w in ((5, "05–09"), (8, "05–09"), (9, "09–13"), (13, "13–17"), (1
     if cc.window_of(T(h)) != w:
         fails.append(f"window_of {h}:00 PKT -> {cc.window_of(T(h))}, want {w}")
 # star verdicts
-for h, side, want in ((6, "LONG", "TAKE"), (22, "LONG", "TAKE"), (14, "LONG", "THIN"), (2, "LONG", "DON'T"), (18, "SHORT", "TAKE"), (10, "SHORT", "THIN"), (3, "SHORT", "DON'T")):
+for h, side, want in ((6, "LONG", "TAKE"), (22, "LONG", "TAKE"), (14, "LONG", "DON'T"), (2, "LONG", "DON'T"), (18, "SHORT", "TAKE"), (10, "SHORT", "DON'T"), (3, "SHORT", "DON'T")):   # 2026-11-04 cells
     e, c, d = cc.verdict(cc.STAR_CELLS, side, T(h))
     if c != want:
         fails.append(f"star {side} {h}:00 PKT -> {c} ({d}), want {want}")
@@ -36,15 +36,15 @@ if _c != "HALF" or "59% / +0.07R (29)" not in _d or "7-week candle replay" not i
     fails.append(f"21–01 short fallback wrong: {_c} {_d}")
 # GO REVIVED by FAMILY (user 2026-10-18: star and conviction read different cells)
 for h, side, star, want, frag in ((14, "SHORT", False, "HALF", "67% / +0.21R (18)"),      # the MEGA card: conviction short 13–17 -> replay
-                                  (14, "SHORT", True, "THIN", "thin on the desk (4)"),      # star short 13–17: thin both ways
-                                  (10, "LONG", True, "TAKE", "92% / +0.75R (12)"),         # star long 09–13: desk
-                                  (6, "LONG", False, "HALF", "63% / +0.51R (27)"),          # conviction long 05–09: desk 6 -> replay
-                                  (18, "LONG", False, "DON'T", "46% / -0.01R (57)"),        # conviction long 17–21: desk 5 -> replay
-                                  (18, "SHORT", True, "TAKE", "79% / +0.60R (14)")):        # star short 17–21: desk
+                                  (14, "SHORT", True, "THIN", "thin on the desk (3)"),      # star short 13–17: thin both ways (2026-11-04 cells)
+                                  (10, "LONG", True, "HALF", "59% / +0.10R (17)"),         # star long 09–13: desk
+                                  (6, "LONG", False, "DON'T", "35% / -0.40R (17)"),        # conviction long 05–09: desk
+                                  (18, "LONG", False, "TAKE", "65% / +0.47R (26)"),         # conviction long 17–21: desk
+                                  (18, "SHORT", True, "TAKE", "92% / +0.59R (12)")):        # star short 17–21: desk
     out = cc.revived_line(side, T(h), star)
     if f" {want} — " not in out or frag not in out:
         fails.append(f"revived by family {('star' if star else 'conviction')} {side} {h}:00 -> {out}")
-if "💎 conviction revivals, 7-week candle replay" not in cc.revived_line("LONG", T(22), False) or "gated ⭐ star revived record" not in cc.revived_line("LONG", T(10), True) \
+if "💎 conviction revivals, 7-week candle replay" not in cc.revived_line("LONG", T(22), False) or "⭐ star revived record" not in cc.revived_line("LONG", T(10), True) \
         or "⭐ star revivals, 7-week candle replay" not in cc.revived_line("LONG", T(14), True):
     fails.append("family labels must name the family on both the desk and the replay source")
 if 'bool(_ew.get("star")))' not in W or 'clock_cells.revived_line(\n                                                        _ew["side"],' not in W:
@@ -96,13 +96,34 @@ if not (0 < i_sb < i_chip < i_rb):
     fails.append("the gate chip must live inside the ⭐ star board")
 # lines
 s = cc.star_line("LONG", T(6)); r = cc.revived_line("SHORT", T(18))
-if not s.startswith("🕐 🟢 TAKE — 05–09 PKT longs 75% / +0.52R (20)") or "09 Sep → 14 Oct" not in s:
+if not s.startswith("🕐 🟢 TAKE — 05–09 PKT longs 69% / +0.44R (26)") or "09 Sep → 04 Nov" not in s:
     fails.append(f"star line: {s}")
 if not r.startswith("🕐 🟢 TAKE — fired 17–21 PKT shorts 79% / +0.62R (19)") or "13 Sep → 14 Oct" not in r:
     fails.append(f"revived line: {r}")
 d = cc.star_line("LONG", T(14))
-if "THIN" not in d or "thin, no time call" not in d:
-    fails.append(f"thin cell must say so: {d}")
+if "DON'T" not in d or "the time, not the card" not in d:   # 2026-11-04: 13–17 longs now 11 trades, a DON'T
+    fails.append(f"13–17 long cell must blame the time: {d}")
+# 🕐 GO FAST / LATE timing read (2026-11-04)
+gt = cc.go_timing_line("FAST", "LONG", T(6))
+if not gt.startswith("🕐 ⭐ GO FAST for 05–09 PKT longs: held from the fire 91% / +0.73R · entered at the bell 91% / +0.34R (23)") or "14 Sep → 04 Nov" not in gt:
+    fails.append(f"go timing (fire window): {gt}")
+gb = cc.go_timing_line("FAST", "LONG", T(2), go_at=T(6))
+if "GO landing 05–09 PKT (longs): held from the fire 92% / +0.73R · entered at the bell 92% / +0.33R (25)" not in gb or "🟢 entry at the bell has paid here" not in gb:
+    fails.append(f"go timing (GO window, pays): {gb}")
+gb2 = cc.go_timing_line("FAST", "LONG", T(2), go_at=T(18))
+if "🔴 hold read only — entry at the bell LOST here" not in gb2 or "(longs)" not in gb2:
+    fails.append(f"go timing (GO window, lost): {gb2}")
+gb3 = cc.go_timing_line("LATE", "SHORT", T(2), go_at=T(14))
+if "(both sides)" not in gb3 or "59% / -0.04R" not in gb3:   # short LATE 13–17 thin (9) -> pooled
+    fails.append(f"go timing (thin -> pooled): {gb3}")
+if "thin (7), no record" not in cc.go_timing_line("LATE", "LONG", T(6)):
+    fails.append("thin fire-window cell must say so")
+for need, lab in (("+ \"\\n\" + clock_cells.go_timing_line(   # 2026-11-04: what a GO FAST on this window has done", "star bell go line"),
+                  ("                                    if _ew.get(\"star\"):\n                                        # 🕐 GO FAST / LATE timing read by the GO's own", "go bell timing block")):
+    if need not in W:
+        fails.append(f"worker missing: {lab}")
+if "+ clock_cells.go_timing_line(\"FAST\", _sd, _ts) + \"</span>\"" not in A:
+    fails.append("star card must carry the GO timing line")
 n = cc.revived_line("LONG", T(14))
 if "DON'T" not in n or "the time, not the card" not in n:
     fails.append(f"don't cell must blame the time: {n}")

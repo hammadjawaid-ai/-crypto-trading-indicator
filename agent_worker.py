@@ -425,10 +425,10 @@ REVIVED_UNAPPR = ("💎 this one is an UNAPPROVED elite fire: DEAD then ignited 
 # +0.12R (55); all 68% / +0.36R (101). Both still ring; the line tells them
 # apart. The read reaches the watch entry via _STAR_READS (memo + adoption,
 # persisted with the watch) because the entry may be created after the bell.
-STAR_REV_RANG_REC = ("revivals of rung stars 80% / +0.64R (46), FAST 87% / "
-                     "+0.74R (30) · desk 13 Sep → 14 Oct")
-STAR_REV_MUTED_REC = "revivals of muted stars 58% / +0.12R (55) · desk 13 Sep → 14 Oct"
-STAR_REV_ALL_REC = "all star revivals 68% / +0.36R (101) · desk 13 Sep → 14 Oct"
+STAR_REV_RANG_REC = ("revivals of rung stars 68% / +0.22R (44) held from the fire · "
+                     "entered at the GO ≈ −0.07R · 14 Sep → 04 Nov")   # 2026-11-04 refresh
+STAR_REV_MUTED_REC = "revivals of muted stars 68% / +0.24R (31) held from the fire · 14 Sep → 04 Nov"
+STAR_REV_ALL_REC = "all star revivals 67% / +0.21R (95) held from the fire · 14 Sep → 04 Nov"
 _STAR_READS: dict = {}     # (symbol, side) -> {ts, gate, read} from the fire bell
 
 
@@ -450,10 +450,10 @@ def _star_revived_line(ew) -> str:
 
 # 🔔 revival bells by family (user 2026-10-19): the header names the family
 # and the class, the class line carries the family's FAST / LATE record.
-STAR_REV_CLASS_REC = ("star revivals FAST 72% / +0.45R (58) · LATE 63% / +0.24R (43) · "
-                      "desk 13 Sep → 14 Oct")
-CONV_REV_CLASS_REC = ("conviction revivals FAST 57% / +0.63R (28) · LATE 21% / -0.15R (14) · "
-                      "desk 13 Sep → 14 Oct; 7-week replay LATE 52% / +0.04R (201)")
+STAR_REV_CLASS_REC = ("star revivals FAST 67% / +0.24R (48) · LATE 68% / +0.19R (47) held from the fire · "
+                      "entered at the GO FAST −0.07R · LATE −0.11R · 14 Sep → 04 Nov")   # 2026-11-04 refresh
+CONV_REV_CLASS_REC = ("conviction revivals FAST 63% / +0.47R (91) · LATE 68% / +0.40R (85) held from the fire · "
+                      "entered at the GO FAST −0.10R · LATE 0.00R · 14 Sep → 04 Nov")
 
 
 def _revival_dress(msg, ew, age_s, now):
@@ -3122,6 +3122,8 @@ def cycle() -> None:
                                     "\n", "\n" + _gate9[1] + "\n"
                                     + clock_cells.star_line(
                                         _pmx.get("side"), time.time())
+                                    + "\n" + clock_cells.go_timing_line(   # 2026-11-04: what a GO FAST on this window has done
+                                        "FAST", _pmx.get("side"), time.time())
                                     + "\n", 1)
                             except Exception as _gt_exc:
                                 _gate9 = (True, f"read: error {_gt_exc}")
@@ -6516,6 +6518,17 @@ def cycle() -> None:
                                                 _ew["side"],
                                                 float(_ew.get("fired_at") or _ew_now))
                                             + "\n", 1)
+                                    if _ew.get("star"):
+                                        # 🕐 GO FAST / LATE timing read by the GO's own
+                                        # window, with the entry call (user 2026-11-04).
+                                        try:
+                                            _go9 = _go9.replace(
+                                                "\n", "\n" + clock_cells.go_timing_line(
+                                                    "LATE" if _age > 4 * 3600 else "FAST",
+                                                    _ew["side"], float(_ew.get("fired_at") or _ew_now),
+                                                    go_at=_ew_now) + "\n", 1)
+                                        except Exception:
+                                            pass
                                     if _ew.get("oneh") == "DEAD":
                                         # GO REVIVED is its own bell
                                         # for EVERY elite-family fire,

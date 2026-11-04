@@ -194,8 +194,12 @@ def _strip_path_block(x):
     return x if (i < 0 or j < 0) else x[:i] + x[j:]
 
 
+_GOT_INS = ("                + f\"<br><span style='color:#9ad0ff;font-size:0.78rem'>\"   # 2026-11-04: GO FAST timing read for this fire's window\n"
+            "                + clock_cells.go_timing_line(\"FAST\", _sd, _ts) + \"</span>\"\n")   # 2026-11-04 🕐 GO timing line
+
+
 def _norm_sb(x):
-    return _strip_path_block(_strip_bank_chip(_strip_gate_chip((x or "")))).replace(_EGO_INS, "").replace(_CLOCK_INS, "").replace(_TP1_INS, _TP1_WAS)
+    return _strip_path_block(_strip_bank_chip(_strip_gate_chip((x or "")))).replace(_GOT_INS, "").replace(_EGO_INS, "").replace(_CLOCK_INS, "").replace(_TP1_INS, _TP1_WAS)
 
 
 if _norm_sb(sb_now) != _norm_sb(sb_old):

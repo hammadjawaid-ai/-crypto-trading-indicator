@@ -3212,6 +3212,8 @@ def _render_star_board(pb_state, live_prices=None) -> None:
                 + _desk_tp1_line(("elite_star",), _sym, _sd, _ts)
                 + f"<br><span style='color:#ffd54a;font-size:0.8rem'>"
                 + clock_cells.star_line(_sd, _ts) + "</span>"
+                + f"<br><span style='color:#9ad0ff;font-size:0.78rem'>"   # 2026-11-04: GO FAST timing read for this fire's window
+                + clock_cells.go_timing_line("FAST", _sd, _ts) + "</span>"
                 + ((f"<br><span style='color:#ffd54a;font-size:0.8rem'>"
                     + clock_cells.elite_go_line(_sd, _ts) + "</span>")
                    if (_vt and str(_vt[-1]).upper() == "LIVE" and _gt) else "")

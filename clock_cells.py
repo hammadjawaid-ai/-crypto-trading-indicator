@@ -9,18 +9,18 @@ side and the fire's 4h PKT window. Static and dated — re-measure with
 A label, never a gate: the bell rings and the card shows regardless."""
 from __future__ import annotations
 
-STAR_MEASURED = "gated ⭐ record 09 Sep → 14 Oct"
+STAR_MEASURED = "gated ⭐ record 09 Sep → 04 Nov"   # 2026-11-04 refresh: 226 rung / 282 muted desk closes, gate stamped since 14 Oct, the same four rules reconstructed before
 REVIVED_MEASURED = "gated GO REVIVED record 13 Sep → 14 Oct"
 MIN_N = 10            # fewer trades than this -> no time call
 
 # (win %, avg R, n) — ⭐ ELITE STAR fires that passed the four-rule read
-STAR_CELLS = {
-    ("LONG", "05–09"): (75, 0.52, 20), ("LONG", "09–13"): (75, 0.50, 16),
-    ("LONG", "13–17"): (33, -0.40, 9), ("LONG", "17–21"): (73, 0.43, 22),
-    ("LONG", "21–01"): (75, 0.69, 28), ("LONG", "01–05"): None,       # closed by the gate
-    ("SHORT", "05–09"): (71, 0.57, 7), ("SHORT", "09–13"): (40, 0.02, 5),
-    ("SHORT", "13–17"): (86, 0.43, 7), ("SHORT", "17–21"): (76, 0.54, 25),
-    ("SHORT", "21–01"): (57, 0.22, 7), ("SHORT", "01–05"): None,
+STAR_CELLS = {   # rung stars (gate pass), desk closes 09 Sep → 04 Nov, by side × FIRE window
+    ("LONG", "05–09"): (69, 0.44, 26), ("LONG", "09–13"): (71, 0.50, 21),
+    ("LONG", "13–17"): (27, -0.51, 11), ("LONG", "17–21"): (64, 0.41, 47),
+    ("LONG", "21–01"): (66, 0.42, 38), ("LONG", "01–05"): None,       # closed by the gate
+    ("SHORT", "05–09"): (71, 0.33, 17), ("SHORT", "09–13"): (45, -0.09, 11),
+    ("SHORT", "13–17"): (73, 0.21, 11), ("SHORT", "17–21"): (79, 0.60, 33),
+    ("SHORT", "21–01"): (82, 0.63, 11), ("SHORT", "01–05"): None,
 }
 # (win %, avg R, n) — GO REVIVED (DEAD at 1h then ignited) that passed the
 # two card rules, by the FIRE's window
@@ -112,19 +112,19 @@ REVIVED_REPLAY_CELLS = {   # DEAD then GO, two card rules passed
 # ── GO REVIVED split by FAMILY (user 2026-10-18: "this reading is for elite star
 # not elite conviction, separate them"): the combined cells above were 101
 # stars + 42 conviction fires and the clock behaves differently for each.
-REVIVED_STAR_MEASURED = "gated ⭐ star revived record 13 Sep → 14 Oct"
-REVIVED_CONV_MEASURED = "gated 💎 conviction revived record 13 Sep → 14 Oct"
-REVIVED_STAR_CELLS = {     # desk, star DEAD at the hour then GO, two card rules passed
-    ("LONG", "05–09"): (69, 0.29, 13), ("LONG", "09–13"): (92, 0.75, 12), ("LONG", "13–17"): (43, -0.04, 7),
-    ("LONG", "17–21"): (67, 0.42, 9), ("LONG", "21–01"): (67, 0.38, 12), ("LONG", "01–05"): (50, 0.07, 12),
-    ("SHORT", "05–09"): (83, 0.67, 6), ("SHORT", "09–13"): (67, 0.37, 3), ("SHORT", "13–17"): (50, -0.08, 4),
-    ("SHORT", "17–21"): (79, 0.60, 14), ("SHORT", "01–05"): (67, 0.12, 9),
+REVIVED_STAR_MEASURED = "⭐ star revived record 14 Sep → 04 Nov (DEAD at the hour then GO, from the fire price)"
+REVIVED_CONV_MEASURED = "💎 conviction revived record 14 Sep → 04 Nov (DEAD at the hour then GO, from the fire price)"
+REVIVED_STAR_CELLS = {     # 2026-11-04: star DEAD at the hour then GO (all), FIRE plan from the FIRE price, 14 Sep → 04 Nov, by the FIRE's window
+    ("LONG", "05–09"): (60, 0.14, 5), ("LONG", "09–13"): (59, 0.10, 17), ("LONG", "13–17"): (29, -0.38, 7),
+    ("LONG", "17–21"): (64, 0.24, 14), ("LONG", "21–01"): (50, -0.19, 10),
+    ("SHORT", "05–09"): (50, -0.29, 6), ("SHORT", "09–13"): (87, 0.57, 15), ("SHORT", "13–17"): (100, 0.75, 3),
+    ("SHORT", "17–21"): (92, 0.59, 12), ("SHORT", "21–01"): (83, 0.52, 6),
 }
-REVIVED_CONV_CELLS = {     # desk, conviction DEAD at the hour then GO, two card rules passed
-    ("LONG", "05–09"): (17, -0.44, 6), ("LONG", "09–13"): (0, -0.74, 3), ("LONG", "13–17"): (25, 0.02, 4),
-    ("LONG", "17–21"): (40, 0.47, 5), ("LONG", "21–01"): (80, 1.10, 5), ("LONG", "01–05"): (75, 1.52, 4),
-    ("SHORT", "05–09"): (67, 0.76, 3), ("SHORT", "09–13"): (33, -0.01, 3), ("SHORT", "13–17"): (33, 0.53, 3),
-    ("SHORT", "17–21"): (80, 0.68, 5), ("SHORT", "21–01"): (0, -1.01, 1),
+REVIVED_CONV_CELLS = {     # 2026-11-04: conviction DEAD at the hour then GO (all), from the FIRE price, 14 Sep → 04 Nov
+    ("LONG", "05–09"): (35, -0.40, 17), ("LONG", "09–13"): (58, 0.19, 31), ("LONG", "13–17"): (55, 1.00, 11),
+    ("LONG", "17–21"): (65, 0.47, 26), ("LONG", "21–01"): (68, 0.74, 19),
+    ("SHORT", "05–09"): (75, 0.27, 8), ("SHORT", "09–13"): (89, 0.91, 27), ("SHORT", "13–17"): (75, 0.73, 8),
+    ("SHORT", "17–21"): (77, 0.44, 13), ("SHORT", "21–01"): (56, 0.10, 16),
 }
 REVIVED_STAR_REPLAY_CELLS = {   # 7-week replay, stars (from 09 Sep), from the fire
     ("LONG", "05–09"): (79, 0.41, 14), ("LONG", "09–13"): (80, 0.48, 10), ("LONG", "13–17"): (62, 0.16, 13),
@@ -210,3 +210,73 @@ def revived_line(side: str, fired_at: float, star=None) -> str:
         e, c, d = verdict2(REVIVED_CELLS, REVIVED_REPLAY_CELLS, side, fired_at, REVIVED_MEASURED,
                            f"star + conviction revivals, {REPLAY_MEASURED}")
     return f"🕐 {e} {c} — fired {d}"
+
+
+# ───────────── ⭐ GO FAST / GO LATE by timing (user 2026-11-04: "update these scores") ─────────────
+# (held win %, held R, entered win %, entered R, n): HELD = the fire plan from the FIRE price
+# (the bell's claim) · ENTERED = buying at the bell, same stop / TP1. Star GOs 14 Sep → 04 Nov,
+# 15m candles, 48h, fees. Two keys: the FIRE's window (known at the fire, for the card and the
+# ⭐ bell) and the GO's own window (known when the GO lands, for the GO bell). The one entry
+# cell that pays is the early-morning GO (01–09 PKT): everything else entered at the bell ≈ 0.
+GO_MEASURED = "⭐ GO record 14 Sep → 04 Nov"
+GO_FAST_FIRE_CELLS = {
+    ("LONG", "05–09"): (91, 0.73, 91, 0.34, 23), ("LONG", "09–13"): (75, 0.33, 72, 0.04, 40), ("LONG", "13–17"): (67, 0.23, 61, -0.04, 24),
+    ("LONG", "17–21"): (66, 0.26, 62, -0.06, 50), ("LONG", "21–01"): (77, 0.56, 83, 0.23, 26),
+    ("SHORT", "05–09"): (76, 0.31, 76, 0.01, 17), ("SHORT", "09–13"): (86, 0.56, 86, 0.17, 14), ("SHORT", "13–17"): (78, 0.41, 78, 0.08, 9),
+    ("SHORT", "17–21"): (78, 0.45, 72, 0.01, 40), ("SHORT", "21–01"): (71, 0.50, 71, 0.11, 7),
+}
+GO_FAST_GO_CELLS = {
+    ("LONG", "05–09"): (92, 0.73, 92, 0.33, 25), ("LONG", "09–13"): (79, 0.46, 78, 0.15, 47), ("LONG", "13–17"): (67, 0.13, 65, -0.08, 21),
+    ("LONG", "17–21"): (61, 0.17, 59, -0.11, 41), ("LONG", "21–01"): (72, 0.47, 68, 0.05, 29),
+    ("SHORT", "05–09"): (79, 0.40, 79, 0.03, 14), ("SHORT", "09–13"): (82, 0.47, 82, 0.13, 22), ("SHORT", "13–17"): (75, 0.41, 75, 0.06, 8),
+    ("SHORT", "17–21"): (79, 0.45, 72, 0.00, 29), ("SHORT", "21–01"): (71, 0.45, 71, 0.05, 14),
+}
+GO_LATE_FIRE_CELLS = {
+    ("LONG", "05–09"): (71, 0.23, 71, -0.02, 7), ("LONG", "09–13"): (83, 0.49, 61, 0.10, 18), ("LONG", "13–17"): (40, -0.17, 40, -0.38, 5),
+    ("LONG", "17–21"): (60, 0.73, 60, -0.03, 10), ("LONG", "21–01"): (64, 0.10, 45, -0.17, 11),
+    ("SHORT", "05–09"): (60, -0.12, 40, -0.28, 5), ("SHORT", "09–13"): (76, 0.30, 65, -0.06, 17), ("SHORT", "13–17"): (100, 0.77, 100, 0.53, 1),
+    ("SHORT", "17–21"): (86, 0.53, 86, 0.15, 7), ("SHORT", "21–01"): (86, 0.46, 86, 0.14, 7),
+}
+GO_LATE_GO_CELLS = {
+    ("LONG", "05–09"): (78, 0.60, 78, 0.18, 9), ("LONG", "09–13"): (78, 0.64, 67, 0.09, 18), ("LONG", "13–17"): (86, 0.29, 57, -0.02, 7),
+    ("LONG", "17–21"): (57, 0.13, 43, -0.19, 14), ("LONG", "21–01"): (0, -0.91, 0, -0.93, 3),
+    ("SHORT", "05–09"): (85, 0.48, 85, 0.08, 13), ("SHORT", "09–13"): (83, 0.44, 67, 0.05, 6), ("SHORT", "13–17"): (44, -0.30, 33, -0.44, 9),
+    ("SHORT", "17–21"): (100, 0.59, 83, 0.30, 6), ("SHORT", "21–01"): (100, 0.80, 100, 0.32, 3),
+}
+# both sides pooled by the GO's window (the fallback when a side cell is thin)
+GO_FAST_GO_POOLED = {"05–09": (87, 0.61, 87, 0.22, 39), "09–13": (80, 0.46, 78, 0.14, 69), "13–17": (69, 0.20, 66, -0.04, 29),
+                     "17–21": (69, 0.29, 64, -0.06, 70), "21–01": (72, 0.47, 67, 0.05, 43)}
+GO_LATE_GO_POOLED = {"05–09": (82, 0.53, 82, 0.12, 22), "09–13": (79, 0.59, 67, 0.08, 24), "13–17": (59, -0.04, 41, -0.26, 17),
+                     "17–21": (70, 0.27, 55, -0.04, 20), "21–01": (50, -0.06, 50, -0.30, 6)}
+
+
+def go_timing_line(kind: str, side: str, fired_at: float, go_at: float = None) -> str:
+    """🕐 the ⭐ GO FAST / LATE timing read. Without go_at: the FIRE's window (for the card and
+    the fire bell — what a GO on this fire has done). With go_at: the GO's own window (for the
+    GO bell), with the entry call: buy-at-the-bell pays only when the GO lands 01–09 PKT."""
+    kind = "LATE" if str(kind).upper() == "LATE" else "FAST"
+    side = (side or "").upper()
+    if go_at is None:
+        cells = GO_FAST_FIRE_CELLS if kind == "FAST" else GO_LATE_FIRE_CELLS
+        win = window_of(fired_at)
+        c = cells.get((side, win))
+        if c is None or c[4] < MIN_N:
+            return (f"🕐 ⭐ GO {kind} for {win} PKT {side.lower()}s — thin ({0 if c is None else c[4]}), no record · {GO_MEASURED}")
+        hw, hr, ew, er, n = c
+        return (f"🕐 ⭐ GO {kind} for {win} PKT {side.lower()}s: held from the fire {hw}% / {hr:+.2f}R · "
+                f"entered at the bell {ew}% / {er:+.2f}R ({n}) · {GO_MEASURED}")
+    cells = GO_FAST_GO_CELLS if kind == "FAST" else GO_LATE_GO_CELLS
+    pooled = GO_FAST_GO_POOLED if kind == "FAST" else GO_LATE_GO_POOLED
+    win = window_of(go_at)
+    c = cells.get((side, win)); src = f"{side.lower()}s"
+    if c is None or c[4] < MIN_N:
+        c = pooled.get(win); src = "both sides"
+    if c is None or c[4] < MIN_N:
+        return f"🕐 GO landing {win} PKT — thin, no entry call · {GO_MEASURED}"
+    hw, hr, ew, er, n = c
+    call = ("🟢 entry at the bell has paid here" if (er >= 0.10 and ew >= 65)
+            else "🟡 hold read only — entry at the bell ≈ flat here" if er > -0.10
+            else "🔴 hold read only — entry at the bell LOST here")
+    return (f"🕐 GO landing {win} PKT ({src}): held from the fire {hw}% / {hr:+.2f}R · entered at the bell {ew}% / {er:+.2f}R ({n}) — "
+            f"{call} · {GO_MEASURED}")
+

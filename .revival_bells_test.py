@@ -35,14 +35,14 @@ out = dress(msg, ew, 3.1 * 3600, NOW)
 L = out.split("\n")
 if L[0] != "⭐ *STAR REVIVAL — OP SHORT · FAST · 17:02 PKT (3.1h after the fire)*":
     fails.append(f"star header: {L[0]}")
-if "class: FAST — star revivals FAST 72% / +0.45R (58) · LATE 63% / +0.24R (43)" not in out or "shorts entered at the GO" in out:
+if "class: FAST — star revivals FAST 67% / +0.24R (48) · LATE 68% / +0.19R (47)" not in out or "shorts entered at the GO" in out:
     fails.append(f"star class line must replace the generic one: {out}")
 if L.index(next(l for l in L if l.startswith("class:"))) != L.index(next(l for l in L if l.startswith("fire entry"))) - 1:
     fails.append("class line must sit right above the plan")
 if "✅ entry cell" not in out or "🕐 🟢 TAKE" not in out or "read: ✅ HIGH card" not in out:
     fails.append("the read, entry and clock lines must survive")
 out2 = dress(msg.replace("⭐⚡", "💎⚡"), {"star": False, "base": "MEGA", "side": "SHORT", "go": "LATE"}, 18.6 * 3600, NOW).split("\n")
-if out2[0] != "💎 *CONVICTION REVIVAL — MEGA SHORT · LATE · 17:02 PKT (18.6h after the fire)*" or not any(l.startswith("class: LATE — conviction revivals FAST 57% / +0.63R (28) · LATE 21% / -0.15R (14)") for l in out2):
+if out2[0] != "💎 *CONVICTION REVIVAL — MEGA SHORT · LATE · 17:02 PKT (18.6h after the fire)*" or not any(l.startswith("class: LATE — conviction revivals FAST 63% / +0.47R (91) · LATE 68% / +0.40R (85)") for l in out2):
     fails.append(f"conviction dress: {out2[:3]}")
 if dress("broken", {}, "x", NOW) != "broken":
     fails.append("dresser must fail soft")
