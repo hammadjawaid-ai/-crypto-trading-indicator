@@ -101,3 +101,19 @@ Reader — pick ONE, set in Render's environment (never paste values into chat):
 | drop file | — | `<STATE_DIR>/.channel_inbox.jsonl`, one JSON per line `{channel, id, ts, text, reply_text}` (tests / manual). |
 
 Without any of these the worker logs `channel desk reader OFF` and the books stay empty. Guard test: `.channel_desk_test.py`.
+
+## 🧹 LEDGER HYGIENE (2026-11-05) — zero-risk seats voided
+
+Before the 17 Sep open guard (`shadow_trader.open_from_signal`, commit a2c949a) the desk seated
+trades whose stop sat <0.1% from entry. `pnl_r` divides by that near-zero risk, so a routine move
+booked as −717R (XTZ LONG, 9 Sep) and landed on five tiers at once. The 4 Nov ledger held 120 such
+rows, −3,961R of accounting noise; apex's desk light read −0.10R per trade when its clean record is
++0.10R (one_trade, fast30, ignition_strong, conviction_v2 flipped the same way).
+
+- At every worker start-up `worker_store.shadow_void_degenerate()` marks those rows `status='VOID'`
+  (idempotent; the log line says how many moved). Nothing is deleted — reverse with
+  `UPDATE shadow_trades SET status='CLOSED' WHERE status='VOID'`.
+- Every record reader filters `status='CLOSED'` (the six `!= 'OPEN'` readers in worker_store were
+  switched), so VOID rows sit in no summary, band, recency gate or page table.
+- The Decision Desk prints a 🧹 caption naming the voided count and R.
+- Guard: `.desk_hygiene_test.py` (runs the sweep on a copy of `.state_backup_1104/worker.db`).

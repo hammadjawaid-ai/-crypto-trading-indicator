@@ -4693,6 +4693,15 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                "hold). A tier gets **🟢 GREEN LIGHT** only when its own "
                "live record is profitable after fees — not backtests. "
                "Trade the green ones; treat 🧪 as unproven.")
+    try:   # 🧹 LEDGER HYGIENE (2026-11-05): the voided zero-risk rows, named
+        _vd_sum = _ws.shadow_void_summary()
+        if _vd_sum.get("n"):
+            st.caption(f"🧹 {_vd_sum['n']} pre-17-Sep seats whose stop sat <0.1% "
+                       f"from entry are VOID ({_vd_sum['net_r']:+.0f}R of "
+                       f"accounting noise — one XTZ seat alone booked −717R on "
+                       f"five tiers). They sit in no record on this page.")
+    except Exception:
+        pass
     _tier_names = {"apex": "🏆 APEX", "takenow_hot": "✅🔥 TAKE NOW HOT",
                    "elite_early": "🌟 EARLY ELITE", "sst1": "💠 SST1",
                    "fresh": "🌱 FRESH", "early_movers": "⚡ EARLY MOVERS",

@@ -8623,6 +8623,15 @@ def main() -> None:
     print(f"  Telegram: {tg_status}")
     print(f"  DB: {store.stats().get('db')}")
     print("=" * 64, flush=True)
+    # 🧹 LEDGER HYGIENE (2026-11-05): void the pre-guard zero-risk rows so
+    # no tier's Decision Desk light rides on -717R of accounting noise.
+    try:
+        _vd = store.shadow_void_degenerate()
+        print(f"  🧹 ledger hygiene: voided {_vd['voided']} zero-risk rows "
+              f"({_vd['net_r_voided']:+.1f}R) · {_vd['void_total']} VOID in "
+              f"all ({_vd['void_net_r']:+.1f}R)", flush=True)
+    except Exception as _vd_exc:
+        print("  ledger hygiene error:", _vd_exc, flush=True)
     if tg.enabled():
         tg.send("🟢 *24/7 worker online* — watching for ✅🔥 TAKE NOW HOT and "
                 "💠 SST1 conv≥70. I ping you only for the best.", silent=True)

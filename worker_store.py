@@ -261,7 +261,7 @@ def heat_bands() -> list[dict]:
         if "heat" not in cols:
             return []
         rows = c.execute(
-            "SELECT heat, pnl_r FROM shadow_trades WHERE status != 'OPEN' "
+            "SELECT heat, pnl_r FROM shadow_trades WHERE status = 'CLOSED' "
             "AND heat IS NOT NULL AND pnl_r IS NOT NULL").fetchall()
     except Exception:
         return []
@@ -348,7 +348,7 @@ def conf_bands(days: float = 0.0) -> list[dict]:
         if "conf" not in cols:
             return []
         sql = ("SELECT tier, conf, pnl_r FROM shadow_trades "
-               "WHERE status != 'OPEN' AND conf IS NOT NULL "
+               "WHERE status = 'CLOSED' AND conf IS NOT NULL "
                "AND pnl_r IS NOT NULL")
         args: tuple = ()
         if days and days > 0:
@@ -443,7 +443,7 @@ def confluence_bands(window_min: float = 30.0) -> list[dict]:
                   for r in c.execute(
                       f"SELECT tier, symbol, side, opened_at, pnl_r "
                       f"FROM shadow_trades WHERE tier IN ({marks}) "
-                      f"AND status != 'OPEN' AND pnl_r IS NOT NULL "
+                      f"AND status = 'CLOSED' AND pnl_r IS NOT NULL "
                       f"AND opened_at IS NOT NULL", CONFLUENCE_TIERS)]
     except Exception:
         return []
@@ -502,7 +502,7 @@ def confluence_conf_bands(window_min: float = 30.0) -> dict:
                   for r in c.execute(
                       f"SELECT tier, symbol, side, opened_at, pnl_r, "
                       f"{sel_conf} FROM shadow_trades "
-                      f"WHERE tier IN ({marks}) AND status != 'OPEN' "
+                      f"WHERE tier IN ({marks}) AND status = 'CLOSED' "
                       f"AND pnl_r IS NOT NULL AND opened_at IS NOT NULL",
                       CONFLUENCE_TIERS)]
         esigs = [dict(zip(("ts", "symbol", "side", "etier", "score"), r))
@@ -605,7 +605,7 @@ def duo_pair_bands(window_min: float = 30.0) -> list[dict]:
                   for r in c.execute(
                       f"SELECT tier, symbol, side, opened_at, pnl_r, "
                       f"{sel_conf} FROM shadow_trades "
-                      f"WHERE tier IN ({marks}) AND status != 'OPEN' "
+                      f"WHERE tier IN ({marks}) AND status = 'CLOSED' "
                       f"AND pnl_r IS NOT NULL AND opened_at IS NOT NULL",
                       CONFLUENCE_TIERS)]
     except Exception:
@@ -706,7 +706,7 @@ def golden_cells(min_n: int = 25, min_win: float = 55.0) -> list[dict]:
         closed = [dict(zip(("tier", "symbol", "side", "t", "pnl"), r))
                   for r in c.execute(
                       "SELECT tier, symbol, side, opened_at, pnl_r "
-                      "FROM shadow_trades WHERE status != 'OPEN' "
+                      "FROM shadow_trades WHERE status = 'CLOSED' "
                       "AND pnl_r IS NOT NULL "
                       "AND opened_at IS NOT NULL")]
     except Exception:
@@ -825,6 +825,59 @@ def shadow_recent(limit: int = 30) -> list[dict]:
         "SELECT * FROM shadow_trades WHERE status='CLOSED' "
         "ORDER BY closed_at DESC LIMIT ?", (limit,))
 
+
+# 🧹 LEDGER HYGIENE (2026-11-05). Before the 17 Sep open guard
+# (shadow_trader.open_from_signal, commit a2c949a) the desk seated trades
+# whose stop sat <0.1% from entry; pnl_r divides by that near-zero risk,
+# so one routine move booked as -717R and landed on five tiers at once
+# (XTZ LONG 9 Sep: apex / fast30 / one_trade / ignition_strong /
+# conviction_v2). The 4 Nov ledger held 120 such rows, -3,961R of pure
+# accounting noise, flipping apex's desk light from +0.10R to -0.10R.
+# They are not deleted: status='VOID' keeps them auditable and out of
+# every `status='CLOSED'` reader (summary, recency, bands, page). Reverse
+# with: UPDATE shadow_trades SET status='CLOSED' WHERE status='VOID'.
+MIN_RISK_FRAC = 0.001        # the same floor the open guard refuses below
+
+
+def shadow_void_degenerate(min_frac: float = MIN_RISK_FRAC) -> dict:
+    """One sweep: CLOSED rows whose ORIGINAL stop sat < min_frac of entry
+    away become VOID. Idempotent (a second call voids 0). Returns what
+    moved and the VOID total. Runs once at worker start-up."""
+    c = _open()
+    try:
+        where = ("WHERE status='CLOSED' AND entry>0 AND stop0 IS NOT NULL "
+                 "AND abs(entry-stop0)/entry < ?")
+        row = c.execute("SELECT COUNT(*), COALESCE(SUM(pnl_r),0) "
+                        f"FROM shadow_trades {where}", (min_frac,)).fetchone()
+        n, net = int(row[0] or 0), float(row[1] or 0.0)
+        if n:
+            c.execute(f"UPDATE shadow_trades SET status='VOID' {where}",
+                      (min_frac,))
+            c.commit()
+        tot = c.execute("SELECT COUNT(*), COALESCE(SUM(pnl_r),0) FROM "
+                        "shadow_trades WHERE status='VOID'").fetchone()
+        return {"voided": n, "net_r_voided": round(net, 1),
+                "void_total": int(tot[0] or 0),
+                "void_net_r": round(float(tot[1] or 0.0), 1)}
+    finally:
+        c.close()
+
+
+def shadow_void_summary() -> dict:
+    """{n, net_r} of VOID rows — the page's hygiene caption. Read-only."""
+    try:
+        c = _open()
+    except Exception:
+        return {"n": 0, "net_r": 0.0}
+    try:
+        row = c.execute("SELECT COUNT(*), COALESCE(SUM(pnl_r),0) FROM "
+                        "shadow_trades WHERE status='VOID'").fetchone()
+        return {"n": int(row[0] or 0),
+                "net_r": round(float(row[1] or 0.0), 1)}
+    except Exception:
+        return {"n": 0, "net_r": 0.0}
+    finally:
+        c.close()
 
 def seen_between(stream: str, symbol: str, side: str,
                  ts_from: float, ts_to: float) -> bool:

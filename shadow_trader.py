@@ -82,6 +82,8 @@ def open_from_signal(tier: str, p: dict, live_px: float | None) -> bool:
     # "revival" was exactly this; the 119 rows net -3,951R of pure
     # accounting noise). The demo has refused these since GEN 6
     # (stop_pct <= 0.001 in try_open); the desk now refuses them too.
+    # The rows seated before this guard are VOIDed at worker start-up
+    # (worker_store.shadow_void_degenerate, 2026-11-05).
     if abs(entry - stop) / entry < 0.001:
         return False
     if store.shadow_has_open(tier, sym):
