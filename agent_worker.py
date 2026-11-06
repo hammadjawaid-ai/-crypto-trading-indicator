@@ -8627,7 +8627,8 @@ def main() -> None:
     # no tier's Decision Desk light rides on -717R of accounting noise.
     try:
         _vd = store.shadow_void_degenerate()
-        print(f"  🧹 ledger hygiene: voided {_vd['voided']} zero-risk rows "
+        print(f"  🧹 ledger hygiene: voided {_vd['voided']} thin-stop rows "
+              f"(stop <{store.MIN_RISK_FRAC:.1%} of entry) "
               f"({_vd['net_r_voided']:+.1f}R) · {_vd['void_total']} VOID in "
               f"all ({_vd['void_net_r']:+.1f}R)", flush=True)
     except Exception as _vd_exc:

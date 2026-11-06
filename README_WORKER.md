@@ -102,7 +102,7 @@ Reader — pick ONE, set in Render's environment (never paste values into chat):
 
 Without any of these the worker logs `channel desk reader OFF` and the books stay empty. Guard test: `.channel_desk_test.py`.
 
-## 🧹 LEDGER HYGIENE (2026-11-05) — zero-risk seats voided
+## 🧹 LEDGER HYGIENE (2026-11-05 / floor raised 2026-11-06) — thin-stop seats voided
 
 Before the 17 Sep open guard (`shadow_trader.open_from_signal`, commit a2c949a) the desk seated
 trades whose stop sat <0.1% from entry. `pnl_r` divides by that near-zero risk, so a routine move
@@ -110,10 +110,18 @@ booked as −717R (XTZ LONG, 9 Sep) and landed on five tiers at once. The 4 Nov 
 rows, −3,961R of accounting noise; apex's desk light read −0.10R per trade when its clean record is
 +0.10R (one_trade, fast30, ignition_strong, conviction_v2 flipped the same way).
 
+- 2026-11-06 (user: "this should deploy first"): the floor is **0.3%** (`worker_store.MIN_RISK_FRAC`),
+  not 0.1%. The 0.1–0.3% band had the same defect pointing up — 434 rows, +645R, mean +1.5R, single
+  rows of +65R on best_board / early_movers / early_lane and +47R on apex; fees alone cost ≥0.4R on
+  such a stop, so it is not a tradeable plan. 554 rows VOID in all (−3,316R). The desk's open guard
+  reads the same constant, so the desk no longer seats a plan whose stop is closer than 0.3%.
 - At every worker start-up `worker_store.shadow_void_degenerate()` marks those rows `status='VOID'`
   (idempotent; the log line says how many moved). Nothing is deleted — reverse with
   `UPDATE shadow_trades SET status='CLOSED' WHERE status='VOID'`.
 - Every record reader filters `status='CLOSED'` (the six `!= 'OPEN'` readers in worker_store were
   switched), so VOID rows sit in no summary, band, recency gate or page table.
+- Clean records at the 0.3% floor (4 Nov backup): apex −0.10R → +0.085R (3,830), one_trade −0.36 → +0.14,
+  fast30 −0.09 → +0.12, ignition_strong −1.04 → +0.19, conviction_v2 −0.53 → +0.26; kr_strong +248R → +109R,
+  elite_conv +408R → +324R, best_board +155R → +112R (their thin-stop winners were noise too).
 - The Decision Desk prints a 🧹 caption naming the voided count and R.
 - Guard: `.desk_hygiene_test.py` (runs the sweep on a copy of `.state_backup_1104/worker.db`).

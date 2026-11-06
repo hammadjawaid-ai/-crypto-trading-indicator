@@ -83,8 +83,11 @@ def open_from_signal(tier: str, p: dict, live_px: float | None) -> bool:
     # accounting noise). The demo has refused these since GEN 6
     # (stop_pct <= 0.001 in try_open); the desk now refuses them too.
     # The rows seated before this guard are VOIDed at worker start-up
-    # (worker_store.shadow_void_degenerate, 2026-11-05).
-    if abs(entry - stop) / entry < 0.001:
+    # (worker_store.shadow_void_degenerate, 2026-11-05). 2026-11-06: the
+    # floor is store.MIN_RISK_FRAC = 0.3% (user: "this should deploy
+    # first") — the 0.1–0.3% band inflated records the same way (+65R
+    # single rows); fees alone cost >=0.4R on such a stop.
+    if abs(entry - stop) / entry < store.MIN_RISK_FRAC:
         return False
     if store.shadow_has_open(tier, sym):
         return False

@@ -4696,10 +4696,12 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
     try:   # 🧹 LEDGER HYGIENE (2026-11-05): the voided zero-risk rows, named
         _vd_sum = _ws.shadow_void_summary()
         if _vd_sum.get("n"):
-            st.caption(f"🧹 {_vd_sum['n']} pre-17-Sep seats whose stop sat <0.1% "
+            st.caption(f"🧹 {_vd_sum['n']} seats whose stop sat <{_ws.MIN_RISK_FRAC:.1%} "
                        f"from entry are VOID ({_vd_sum['net_r']:+.0f}R of "
-                       f"accounting noise — one XTZ seat alone booked −717R on "
-                       f"five tiers). They sit in no record on this page.")
+                       f"accounting noise — pnl_r divides by a near-zero risk: one "
+                       f"XTZ seat booked −717R on five tiers, one COW seat +65R on "
+                       f"three; fees alone cost ≥0.4R on such a stop). They sit in "
+                       f"no record on this page.")
     except Exception:
         pass
     _tier_names = {"apex": "🏆 APEX", "takenow_hot": "✅🔥 TAKE NOW HOT",

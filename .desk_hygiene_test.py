@@ -65,41 +65,44 @@ n_closed_before = q("SELECT COUNT(*) FROM shadow_trades WHERE status='CLOSED'")[
 print("2. the sweep")
 res = store.shadow_void_degenerate()
 print("   ", res)
-check("voids exactly the 120 pre-guard rows", res["voided"] == 120, res)
-check("their sum is −3,961R", abs(res["net_r_voided"] + 3961.5) < 1.0, res)
-check("VOID total equals the voided count", res["void_total"] == 120, res)
-check("no VOID row was opened after the 17 Sep guard (18:22 PKT)",
+check("floor is 0.3%", store.MIN_RISK_FRAC == 0.003)
+check("voids exactly 554 rows (120 zero-risk + 434 in the 0.1–0.3% band)", res["voided"] == 554, res)
+check("their sum is −3,316R (−3,961R noise down, +645R noise up)", abs(res["net_r_voided"] + 3316.0) < 1.0, res)
+check("VOID total equals the voided count", res["void_total"] == 554, res)
+check("212 of them were seated after the 17 Sep 0.1% guard (the band kept inflating until 3 Nov)",
       q("SELECT COUNT(*) FROM shadow_trades WHERE status='VOID' AND opened_at > ?",
-        1789651343.0)[0][0] == 0)
-check("CLOSED count dropped by exactly 120",
-      q("SELECT COUNT(*) FROM shadow_trades WHERE status='CLOSED'")[0][0] == n_closed_before - 120)
+        1789651343.0)[0][0] == 212)
+check("CLOSED count dropped by exactly 554",
+      q("SELECT COUNT(*) FROM shadow_trades WHERE status='CLOSED'")[0][0] == n_closed_before - 554)
 
 print("3. after — the clean records")
 after = {t: rec(t) for t in before}
-check("apex clean net ≈ +390R", abs(after["apex"]["net_r"] - 390.4) < 1.0, after["apex"])
-check("apex n = 3872 (3886 − 14)", after["apex"]["n"] == 3872, after["apex"])
-check("apex mean ≈ +0.10R", abs(after["apex"]["net_r"] / after["apex"]["n"] - 0.10) < 0.01)
-check("one_trade ≈ +230R", abs(after["one_trade"]["net_r"] - 230.3) < 1.0, after["one_trade"])
-check("fast30 ≈ +419R", abs(after["fast30"]["net_r"] - 419.3) < 1.0, after["fast30"])
-check("ignition_strong ≈ +109R", abs(after["ignition_strong"]["net_r"] - 109.1) < 1.0)
-check("conviction_v2 ≈ +248R", abs(after["conviction_v2"]["net_r"] - 248.4) < 1.0)
-check("kr_strong LOSES its fake +85R winner (248 → 176R)",
-      abs(rec("kr_strong")["net_r"] - 176.5) < 1.0, rec("kr_strong"))
-check("elite_star untouched (no degenerate rows there)",
+check("apex clean net ≈ +324R", abs(after["apex"]["net_r"] - 324.3) < 1.0, after["apex"])
+check("apex n = 3830 (3886 − 56)", after["apex"]["n"] == 3830, after["apex"])
+check("apex mean ≈ +0.085R", abs(after["apex"]["net_r"] / after["apex"]["n"] - 0.085) < 0.005)
+check("one_trade ≈ +196R", abs(after["one_trade"]["net_r"] - 195.7) < 1.0, after["one_trade"])
+check("fast30 ≈ +391R", abs(after["fast30"]["net_r"] - 390.6) < 1.0, after["fast30"])
+check("ignition_strong ≈ +114R", abs(after["ignition_strong"]["net_r"] - 113.6) < 1.0)
+check("conviction_v2 ≈ +223R", abs(after["conviction_v2"]["net_r"] - 222.7) < 1.0)
+check("kr_strong LOSES its thin-stop winners (248 → 109R)",
+      abs(rec("kr_strong")["net_r"] - 108.8) < 1.0, rec("kr_strong"))
+check("best_board loses the +65R COW row (155 → 112R)",
+      abs(rec("best_board")["net_r"] - 111.8) < 1.0, rec("best_board"))
+check("elite_star untouched (no thin-stop rows there)",
       q("SELECT COUNT(*) FROM shadow_trades WHERE tier='elite_star' AND status='VOID'")[0][0] == 0)
-check("0.1–0.3% band untouched (434 rows, not this task's call)",
-      q("SELECT COUNT(*) FROM shadow_trades WHERE status='CLOSED' AND entry>0 "
-        "AND abs(entry-stop0)/entry BETWEEN 0.001 AND 0.003")[0][0] == n_band == 434)
+check("the 0.1–0.3% band is gone from CLOSED (was 434 rows)",
+      n_band == 434 and q("SELECT COUNT(*) FROM shadow_trades WHERE status='CLOSED' AND entry>0 "
+                          "AND abs(entry-stop0)/entry < 0.003")[0][0] == 0)
 
 print("4. idempotent + the summary helper")
 res2 = store.shadow_void_degenerate()
-check("second sweep voids 0", res2["voided"] == 0 and res2["void_total"] == 120, res2)
+check("second sweep voids 0", res2["voided"] == 0 and res2["void_total"] == 554, res2)
 vs = store.shadow_void_summary()
-check("shadow_void_summary = 120 / −3,961R", vs["n"] == 120 and abs(vs["net_r"] + 3961.5) < 1.0, vs)
+check("shadow_void_summary = 554 / −3,316R", vs["n"] == 554 and abs(vs["net_r"] + 3316.0) < 1.0, vs)
 
 print("5. every reader excludes VOID")
 rn = store.shadow_recent_net("apex", days=100000)
-check("shadow_recent_net counts only CLOSED (3872)", rn["n"] == 3872, rn)
+check("shadow_recent_net counts only CLOSED (3830)", rn["n"] == 3830, rn)
 src = open(os.path.join(ROOT, "worker_store.py"), encoding="utf-8").read()
 check("no `status != 'OPEN'` reader left in worker_store", "!= 'OPEN'" not in src)
 hb = store.heat_bands()
@@ -115,17 +118,20 @@ closed_all = store.shadow_closed_all(limit=10 ** 6)
 check("shadow_closed_all carries no VOID row",
       len(closed_all) == q("SELECT COUNT(*) FROM shadow_trades WHERE status='CLOSED'")[0][0])
 tr = next(r for r in shadow_trader.tier_records() if r["tier"] == "apex")
-check("tier_records apex net positive, n 3872", tr["net_r"] > 380 and tr["n"] == 3872, tr)
+check("tier_records apex net positive, n 3830", tr["net_r"] > 300 and tr["n"] == 3830, tr)
 check("no VOID row counted as open anywhere",
       sum(int(r["open_n"] or 0) for r in store.shadow_summary())
       == q("SELECT COUNT(*) FROM shadow_trades WHERE status='OPEN'")[0][0])
 check("manage() walks OPEN rows only (VOID never re-managed)",
       all(t["status"] == "OPEN" for t in store.shadow_open_trades()))
 
-print("6. the open guard still refuses zero-risk seats")
+print("6. the open guard refuses thin-stop seats at the 0.3% floor")
 ok = shadow_trader.open_from_signal("apex", {"symbol": "XTZUSDT", "side": "LONG", "stop": 0.26318,
                                              "tp1": 0.28, "tp2": 0.30, "entry": 0.2632}, 0.2632)
 check("stop 0.008% from entry → refused", ok is False)
+ok25 = shadow_trader.open_from_signal("apex", {"symbol": "COWUSDT", "side": "LONG", "stop": 0.1602,
+                                               "tp1": 0.17, "tp2": 0.18, "entry": 0.1606}, 0.1606)
+check("stop 0.25% from entry (the COW +65R shape) → refused now", ok25 is False)
 ok2 = shadow_trader.open_from_signal("hygiene_probe", {"symbol": "XTZUSDT", "side": "LONG",
                                                       "stop": 0.255, "tp1": 0.28, "tp2": 0.30,
                                                       "entry": 0.2632}, 0.2632)

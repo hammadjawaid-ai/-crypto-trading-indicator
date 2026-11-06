@@ -836,7 +836,13 @@ def shadow_recent(limit: int = 30) -> list[dict]:
 # They are not deleted: status='VOID' keeps them auditable and out of
 # every `status='CLOSED'` reader (summary, recency, bands, page). Reverse
 # with: UPDATE shadow_trades SET status='CLOSED' WHERE status='VOID'.
-MIN_RISK_FRAC = 0.001        # the same floor the open guard refuses below
+# 2026-11-06 (user: "this should deploy first"): the floor is 0.3%, not
+# 0.1% — the 0.1–0.3% band had the same defect pointing up (434 rows,
+# +645R, mean +1.5R, single rows of +65R on best_board / early_movers /
+# early_lane and +47R on apex); fees alone cost >=0.4R on such a stop, so
+# it is not a tradeable plan. 554 rows VOID in all (-3,316R). The desk's
+# open guard (shadow_trader.open_from_signal) reads this same constant.
+MIN_RISK_FRAC = 0.003        # stop closer than 0.3% of entry = not a trade
 
 
 def shadow_void_degenerate(min_frac: float = MIN_RISK_FRAC) -> dict:
