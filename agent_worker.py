@@ -2551,8 +2551,27 @@ def _fmt_prime_pair(kind, sig, px, now):
     return "\n".join([x for x in (head, l2, plan, lw, l4, l5, l6) if x])
 
 
+_HYGIENE_DONE = False     # 🧹 the ledger sweep runs once per process
+
+
 def cycle() -> None:
+    global _HYGIENE_DONE
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    # 🧹 LEDGER HYGIENE (2026-11-05, floor 0.3% 2026-11-06): void the
+    # thin-stop rows so no tier's Decision Desk light rides on -717R (or
+    # +65R) of accounting noise. HERE, on the first cycle — not in main():
+    # Render runs launch.py, which loops cycle() and never enters main(),
+    # so the 45ce814 deploy restarted the worker without ever sweeping.
+    if not _HYGIENE_DONE:
+        _HYGIENE_DONE = True
+        try:
+            _vd = store.shadow_void_degenerate()
+            print(f"🧹 ledger hygiene: voided {_vd['voided']} thin-stop rows "
+                  f"(stop <{store.MIN_RISK_FRAC:.1%} of entry) "
+                  f"({_vd['net_r_voided']:+.1f}R) · {_vd['void_total']} VOID "
+                  f"in all ({_vd['void_net_r']:+.1f}R)", flush=True)
+        except Exception as _vd_exc:
+            print("ledger hygiene error:", _vd_exc, flush=True)
     # 📡 CHANNEL DESK (user 2026-11-05 "yes lets do it"): outside Telegram
     # signal channels → own demo books v2/v3 + 🚦 light. Own state, own
     # switch (channel_desk.TG_CHANNEL_DESK); never raises, never touches
@@ -8623,16 +8642,6 @@ def main() -> None:
     print(f"  Telegram: {tg_status}")
     print(f"  DB: {store.stats().get('db')}")
     print("=" * 64, flush=True)
-    # 🧹 LEDGER HYGIENE (2026-11-05): void the pre-guard zero-risk rows so
-    # no tier's Decision Desk light rides on -717R of accounting noise.
-    try:
-        _vd = store.shadow_void_degenerate()
-        print(f"  🧹 ledger hygiene: voided {_vd['voided']} thin-stop rows "
-              f"(stop <{store.MIN_RISK_FRAC:.1%} of entry) "
-              f"({_vd['net_r_voided']:+.1f}R) · {_vd['void_total']} VOID in "
-              f"all ({_vd['void_net_r']:+.1f}R)", flush=True)
-    except Exception as _vd_exc:
-        print("  ledger hygiene error:", _vd_exc, flush=True)
     if tg.enabled():
         tg.send("🟢 *24/7 worker online* — watching for ✅🔥 TAKE NOW HOT and "
                 "💠 SST1 conv≥70. I ping you only for the best.", silent=True)

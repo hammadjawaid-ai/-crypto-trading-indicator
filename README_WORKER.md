@@ -115,8 +115,10 @@ rows, −3,961R of accounting noise; apex's desk light read −0.10R per trade w
   rows of +65R on best_board / early_movers / early_lane and +47R on apex; fees alone cost ≥0.4R on
   such a stop, so it is not a tradeable plan. 554 rows VOID in all (−3,316R). The desk's open guard
   reads the same constant, so the desk no longer seats a plan whose stop is closer than 0.3%.
-- At every worker start-up `worker_store.shadow_void_degenerate()` marks those rows `status='VOID'`
-  (idempotent; the log line says how many moved). Nothing is deleted — reverse with
+- On the worker's FIRST CYCLE (`agent_worker.cycle()`, flag `_HYGIENE_DONE` — Render's launch.py loops
+  cycle() and never enters main(); the 45ce814 deploy restarted without sweeping, fixed the same day)
+  `worker_store.shadow_void_degenerate()` marks those rows `status='VOID'` (idempotent; the log line says
+  how many moved). Nothing is deleted — reverse with
   `UPDATE shadow_trades SET status='CLOSED' WHERE status='VOID'`.
 - Every record reader filters `status='CLOSED'` (the six `!= 'OPEN'` readers in worker_store were
   switched), so VOID rows sit in no summary, band, recency gate or page table.

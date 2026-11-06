@@ -125,6 +125,18 @@ check("no VOID row counted as open anywhere",
 check("manage() walks OPEN rows only (VOID never re-managed)",
       all(t["status"] == "OPEN" for t in store.shadow_open_trades()))
 
+print("5b. the sweep runs where Render actually starts the worker")
+wsrc = open(os.path.join(ROOT, "agent_worker.py"), encoding="utf-8").read()
+lsrc = open(os.path.join(ROOT, "launch.py"), encoding="utf-8").read()
+check("launch.py loops cycle() and never calls agent_worker.main()",
+      "agent_worker.cycle()" in lsrc and "agent_worker.main()" not in lsrc)
+_cyc = wsrc[wsrc.index("def cycle() -> None:"):wsrc.index("def cycle() -> None:") + 2500]
+check("the sweep sits at the top of cycle(), once per process",
+      "store.shadow_void_degenerate()" in _cyc and "_HYGIENE_DONE" in _cyc)
+_main = wsrc[wsrc.index("def main() -> None:"):]
+check("main() no longer owns the sweep", "shadow_void_degenerate" not in _main)
+check("exactly one sweep call in the worker", wsrc.count("store.shadow_void_degenerate()") == 1)
+
 print("6. the open guard refuses thin-stop seats at the 0.3% floor")
 ok = shadow_trader.open_from_signal("apex", {"symbol": "XTZUSDT", "side": "LONG", "stop": 0.26318,
                                              "tp1": 0.28, "tp2": 0.30, "entry": 0.2632}, 0.2632)
