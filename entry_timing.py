@@ -66,7 +66,15 @@ def entry_signal(symbol: str, side: str, entry: float,
         return {"status": "UNKNOWN", "reason": "bad inputs", "px": 0.0}
     if df is None:
         try:
-            df = binance_client.get_klines(symbol, "1h", limit=120)
+            # 🔁 RESTORED 2026-11-06 (user: "bring it all back"): this
+            # read must be ITS OWN snapshot. The plan entry is the
+            # scanner frame's last close; the confirm below needs the
+            # forming candle to close strictly beyond it. Served the same
+            # frame (the 4 Oct cache reuse) the two are equal and
+            # TAKE_NOW died for a month — every TAKE NOW HOT / early-lane /
+            # FRESH record was measured on the fresh-fetch behaviour.
+            df = binance_client.get_klines(symbol, "1h", limit=120,
+                                           fresh=True)
         except Exception:
             return {"status": "UNKNOWN", "reason": "no data", "px": 0.0}
     if df is None or len(df) < 30:

@@ -6433,7 +6433,23 @@ def cycle() -> None:
                         # buzz: approved fires, HIGH and MAX, no
                         # cap (user item 2). One verdict per fire
                         # by construction — no cooldown needed.
-                        if TG_RULES:
+                        if _ew.get("buzzed") and _ew.get("fam") == "apexv2":
+                            # (2026-11-06 fix: this branch used to be an elif chained to
+                            # `if TG_RULES:` below, so with the rules on it never ran —
+                            # no gated APEX V2 fire ever got its promised verdict.)
+                            # 🏆💎 the gated APEX V2 bell's verdict answers in its
+                            # thread (user 2026-11-01); ungated APEX V2 never
+                            # buzzes, so it never lands here.
+                            try:
+                                _okv2, _mv2, _ = tg.send_thread(
+                                    _fmt_apex_v2_verdict(_ew, _prg),
+                                    reply_to=_ew.get("tg_ids"))
+                                n_alerts += 1 if _okv2 else 0
+                                print(f"  [thread] apexv2 verdict {_ew['base']} "
+                                      f"{_ew['side']} {_ew['oneh']} sent={_okv2} {_mv2}", flush=True)
+                            except Exception as _v2t_exc:
+                                print("  apexv2 verdict thread error:", _v2t_exc, flush=True)
+                        elif TG_RULES:
                             # 🧵 the verdict answers in the fire's thread,
                             # only for fires the phone heard (star /
                             # A-grade anchors). HOLD FULL (LIVE) ·
@@ -6452,19 +6468,6 @@ def cycle() -> None:
                                 except Exception as _vt_exc:
                                     print("  verdict thread error:",
                                           _vt_exc, flush=True)
-                        elif _ew.get("buzzed") and _ew.get("fam") == "apexv2":
-                            # 🏆💎 the gated APEX V2 bell's verdict answers in its
-                            # thread (user 2026-11-01); ungated APEX V2 never
-                            # buzzes, so it never lands here.
-                            try:
-                                _okv2, _mv2, _ = tg.send_thread(
-                                    _fmt_apex_v2_verdict(_ew, _prg),
-                                    reply_to=_ew.get("tg_ids"))
-                                n_alerts += 1 if _okv2 else 0
-                                print(f"  [thread] apexv2 verdict {_ew['base']} "
-                                      f"{_ew['side']} {_ew['oneh']} sent={_okv2} {_mv2}", flush=True)
-                            except Exception as _v2t_exc:
-                                print("  apexv2 verdict thread error:", _v2t_exc, flush=True)
                         elif _ew.get("buzzed") or _ew.get("appr"):
                             # 🔊 1H VERDICT — WIDENED (user
                             # 2026-09-18: "widen the verdict to

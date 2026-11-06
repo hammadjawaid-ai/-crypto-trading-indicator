@@ -338,10 +338,21 @@ def _bybit_klines(symbol: str, interval: str, limit: int) -> pd.DataFrame:
 
 
 def get_klines(symbol: str, interval: str,
-               limit: int = config.KLINE_LIMIT) -> pd.DataFrame:
+               limit: int = config.KLINE_LIMIT,
+               fresh: bool = False) -> pd.DataFrame:
     """Cached OHLCV candles (120s TTL — see the page-speed note above).
     Returns a COPY of the cached frame so callers can mutate freely.
-    Same shape and semantics as the uncached fetch below."""
+    Same shape and semantics as the uncached fetch below.
+
+    fresh=True (2026-11-06): this request takes its OWN snapshot — never
+    the tail of a longer cached frame. The 2026-10-04 longer-frame reuse
+    silently killed TAKE NOW HOT, EARLY LANE, EARLY MOVERS, FRESH, EARLY
+    ELITE and TOP CONVICTION: entry_timing's confirm rule needs the
+    forming candle to close strictly beyond the plan entry, and the plan
+    entry IS the scanner frame's last close — served the same frame, the
+    two are equal and TAKE_NOW can never fire (40/day -> ~2/week). Only
+    entry_timing.entry_signal passes fresh=True; everything else keeps
+    the reuse. The exact-key 120s cache still applies, as before 4 Oct."""
     key = (symbol, interval, int(limit))
     hit = _cache_get(_KL_CACHE, key, _KL_TTL)
     if hit is not None:
@@ -350,10 +361,10 @@ def get_klines(symbol: str, interval: str,
     # FRESH longer frame of the same symbol/interval — the last N
     # candles of a 300-candle fetch are the same candles a 100-candle
     # fetch returns, so callers asking for different limits no longer
-    # pay a second round trip.
+    # pay a second round trip. (Skipped for fresh=True — see above.)
     _best = None
     _now = time.time()
-    for (_s, _i, _l), (_ts, _df) in list(_KL_CACHE.items()):
+    for (_s, _i, _l), (_ts, _df) in ([] if fresh else list(_KL_CACHE.items())):
         if (_s == symbol and _i == interval and _l > int(limit)
                 and _now - _ts <= _KL_TTL and len(_df) >= int(limit)
                 and (_best is None or _l < _best[0])):

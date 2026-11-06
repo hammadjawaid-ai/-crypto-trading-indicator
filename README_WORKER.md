@@ -145,3 +145,15 @@ the trail after the fire fails, not the flip itself), mirror of LONG fires +0.31
 fires −0.07R (249), clipped ±5R mean +0.08R (tail-carried). The same ruler scores the ORIGINAL at only
 +0.07R against the ledger's +0.28R — the desk judges on cycle prices and is ~0.2R kinder than bars — so
 the two forward desk records are the only fair comparison. Guard: `.conv_rev_test.py` (22 checks).
+
+## 🔁 TAKE NOW RESTORE (2026-11-06) — the silent streams brought back
+
+From 4 Oct 17:14 PKT the kline cache served a shorter request from the tail of a longer cached frame
+(f06f526, page speed). entry_timing's TAKE_NOW confirm needs the forming candle to close strictly beyond the
+plan entry, and the plan entry is the scanner frame's last close — served the same frame they were equal, so
+TAKE_NOW fell from ~40/day to ~2/week and every stream that needs it went silent: ✅🔥 TAKE NOW HOT,
+🏆 TOP CONVICTION, 🚀 EARLY LANE, ⚡ EARLY MOVERS, 🌱 FRESH, 🌟 EARLY ELITE (and 💎 BEST starved).
+Fix: `binance_client.get_klines(..., fresh=True)` takes its own snapshot (the exact-key 120 s cache still
+applies); only `entry_timing.entry_signal` uses it — the behaviour every one of those records was measured on.
+Everything else keeps the reuse. Guard: `.takenow_restore_test.py`. Same commit: the 🏆💎 APEX V2 GATED 1H
+verdict reply was an `elif` chained to `if TG_RULES:` and never ran; it is now its own branch ahead of it.
