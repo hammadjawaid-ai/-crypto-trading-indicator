@@ -127,3 +127,21 @@ rows, −3,961R of accounting noise; apex's desk light read −0.10R per trade w
   elite_conv +408R → +324R, best_board +155R → +112R (their thin-stop winners were noise too).
 - The Decision Desk prints a 🧹 caption naming the voided count and R.
 - Guard: `.desk_hygiene_test.py` (runs the sweep on a copy of `.state_backup_1104/worker.db`).
+
+## 💯↩️ CONVICTION v2 REVERSED (2026-11-06) — the mirror experiment, records only
+
+User: "reverse the signals with it — if it says tp it should be considered as sl and sl should be
+considered as tp — only for this one, nothing else." Every 💯 CONVICTION v2 fire is now ALSO seated the
+other way on the desk, tier `conviction_v2_rev` (`shadow_trader.mirror_signal`): the opposite side at the
+same live price, the plan's TP1 as the stop, the plan's stop as TP1, TP2 dropped, the normal desk ladder
+after that. conf / heat carry over from the original fire. No bell, no demo seat; the original
+`conviction_v2` ledger is untouched. Nothing else is mirrored.
+
+Why the card read −458R: two zero-risk rows (−721R) — the hygiene sweep above. Clean, v2 is +0.26R per
+trade at the 0.3% floor (36% win). Replay of the 886 clean closed v2 trades on the 15m candle path
+(`research_meta/conv_rev_study.py`, 25 Aug → 4 Nov): mirror with the desk ladder 61% / +0.20R (867; both
+halves +0.10 / +0.30, every month positive), the plain mirror without the ladder −0.01R (the mirror's R is
+the trail after the fire fails, not the flip itself), mirror of LONG fires +0.31R (618) vs mirror of SHORT
+fires −0.07R (249), clipped ±5R mean +0.08R (tail-carried). The same ruler scores the ORIGINAL at only
++0.07R against the ledger's +0.28R — the desk judges on cycle prices and is ~0.2R kinder than bars — so
+the two forward desk records are the only fair comparison. Guard: `.conv_rev_test.py` (22 checks).

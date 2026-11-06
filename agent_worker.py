@@ -5474,11 +5474,20 @@ def cycle() -> None:
                   # leave the trades taken before") — the kronos-era
                   # record stays archived under `conviction`.
                   ("conviction_v2", _conv),
+                  # 💯↩️ REVERSED (user 2026-11-06: "reverse the signals
+                  # with it... tp considered as sl and sl as tp — only
+                  # for this one, nothing else"): the SAME v2 fires seated
+                  # the other way (shadow_trader.mirror_signal), records
+                  # only, no bell, no demo seat. Flipped in the loop below
+                  # AFTER v2 stamped conf/heat on the fire.
+                  ("conviction_v2_rev", _conv),
                   ("moonshot", _moon_fires),
                   ("sentry", _sentry_fires),
                   ("trend_rider", r.get("trend", [])))
         for _tname, _sigs in _tiers:
             for p in _sigs:
+                if _tname == "conviction_v2_rev":   # 💯↩️ the mirror
+                    p = shadow_trader.mirror_signal(p)
                 # 🎯 conf on EVERY desk trade (user 2026-08-28: "the
                 # confidence on telegram... I want to know their win
                 # rates") — stamped at open, stored in the trade row,

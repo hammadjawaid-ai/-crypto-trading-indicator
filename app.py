@@ -4732,6 +4732,10 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "oi_break": "🕵️💥 OI BREAK (graded load fired)",
                    "conviction": "💯 CONVICTION v1 (retired — kronos era)",
                    "conviction_v2": "💯 CONVICTION v2 (fresh ledger)",
+                   "conviction_v2_rev": "💯↩️ CONVICTION v2 REVERSED (the mirror since "
+                                        "06 Nov: the same fires seated the other way — "
+                                        "the plan's TP1 is the stop, its stop is the "
+                                        "target; records only, no bell)",
                    "same_door": "🚪 SAME DOOR (proving)",
                    "eagle_heat": "🦅 EAGLE HEAT (3m watch, proving)",
                    "duo85": "🤝 DUO 85+ (2 streams agree, proving)",

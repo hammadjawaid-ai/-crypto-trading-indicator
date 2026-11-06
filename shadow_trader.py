@@ -59,6 +59,24 @@ def _fees_r(entry: float, risk: float) -> float:
     return (2 * TAKER_FEE) * entry / risk
 
 
+def mirror_signal(p: dict) -> dict:
+    """💯↩️ REVERSED plan (user 2026-11-06, CONVICTION v2 only: "reverse the
+    signals with it — if it says tp it should be considered as sl and sl
+    should be considered as tp"). The opposite side on the same fire: the
+    plan's TP1 becomes the stop, the plan's stop becomes TP1, TP2 is
+    dropped (after TP1 the desk ladder locks and trails as always). Entry
+    stays the live price at seat time (open_from_signal). conf / heat /
+    symbol carry over from the original fire so the mirror's record reads
+    against the same stamps. Pure; never touches the original dict."""
+    side = (p.get("side") or "").upper()
+    q = dict(p)
+    q["side"] = "SHORT" if side == "LONG" else "LONG"
+    q["stop"], q["tp1"] = p.get("tp1"), p.get("stop")
+    q["tp2"] = 0.0
+    q["mirror_of"] = "conviction_v2"
+    return q
+
+
 def open_from_signal(tier: str, p: dict, live_px: float | None) -> bool:
     """Open a shadow trade from a brain signal. One open per (tier, symbol).
     Entry = live price NOW (forward, not the plan's idealised entry)."""
