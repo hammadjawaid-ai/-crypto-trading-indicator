@@ -120,8 +120,8 @@ if "thin (7), no record" not in cc.go_timing_line("LATE", "LONG", T(6)):
     fails.append("thin fire-window cell must say so")
 if "go_timing_line" in W[W.find("_gate9 = _star_gate(_pmx, time.time(),"):W.find("_w1317 = (_star9 and STAR_UNGATED_1317")]:
     fails.append("the GO-timing line must stay OFF the ⭐ fire card (2026-11-07)")
-for need, lab in (
-                  ("                                    if _ew.get(\"star\"):\n                                        # 🕐 GO FAST / LATE timing read by the GO's own", "go bell timing block")):
+for need, lab in [
+                  ("                                    if _ew.get(\"star\"):\n                                        # 🕐 GO FAST / LATE timing read by the GO's own", "go bell timing block")]:
     if need not in W:
         fails.append(f"worker missing: {lab}")
 if "+ clock_cells.go_timing_line(\"FAST\", _sd, _ts) + \"</span>\"" not in A:
