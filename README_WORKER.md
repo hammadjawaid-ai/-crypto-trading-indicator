@@ -242,3 +242,22 @@ User: "for go fast and late we should add the information inside the signal on t
   the GO is landing with the entered-at-the-bell call (🟢 entry has paid / 🟡 hold only / 🔴 entry lost). The class line
   = `GO_CLASS_SHORT` (the 14 → 28 Sep replay cell: ✅ LONG · FAST 79% / +0.21R per GO entry (77); ⚠️ SHORT; ⚠️ LATE).
 - Guard: `.bells2_test.py` (51) checks the five lines.
+
+## 🕐 WINDOW STAMPS ON EVERY BELL (2026-11-08) — `tg_cells.py`
+
+User: "time stamps on every signal and buzz on telegram … green for anything 68% and plus, yellow 60–68, red below
+60 … for every stream it should have this inside the information of the signal … we are not changing it to bold
+ones that is for later but keep record".
+- One module, one rule: `tg_cells.light(win)` = 🟢 ≥ 68% · 🟡 60–68% · 🔴 < 60%; `tg_cells.stamp(stream, key, ts)`
+  prints `🕐 🟢 09–13 longs 75% / +0.58R (20) · ⭐ gated stars held from the fire · 9 Sep → 4 Nov` — the fire's 4h PKT
+  window, the side (or GO tier, or "both sides" for pooled tables), that stream's own cell, "thin" under 10, "no record"
+  when the cell is empty. Tables = the clean desk 9 Sep → 4 Nov (`.tg_timeframes` in the scratch): gated ⭐ star,
+  ⏱ LIVE / DEAD stars, the four ⭐🤝 pairs entered at the second fire, 💎🥇 ELITE × PRIME, 🔥🥇 SECOND LEG × PRIME,
+  💥🥇 PRIME + strong trigger, 🏆² APEX V2 (every fire), 💎 revival entered at the GO by FAST / LATE, ⭐ revival.
+- Where it rides: the ⭐ star card (replaces the old clock line; the header's size word reads the same light),
+  the ⏱ verdict reply (LIVE / DEAD cell for stars), the GO reply's 🕐 line (fire cell + landing cell now on the
+  68 / 60 lights, "entry pays" when entered ≥ +0.10R else "hold only"), 💎 CONVICTION REVIVAL (its GO class in this
+  window), every pair card (`PAIR_STAMP`), 💥🥇 PRIME × STRONG TRIGGER, 🏆💎 APEX V2 GATED and its ⏱🏆 verdict,
+  the 🏦 TP1 HIT ping (`stamp_src`, when the fire's stream has a table). Not stamped: 📰 news, 👁 coin watch,
+  🎮 demo bells, 📊 scoreboard (no record to print), 💎🏆 A-GRADE (rides the star card; no clean close since 9 Sep).
+- A label, never a gate; the roster is unchanged. Guard: `.tg_cells_test.py` (56); `.bells2_test.py` updated (51).

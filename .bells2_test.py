@@ -76,10 +76,10 @@ check("star card: with-line carries partners · conf · heat", "with: ✅🔥 TA
 check("star card: short next line", re.search(r"^next: ⏱ verdict \d\d:\d\d · GO till \d\d:\d\d$", m, re.M) is not None, m)
 ew = dict(base="ABC", side="LONG", symbol="ABCUSDT", entry0=1.0, stop=0.95, tp1=1.06, tp2=1.1, oneh="LIVE", star=True)
 v = rs.verdict_text(ew, 0.37, now)
-check("verdict reply = 2 lines, HOLD FULL", len(v.split("\n")) == 2 and "HOLD FULL" in v, v)
+check("verdict reply = 3 lines (+ 🕐 stamp), HOLD FULL", len(v.split("\n")) == 3 and "HOLD FULL" in v and v.split("\n")[2].startswith("🕐"), v)
 ew["oneh"] = "DEAD"
 v2 = rs.verdict_text(ew, -0.1, now)
-check("DEAD verdict reply = 2 lines, HOLD no add", len(v2.split("\n")) == 2 and "HOLD, no add" in v2, v2)
+check("DEAD verdict reply = 3 lines (+ 🕐 stamp), HOLD no add", len(v2.split("\n")) == 3 and "HOLD, no add" in v2 and "1H DEAD stars" in v2, v2)
 g = rs.go_text(dict(ew, oneh="LIVE"), 0.4, 1800, 1.02, now)
 check("GO reply = 5 lines (header · plan · record · 🕐 clock · class), PROTECT not an entry, FAST",
       len(g.split("\n")) == 5 and "PROTECT, not an entry" in g and "GO FAST" in g
@@ -96,8 +96,9 @@ for fn in ("_fmt_pair_card", "_fmt_conv_revival"):
     ns[fn + "_src"] = src[i:j]
 import types  # noqa: E402
 stub = types.SimpleNamespace(pkt_hm=rs.pkt_hm, rec=lambda c: "no closes yet", tier_rec=lambda *a, **k: (0, 0.0, 0.0), go_text=rs.go_text)
+import tg_cells  # noqa: E402
 env = {"rung_stats": stub, "PAIR_KINDS": {}, "PAIR_FIRST": {}, "PAIR_SECOND": {}, "PAIR_LINE": {}, "CONV_REV_CARD_REC": {},
-       "_conf_band": lambda c: None, "_revival_dress": lambda m, *a: m}
+       "_conf_band": lambda c: None, "_revival_dress": lambda m, *a: m, "tg_cells": tg_cells}
 i = src.index("PAIR_KINDS = {"); j = src.index("def _pair_partner_ts(")
 blk = src[i:j]
 for const in ("STAR_PRIME_REC", "CONV_PRIME_REC", "TRIGKR_PRIME_REC", "LEG2_PRIME_REC"):
@@ -109,12 +110,12 @@ exec(ns["_fmt_pair_card_src"], env)
 exec(ns["_fmt_conv_revival_src"], env)
 sig = dict(symbol="ABCUSDT", base="ABC", side="LONG", entry=1.0, stop=0.95, tp1=1.06, tp2=1.1, conf=66, elite_ts=now - 2700)
 card = env["_fmt_pair_card"]("startrig", sig, 1.01, now, now - 300)
-check("pair card = 4 lines", len(card.split("\n")) == 4, card)
+check("pair card = 5 lines (+ 🕐 stamp)", len(card.split("\n")) == 5 and card.split("\n")[4].startswith("🕐") and "⭐💥 entered at the 2nd fire" in card, card)
 check("pair card: STAR × STRONG TRIGGER header with TAKE", card.startswith("⭐💥 *STAR × STRONG TRIGGER — ABC LONG · TAKE ·"), card)
 check("pair card: fires in time order with the gap", "⭐ star" in card.split("\n")[1] and "→ 💥 trigger" in card.split("\n")[1] and "(40 min)" in card.split("\n")[1], card)
 check("pair card: the pair record line", "pair 71% / +0.18R entered (77)" in card, card)
 rev = env["_fmt_conv_revival"](dict(base="ABC", side="LONG", entry0=1.0, stop=0.95, tp1=1.06, go="LATE"), 0.28, 5 * 3600, 1.03, now, (True, "read: ✅ not MAX · ✅ score 84 — rec", "✅ entry cell — rec"), False)
-check("conviction revival card ≤ 4 lines, HOLD READ, LATE", len(rev.split("\n")) <= 4 and "CONVICTION REVIVAL — ABC LONG · LATE" in rev and "HOLD READ" in rev, rev)
+check("conviction revival card ≤ 5 lines (+ 🕐 stamp), HOLD READ, LATE", len(rev.split("\n")) <= 5 and "CONVICTION REVIVAL — ABC LONG · LATE" in rev and "HOLD READ" in rev and "💎 revival entered at the GO" in rev, rev)
 check("conviction revival card carries the entered-at-GO record", "entered at the GO 58% / +0.06R (50)" in rev, rev)
 k = src.index("def _kr_note(")
 check("Kronos line is one short glance", 'return f"\\n🔮 {\'✅\' if agree else \'❌\'} {d} {_e:+.1f}%"' in src[k:k + 2500])

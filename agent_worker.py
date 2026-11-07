@@ -28,6 +28,7 @@ import bottom_watch
 import shock_watch
 import buzz_clock
 import clock_cells
+import tg_cells        # 🕐 2026-11-08: the one window-stamp rule for every bell
 import bank_zone
 import support_resistance
 import rung_stats
@@ -476,7 +477,8 @@ def _fmt_conv_revival(ew, prg, age_s, px, now, rg, unappr=False):
         read = " · ".join(x for x in (str(rg[1] or "").split(" — ")[0], str(rg[2] or "").split(" — ")[0]) if x)
         rec_line = (CONV_REV_CARD_REC.get(cls, "") + " · 6 Oct → 4 Nov"
                     + (" · UNAPPROVED fire — size down" if unappr else ""))
-        return "\n".join(x for x in (head, plan, read, rec_line) if x)
+        st_line = tg_cells.stamp("conv_revival", cls, now)   # 🕐 2026-11-08: this GO class in this window
+        return "\n".join(x for x in (head, plan, read, rec_line, st_line) if x)
     except Exception:
         return _revival_dress(rung_stats.go_text(ew, prg, age_s, px, now), ew, age_s, now)
 
@@ -643,7 +645,8 @@ def _fmt_prime_trig(sig, px, now):
     plan = plan + (f" · {bl}" if bl else "")
     rd = str(rd).split(" — ")[0] if rd else ""
     l5 = f"pair {PRIME_TRIG_REC} · forward {fwd} · bank at TP1"
-    return "\n".join(x for x in (head, plan, rd, l5) if x)
+    l6 = tg_cells.stamp("prime_trig", None, now)   # 🕐 2026-11-08
+    return "\n".join(x for x in (head, plan, rd, l5, l6) if x)
 
 
 def _prime_read(p, now, btc=None):
@@ -2146,16 +2149,18 @@ def _fmt_apex_v2_gated(sig, px, read_line, now):
             f"{str(read_line).split(' — ')[0]}\n"
             f"entry `{float(sig['entry']):g}` · live `{e:g}` · SL `{st:g}` · {tps} · "
             f"score {float(sig.get('score') or 0):.0f} · heat {float(sig.get('heat') or 0):.0f}\n"
-            f"⏱ 1h verdict replies here · LIVE 70% / +0.54R (46) · DEAD 34% / −0.24R (79) · gated forward {fwd}")
+            f"⏱ 1h verdict replies here · LIVE 70% / +0.54R (46) · DEAD 34% / −0.24R (79) · gated forward {fwd}\n"
+            + tg_cells.stamp("apex_v2", sd, now))   # 🕐 2026-11-08: APEX V2 fires in this window, this side
 
 
 def _fmt_apex_v2_verdict(ew, prg):
     """⏱🏆 the 1H VERDICT reply under a gated APEX V2 bell (user 2026-11-01)."""
+    _st = tg_cells.stamp("apex_v2", ew.get("side"), float(ew.get("fired_at") or time.time()))   # 🕐 2026-11-08
     if ew.get("oneh") == "LIVE":
         return (f"⏱🏆 *{ew['base']} {ew['side']} · 1H LIVE · HOLD FULL*\n"
-                f"{prg * 100:+.0f}% of the path · LIVE APEX V2 70% / +0.54R (46) held · entered at the hour ≈ 0R")
+                f"{prg * 100:+.0f}% of the path · LIVE APEX V2 70% / +0.54R (46) held · entered at the hour ≈ 0R\n{_st}")
     return (f"⏱🏆 *{ew['base']} {ew['side']} · 1H DEAD · HOLD, no add*\n"
-            f"{prg * 100:+.0f}% of the path · DEAD APEX V2 34% / −0.24R held (79) · the plan's SL / TP stay")
+            f"{prg * 100:+.0f}% of the path · DEAD APEX V2 34% / −0.24R held (79) · the plan's SL / TP stay\n{_st}")
 
 
 def _fmt_apex_v2(sig, px=None, rec=None) -> str:
@@ -2547,6 +2552,11 @@ PAIR_LINE = {   # the pair record, one line, entered at the second fire unless s
     "starv2": "83% / +0.75R entered (12) · both halves — thin"}
 
 
+# 🕐 2026-11-08: the window stamp each pair card carries (tg_cells table per kind; None = none)
+PAIR_STAMP = {"star": "star_prime", "startrig": "star_trig", "startn": "star_takenow",
+              "starv2": "star_apexv2", "conv": "conv_prime", "leg2": "leg2_prime", "trigkr": None}
+
+
 def _pair_partner_ts(kind, sym, side, ts):
     """The partner fire's ts for a pair kind, or None. PRIME kinds keep their
     2h-before → 30-min-after window; the star pairs look 2h either side
@@ -2584,7 +2594,11 @@ def _fmt_pair_card(kind, sig, px, now, partner_ts=None):
         fwd = rung_stats.rec(rung_stats.tier_rec(kd["tier"], None, now))
     except Exception:
         fwd = "record unavailable"
-    return "\n".join([head, seq, plan, f"pair {PAIR_LINE[kind]}{band_bit} · forward {fwd}"])
+    lines = [head, seq, plan, f"pair {PAIR_LINE[kind]}{band_bit} · forward {fwd}"]
+    _tbl = PAIR_STAMP.get(kind)
+    if _tbl:   # 🕐 2026-11-08: the pair's own record in this window (side-keyed where measured)
+        lines.append(tg_cells.stamp(_tbl, side, now))
+    return "\n".join(lines)
 
 
 def _conf_band(conf):
@@ -3229,9 +3243,8 @@ def cycle() -> None:
                                     _sizedown9 = "one_trade" in _pt9
                                 except Exception:
                                     _partners9, _sizedown9 = (), False
-                                try:   # 🕐 the clock cell's light sets the size word (🟢 full · 🟡 half · 🔴 small)
-                                    _cl9 = clock_cells.verdict(clock_cells.STAR_CELLS,
-                                                               _pmx.get("side"), time.time())[0]
+                                try:   # 🕐 the window stamp's light sets the size word (🟢 full · 🟡 half · 🔴 small)
+                                    _cl9 = tg_cells.light_of("elite_star", _pmx.get("side"), time.time())
                                     _size9 = {"🟢": "full", "🟡": "half", "🔴": "small"}.get(_cl9)
                                 except Exception:
                                     _size9 = None
@@ -3257,9 +3270,8 @@ def cycle() -> None:
                                                     _btc_day_pct())
                                 _msg9 = _msg9.replace(
                                     "\n", "\n" + str(_gate9[1]).split(" — ")[0] + "\n"
-                                    + clock_cells.star_line_short(
-                                        _pmx.get("side"), time.time())
-                                    + "\n", 1)   # 2026-11-07 concise card: the read's ticks + the clock cell only
+                                    + tg_cells.stamp("elite_star", _pmx.get("side"), time.time())
+                                    + "\n", 1)   # 2026-11-08: the read's ticks + the 🕐 window stamp (68 / 60 lights)
                             except Exception as _gt_exc:
                                 _gate9 = (True, f"read: error {_gt_exc}")
                         _w1317 = (_star9 and STAR_UNGATED_1317
@@ -8268,7 +8280,8 @@ def cycle() -> None:
                             _rg_by.get((_rg_sym, _rg_side), [])))
                     ok, _ = tg.send(   # 2026-11-07 concise ping
                         f"🏦 *{_rg_b2} {_rg_side} · TP1 HIT `{_rg_tp1:g}` · BANK 100%*\n"
-                        f"from {_rg_from or TP1_STREAMS.get(_rg_src, _rg_src)} · fire `{_rg_ent:g}` · SL `{_rg_stp:g}`")
+                        f"from {_rg_from or TP1_STREAMS.get(_rg_src, _rg_src)} · fire `{_rg_ent:g}` · SL `{_rg_stp:g}`"
+                        + tg_cells.stamp_src(_rg_src, _rg_side, _rg_ts))   # 🕐 2026-11-08: the fire's window cell
                     n_alerts += 1 if ok else 0
                 continue
             if _rg_stopped:

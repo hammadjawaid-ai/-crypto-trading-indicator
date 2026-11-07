@@ -30,6 +30,7 @@ import time
 from collections import defaultdict
 
 import buzz_clock
+import tg_cells
 import worker_store as store
 
 PK = 5 * 3600                 # Pakistan time, the user's clock
@@ -351,11 +352,15 @@ def verdict_text(ew: dict, prg: float, now: float,
     C = st["cls"]
     fam = "⭐ stars" if star else "elite fires"
     base, side, when = ew["base"], ew["side"], pkt_hm(now)
-    if ew.get("oneh") == "LIVE":
+    live = ew.get("oneh") == "LIVE"
+    # 🕐 2026-11-08: the verdict class in the FIRE's window (stars; the user's 68 / 60 lights)
+    st_line = ("\n" + tg_cells.stamp("star_live" if live else "star_dead", side,
+                                     float(ew.get("fired_at") or now))) if star else ""
+    if live:
         return (f"⏱ *{base} {side} · 1H LIVE {when} PKT · HOLD FULL*\n"
-                f"{prg * 100:+.0f}% of the path · LIVE {fam} {rec(C['live'])}")
+                f"{prg * 100:+.0f}% of the path · LIVE {fam} {rec(C['live'])}" + st_line)
     return (f"⏱ *{base} {side} · 1H DEAD {when} PKT · HOLD, no add*\n"
-            f"{prg * 100:+.0f}% of the path · DEAD then GO {rec(C['dead_go'])} · never {rec(C['dead_nogo'])}")
+            f"{prg * 100:+.0f}% of the path · DEAD then GO {rec(C['dead_go'])} · never {rec(C['dead_nogo'])}" + st_line)
 
 
 def go_text(ew: dict, prg: float, age_s: float, px: float, now: float,

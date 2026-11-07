@@ -9,6 +9,8 @@ side and the fire's 4h PKT window. Static and dated — re-measure with
 A label, never a gate: the bell rings and the card shows regardless."""
 from __future__ import annotations
 
+import tg_cells   # 🕐 2026-11-08: the user's 68 / 60 lights on the GO reply line
+
 STAR_MEASURED = "gated ⭐ record 09 Sep → 04 Nov"   # 2026-11-04 refresh: 226 rung / 282 muted desk closes, gate stamped since 14 Oct, the same four rules reconstructed before
 REVIVED_MEASURED = "gated GO REVIVED record 13 Sep → 14 Oct"
 MIN_N = 10            # fewer trades than this -> no time call
@@ -265,8 +267,7 @@ def _short_cell(desk: dict, replay: dict, side: str, ts: float) -> tuple[str, st
         c = cells.get((side, win))
         if isinstance(c, tuple) and c[2] >= MIN_N:
             w, r, n = c
-            e = "🟢" if (w >= 65 and r >= 0.25) else "🔴" if (w <= 45 or r <= 0) else "🟡"
-            return e, f"{win} {side.lower()}s {w}% / {r:+.2f}R ({n}{tag})"
+            return tg_cells.light(w), f"{win} {side.lower()}s {w}% / {r:+.2f}R ({n}{tag})"
     return "🟡", f"{win} {side.lower()}s thin"
 
 
@@ -296,9 +297,8 @@ def go_clock_short(side: str, fired_at: float, go_at: float, kind: str = "FAST",
         land = f"landing {gw}: thin"
     else:
         hw, hr, ew, er, n = c
-        call = ("🟢 entry has paid" if (er >= 0.10 and ew >= 65)
-                else "🟡 hold only" if er > -0.10 else "🔴 entry lost")
-        land = f"landing {gw}: held {hw}% / {hr:+.2f}R · entered {ew}% / {er:+.2f}R ({n}{tag}) {call}"
+        land = (f"landing {gw}: {tg_cells.light(ew)} entered {ew}% / {er:+.2f}R ({n}{tag}) — "
+                f"{'entry pays' if er >= 0.10 else 'hold only'} · held {hw}% / {hr:+.2f}R")
     return f"🕐 {e} fired {fire} · {land}"
 
 
