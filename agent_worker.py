@@ -6735,16 +6735,14 @@ def cycle() -> None:
                                                            if _ok9
                                                            else f"failed: {_m9x}"))
                                     elif _ew.get("buzzed"):
-                                        if _ew.get("go") == "LATE":
-                                            # ⭐⚡ LATE ELITE GO reply skipped (user
-                                            # 2026-10-19): 3 trades a month.
-                                            _bell9 = "skipped (LATE elite GO reply)"
-                                        else:
-                                            _ok9, _m9x, _ = tg.send_thread(
-                                                _go9,
-                                                reply_to=_ew.get("tg_ids"))
-                                            _bell9 = ("sent-thread" if _ok9
-                                                      else f"failed: {_m9x}")
+                                        # ⭐⚡ GO FAST and GO LATE both reply in the thread
+                                        # (user 2026-11-07: "bring go late after live back too";
+                                        # the 2026-10-19 LATE skip is withdrawn).
+                                        _ok9, _m9x, _ = tg.send_thread(
+                                            _go9,
+                                            reply_to=_ew.get("tg_ids"))
+                                        _bell9 = ("sent-thread" if _ok9
+                                                  else f"failed: {_m9x}")
                                     elif (_ew.get("oneh") == "LIVE"
                                           and not _ew.get("star")):
                                         # 💎⚡ LIVE then GO, elite conviction
