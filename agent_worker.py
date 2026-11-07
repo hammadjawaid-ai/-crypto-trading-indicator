@@ -3327,7 +3327,13 @@ def cycle() -> None:
                                             _pmx.get("side") or ""
                                         ).upper()
                                         and _ewb.get("fam", "elite")
-                                        == "elite"):
+                                        == "elite"
+                                        # 2026-11-07: only the watch entry of the
+                                        # fire that rang — a star bell marks the
+                                        # star entry, not the plain conviction
+                                        # entry on the same coin (both used to reply
+                                        # in the thread: one 💎⚡ GO and one ⭐⚡ GO).
+                                        and bool(_ewb.get("star")) == bool(_star9)):
                                     _ewb["buzzed"] = True
                                     if _ids9:
                                         _ewb["tg_ids"] = _ids9

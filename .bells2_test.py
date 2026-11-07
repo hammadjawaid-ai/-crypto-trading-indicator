@@ -55,6 +55,7 @@ check("90% ping gated on TG_NEAR90", "if TG_NEAR90 and _rg_n90 and store.should_
 check("star revival = thread reply under its own bell",
       'if _ew.get("oneh") == "DEAD" and _ew.get("star"):' in W and '"sent-thread (revived)"' in W)
 check("GO LATE after a LIVE verdict replies in the thread again (2026-11-07)", '"skipped (LATE elite GO reply)"' not in W)
+check("a star bell marks only the star watch entry (no duplicate GO / verdict replies)", 'and bool(_ewb.get("star")) == bool(_star9)):' in W)
 check("conviction revival kept, concise card", "_go9x = _fmt_conv_revival(" in W and "def _fmt_conv_revival(" in W)
 check("the un-rung-fire mute from fab9030 is gone (conviction revivals ring again)", 'elif not _ew.get("buzzed"):' not in W)
 
