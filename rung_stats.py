@@ -250,25 +250,47 @@ def next_line(now: float) -> str:
 
 
 # ───────────────────────── rung 1: the fire bells ─────────────────────────
+STAR_FULL_WINDOWS = ("05–09", "09–13", "17–21")   # gated stars 70% / +0.40R · 66% / +0.38R · 69% / +0.47R, both halves
+STAR_PARTNER_REC = {"takenow": ("✅🔥 TAKE NOW HOT", "84% / +0.82R (25)"),
+                    "trig_strong": ("💥 STRONG TRIGGER", "81% / +0.62R (27)"),
+                    "prime": ("🥇 PRIME", "67% / +0.27R (67)")}
+STAR_SIZE_DOWN_REC = "👑 ONE TRADE beside it: gated stars 53% / +0.16R (49) vs +0.43R without — half"
+
+
+def star_size(win: str, size_down: bool = False) -> str:
+    """The size word in the ⭐ header (2026-11-07, user: "sort elite star fires
+    and notifications"): full in the three windows that held in both halves
+    of the gated record, half elsewhere, half when a 👑 ONE TRADE sits beside
+    the fire. A label, never a gate."""
+    if size_down:
+        return "half"
+    return "full" if win in STAR_FULL_WINDOWS else "half"
+
+
+def star_partner_line(partners) -> str:
+    """One line naming the measured partners within 2h of the fire, or ''."""
+    bits = [f"{STAR_PARTNER_REC[k][0]} ({STAR_PARTNER_REC[k][1]})"
+            for k in ("takenow", "trig_strong", "prime") if k in (partners or ())]
+    return ("with: " + " · ".join(bits)
+            + " — gated stars with that fire beside them, 9 Sep → 4 Nov, thin") if bits else ""
+
+
 def star_fire(p: dict, conf, now: float, chips=(), kr_line: str = "",
-              db_path: str | None = None, bank=None) -> str:
-    """⭐ ELITE STAR fire bell: action word first, plan, chips, the rule, the
-    window record with both stamps, what comes next, the Kronos line."""
+              db_path: str | None = None, bank=None, partners=(),
+              size_down: bool = False, size: str | None = None) -> str:
+    """⭐ ELITE STAR fire bell (re-set 2026-11-07): TAKE + size in the header,
+    the plan, the bank zone, the partner line, chips, the rule, what comes
+    next, the Kronos line. The gate adds its read line and the clock cell;
+    the old window-record / stamp lines are gone (they duplicated the cell)."""
     side = (p.get("side") or "").upper()
     base = p.get("base") or str(p.get("symbol") or "").replace("USDT", "")
     hour = pkt_hour(now)
     win = buzz_clock.window_of(hour)
-    night = is_night(hour)
-    st = classes("elite_star", now, db_path)
-    C = st["cls"]
-    try:
-        bc = buzz_clock.stats("elite_star", now, db_path)
-    except Exception:
-        bc = {}
-    wcell = bc.get((side, win), (0, 0.0, 0.0))
-    who = "longs" if side == "LONG" else "shorts"
-    action = ("TAKE HALF, or wait for GO (night fire)" if night
-              else f"TAKE (full size: {win} PKT window)")
+    # the size word: the 🕐 clock cell's light when the bell has it (🟢 full ·
+    # 🟡 half · 🔴 small — the header and the clock line never disagree),
+    # else the window list; a 👑 ONE TRADE beside the fire always halves.
+    size = "half" if size_down else (size or star_size(win, size_down))
+    action = f"TAKE · {size}"
     e, s, t1 = float(p["entry"]), float(p["stop"]), float(p["tp1"])
     t2 = p.get("tp2")
     plan = (f"entry `{e:g}` · SL `{s:g}` · TP1 `{t1:g}`"
@@ -279,27 +301,19 @@ def star_fire(p: dict, conf, now: float, chips=(), kr_line: str = "",
     chips_line = " · ".join(str(c) for c in chips if c)
     if not chips_line and conf is not None:
         chips_line = f"🎯 conf {conf}"
-    if night:
-        wl = (f"window record: {light(wcell)} {win} PKT {who} {rec(wcell)} · "
-              f"night fires {rec(C['night'])} · frozen night fires "
-              f"{rec(C['frozen_night'])} · ignited night fires "
-              f"{rec(C['ignited_night'])}")
-    else:
-        wl = (f"window record: {light(wcell)} {win} PKT {who} {rec(wcell)} · "
-              f"day fires {rec(C['day'])} · night fires {rec(C['night'])}")
-    hn, hw, ha = bc.get((side, hour), (0, 0.0, 0.0))
-    if hn >= buzz_clock.MIN_H and abs(ha) >= buzz_clock.HOUR_R:
-        wl += (f" · {'⚠️' if ha < 0 else '✨'} {hour:02d}:00 itself: "
-               f"{hw:.0f}% / {_r(ha)} ({hn})")
     lines = [f"⭐ *ELITE STAR — {base} {side} · {action} · {pkt_hm(now)} PKT*",
              plan]
     if bank:                      # 🎯 bank zone (user 2026-10-24)
         import bank_zone as _bz
         lines.append(_bz.line(bank))
+    pl = star_partner_line(partners)
+    if pl:
+        lines.append(pl)
+    if size_down:
+        lines.append(STAR_SIZE_DOWN_REC)
     if chips_line:
         lines.append(chips_line)
-    lines += ["rule: enter at the buzz, no conf filter", wl, stamp(st),
-              next_line(now)]
+    lines += ["rule: enter at the buzz, no conf filter", next_line(now)]
     msg = "\n".join(lines)
     kr = (kr_line or "").strip()
     if kr:

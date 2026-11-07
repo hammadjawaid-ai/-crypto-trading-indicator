@@ -118,7 +118,9 @@ if "(both sides)" not in gb3 or "59% / -0.04R" not in gb3:   # short LATE 13–1
     fails.append(f"go timing (thin -> pooled): {gb3}")
 if "thin (7), no record" not in cc.go_timing_line("LATE", "LONG", T(6)):
     fails.append("thin fire-window cell must say so")
-for need, lab in (("+ \"\\n\" + clock_cells.go_timing_line(   # 2026-11-04: what a GO FAST on this window has done", "star bell go line"),
+if "go_timing_line" in W[W.find("_gate9 = _star_gate(_pmx, time.time(),"):W.find("_w1317 = (_star9 and STAR_UNGATED_1317")]:
+    fails.append("the GO-timing line must stay OFF the ⭐ fire card (2026-11-07)")
+for need, lab in (
                   ("                                    if _ew.get(\"star\"):\n                                        # 🕐 GO FAST / LATE timing read by the GO's own", "go bell timing block")):
     if need not in W:
         fails.append(f"worker missing: {lab}")
@@ -145,8 +147,8 @@ ns = {}
 for n_ in ast.parse(W).body:
     if isinstance(n_, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "STAR_UNGATED_1317" for t in n_.targets):
         exec(compile(ast.Module(body=[n_], type_ignores=[]), "c", "exec"), ns)
-if ns.get("STAR_UNGATED_1317") is not True:
-    fails.append("STAR_UNGATED_1317 must be ON (user 2026-10-17)")
+if ns.get("STAR_UNGATED_1317") is not False:
+    fails.append("STAR_UNGATED_1317 must be OFF (user 2026-11-07: one gate in every window)")
 for need, lab in (('_w1317 = (_star9 and STAR_UNGATED_1317\n                                  and clock_cells.window_of(time.time()) == "13–17")', "window flag"),
                   ('if _star9 and TG_GATES and not _gate9[0] and not _w1317:\n                            ok, _m9, _ids9 = False, "gated", None', "muting skips the 13–17 window"),
                   ('if _w1317:\n                                # 🕐 the ungated window rings with a caution', "caution line in the window"),

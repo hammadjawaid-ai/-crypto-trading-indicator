@@ -157,3 +157,21 @@ Fix: `binance_client.get_klines(..., fresh=True)` takes its own snapshot (the ex
 applies); only `entry_timing.entry_signal` uses it — the behaviour every one of those records was measured on.
 Everything else keeps the reuse. Guard: `.takenow_restore_test.py`. Same commit: the 🏆💎 APEX V2 GATED 1H
 verdict reply was an `elif` chained to `if TG_RULES:` and never ran; it is now its own branch ahead of it.
+
+## ⭐ STAR BELL RE-SET (2026-11-07) — one bell, one verb, one size
+
+User: "it gets confusing to take a trade or not … we have gated and ungated elite star notifications."
+- The 13–17 PKT ungated exception is OFF (`STAR_UNGATED_1317 = False`): one gate in every window. Gated 13–17
+  stars 50% / −0.15R (22) vs muted 65% / +0.25R (37) — thin and contradictory; the window is decided at 60 fires.
+- Header: `⭐ ELITE STAR — COIN SIDE · TAKE · full|half|small · HH:MM PKT`. The size word is the 🕐 clock cell's
+  light (🟢 full · 🟡 half · 🔴 small), so the header and the clock line never disagree; a 👑 ONE TRADE beside
+  the fire halves it (gated stars 53% / +0.16R with one vs +0.43R without).
+- A partner line names a ✅🔥 TAKE NOW HOT / 💥 STRONG TRIGGER / 🥇 PRIME fire within 2h of the star
+  (`worker_store.streams_between`): gated stars with TAKE NOW HOT 84% / +0.82R (25), with a strong trigger
+  81% / +0.62R (27), 9 Sep → 4 Nov, thin.
+- Off the fire card: the window-record and stamp lines (they duplicated the clock cell) and the GO-timing line
+  (a future-state stat; it stays on the GO bells). Kept: plan, 🎯 bank zone, chips, the rule, the next line, Kronos.
+- The standalone ⭐⚡/💎⚡ GO REVIVED bell rings only for fires the phone rang. Entered at the GO it measured
+  54% / −0.07R FAST, 55% / −0.03R LATE (6 Oct → 4 Nov); a hold read for a seat you do not have is noise.
+  Revivals of un-rung fires keep their board card and the go_revived ledger. 💎⚡ GO LIVE (TG_GO_LIVE) untouched.
+- Guard: `.star_bell_test.py` (22 checks); `.clock_cells_test.py` updated to the new law.

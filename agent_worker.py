@@ -406,7 +406,7 @@ STAR_BTC_MAX = 1.5
 # 68% / +0.25R (25) — too thin to flip the rules, so the window rings as a
 # whole with a caution line and the record stamps 1317-pass / 1317-muted
 # for the forward split. Phone only: the demo seat still follows the read.
-STAR_UNGATED_1317 = True
+STAR_UNGATED_1317 = False   # 2026-11-07 (user: "sort elite star fires and notifications"): one gate in every window — gated 13–17 stars 50% / −0.15R (22) vs muted 65% / +0.25R (37), both thin and contradictory; decide the window at 60 fires, not with two kinds of bell. Revert: True.
 GATE_BTC_MIN = -1.5
 STAR_GATE_REC = ("gated set 71% / +0.45R (146) vs rejected 48% / -0.05R (205) · "
                  "desk 09 Sep → 14 Oct")
@@ -3130,9 +3130,26 @@ def cycle() -> None:
                                         _sr_levels(_pmx.get("symbol"), _pmx.get("side")))
                                 except Exception:
                                     _bank9 = None
+                                try:   # 🤝 the partner read (2026-11-07): fires on this coin+side in the last 2h
+                                    _pt9 = store.streams_between(
+                                        _pmx.get("symbol"), _pmx.get("side"),
+                                        time.time() - 2 * 3600, time.time() + 60)
+                                    _partners9 = tuple(k for k in ("takenow", "trig_strong", "prime")
+                                                       if k in _pt9 and (k != "takenow" or _pt9[k]))
+                                    _sizedown9 = "one_trade" in _pt9
+                                except Exception:
+                                    _partners9, _sizedown9 = (), False
+                                try:   # 🕐 the clock cell's light sets the size word (🟢 full · 🟡 half · 🔴 small)
+                                    _cl9 = clock_cells.verdict(clock_cells.STAR_CELLS,
+                                                               _pmx.get("side"), time.time())[0]
+                                    _size9 = {"🟢": "full", "🟡": "half", "🔴": "small"}.get(_cl9)
+                                except Exception:
+                                    _size9 = None
                                 _msg9 = rung_stats.star_fire(
                                     _pmx, _cf9, time.time(), _cbits,
-                                    _kr_note(_pmx), bank=_bank9)
+                                    _kr_note(_pmx), bank=_bank9,
+                                    partners=_partners9, size_down=_sizedown9,
+                                    size=_size9)
                                 if _ag9:
                                     _msg9 = _agrade_banner(
                                         _seat9, _cf9, _plan_rr(_pmx),
@@ -3152,9 +3169,7 @@ def cycle() -> None:
                                     "\n", "\n" + _gate9[1] + "\n"
                                     + clock_cells.star_line(
                                         _pmx.get("side"), time.time())
-                                    + "\n" + clock_cells.go_timing_line(   # 2026-11-04: what a GO FAST on this window has done
-                                        "FAST", _pmx.get("side"), time.time())
-                                    + "\n", 1)
+                                    + "\n", 1)   # 2026-11-07: the GO-timing line left the fire card (a future-state stat; it stays on the GO bells)
                             except Exception as _gt_exc:
                                 _gate9 = (True, f"read: error {_gt_exc}")
                         _w1317 = (_star9 and STAR_UNGATED_1317
@@ -6613,6 +6628,15 @@ def cycle() -> None:
                                                 # the entry cell (user 2026-10-19): at the
                                                 # GO the class is breakeven everywhere else.
                                                 _bell9 = f"gated: entry cell not met — {_rg9[2]}"
+                                            elif not _ew.get("buzzed"):
+                                                # 📵 2026-11-07 (user: "sort elite star fires and
+                                                # notifications"): a revived GO is a HOLD read —
+                                                # entered at the GO it measured 54% / −0.07R FAST
+                                                # and 55% / −0.03R LATE (6 Oct → 4 Nov). A fire the
+                                                # phone never rang has no seat to hold, so its
+                                                # revival stays on the board and the go_revived
+                                                # ledger, off the phone. Revert: delete this branch.
+                                                _bell9 = "muted: fire never rang (hold read, no seat)"
                                             else:
                                                 _un9 = not (_ew.get("star")
                                                             or _ew.get("appr"))

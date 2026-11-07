@@ -885,6 +885,25 @@ def shadow_void_summary() -> dict:
     finally:
         c.close()
 
+def streams_between(symbol: str, side: str, ts_from: float, ts_to: float) -> dict:
+    """{stream: hot_any} recorded for this coin+side in [ts_from, ts_to) — the
+    partner read printed on a ⭐ star bell (2026-11-07): a TAKE NOW HOT or
+    💥 STRONG TRIGGER fire within 2h of a gated star was the desk's best cell
+    (84% / +0.82R and 81% / +0.62R), a 👑 ONE TRADE beside it the worst
+    (+0.16R vs +0.43R without). Read-only."""
+    c = _open()
+    try:
+        rows = c.execute(
+            "SELECT stream, MAX(COALESCE(hot, 0)) FROM signals WHERE symbol=? "
+            "AND upper(side)=? AND ts>=? AND ts<? GROUP BY stream",
+            (symbol, (side or "").upper(), ts_from, ts_to)).fetchall()
+        return {r[0]: bool(r[1]) for r in rows}
+    except Exception:
+        return {}
+    finally:
+        c.close()
+
+
 def seen_between(stream: str, symbol: str, side: str,
                  ts_from: float, ts_to: float) -> bool:
     """True if this (stream, symbol, side) was recorded in [ts_from, ts_to).
