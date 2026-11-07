@@ -47,8 +47,8 @@ for h, side, star, want, frag in ((14, "SHORT", False, "HALF", "67% / +0.21R (18
 if "💎 conviction revivals, 7-week candle replay" not in cc.revived_line("LONG", T(22), False) or "⭐ star revived record" not in cc.revived_line("LONG", T(10), True) \
         or "⭐ star revivals, 7-week candle replay" not in cc.revived_line("LONG", T(14), True):
     fails.append("family labels must name the family on both the desk and the replay source")
-if 'bool(_ew.get("star")))' not in W or 'clock_cells.revived_line(\n                                                        _ew["side"],' not in W:
-    fails.append("the bell must pass the star flag to the revived line")
+if "_go9x = _fmt_conv_revival(" not in W or "CONV_REV_CARD_REC = {" not in W:
+    fails.append("the conviction revival bell must use the concise card (2026-11-07)")
 # both thin -> THIN, says so
 _e, _c, _d = cc.verdict2(cc.ELITE_GO_CELLS, cc.ELITE_GO_REPLAY_CELLS, "SHORT", T(10), cc.ELITE_GO_MEASURED)
 if _c != "THIN" or "thin on the desk (1) and in the replay" not in _d:
@@ -68,7 +68,7 @@ for need, lab in (('if _ew.get("oneh") == "LIVE" and _ew.get("star"):\n         
 if "+ clock_cells.elite_go_line(_sd, _ts) + \"</span>\")\n                   if (_vt and str(_vt[-1]).upper() == \"LIVE\" and _gt) else \"\")" not in A:
     fails.append("star card must carry the ELITE GO line only on LIVE + GO cards")
 i_eg = W.find('if _ew.get("oneh") == "LIVE" and _ew.get("star"):\n                                        # 🕐 ELITE GO clock line')
-i_dead = W.find('if _ew.get("oneh") == "DEAD":\n                                        # GO REVIVED is its own bell')
+i_dead = W.find('if _ew.get("oneh") == "DEAD" and _ew.get("star"):')   # 2026-11-07: the star branch comes first
 if not (0 < i_eg < i_dead):
     fails.append("the ELITE GO line must be added to _go9 before the bell branches (branches untouched)")
 # 💎⚡ GO LIVE cells on the conviction cards (user 2026-10-18)
@@ -133,8 +133,8 @@ if cc.verdict(cc.STAR_CELLS, "LONG", T(2))[2].endswith("closed by the gate") is 
     fails.append("01–05 star must read closed by the gate")
 # wiring
 for need, lab in (("import clock_cells\n", "worker import"),
-                  ("+ clock_cells.star_line(\n                                        _pmx.get(\"side\"), time.time())", "star bell line"),
-                  ("+ clock_cells.revived_line(\n                                                        _ew[\"side\"],", "revived bell line")):
+                  ('clock_cells.star_line_short(', "star bell line (short since 2026-11-07)"),
+                  ('_go9x = _fmt_conv_revival(', "revived bell line (concise card since 2026-11-07)")):
     if need not in W:
         fails.append(f"worker missing: {lab}")
 for need, lab in (("import clock_cells\n", "app import"),

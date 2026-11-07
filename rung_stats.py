@@ -245,8 +245,7 @@ def stamp_now(now: float) -> str:
 
 
 def next_line(now: float) -> str:
-    return (f"next: ⏱ verdict {pkt_hm(now + 3600)} · ⭐⚡ GO window till "
-            f"{pkt_hm(now + 4 * 3600)} · ❄️ freeze after")
+    return f"next: ⏱ verdict {pkt_hm(now + 3600)} · GO till {pkt_hm(now + 4 * 3600)}"
 
 
 # ───────────────────────── rung 1: the fire bells ─────────────────────────
@@ -268,11 +267,9 @@ def star_size(win: str, size_down: bool = False) -> str:
 
 
 def star_partner_line(partners) -> str:
-    """One line naming the measured partners within 2h of the fire, or ''."""
-    bits = [f"{STAR_PARTNER_REC[k][0]} ({STAR_PARTNER_REC[k][1]})"
-            for k in ("takenow", "trig_strong", "prime") if k in (partners or ())]
-    return ("with: " + " · ".join(bits)
-            + " — gated stars with that fire beside them, 9 Sep → 4 Nov, thin") if bits else ""
+    """The partner names within 2h of the fire, or '' (their records ride the pair bells)."""
+    bits = [STAR_PARTNER_REC[k][0] for k in ("takenow", "trig_strong", "prime") if k in (partners or ())]
+    return " · ".join(bits)
 
 
 def star_fire(p: dict, conf, now: float, chips=(), kr_line: str = "",
@@ -303,17 +300,26 @@ def star_fire(p: dict, conf, now: float, chips=(), kr_line: str = "",
         chips_line = f"🎯 conf {conf}"
     lines = [f"⭐ *ELITE STAR — {base} {side} · {action} · {pkt_hm(now)} PKT*",
              plan]
-    if bank:                      # 🎯 bank zone (user 2026-10-24)
+    if bank:                      # 🎯 bank zone (user 2026-10-24) — the chip, on the plan line
         import bank_zone as _bz
-        lines.append(_bz.line(bank))
+        lines[-1] = lines[-1] + " · " + _bz.chip(bank)
+    # one "with:" line: partners · ONE TRADE size-down · conf · heat (2026-11-07 concise card)
+    bits = []
     pl = star_partner_line(partners)
     if pl:
-        lines.append(pl)
+        bits.append(pl)
     if size_down:
-        lines.append(STAR_SIZE_DOWN_REC)
-    if chips_line:
-        lines.append(chips_line)
-    lines += ["rule: enter at the buzz, no conf filter", next_line(now)]
+        bits.append("👑 ONE TRADE beside it → half")
+    if conf is not None:
+        bits.append(f"conf {conf}")
+    if p.get("heat") is not None:
+        try:
+            bits.append(f"heat {float(p['heat']):.0f}")
+        except (TypeError, ValueError):
+            pass
+    if bits:
+        lines.append(("with: " if (pl or size_down) else "") + " · ".join(bits))
+    lines.append(next_line(now))
     msg = "\n".join(lines)
     kr = (kr_line or "").strip()
     if kr:
@@ -342,13 +348,10 @@ def verdict_text(ew: dict, prg: float, now: float,
     fam = "⭐ stars" if star else "elite fires"
     base, side, when = ew["base"], ew["side"], pkt_hm(now)
     if ew.get("oneh") == "LIVE":
-        return (f"⏱ *{base} {side} · 1H LIVE at {when} PKT · HOLD FULL*\n"
-                f"{prg * 100:+.0f}% of the path at 60 min · LIVE class "
-                f"({fam}) {rec(C['live'])}\n{stamp(st)}")
-    l3 = (f"DEAD then ignited ({fam}): {rec(C['dead_go'])} · DEAD never "
-          f"ignited: {rec(C['dead_nogo'])}")
-    return (f"⏱ *{base} {side} · 1H DEAD at {when} PKT · HOLD — no add, no cut*\n"
-            f"{prg * 100:+.0f}% of the path at 60 min\n{l3}\n{stamp(st)}")
+        return (f"⏱ *{base} {side} · 1H LIVE {when} PKT · HOLD FULL*\n"
+                f"{prg * 100:+.0f}% of the path · LIVE {fam} {rec(C['live'])}")
+    return (f"⏱ *{base} {side} · 1H DEAD {when} PKT · HOLD, no add*\n"
+            f"{prg * 100:+.0f}% of the path · DEAD then GO {rec(C['dead_go'])} · never {rec(C['dead_nogo'])}")
 
 
 def go_text(ew: dict, prg: float, age_s: float, px: float, now: float,
@@ -367,9 +370,8 @@ def go_text(ew: dict, prg: float, age_s: float, px: float, now: float,
     cls = (GO_CLASS["short"] if side == "SHORT" else
            GO_CLASS["late"] if late else GO_CLASS["long_fast"])
     cls_line = f"class: {cls} · {GO_CLASS['window']}"
-    head = (f"{emo} *GO — {base} {side} · {'REVIVED · ' if rev else ''}PROTECT · "
-            f"{pkt_hm(now)} PKT ({age_s / 3600:.1f}h after the fire"
-            f"{', late' if late else ''})*")
+    head = (f"{emo} *{base} {side} · GO {'LATE' if late else 'FAST'}{' · REVIVED' if rev else ''} "
+            f"{pkt_hm(now)} PKT · PROTECT, not an entry*")
     # the plan rides every GO (user 2026-10-06: "go revived telegram
     # notification should have the tp, entry and sl attached as well")
     _e0p = float(ew.get("entry0") or 0)
@@ -394,10 +396,13 @@ def go_text(ew: dict, prg: float, age_s: float, px: float, now: float,
               f"measured {rec(st['chase'])} — small, your call")
     else:
         l4 = f"not in it: {r_left:.1f}R left to TP1 from here — PASS"
-    if bank:                      # 🎯 bank zone (user 2026-10-24)
+    if bank:                      # 🎯 bank zone (user 2026-10-24) — the chip
         import bank_zone as _bz
-        plan = plan + "\n" + _bz.line(bank)
-    return "\n".join([head, cls_line, plan, l2, l3, l4, stamp(st)])
+        plan = plan + " · " + _bz.chip(bank)
+    # 2026-11-07 concise reply: header · plan · one record line (held vs entered)
+    return "\n".join([head, plan,
+                       f"ignited {prg * 100:+.0f}% · live `{float(px):g}` · held {lab} {rec(c)} · "
+                       f"entered at the GO ≈ 0R"])
 
 
 def freeze_text(ew: dict, now: float, db_path: str | None = None) -> str:

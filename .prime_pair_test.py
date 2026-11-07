@@ -76,7 +76,7 @@ if "window: 🟡 13–17 PKT — this pair here 0% / -0.09R (1)" not in m7:
     fails.append("thin window line wrong")
 if ns["PAIR_KEY_H"] != {"star": 1.0, "conv": 1.0, "trigkr": 3.0, "leg2": 3.0}:
     fails.append("pair keys: star/conv 1h (user 2026-10-12), trigkr/leg2 3h")
-if not (ns["TG_TRIGKR_PRIME"] is False and ns["TG_LEG2_PRIME"] is True) or set(ns["PAIR_KINDS"]) != {"star", "conv", "trigkr", "leg2"}:   # trigkr muted 2026-10-14
+if not (ns["TG_TRIGKR_PRIME"] is False and ns["TG_LEG2_PRIME"] is True) or set(ns["PAIR_KINDS"]) != {"star", "conv", "trigkr", "leg2", "startrig", "startn", "starv2"}:   # trigkr muted 2026-10-14; the three star pairs 2026-11-07
     fails.append("new pair switches / kinds wrong")
 if "🎯 conf ? (? band)" not in m3 or "this band —" not in m3:
     fails.append("unreadable conf must print ? and —")
@@ -98,7 +98,7 @@ for need, lab in (('("star", "elite_star", "star_prime", STAR_PRIME_BANDS,\n    
                   ('"band-out" if (_bands_pp is not None\n                                               and _band_pp not in _bands_pp) else', "band rule optional"),
                   ('_conf_pp = best_board.confidence(_sym_pp, _sd_pp)', "conf fallback at the pass"),
                   ('if (_kind == "conv" and store.seen_between(\n                            "elite_star", _sym_pp, _sd_pp,', "a star never rings both"),
-                  ('"prime", _sym_pp, _sd_pp,\n                            _ts_pp - PRIME_PAIR_BEFORE,\n                            _ts_pp + PRIME_PAIR_AFTER)', "2h-before / 30-min-after window"),
+                  ('_pts_pp = _pair_partner_ts(_kind, _sym_pp, _sd_pp, _ts_pp)', "kind-aware partner window (2026-11-07)"),
                   ('f"{_tier_pp}:{_sym_pp}:{_sd_pp}",\n                            int(PAIR_KEY_H.get(_kind, 3.0) * 3600))', "per-kind key per coin+side"),
                   ("store.record_signal(_tier_pp, _sig_pp)\n                    shadow_trader.open_from_signal(_tier_pp, _sig_pp, _px_pp)", "records + desk open for every band"),
                   ('"off" if not _on_pp else', "switch gates the bell only"),

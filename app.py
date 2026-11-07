@@ -1516,6 +1516,17 @@ def _conviction_board(pb_state=None):
                 st.error(f"Open failed: {exc}")
 
 
+# 🧹 PAPER TRADER SECTIONS HIDDEN (user 2026-11-07: "remove or hide … just have the data and
+# its reading"): the worker readings, desk tiers, ledgers and bells behind these boards continue;
+# only the page section is not drawn. Delete a key to show its board again.
+PT_HIDDEN = {"elite_confirm", "sentry", "conviction", "pressing", "preburst", "oi_load",
+             "t1", "apex", "fresh", "early_movers"}
+
+
+def _pt_show(key: str) -> bool:
+    return key not in PT_HIDDEN
+
+
 def _stream_board(stream, title, subtitle, badge, chip, colors,
                   pb_state=None, key_prefix="sb", tp2=False,
                   bank_note="BANK AT TP1", extra_line=None,
@@ -3016,6 +3027,32 @@ def _render_star_older(pb_state, live_prices=None) -> None:
             + " · " + " · ".join(_tags) + "</span></div>", unsafe_allow_html=True)
 
 
+def _render_star_pairs_board(pb_state) -> None:
+    """⭐🤝 STAR PAIRS — the four star partners as openable cards (user 2026-11-07:
+    "separate sections with openable trading cards for all"): one board per pair, cards
+    from the pair's own signal stream (seated at the second fire), 📥 Open into the
+    Paper Trader. The record on each board is the pair entered at the second fire,
+    desk 9 Sep → 4 Nov."""
+    st.markdown("#### ⭐🤝 STAR PAIRS — openable now")
+    st.caption("A ⭐ star with a partner fire on the same coin and side within 2h. Each pair is its own "
+               "bell and its own desk tier; the chip is the pair's record entered at the second fire.")
+    for _stream, _title, _badge, _chip, _cols in (
+            ("star_trig", "⭐💥 STAR × STRONG TRIGGER", "⭐💥 STAR × TRIGGER",
+             "71% / +0.18R entered (77) · both halves · 9 Sep → 4 Nov", ("#ffd54a", "#ff7a45", "#1a1200")),
+            ("star_prime", "⭐🥇 STAR × PRIME", "⭐🥇 STAR × PRIME",
+             "62% / +0.29R entered (92) · desk tier 62% / +0.22R (42)", ("#ffd54a", "#f5c542", "#1a1200")),
+            ("star_takenow", "⭐✅🔥 STAR × TAKE NOW HOT", "⭐✅🔥 STAR × TAKE NOW",
+             "65% / +0.39R entered (31) · Sep only, restarted 6 Nov — thin", ("#ffd54a", "#2ed47a", "#1a1200")),
+            ("star_apexv2", "⭐🏆² STAR × APEX V2", "⭐🏆² STAR × APEX V2",
+             "83% / +0.75R entered (12) · both halves — thin", ("#ffd54a", "#9ad0ff", "#1a1200"))):
+        try:
+            _stream_board(_stream, _title, _chip + " — the pair's record, entered at the second fire.",
+                          _badge, _chip, _cols, pb_state=pb_state, key_prefix=f"sp_{_stream}", tp2=True,
+                          bank_note="BANK AT TP1", empty_note="· no pair in the last 24h")
+        except Exception as _spb_exc:
+            st.caption(f"{_title}: {_spb_exc}")
+
+
 def _render_star_board(pb_state, live_prices=None) -> None:
     """💎⭐ ELITE STAR — openable now (user 2026-10-05: "an elite star board
     on paper trading for my view ... openable trades on it"). Every ⭐ fire
@@ -4343,14 +4380,17 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
     # 💎✅ ELITE CONFIRMED ENTRY (user 2026-08-23: separate stream,
     # own buzz/board/tier; elite conviction cards untouched) — the
     # validated entry style on elite fires, proving on its own ledger.
-    _elite_confirm_board(pb_state)
+    if _pt_show("elite_confirm"):
+        _elite_confirm_board(pb_state)
 
-    _sentry_board(pb_state)
+    if _pt_show("sentry"):
+        _sentry_board(pb_state)
 
     # 💯 CONVICTION — the high-win-rate board (user 2026-08-06);
     # openable HERE too ("should be openable not view only so I can
     # test on the decision desk").
-    _conviction_board(pb_state)
+    if _pt_show("conviction"):
+        _conviction_board(pb_state)
 
     # 🔮 KRONOS BOARD on Paper Trading too (user 2026-07-28: "the data
     # should also be on paper trading") — the top layer's latest reads,
@@ -4424,131 +4464,132 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                 f"{float(_r.get('tp1') or 0):g}</span>",
                 unsafe_allow_html=True)
 
-    # 🔶 PRESSING — its own board (user 2026-10-02: "log the pressing-
-    # first cases separately AND have a telegram notification for it
-    # plus a separate board with openable trades"). Top: every armed
-    # number price is pressing RIGHT NOW (the openable candidates,
-    # with how long it has pressed). Below: the forward ledger of
-    # pressed-first breaks (desk tier press_break) next to every break
-    # of the same kinds since logging began — the honest benchmark.
-    st.markdown("#### 🔶 PRESSING — openable now, and the pressed-first "
-                "record")
-    st.caption("A number is PRESSING while price sits within 0.4% of it "
-               "without breaking. These are the trades you can open the "
-               "moment the number breaks; each break that was pressed "
-               "first is logged separately (tier press_break) and buzzed "
-               "🔶💥, so we learn whether a slow approach to the number "
-               "beats a gap-through. Benchmark = every break of the same "
-               "kinds since the log started: ⚡ coils 70%/+0.11R (longs "
-               "74%, shorts lose), 🔥 2nd legs 54%/+0.16R, 💎 elite "
-               "42%/+0.04R.")
-    try:
-        _pr_now = time.time()
-        _pr_rows = []
-        for _r in (_al_rows or []):
-            try:
-                _lp = float(binance_client.get_ticker_price(
-                    _r["symbol"]) or 0)
-                _tg = float(_r.get("trigger") or 0)
-            except Exception:
-                continue
-            if _lp <= 0 or _tg <= 0:
-                continue
-            _dist = ((_tg / _lp - 1) * 100 if _r.get("side") == "LONG"
-                     else (_lp / _tg - 1) * 100)
-            if 0 <= _dist <= 0.4:
-                _pa = _r.get("pressed_at")
-                _pr_rows.append((_dist, _r, ((_pr_now - float(_pa)) / 60
-                                             if _pa else None)))
-        _pr_rows.sort(key=lambda x: x[0])
-        if _pr_rows:
-            for _dist, _r, _mins in _pr_rows:
-                _sc9 = ("#2ed47a" if _r.get("side") == "LONG"
-                        else "#ff5c5c")
-                _k9 = str(_r.get("src", ""))[:1]
-                _kind = ("⚡ coil (longs 74%)" if _k9 == "⚡"
-                         else "🔥 2nd leg (54%)" if _k9 == "🔥"
-                         else "💎 elite arm (42%)" if _k9 == "💎"
-                         else str(_r.get("src", "")))
-                _since = (f"pressing for {_mins:.0f} min"
-                          if _mins is not None else "pressing now")
-                st.markdown(
-                    f"<div style='background:rgba(255,213,74,0.08);"
-                    f"border:1px solid rgba(255,213,74,0.35);"
-                    f"border-radius:10px;padding:8px 13px;margin:4px 0'>"
-                    f"🔶 <b>{_r.get('base')}</b> "
-                    f"<span style='color:{_sc9};font-weight:800'>"
-                    f"{_r.get('side')}</span> · opens on a break of "
-                    f"<b>{float(_r.get('trigger') or 0):g}</b> "
-                    f"<span style='color:#ffd54a;font-size:0.8rem'>"
-                    f"({_dist:+.2f}% away · {_since})</span> · "
-                    f"<span style='color:#8b93a7;font-size:0.78rem'>"
-                    f"SL {float(_r.get('stop') or 0):g} · TP1 "
-                    f"{float(_r.get('tp1') or 0):g} · {_kind}</span>"
-                    f"</div>", unsafe_allow_html=True)
-        else:
-            st.caption("· no armed number is pressing right now")
-        import sqlite3 as _sq_pb
-        _pbc = _sq_pb.connect(f"file:{_ws_c.DB_PATH}?mode=ro", uri=True)
+    if _pt_show("pressing"):   # 2026-11-07: hidden board, records continue
+        # 🔶 PRESSING — its own board (user 2026-10-02: "log the pressing-
+        # first cases separately AND have a telegram notification for it
+        # plus a separate board with openable trades"). Top: every armed
+        # number price is pressing RIGHT NOW (the openable candidates,
+        # with how long it has pressed). Below: the forward ledger of
+        # pressed-first breaks (desk tier press_break) next to every break
+        # of the same kinds since logging began — the honest benchmark.
+        st.markdown("#### 🔶 PRESSING — openable now, and the pressed-first "
+                    "record")
+        st.caption("A number is PRESSING while price sits within 0.4% of it "
+                   "without breaking. These are the trades you can open the "
+                   "moment the number breaks; each break that was pressed "
+                   "first is logged separately (tier press_break) and buzzed "
+                   "🔶💥, so we learn whether a slow approach to the number "
+                   "beats a gap-through. Benchmark = every break of the same "
+                   "kinds since the log started: ⚡ coils 70%/+0.11R (longs "
+                   "74%, shorts lose), 🔥 2nd legs 54%/+0.16R, 💎 elite "
+                   "42%/+0.04R.")
         try:
-            _pb_first = _pbc.execute(
-                "SELECT MIN(opened_at) FROM shadow_trades WHERE "
-                "tier='press_break'").fetchone()[0]
-            _pb_rec = _pbc.execute(
-                "SELECT COUNT(*), SUM(CASE WHEN pnl_r>0 THEN 1 ELSE 0 "
-                "END), COALESCE(SUM(pnl_r),0) FROM shadow_trades WHERE "
-                "tier='press_break' AND status='CLOSED' AND "
-                "abs(entry-stop0)/entry>=0.005").fetchone()
-            _pb_open = _pbc.execute(
-                "SELECT symbol, side, entry, stop, tp1, opened_at FROM "
-                "shadow_trades WHERE tier='press_break' AND "
-                "status='OPEN' ORDER BY opened_at DESC LIMIT 10"
-            ).fetchall()
-            _pb_bench = _pbc.execute(
-                "SELECT COUNT(*), SUM(CASE WHEN pnl_r>0 THEN 1 ELSE 0 "
-                "END), COALESCE(SUM(pnl_r),0) FROM shadow_trades WHERE "
-                "tier IN ('trig_strong','second_leg','elite_conv') AND "
-                "status='CLOSED' AND abs(entry-stop0)/entry>=0.005 AND "
-                "opened_at>=?", (_pb_first or 1e18,)).fetchone()
-        finally:
-            _pbc.close()
-        _pn, _pw, _pr_ = (int(_pb_rec[0] or 0), int(_pb_rec[1] or 0),
-                          float(_pb_rec[2] or 0))
-        _bn, _bw, _br_ = (int(_pb_bench[0] or 0), int(_pb_bench[1] or 0),
-                          float(_pb_bench[2] or 0))
-        _pc = "#2ed47a" if _pr_ > 0 else "#ff5c5c"
-        if _pn:
-            st.markdown(
-                f"**pressed-first breaks (the judge):** {_pn} closed · "
-                f"win {_pw / _pn * 100:.0f}% · <b style='color:{_pc}'>"
-                f"{_pr_:+.2f}R</b> ({_pr_ / _pn:+.3f}R a trade) · "
-                f"benchmark, every ⚡/🔥/💎 break since the log started: "
-                f"{_bn} closed · win "
-                f"{(_bw / _bn * 100) if _bn else 0:.0f}% · "
-                f"{(_br_ / _bn) if _bn else 0:+.3f}R a trade",
-                unsafe_allow_html=True)
-        else:
-            st.caption("· pressed-first ledger: no closes yet — logging "
-                       "started with this build")
-        if _pb_open:
-            st.markdown("**open pressed-first trades:**")
-            for _sym, _sd, _e, _st, _t1, _oa in _pb_open:
+            _pr_now = time.time()
+            _pr_rows = []
+            for _r in (_al_rows or []):
                 try:
-                    _lv = float(binance_client.get_ticker_price(_sym)
-                                or 0)
-                    _pg = (((_lv - _e) / (_t1 - _e)) if _sd == "LONG"
-                           else ((_e - _lv) / (_e - _t1))) * 100
+                    _lp = float(binance_client.get_ticker_price(
+                        _r["symbol"]) or 0)
+                    _tg = float(_r.get("trigger") or 0)
                 except Exception:
-                    _pg = 0.0
+                    continue
+                if _lp <= 0 or _tg <= 0:
+                    continue
+                _dist = ((_tg / _lp - 1) * 100 if _r.get("side") == "LONG"
+                         else (_lp / _tg - 1) * 100)
+                if 0 <= _dist <= 0.4:
+                    _pa = _r.get("pressed_at")
+                    _pr_rows.append((_dist, _r, ((_pr_now - float(_pa)) / 60
+                                                 if _pa else None)))
+            _pr_rows.sort(key=lambda x: x[0])
+            if _pr_rows:
+                for _dist, _r, _mins in _pr_rows:
+                    _sc9 = ("#2ed47a" if _r.get("side") == "LONG"
+                            else "#ff5c5c")
+                    _k9 = str(_r.get("src", ""))[:1]
+                    _kind = ("⚡ coil (longs 74%)" if _k9 == "⚡"
+                             else "🔥 2nd leg (54%)" if _k9 == "🔥"
+                             else "💎 elite arm (42%)" if _k9 == "💎"
+                             else str(_r.get("src", "")))
+                    _since = (f"pressing for {_mins:.0f} min"
+                              if _mins is not None else "pressing now")
+                    st.markdown(
+                        f"<div style='background:rgba(255,213,74,0.08);"
+                        f"border:1px solid rgba(255,213,74,0.35);"
+                        f"border-radius:10px;padding:8px 13px;margin:4px 0'>"
+                        f"🔶 <b>{_r.get('base')}</b> "
+                        f"<span style='color:{_sc9};font-weight:800'>"
+                        f"{_r.get('side')}</span> · opens on a break of "
+                        f"<b>{float(_r.get('trigger') or 0):g}</b> "
+                        f"<span style='color:#ffd54a;font-size:0.8rem'>"
+                        f"({_dist:+.2f}% away · {_since})</span> · "
+                        f"<span style='color:#8b93a7;font-size:0.78rem'>"
+                        f"SL {float(_r.get('stop') or 0):g} · TP1 "
+                        f"{float(_r.get('tp1') or 0):g} · {_kind}</span>"
+                        f"</div>", unsafe_allow_html=True)
+            else:
+                st.caption("· no armed number is pressing right now")
+            import sqlite3 as _sq_pb
+            _pbc = _sq_pb.connect(f"file:{_ws_c.DB_PATH}?mode=ro", uri=True)
+            try:
+                _pb_first = _pbc.execute(
+                    "SELECT MIN(opened_at) FROM shadow_trades WHERE "
+                    "tier='press_break'").fetchone()[0]
+                _pb_rec = _pbc.execute(
+                    "SELECT COUNT(*), SUM(CASE WHEN pnl_r>0 THEN 1 ELSE 0 "
+                    "END), COALESCE(SUM(pnl_r),0) FROM shadow_trades WHERE "
+                    "tier='press_break' AND status='CLOSED' AND "
+                    "abs(entry-stop0)/entry>=0.005").fetchone()
+                _pb_open = _pbc.execute(
+                    "SELECT symbol, side, entry, stop, tp1, opened_at FROM "
+                    "shadow_trades WHERE tier='press_break' AND "
+                    "status='OPEN' ORDER BY opened_at DESC LIMIT 10"
+                ).fetchall()
+                _pb_bench = _pbc.execute(
+                    "SELECT COUNT(*), SUM(CASE WHEN pnl_r>0 THEN 1 ELSE 0 "
+                    "END), COALESCE(SUM(pnl_r),0) FROM shadow_trades WHERE "
+                    "tier IN ('trig_strong','second_leg','elite_conv') AND "
+                    "status='CLOSED' AND abs(entry-stop0)/entry>=0.005 AND "
+                    "opened_at>=?", (_pb_first or 1e18,)).fetchone()
+            finally:
+                _pbc.close()
+            _pn, _pw, _pr_ = (int(_pb_rec[0] or 0), int(_pb_rec[1] or 0),
+                              float(_pb_rec[2] or 0))
+            _bn, _bw, _br_ = (int(_pb_bench[0] or 0), int(_pb_bench[1] or 0),
+                              float(_pb_bench[2] or 0))
+            _pc = "#2ed47a" if _pr_ > 0 else "#ff5c5c"
+            if _pn:
                 st.markdown(
-                    f"<span style='font-size:0.8rem;color:#9aa7c7'>· "
-                    f"<b>{_sym.replace('USDT', '')}</b> {_sd} · entry "
-                    f"{_e:g} · SL {_st:g} · TP1 {_t1:g} · "
-                    f"{_pg:+.0f}% of the way · "
-                    f"{(time.time() - _oa) / 3600:.1f}h</span>",
+                    f"**pressed-first breaks (the judge):** {_pn} closed · "
+                    f"win {_pw / _pn * 100:.0f}% · <b style='color:{_pc}'>"
+                    f"{_pr_:+.2f}R</b> ({_pr_ / _pn:+.3f}R a trade) · "
+                    f"benchmark, every ⚡/🔥/💎 break since the log started: "
+                    f"{_bn} closed · win "
+                    f"{(_bw / _bn * 100) if _bn else 0:.0f}% · "
+                    f"{(_br_ / _bn) if _bn else 0:+.3f}R a trade",
                     unsafe_allow_html=True)
-    except Exception as _pb_exc:
-        st.caption(f"pressing board unavailable: {_pb_exc}")
+            else:
+                st.caption("· pressed-first ledger: no closes yet — logging "
+                           "started with this build")
+            if _pb_open:
+                st.markdown("**open pressed-first trades:**")
+                for _sym, _sd, _e, _st, _t1, _oa in _pb_open:
+                    try:
+                        _lv = float(binance_client.get_ticker_price(_sym)
+                                    or 0)
+                        _pg = (((_lv - _e) / (_t1 - _e)) if _sd == "LONG"
+                               else ((_e - _lv) / (_e - _t1))) * 100
+                    except Exception:
+                        _pg = 0.0
+                    st.markdown(
+                        f"<span style='font-size:0.8rem;color:#9aa7c7'>· "
+                        f"<b>{_sym.replace('USDT', '')}</b> {_sd} · entry "
+                        f"{_e:g} · SL {_st:g} · TP1 {_t1:g} · "
+                        f"{_pg:+.0f}% of the way · "
+                        f"{(time.time() - _oa) / 3600:.1f}h</span>",
+                        unsafe_allow_html=True)
+        except Exception as _pb_exc:
+            st.caption(f"pressing board unavailable: {_pb_exc}")
 
     # 🌊 AFTER THE SHOCK — the 24/7 measuring board (user 2026-10-03).
     # Reads the worker's .shock_watch.json: the current BTC shock, its
@@ -4651,12 +4692,14 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
 
     # 🌋 PRE-BURST on Paper Trading too (user 2026-08-03: separate
     # board on both pages) — display board; opening lives on 🎯.
-    _preburst_board(None)
+    if _pt_show("preburst"):
+        _preburst_board(None)
 
     # 🕵️ OI LOAD — its own standalone board (user 2026-08-28: "it
     # should be treated separately"), right before the desk so its
     # proving tier sits next to its record.
-    _oi_load_board()
+    if _pt_show("oi_load"):
+        _oi_load_board()
 
     # ── ✳️ DECISION DESK — FORWARD PROOF (user 2026-07-08) ──────────────
     # The brain takes every tier's signal itself as a live shadow trade
@@ -4679,8 +4722,13 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
             _render_revived_board(pb_state, live_prices)
         except Exception as _rb_exc2:
             st.caption(f"⭐⚡ revived board error: {_rb_exc2}")
+        try:   # ⭐🤝 STAR PAIRS — openable cards (user 2026-11-07)
+            _render_star_pairs_board(pb_state)
+        except Exception as _sp_exc2:
+            st.caption(f"⭐🤝 star pairs error: {_sp_exc2}")
         try:   # ⚡🔥 the T1 board — its own thing (user 2026-10-13)
-            _render_t1_board(pb_state, live_prices)
+            if _pt_show("t1"):
+                _render_t1_board(pb_state, live_prices)
         except Exception as _t1_exc2:
             st.caption(f"⚡🔥 T1 board error: {_t1_exc2}")
         try:   # 📡 CHANNEL DESK — outside channels, demo v2 / v3 (2026-11-05)
@@ -4786,6 +4834,13 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                    "star_prime": "⭐🥇 STAR × PRIME — star fire + 🥇 PRIME on "
                                  "the coin (76%/+0.48R Sep desk, every "
                                  "band recorded, proving)",
+                   "star_trig": "⭐💥 STAR × STRONG TRIGGER — star + 💥 strong trigger within 2h, "
+                                "seated at the second fire (71%/+0.18R over 77 on the 9 Sep → 4 Nov "
+                                "desk, both halves; own bell since 7 Nov, proving)",
+                   "star_takenow": "⭐✅🔥 STAR × TAKE NOW HOT — star + ✅🔥 TAKE NOW HOT within 2h "
+                                   "(65%/+0.39R over 31, Sep only — thin; own bell since 7 Nov, proving)",
+                   "star_apexv2": "⭐🏆² STAR × APEX V2 — star + 🏆² APEX V2 within 2h (83%/+0.75R "
+                                  "over 12 — thin; own bell since 7 Nov, proving)",
                    "conv_prime": "💎🥇 ELITE × PRIME — conviction fire + 🥇 "
                                  "PRIME on the coin (60%/+0.28R Sep desk, "
                                  "every band recorded, proving)",
@@ -4895,11 +4950,10 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                 _desk_row(rec)
         else:
             st.caption("· no tier is form-positive right now")
-        with st.expander(
-                f"🪑 BENCH — proving / cold / retired "
-                f"({len(_bench_rows)}) — records keep building; a tier "
-                f"earns its way back by turning its 14d form positive",
-                expanded=False):
+        # 2026-11-07 (user): ACTIVE on by default, everything else behind a toggle
+        if st.toggle(f"🪑 show the bench — {len(_bench_rows)} proving / cold / retired "
+                     f"(records keep building; a tier earns its way back by turning its 14d form positive)",
+                     value=False, key="desk_bench_toggle"):
             for rec in _bench_rows:
                 _desk_row(rec, retired=rec.get("tier") in _retired)
         # 🧠 EDGE MINER (user 2026-07-28: "you have huge data from the
@@ -5779,62 +5833,64 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
     # shadow tier keeps its silent record on the Decision Desk (fixed
     # 21-day holds) in case it ever earns a green record.
 
-    # ── BOARD 1: 🏆 APEX — several validated edges agree — openable ─────
-    apex_u = _dedup(apex_rows)
-    if apex_u:
-        st.markdown("### 🏆 APEX — best of the best")
-        st.caption("Setups where **several independent validated edges** "
-                   "agree (SST1 · ELITE · TAKE NOW · HOT · burst · forecast "
-                   "· multi-TF). The rarest, highest-conviction tier.")
-        for _i, r in enumerate(apex_u[:6]):
-            try:
-                _ex = _json_bm.loads(r.get("extra") or "{}")
-            except Exception:
-                _ex = {}
-            _edges = " · ".join(_ex.get("edges", []))
-            _n = _ex.get("apex", len(_ex.get("edges", []) or []))
-            _tag = (f"<span style='background:rgba(255,107,53,0.2);"
-                    f"color:#ff6b35;padding:1px 7px;border-radius:5px;"
-                    f"font-size:0.7rem;font-weight:800'>🏆 APEX ×{_n}</span>")
-            _eh = (f" <span style='background:rgba(255,107,53,0.15);"
-                   f"color:#ff6b35;padding:1px 6px;border-radius:5px;"
-                   f"font-size:0.66rem;font-weight:700'>{_edges}</span>")
-            _open_card(r, f"brain_apex_{r.get('symbol')}_{_i}", _tag, _eh)
-    else:
-        st.caption("· No APEX consensus right now — it's the rarest tier "
-                   "(needs several independent validated edges to agree).")
+    if _pt_show("apex"):   # 2026-11-07: hidden board, records continue
+        # ── BOARD 1: 🏆 APEX — several validated edges agree — openable ─────
+        apex_u = _dedup(apex_rows)
+        if apex_u:
+            st.markdown("### 🏆 APEX — best of the best")
+            st.caption("Setups where **several independent validated edges** "
+                       "agree (SST1 · ELITE · TAKE NOW · HOT · burst · forecast "
+                       "· multi-TF). The rarest, highest-conviction tier.")
+            for _i, r in enumerate(apex_u[:6]):
+                try:
+                    _ex = _json_bm.loads(r.get("extra") or "{}")
+                except Exception:
+                    _ex = {}
+                _edges = " · ".join(_ex.get("edges", []))
+                _n = _ex.get("apex", len(_ex.get("edges", []) or []))
+                _tag = (f"<span style='background:rgba(255,107,53,0.2);"
+                        f"color:#ff6b35;padding:1px 7px;border-radius:5px;"
+                        f"font-size:0.7rem;font-weight:800'>🏆 APEX ×{_n}</span>")
+                _eh = (f" <span style='background:rgba(255,107,53,0.15);"
+                       f"color:#ff6b35;padding:1px 6px;border-radius:5px;"
+                       f"font-size:0.66rem;font-weight:700'>{_edges}</span>")
+                _open_card(r, f"brain_apex_{r.get('symbol')}_{_i}", _tag, _eh)
+        else:
+            st.caption("· No APEX consensus right now — it's the rarest tier "
+                       "(needs several independent validated edges to agree).")
 
-    # ── 🌱 FRESH MOVERS — restored per user 2026-07-08 ("keep the system
-    # as it is"); caption stays honest about the deep-validation numbers.
-    _fresh_rows = []
-    for r in _dedup(tn_rows):
-        if not r.get("hot"):
-            continue
-        try:
-            if _json_bm.loads(r.get("extra") or "{}").get("fresh"):
-                _fresh_rows.append(r)
-        except Exception:
-            continue
-    st.markdown("### 🌱 FRESH MOVERS — first fires, firing hot")
-    st.caption("**Any coin** starting a new move — first signal on that "
-               "coin+side in 72h, confirmed **🔥 HOT**. Honest note: deep "
-               "8-month validation reads this tier at ~55% — the Decision "
-               "Desk is testing it forward.")
-    if _fresh_rows:
-        for _i, r in enumerate(_fresh_rows[:6]):
-            _tag = ("<span style='background:rgba(46,212,122,0.18);"
-                    "color:#2ed47a;padding:1px 7px;border-radius:5px;"
-                    "font-size:0.7rem;font-weight:800'>🌱 FRESH</span> "
-                    "<span style='background:#0b8a3e;color:#fff;padding:1px "
-                    "7px;border-radius:5px;font-size:0.7rem;font-weight:800'>"
-                    "✅ TAKE NOW</span> <span style='background:rgba(255,107,"
-                    "53,0.2);color:#ff6b35;padding:1px 7px;border-radius:5px;"
-                    "font-size:0.68rem;font-weight:800'>🔥 HOT</span>")
-            _open_card(r, f"brain_fresh_{r.get('symbol')}_{_i}", _tag)
-    else:
-        st.caption("· No fresh movers at this moment — first fire in 72h "
-                   "plus hot confirmation is a rare slice; the next one "
-                   "appears here automatically.")
+    if _pt_show("fresh"):   # 2026-11-07: hidden board, records continue
+        # ── 🌱 FRESH MOVERS — restored per user 2026-07-08 ("keep the system
+        # as it is"); caption stays honest about the deep-validation numbers.
+        _fresh_rows = []
+        for r in _dedup(tn_rows):
+            if not r.get("hot"):
+                continue
+            try:
+                if _json_bm.loads(r.get("extra") or "{}").get("fresh"):
+                    _fresh_rows.append(r)
+            except Exception:
+                continue
+        st.markdown("### 🌱 FRESH MOVERS — first fires, firing hot")
+        st.caption("**Any coin** starting a new move — first signal on that "
+                   "coin+side in 72h, confirmed **🔥 HOT**. Honest note: deep "
+                   "8-month validation reads this tier at ~55% — the Decision "
+                   "Desk is testing it forward.")
+        if _fresh_rows:
+            for _i, r in enumerate(_fresh_rows[:6]):
+                _tag = ("<span style='background:rgba(46,212,122,0.18);"
+                        "color:#2ed47a;padding:1px 7px;border-radius:5px;"
+                        "font-size:0.7rem;font-weight:800'>🌱 FRESH</span> "
+                        "<span style='background:#0b8a3e;color:#fff;padding:1px "
+                        "7px;border-radius:5px;font-size:0.7rem;font-weight:800'>"
+                        "✅ TAKE NOW</span> <span style='background:rgba(255,107,"
+                        "53,0.2);color:#ff6b35;padding:1px 7px;border-radius:5px;"
+                        "font-size:0.68rem;font-weight:800'>🔥 HOT</span>")
+                _open_card(r, f"brain_fresh_{r.get('symbol')}_{_i}", _tag)
+        else:
+            st.caption("· No fresh movers at this moment — first fire in 72h "
+                       "plus hot confirmation is a rare slice; the next one "
+                       "appears here automatically.")
 
     # ── BOARD 2: ✅ TAKE NOW — every confirmed entry, HOT first — openable ─
     _tn = _dedup(tn_rows)
@@ -5859,55 +5915,56 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                          f"{_tier} {float(r.get('score') or 0):.0f}</span>")
             _open_card(r, f"brain_tn_{r.get('symbol')}_{_i}", _tag)
 
-    # ── ⚡ EARLY MOVERS (STRONG) — separate board after TAKE NOW (user
-    # 2026-07-05). Validated cell (backtest_early_strong, 40 coins / 540
-    # entries): STRONG + TAKE_NOW + HOT = 69.3% win, 0.82R median run on
-    # n=176 decided — near-premium win rate at ~8x frequency, shorter runs.
-    # Board-only: never alerted; the bread-and-butter volume lane.
-    st.markdown("### ⚡ EARLY MOVERS (STRONG) — frequent early entries")
-    st.caption("STRONG-tier setups that pulled back and confirmed **🔥 HOT** "
-               "— the high-frequency lane. Deep 8-month validation: **76.6% "
-               "win (n=1092)**, and the 🚀 early-lane subset is the best 1h "
-               "cell at **81.3% (n=796)** — but after fees the 1h construct "
-               "is ~breakeven: **treat as signals/context, not the money "
-               "engine (that's 🌊 TREND RIDER)**. Decision Desk is proving "
-               "the true forward record.")
-    _es_u = _dedup(es_rows)
-    if _es_u:
-        for _i, r in enumerate(_es_u[:6]):
-            _tag = ("<span style='background:rgba(255,213,74,0.16);"
-                    "color:#ffd54a;padding:1px 7px;border-radius:5px;"
-                    "font-size:0.7rem;font-weight:800'>⚡ STRONG "
-                    f"{float(r.get('score') or 0):.0f}</span> "
-                    "<span style='background:#0b8a3e;color:#fff;padding:1px "
-                    "7px;border-radius:5px;font-size:0.7rem;font-weight:800'>"
-                    "✅ TAKE NOW</span> <span style='background:rgba(255,107,"
-                    "53,0.2);color:#ff6b35;padding:1px 7px;border-radius:5px;"
-                    "font-size:0.68rem;font-weight:800'>🔥 HOT</span>")
-            # 🚀 early-lane tag — validated (backtest_early_lanes): enters
-            # ~35% earlier in the move, hits >=2R ~50% more often (22% vs
-            # 15%), 65% win vs 75% — same expectancy, big-hit profile.
-            try:
-                _r_el = _json_bm.loads(
-                    r.get("extra") or "{}").get("early_lanes") or []
-            except Exception:
-                _r_el = []
-            if _r_el:
-                _tag += (" <span style='background:rgba(56,189,248,0.18);"
-                         "color:#38bdf8;padding:1px 7px;border-radius:5px;"
-                         "font-size:0.68rem;font-weight:800' "
-                         f"title='Early lanes firing: {', '.join(_r_el)} — "
-                         "enters earlier, hits 2R+ ~50% more often "
-                         "(22% vs 15%); 65% win vs 75%'>🚀 EARLY · "
-                         "big-hit profile</span>")
-            # 🚀 early-lane cards render BLUE so they're spottable at a
-            # glance inside EARLY MOVERS (user 2026-07-08)
-            _open_card(r, f"brain_es_{r.get('symbol')}_{_i}", _tag,
-                       accent="#38bdf8" if _r_el else None)
-    else:
-        st.caption("· None confirming at this moment — these fire a few "
-                   "times a day across the market; the 24/7 brain logs each "
-                   "one here as it confirms.")
+    if _pt_show("early_movers"):   # 2026-11-07: hidden board, records continue
+        # ── ⚡ EARLY MOVERS (STRONG) — separate board after TAKE NOW (user
+        # 2026-07-05). Validated cell (backtest_early_strong, 40 coins / 540
+        # entries): STRONG + TAKE_NOW + HOT = 69.3% win, 0.82R median run on
+        # n=176 decided — near-premium win rate at ~8x frequency, shorter runs.
+        # Board-only: never alerted; the bread-and-butter volume lane.
+        st.markdown("### ⚡ EARLY MOVERS (STRONG) — frequent early entries")
+        st.caption("STRONG-tier setups that pulled back and confirmed **🔥 HOT** "
+                   "— the high-frequency lane. Deep 8-month validation: **76.6% "
+                   "win (n=1092)**, and the 🚀 early-lane subset is the best 1h "
+                   "cell at **81.3% (n=796)** — but after fees the 1h construct "
+                   "is ~breakeven: **treat as signals/context, not the money "
+                   "engine (that's 🌊 TREND RIDER)**. Decision Desk is proving "
+                   "the true forward record.")
+        _es_u = _dedup(es_rows)
+        if _es_u:
+            for _i, r in enumerate(_es_u[:6]):
+                _tag = ("<span style='background:rgba(255,213,74,0.16);"
+                        "color:#ffd54a;padding:1px 7px;border-radius:5px;"
+                        "font-size:0.7rem;font-weight:800'>⚡ STRONG "
+                        f"{float(r.get('score') or 0):.0f}</span> "
+                        "<span style='background:#0b8a3e;color:#fff;padding:1px "
+                        "7px;border-radius:5px;font-size:0.7rem;font-weight:800'>"
+                        "✅ TAKE NOW</span> <span style='background:rgba(255,107,"
+                        "53,0.2);color:#ff6b35;padding:1px 7px;border-radius:5px;"
+                        "font-size:0.68rem;font-weight:800'>🔥 HOT</span>")
+                # 🚀 early-lane tag — validated (backtest_early_lanes): enters
+                # ~35% earlier in the move, hits >=2R ~50% more often (22% vs
+                # 15%), 65% win vs 75% — same expectancy, big-hit profile.
+                try:
+                    _r_el = _json_bm.loads(
+                        r.get("extra") or "{}").get("early_lanes") or []
+                except Exception:
+                    _r_el = []
+                if _r_el:
+                    _tag += (" <span style='background:rgba(56,189,248,0.18);"
+                             "color:#38bdf8;padding:1px 7px;border-radius:5px;"
+                             "font-size:0.68rem;font-weight:800' "
+                             f"title='Early lanes firing: {', '.join(_r_el)} — "
+                             "enters earlier, hits 2R+ ~50% more often "
+                             "(22% vs 15%); 65% win vs 75%'>🚀 EARLY · "
+                             "big-hit profile</span>")
+                # 🚀 early-lane cards render BLUE so they're spottable at a
+                # glance inside EARLY MOVERS (user 2026-07-08)
+                _open_card(r, f"brain_es_{r.get('symbol')}_{_i}", _tag,
+                           accent="#38bdf8" if _r_el else None)
+        else:
+            st.caption("· None confirming at this moment — these fire a few "
+                       "times a day across the market; the 24/7 brain logs each "
+                       "one here as it confirms.")
 
     # ── 🎯 RIDING TO TP2 — TP1 hit, momentum intact (user 2026-07-05, ADA
     # case). Manage-your-position info: if you're in from the signal, the
@@ -9828,57 +9885,23 @@ if active_section == "🎮 Demo Trading":
         "<span style='font-size:1.5rem;font-weight:900;background:"
         "linear-gradient(90deg,#40c4ff,#b388ff);-webkit-background-"
         "clip:text;-webkit-text-fill-color:transparent;background-"
-        "clip:text'>🎮 DEMO $2,000 — GEN 18 · THE FOUR"
+        "clip:text'>🎮 DEMO $2,000 — GEN 18 · THE FIVE"
         "</span><br><span style='color:#e6e9f0;font-size:0.84rem'>"
-        "<b>GEN 18 (2026-10-22):</b> a fresh $2,000 book — the GEN 17 seats were "
-        "closed at the live price and their ledger archived. <b>THE FOUR, in order:</b> "
-        "<b>1. ⭐ ELITE STAR gated</b> — the star fire that passed the phone's four-rule "
-        "read (heat ≥25 · BTC day ≤ +1.5% · not 01–05 PKT · stop ≤ 7%), seated only on a "
-        "🟢 / 🟡 clock for its side (🔴 DON'T = no seat); $100 margin at 10x = $1,000, and "
-        "<b>⭐➕ once the fire's own 1H verdict reads LIVE or it gets a GO FAST, $200 more "
-        "margin at 10x is added at the live price → $3,000 notional</b> (refused only when "
-        "collateral, the 35% heat cap or the 8% stop guard say so) · <b>2. 💥 STRONG "
-        "TRIGGER conf ≥65</b>, 10x (its measured red windows stay closed: longs 21-05 "
-        "PKT, shorts 09-13 / 17-21) · <b>3. ⭐🥇 STAR × PRIME</b>, 10x (a star fire with "
-        "a PRIME on the same coin and side) · <b>4. 💎 CONVICTION REVIVAL</b>, 10x (the "
-        "bell's own rule: not a star, fire read passed, GO inside the 0.3–0.6R entry "
-        "cell, not 21–05 PKT) · <b>5. 💥🥇 PRIME × STRONG TRIGGER</b>, 10x (a PRIME fire with a "
-        "strong trigger on the coin and side 2h before → 30 min after; its own bell since 24 Oct; "
-        "desk replay 64%/+0.32R over 155). Nothing else seats — GO REVIVED star revivals, ARRIVAL "
-        "T1 and EARLY LANE left the money today (bells, desk tiers and boards go on). "
-        "Exits: the plan's SL / TP1 (banked 100%) / TP2, no near-TP bank, no time stop."
-        "</span><br><span style='color:#6b7390;font-size:0.72rem'>"
-        "GEN 17 roster for the record — $2,000 ledger (2026-09-14; GEN 17 roster 2026-10-14, from the "
-        "closed-trade ranking; GEN 17.3 the same evening: the seats follow the "
-        "phone's gates). <b>THE SIX, in order:</b> <b>1. ⭐⚡/💎⚡ GO "
-        "REVIVED</b> (a star or elite fire, approved or not, graded DEAD at the hour "
-        "that then ignited — entry at the GO price with the fire's plan, "
-        "FAST or LATE, any conf — seats only when its Telegram fire read "
-        "passes: not a MAX card, score under 90; the BTC day rides on the read as a "
-        "caution, never a gate) · <b>2. ⚡🔥 ARRIVAL T1</b> (HOT long break at "
-        "a ⚡ strong-coil number, its own plan, any conf) · <b>3. 💥 STRONG "
-        "TRIGGER conf ≥65</b> (its measured red windows stay closed: longs "
-        "21-05 PKT, shorts 09-13 / 17-21) · <b>4. ⭐🚀 EARLY LANE conf ≥85</b> "
-        "(longs closed 21-05 PKT, as before) · <b>5. ⭐🥇 STAR × PRIME</b> (a ⭐ "
-        "star fire with a 🥇 PRIME signal on the same coin and side, every "
-        "band, the fire's plan) · <b>6. ⭐ ELITE STAR</b> (the star fire that "
-        "passes the phone's four-rule read — heat ≥25 · BTC day ≤ +1.5% · "
-        "not 01–05 PKT · stop ≤ 7% — the fire's plan, every band; a muted "
-        "star takes no seat). Nothing else takes a seat — "
-        "PRESSED &amp; BROKE, moonshot, early movers and TRIG×KR "
-        "left the money on 2026-10-14 (their bells, desk tiers and boards "
-        "continue). Exits: SL or TP1 bank 100%; the 🎯 near-TP bank (printed "
-        "≥85% of the way to TP1, then rolled back while still in profit) for "
-        "GO REVIVED and ARRIVAL T1 only. 💪 "
-        "SIZING: 20 seats · margin = balance÷20 = $100 · flat 10x = "
-        "$1,000 notional a seat (~1.6% risk at a 3.3% stop) · open "
-        "seating · 🌡 heat cap 35% · 🚧 loss rail −15%/24h stops new "
-        "entries, no gain cap · 🎯 EXIT LAW: SL, TP1 (banked 100%), "
-        "or the near-TP bank (≥85% printed → ≤60% fade, in profit) — "
-        "no time stop, no trail, the stop never moves. Simulated — "
-        "zero real orders. "
-        f"Day {_days:.1f}.</span></div>",
+        "<b>THE FIVE, in order:</b> 1. ⭐ ELITE STAR gated (🟢/🟡 clock for its side; ⭐➕ +$200 margin "
+        "once its 1H verdict is LIVE or a GO FAST lands) · 2. 💥 STRONG TRIGGER conf ≥65 (red windows closed) "
+        "· 3. ⭐🥇 STAR × PRIME · 4. 💎 CONVICTION REVIVAL (the bell's rule) · 5. 💥🥇 PRIME × STRONG TRIGGER. "
+        "All 10x, $100 margin a seat, exits SL / TP1 banked 100% / TP2, no time stop. Fresh $2,000 book since "
+        f"22 Oct · day {_days:.1f}.</span></div>",
         unsafe_allow_html=True)
+    with st.expander("roster history (GEN 17 → 18.2)", expanded=False):   # 2026-11-07: moved out of the header
+        st.caption(
+            "GEN 18 (22 Oct): the GEN 17 seats closed at the live price, ledger archived; GO REVIVED star "
+            "revivals, ARRIVAL T1 and EARLY LANE left the money (bells, desk tiers and boards go on). 18.1 "
+            "(24 Oct): the fade bank back on for the four. 18.2 (24 Oct): 💥🥇 PRIME × STRONG TRIGGER as the "
+            "fifth seat. GEN 17 (14 Sep → 22 Oct, $2,000): GO REVIVED · ARRIVAL T1 · STRONG TRIGGER conf ≥65 · "
+            "EARLY LANE conf ≥85 · STAR × PRIME · ELITE STAR on the four-rule read; 20 seats, margin $100, flat "
+            "10x, heat cap 35%, loss rail −15%/24h; exits SL, TP1 banked 100%, or the near-TP bank (≥85% printed "
+            "→ ≤60% fade, in profit) for GO REVIVED and ARRIVAL T1 only. Simulated — zero real orders.")
     _t1c, _t2c, _t3c, _t4c = st.columns(4)
     _t1c.metric("💼 Equity", f"${_eq:,.2f}",
                 f"{_pnl:+,.2f} ({_pnl / _start * 100:.1f}%)"

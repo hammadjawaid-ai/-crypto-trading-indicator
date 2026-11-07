@@ -197,6 +197,13 @@ def star_line(side: str, ts: float) -> str:
     return f"🕐 {e} {c} — {d} · {STAR_MEASURED}"
 
 
+def star_line_short(side: str, ts: float) -> str:
+    """The one-line clock cell for the ⭐ bell (2026-11-07, concise cards):
+    light + window + the cell, nothing else — the full line stays on the page."""
+    e, c, d = verdict(STAR_CELLS, side, ts)
+    return f"🕐 {e} {d.split(' — ')[0].replace(' PKT', '')}"
+
+
 def revived_line(side: str, fired_at: float, star=None) -> str:
     """star=True -> ⭐ star revival cells, False -> 💎 conviction cells, None ->
     the combined cells (family unknown)."""

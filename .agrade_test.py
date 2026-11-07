@@ -90,7 +90,7 @@ if gs["base"] != "XRP" or gs["grade"] != "A" or gs["seat_lanes"] != 3:
 # ---- banner: markdown-safe, study numbers, forward ledger only at n>=10 ----
 _ShadowStub.recs = []
 m = banner(seat, 71, rr)
-for need in ("💎🏆 *ELITE A-GRADE", "seated on Top Conviction (score 94, 3 lanes)", "conf 71", "TP1 1.22R", "68.6% / +0.49R", "unproven"):
+for need in ("💎🏆 *ELITE A-GRADE", "seated on Top Conviction (score 94, 3 lanes)", "conf 71", "TP1 1.22R", "69% / +0.49R (35)"):
     if need not in m:
         fails.append(f"banner missing {need!r}")
 if "Forward ledger" in m:
@@ -99,7 +99,7 @@ if m.count("*") % 2 or m.count("_") % 2 or m.count("`") % 2:
     fails.append("banner markdown unbalanced")
 _ShadowStub.recs = [{"tier": "elite_agrade", "n": 12, "win_pct": 66.7, "net_r": 4.2}]
 m2 = banner({"ts": T0}, 80.0, None)
-if "Forward ledger so far: 12 closed · 67% · +4.2R net" not in m2:
+if "forward 12 closed · 67% · +4.2R" not in m2:
     fails.append("forward ledger line missing once 10 closes exist")
 if "(" in m2.split("\n")[1][:40]:
     fails.append("empty seat details should not print parentheses")

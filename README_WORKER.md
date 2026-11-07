@@ -175,3 +175,28 @@ User: "it gets confusing to take a trade or not … we have gated and ungated el
   54% / −0.07R FAST, 55% / −0.03R LATE (6 Oct → 4 Nov); a hold read for a seat you do not have is noise.
   Revivals of un-rung fires keep their board card and the go_revived ledger. 💎⚡ GO LIVE (TG_GO_LIVE) untouched.
 - Guard: `.star_bell_test.py` (22 checks); `.clock_cells_test.py` updated to the new law.
+
+## 🔔 BELL RE-SET, part 2 (2026-11-07) — concise cards, ⭐ pair bells, the page
+
+User: "lets build it and deploy … concise and straight to the point … we are muting the 90% bank notification".
+- Every card is short: ⭐ star fire ≤ 7 lines (header with TAKE + size · the read's ticks · the clock cell ·
+  plan with the 🎯 bank chip · with-line partners/conf/heat · next · Kronos), ⏱ verdict 2 lines, GO 3 lines,
+  💎 CONVICTION REVIVAL 4 lines, pair cards 4 lines, 🏆💎 APEX V2 GATED 4 lines + 2-line verdict, 💥🥇 PRIME ×
+  STRONG TRIGGER 4 lines, ⚡🔮 KR-STRONG PREMIUM 3 lines, 🏦 TP1 HIT 2 lines, 💎🏆 A-GRADE banner 2 lines, the
+  🔮 Kronos line one glance (`🔮 ✅ UP +2.1%`). Records moved to the page.
+- ⭐🤝 three new pair bells, each its own card + records-only desk tier seated at the second fire:
+  ⭐💥 STAR × STRONG TRIGGER (`star_trig`, 71% / +0.18R entered over 77, both halves), ⭐✅🔥 STAR × TAKE NOW
+  HOT (`star_takenow`, 65% / +0.39R over 31, Sep only — thin), ⭐🏆² STAR × APEX V2 (`star_apexv2`, 83% /
+  +0.75R over 12 — thin). Switches TG_STAR_TRIG / TG_STAR_TAKENOW / TG_STAR_APEXV2; partner window 2h either
+  side of the star (`_pair_partner_ts`, `worker_store.last_between`); ⭐🥇 STAR × PRIME unchanged in rule,
+  concise in text.
+- ⭐⚡ GO REVIVED standalone bell GONE for stars: a star's DEAD-then-GO is a reply under its own fire bell
+  (un-rung stars: board + ledger only). 💎 CONVICTION REVIVAL kept as its own concise card (entered at the GO
+  46% / −0.14R FAST, 58% / +0.06R LATE — printed on it). 💎⚡ GO LIVE muted (TG_GO_LIVE; entered ≈ 0R).
+- 🎯 90%-of-TP1 ping muted (TG_NEAR90); 🏦 TP1 HIT stays.
+- Paper Trader page: hidden boards (records continue) — ELITE CONFIRMED ENTRY, SENTRY, 💯 CONVICTION, PRESSING,
+  PRE-BURST, OI LOAD, ARRIVAL T1, 🏆 APEX, 🌱 FRESH, ⚡ EARLY MOVERS (`PT_HIDDEN` in app.py); Decision Desk ACTIVE
+  on by default, the bench behind a toggle; new ⭐🤝 STAR PAIRS openable board (four streams); tier labels for
+  the three new tiers; Demo header says THE FIVE with the roster history in an expander.
+- Guards: `.bells2_test.py` (49), `.star_bell_test.py` (22), `.prime_pair_test.py`, `.agrade_test.py`,
+  `.clock_cells_test.py` updated to the new law.

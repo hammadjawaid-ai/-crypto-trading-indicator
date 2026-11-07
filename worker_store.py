@@ -904,6 +904,24 @@ def streams_between(symbol: str, side: str, ts_from: float, ts_to: float) -> dic
         c.close()
 
 
+def last_between(stream: str, symbol: str, side: str, ts_from: float, ts_to: float,
+                 hot_only: bool = False):
+    """The LATEST ts of (stream, symbol, side) in [ts_from, ts_to), or None —
+    the partner fire's time on a ⭐ pair bell (2026-11-07). hot_only=True
+    keeps only hot=1 rows (the TAKE NOW HOT partner)."""
+    c = _open()
+    try:
+        row = c.execute(
+            "SELECT MAX(ts) FROM signals WHERE stream=? AND symbol=? AND upper(side)=? "
+            "AND ts>=? AND ts<?" + (" AND COALESCE(hot,0)=1" if hot_only else ""),
+            (stream, symbol, (side or "").upper(), ts_from, ts_to)).fetchone()
+        return float(row[0]) if row and row[0] is not None else None
+    except Exception:
+        return None
+    finally:
+        c.close()
+
+
 def seen_between(stream: str, symbol: str, side: str,
                  ts_from: float, ts_to: float) -> bool:
     """True if this (stream, symbol, side) was recorded in [ts_from, ts_to).

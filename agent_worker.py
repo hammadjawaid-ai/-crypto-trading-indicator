@@ -357,7 +357,7 @@ REVIVED_LONG_FAST = False
 # under GO REVIVED + the go_live ledger carry it. True = the bell is back.
 # 2026-10-12 night, user: "can we have just this bell on only on our telegram
 # notifications?" -> ON again (approved + unapproved, unapproved tagged).
-TG_GO_LIVE = True
+TG_GO_LIVE = False   # 📵 2026-11-07 (user: "rest, if data is not aligning, remove it"): entered at the GO 53% / −0.01R FAST (72), 58% / −0.09R LATE (12), 13 Oct → 4 Nov — a hold read for a seat nobody holds. Tier go_live + board continue. True = ring again.
 GO_LIVE_LINE = ("class: 💎 LIVE then GO — elite conviction, from the fire price: "
                 "61% / +0.69R (171) · longs 63% / +0.78R (129) · shorts 55% / "
                 "+0.38R (42) · desk 01 Sep → 28 Sep")
@@ -455,6 +455,30 @@ STAR_REV_CLASS_REC = ("star revivals FAST 67% / +0.24R (48) · LATE 68% / +0.19R
                       "entered at the GO FAST −0.07R · LATE −0.11R · 14 Sep → 04 Nov")   # 2026-11-04 refresh
 CONV_REV_CLASS_REC = ("conviction revivals FAST 63% / +0.47R (91) · LATE 68% / +0.40R (85) held from the fire · "
                       "entered at the GO FAST −0.10R · LATE 0.00R · 14 Sep → 04 Nov")
+
+
+CONV_REV_CARD_REC = {"FAST": "entered at the GO 46% / −0.14R (63) · held from the fire 46% / +0.69R",
+                     "LATE": "entered at the GO 58% / +0.06R (50) · held from the fire 58% / +0.91R"}
+
+
+def _fmt_conv_revival(ew, prg, age_s, px, now, rg, unappr=False):
+    """💎 CONVICTION REVIVAL bell, concise (2026-11-07): header with the class and
+    HOLD READ, the plan, the read's ticks, one record line. Entered at the GO the
+    class is breakeven; the record says so on every card."""
+    try:
+        cls = str(ew.get("go") or ("LATE" if float(age_s) > 4 * 3600 else "FAST")).upper()
+        head = (f"💎 *CONVICTION REVIVAL — {ew.get('base')} {ew.get('side')} · {cls} · "
+                f"{rung_stats.pkt_hm(now)} PKT · HOLD READ*")
+        e0 = float(ew.get("entry0") or 0)
+        plan = ((f"fire `{e0:g}`" if e0 else "fire `?`")
+                + f" · SL `{float(ew['stop']):g}` · TP1 `{float(ew['tp1']):g}`"
+                + f" · ignited {float(prg) * 100:+.0f}% · live `{float(px):g}`")
+        read = " · ".join(x for x in (str(rg[1] or "").split(" — ")[0], str(rg[2] or "").split(" — ")[0]) if x)
+        rec_line = (CONV_REV_CARD_REC.get(cls, "") + " · 6 Oct → 4 Nov"
+                    + (" · UNAPPROVED fire — size down" if unappr else ""))
+        return "\n".join(x for x in (head, plan, read, rec_line) if x)
+    except Exception:
+        return _revival_dress(rung_stats.go_text(ew, prg, age_s, px, now), ew, age_s, now)
 
 
 def _revival_dress(msg, ew, age_s, now):
@@ -610,11 +634,16 @@ def _fmt_prime_trig(sig, px, now):
         fwd = rung_stats.rec(rung_stats.tier_rec("prime_trig", None, now))
     except Exception:
         fwd = "record unavailable"
-    l5 = (f"pair record: {PRIME_TRIG_REC} · forward ledger (💥🥇 tier since 19 Oct): {fwd} · "
-          f"{rung_stats.stamp_now(now)}")
-    l6 = ("_bank at TP1 · hold through the hour: a LIVE 60m read ran 83% / +0.69R (60) on the "
-          "replay · the PRIME read above is information, not a gate._")
-    return "\n".join(x for x in (head, l2, plan, rd, bl, l5, l6) if x)
+    # 2026-11-07 concise card: header · plan (+ bank chip) · the PRIME read's ticks · one record line
+    try:
+        bl = bank_zone.chip(bank_zone.compute(sig.get("entry"), sig.get("stop"), sig.get("tp1"),
+                                              side, _sr_levels(sig.get("symbol"), side)))
+    except Exception:
+        bl = ""
+    plan = plan + (f" · {bl}" if bl else "")
+    rd = str(rd).split(" — ")[0] if rd else ""
+    l5 = f"pair {PRIME_TRIG_REC} · forward {fwd} · bank at TP1"
+    return "\n".join(x for x in (head, plan, rd, l5) if x)
 
 
 def _prime_read(p, now, btc=None):
@@ -2110,28 +2139,21 @@ def _fmt_apex_v2_gated(sig, px, read_line, now):
         fwd = rung_stats.rec(rung_stats.tier_rec("apex_v2_gated", None, now))
     except Exception:
         fwd = "record unavailable"
+    # 2026-11-07 concise card: header · the read's ticks · plan · one record line (the verdict replies here)
     return (f"🏆💎 *APEX V2 GATED — {sig['base']} {sd} · TAKE · {rung_stats.pkt_hm(now)} PKT*\n"
-            f"{read_line}\n"
-            f"STRONG · score {float(sig.get('score') or 0):.0f} · heat {float(sig.get('heat') or 0):.0f} · "
-            f"entry `{float(sig['entry']):g}` · live `{e:g}` · SL `{st:g}` · {tps}\n"
-            f"🪜 plan: at +1R move SL to entry · at TP1 lock SL at TP1 and ride to TP2, trailing 1.2R · 48h max\n"
-            f"⏱ the 1H VERDICT answers in this thread — {APEX_V2_LIVE_REC}\n"
-            f"forward ledger (gated tier since 01 Nov): {fwd} · {rung_stats.stamp_now(now)}\n"
-            f"_two months of evidence behind the gate (10 Sep → 24 Oct); the 14 Oct 78-day replay did not find the "
-            f"BTC rule — re-read at 30 gated closes. Gate fails record silently on the desk._")
+            f"{str(read_line).split(' — ')[0]}\n"
+            f"entry `{float(sig['entry']):g}` · live `{e:g}` · SL `{st:g}` · {tps} · "
+            f"score {float(sig.get('score') or 0):.0f} · heat {float(sig.get('heat') or 0):.0f}\n"
+            f"⏱ 1h verdict replies here · LIVE 70% / +0.54R (46) · DEAD 34% / −0.24R (79) · gated forward {fwd}")
 
 
 def _fmt_apex_v2_verdict(ew, prg):
     """⏱🏆 the 1H VERDICT reply under a gated APEX V2 bell (user 2026-11-01)."""
     if ew.get("oneh") == "LIVE":
-        return (f"⏱🏆 *{ew['base']} {ew['side']} — 1H VERDICT: 🟢 LIVE* (APEX V2 gated)\n"
-                f"covered {prg * 100:.0f}% of the path to TP1 in the first hour.\n"
-                f"_{APEX_V2_LIVE_REC}. In from the fire? Hold the plan, don't add. Not in? Entering at the hour "
-                f"measured +0.2R on gated fires — the fire was the entry._")
-    return (f"⏱🏆 *{ew['base']} {ew['side']} — 1H VERDICT: 🔴 DEAD* (APEX V2 gated)\n"
-            f"flat/under water at the hour ({prg * 100:+.0f}% of path).\n"
-            f"_gated + DEAD finished ≈ flat (47–56% win, −0.1…+0.2R held) — not the loser an ungated DEAD is. "
-            f"The plan's SL / TP stay in charge; no add._")
+        return (f"⏱🏆 *{ew['base']} {ew['side']} · 1H LIVE · HOLD FULL*\n"
+                f"{prg * 100:+.0f}% of the path · LIVE APEX V2 70% / +0.54R (46) held · entered at the hour ≈ 0R")
+    return (f"⏱🏆 *{ew['base']} {ew['side']} · 1H DEAD · HOLD, no add*\n"
+            f"{prg * 100:+.0f}% of the path · DEAD APEX V2 34% / −0.24R held (79) · the plan's SL / TP stay")
 
 
 def _fmt_apex_v2(sig, px=None, rec=None) -> str:
@@ -2192,19 +2214,17 @@ def _kr_note(p) -> str:
             except Exception:
                 s = None
         if not s:
-            return "\n🔮 ❔ Kronos: no read"
+            return "\n🔮 ❔ no read"
         d = s.get("direction")
         _e = float(s.get("exp_move_pct") or 0)
-        # one-glance form (user 2026-10-01: "kronos agree or not —
-        # emoji or one word"): the verdict first, the read after it.
+        # one-glance form (user 2026-10-01; shortened 2026-11-07): verdict + read.
         if d == "FLAT":
-            return f"\n🔮 ➖ Kronos flat · {_e:+.1f}%/24h"
+            return f"\n🔮 ➖ flat {_e:+.1f}%"
         agree = ((d == "UP" and p.get("side") == "LONG")
                  or (d == "DOWN" and p.get("side") == "SHORT"))
-        return (f"\n🔮 {'✅ Kronos agrees' if agree else '❌ Kronos disagrees'}"
-                f" · {d} {_e:+.1f}%/24h")
+        return f"\n🔮 {'✅' if agree else '❌'} {d} {_e:+.1f}%"
     except Exception:
-        return "\n🔮 ❔ Kronos: no read"
+        return "\n🔮 ❔ no read"
 
 
 def _fmt_elite_early(p) -> str:
@@ -2325,9 +2345,8 @@ def _agrade_banner(seat, conf, rr, head=None, nxt=""):
         rec = next((x for x in shadow_trader.tier_records()
                     if x.get("tier") == "elite_agrade"), None)
         if rec and int(rec.get("n") or 0) >= 10:
-            fwd = (f" Forward ledger so far: {int(rec['n'])} closed · "
-                   f"{float(rec['win_pct']):.0f}% · "
-                   f"{float(rec['net_r']):+.1f}R net.")
+            fwd = (f" · forward {int(rec['n'])} closed · {float(rec['win_pct']):.0f}% · "
+                   f"{float(rec['net_r']):+.1f}R")
     except Exception:
         fwd = ""
     bits = []
@@ -2345,12 +2364,9 @@ def _agrade_banner(seat, conf, rr, head=None, nxt=""):
     except Exception:
         conf_txt = "?"
     rr_txt = f"{rr:.2f}R" if rr is not None else "?"
+    # 2026-11-07 concise banner: one line of evidence under the header
     return ((head or "💎🏆 *ELITE A-GRADE — the measured best cell*") + "\n"
-            f"_{seat_txt} · 🎯 conf {conf_txt} · LONG · TP1 {rr_txt} away. "
-            "Desk Sep 1-28: 68.6% / +0.49R over 35 fires, every third "
-            "green, still positive after the best-days and best-coins "
-            "cuts. Replay unproven (7 fires) — size as a normal elite "
-            f"trade until the forward ledger speaks.{fwd}_\n"
+            f"{seat_txt} · conf {conf_txt} · LONG · TP1 {rr_txt} away · Sep desk 69% / +0.49R (35){fwd}\n"
             + (nxt + "\n" if nxt else ""))
 
 
@@ -2443,6 +2459,18 @@ PRIME_READ_REC = ("gated 63% / +0.27R (230) vs rejected 43% / +0.02R (359) · "
 # split LIVE vs DEAD reads off it (all APEX V2: LIVE 78% / +0.58R vs DEAD 48% /
 # -0.12R on the replay). No bell until 30 forward trades say so.
 TG_APEX_ONE = False      # 🏆²👑 bell OFF — records only (no send path exists).
+# ⭐🤝 STAR PAIR bells (user 2026-11-07: "elite stars and strong trigger / take now hot / apex v2 …
+# separate cards"): each its own standalone card + records-only desk tier seated at the second fire.
+TG_STAR_TRIG = True      # ⭐💥 STAR × STRONG TRIGGER — 71% / +0.18R entered (77), +0.33R held, both halves, 9 Sep → 4 Nov
+TG_STAR_TAKENOW = True   # ⭐✅🔥 STAR × TAKE NOW HOT — 65% / +0.39R entered (31), Sep only, stream restarted 6 Nov — thin
+TG_STAR_APEXV2 = True    # ⭐🏆² STAR × APEX V2 — 83% / +0.75R entered (12), both halves — thin
+TG_NEAR90 = False        # 🎯 90%-of-TP1 printed ping MUTED 2026-11-07 (user); the 🏦 TP1 HIT ping stays.
+STAR_PAIR_KINDS = ("startrig", "startn", "starv2")
+STAR_PAIR_FRESH = 2.5 * 3600    # a star record stays pairable this long (the trigger / APEX V2 arrive ~47 min after it)
+STAR_PAIR_BEFORE = 2 * 3600     # partner fired up to 2h before the star …
+STAR_PAIR_AFTER = 2 * 3600      # … or up to 2h after it
+PAIR_PARTNER = {"star": "prime", "conv": "prime", "trigkr": "prime", "leg2": "prime",
+                "startrig": "trig_strong", "startn": "takenow", "starv2": "apex_v2"}
 APEX_ONE_REC = ("APEX V2 with a 👑 ONE TRADE pick 48% / +0.45R (29) vs without "
                 "46% / -0.08R (69) · desk 22 Sep → 14 Oct · replay core 68% / "
                 "+0.39R (19) vs 58% / +0.12R (332) · thin")
@@ -2494,7 +2522,67 @@ PAIR_KINDS = {
                    alone="TRIG × KR", tag="💥🔮🥇", bands=False),
     "leg2": dict(tier="leg2_prime", rec=LEG2_PRIME_REC,
                  head="🔥🥇 *SECOND LEG × PRIME", who="🔥 second-leg fire",
-                 alone="second leg", tag="🔥🥇", bands=False)}
+                 alone="second leg", tag="🔥🥇", bands=False),
+    # ⭐🤝 2026-11-07 — the three star pairs as their own cards (user). Records: desk ledger
+    # 9 Sep → 4 Nov, entered at the second fire (the one you can take) and the star seat held.
+    "startrig": dict(tier="star_trig", rec=None, head="⭐💥 *STAR × STRONG TRIGGER",
+                     who="💥 strong trigger", alone="star", tag="⭐💥", bands=False),
+    "startn": dict(tier="star_takenow", rec=None, head="⭐✅🔥 *STAR × TAKE NOW HOT",
+                   who="✅🔥 TAKE NOW HOT", alone="star", tag="⭐✅🔥", bands=False),
+    "starv2": dict(tier="star_apexv2", rec=None, head="⭐🏆² *STAR × APEX V2",
+                   who="🏆² APEX V2", alone="star", tag="⭐🏆²", bands=False)}
+PAIR_FIRST = {"star": "⭐ star", "conv": "💎 elite", "trigkr": "💥🔮 break", "leg2": "🔥 second leg",
+              "startrig": "⭐ star", "startn": "⭐ star", "starv2": "⭐ star"}
+PAIR_SECOND = {"star": "🥇 PRIME", "conv": "🥇 PRIME", "trigkr": "🥇 PRIME", "leg2": "🥇 PRIME",
+               "startrig": "💥 trigger", "startn": "✅🔥 TAKE NOW HOT", "starv2": "🏆² APEX V2"}
+PAIR_LINE = {   # the pair record, one line, entered at the second fire unless said otherwise
+    "star": "62% / +0.29R entered (92) · star seat +0.29R vs +0.10R without · 9 Sep → 4 Nov",
+    "conv": "57% / +0.20R held (176) vs +0.09R without · 1 Sep → 4 Nov",
+    "trigkr": "83% / +0.37R (23) Sep desk — thin",
+    "leg2": "73% / +0.47R (37) Sep desk — thin",
+    "startrig": "71% / +0.18R entered (77) · star seat +0.33R vs +0.10R without · both halves · 9 Sep → 4 Nov",
+    "startn": "65% / +0.39R entered (31) · Sep only, the stream restarted 6 Nov — thin",
+    "starv2": "83% / +0.75R entered (12) · both halves — thin"}
+
+
+def _pair_partner_ts(kind, sym, side, ts):
+    """The partner fire's ts for a pair kind, or None. PRIME kinds keep their
+    2h-before → 30-min-after window; the star pairs look 2h either side
+    (the trigger / APEX V2 arrive ~47 min after the star on median)."""
+    stream = PAIR_PARTNER.get(kind, "prime")
+    if kind in STAR_PAIR_KINDS:
+        lo, hi = ts - STAR_PAIR_BEFORE, ts + STAR_PAIR_AFTER
+    else:
+        lo, hi = ts - PRIME_PAIR_BEFORE, ts + PRIME_PAIR_AFTER
+    return store.last_between(stream, sym, side, lo, hi, hot_only=(kind == "startn"))
+
+
+def _fmt_pair_card(kind, sig, px, now, partner_ts=None):
+    """The pair bell, concise (user 2026-11-07): header with TAKE · the two fires
+    in time order · the plan · the pair record and the forward ledger."""
+    kd = PAIR_KINDS[kind]
+    side = (sig.get("side") or "").upper()
+    head = f"{kd['head']} — {sig['base']} {side} · TAKE · {rung_stats.pkt_hm(now)} PKT*"
+    t_first = float(sig.get("elite_ts") or now)
+    if partner_ts:
+        a, b = ((PAIR_FIRST[kind], t_first), (PAIR_SECOND[kind], float(partner_ts)))
+        if b[1] < a[1]:
+            a, b = b, a
+        seq = f"{a[0]} {rung_stats.pkt_hm(a[1])} → {b[0]} {rung_stats.pkt_hm(b[1])} ({abs(b[1] - a[1]) / 60:.0f} min)"
+    else:
+        seq = f"{PAIR_FIRST[kind]} {rung_stats.pkt_hm(t_first)} · {PAIR_SECOND[kind]} on the same coin + side"
+    t2 = f" · TP2 `{float(sig['tp2']):g}`" if sig.get("tp2") else ""
+    cf = sig.get("conf")
+    plan = (f"entry `{float(sig['entry']):g}` · live `{float(px):g}` · SL `{float(sig['stop']):g}` · "
+            f"TP1 `{float(sig['tp1']):g}`{t2}" + (f" · conf {cf}" if cf is not None else ""))
+    band = _conf_band(cf)
+    rec = kd.get("rec")
+    band_bit = f" · band {band} {rec.get(band, '—')}" if (kd.get("bands") and rec and band) else ""
+    try:
+        fwd = rung_stats.rec(rung_stats.tier_rec(kd["tier"], None, now))
+    except Exception:
+        fwd = "record unavailable"
+    return "\n".join([head, seq, plan, f"pair {PAIR_LINE[kind]}{band_bit} · forward {fwd}"])
 
 
 def _conf_band(conf):
@@ -3166,10 +3254,10 @@ def cycle() -> None:
                                 _gate9 = _star_gate(_pmx, time.time(),
                                                     _btc_day_pct())
                                 _msg9 = _msg9.replace(
-                                    "\n", "\n" + _gate9[1] + "\n"
-                                    + clock_cells.star_line(
+                                    "\n", "\n" + str(_gate9[1]).split(" — ")[0] + "\n"
+                                    + clock_cells.star_line_short(
                                         _pmx.get("side"), time.time())
-                                    + "\n", 1)   # 2026-11-07: the GO-timing line left the fire card (a future-state stat; it stays on the GO bells)
+                                    + "\n", 1)   # 2026-11-07 concise card: the read's ticks + the clock cell only
                             except Exception as _gt_exc:
                                 _gate9 = (True, f"read: error {_gt_exc}")
                         _w1317 = (_star9 and STAR_UNGATED_1317
@@ -4648,19 +4736,12 @@ def cycle() -> None:
                          else f"⚠️ BTC {_kp_btc:+.2f}% today" if _kp_btc is not None else "🟡 BTC today ?"),
                         (f"✅ score {_kp_scf:g}" if (_kp_scf is not None and _kp_scf < 90)
                          else f"⚠️ score {_kp_scf:g}" if _kp_scf is not None else "🟡 score ?")])
-                    ok, _ = tg.send(
-                        f"⚡🔮 *KR-STRONG PREMIUM — "
-                        f"{_sp2.get('base')} LONG*\n"
-                        f"read (not a gate): {_kp_bits} — both ✅ ran 65% / +0.56R (71); "
-                        f"the premium cell 58% / +0.41R (114), TP1 54% · desk 16 Aug → 14 Oct\n"
-                        f"strong setup · calm kronos wind "
-                        f"({_sp2.get('kr_dir')} {_kp_x:+.1f}%/24h) "
-                        f"· TP1 in the goldilocks zone "
-                        f"({_kp_rr:.2f}R away)\n"
-                        f"entry `{_kp_e:g}` · SL `{_kp_s:g}` · TP1 "
-                        f"`{_kp_t:g}`{_kp_t2}\n"
-                        f"_bank at TP1 · hold through the hour: a LIVE 60m read "
-                        f"lifts the cell to 73% / +0.80R (22)._")
+                    ok, _ = tg.send(   # 2026-11-07 concise card
+                        f"⚡🔮 *KR-STRONG PREMIUM — {_sp2.get('base')} LONG · TAKE · "
+                        f"{rung_stats.pkt_hm(time.time())} PKT*\n"
+                        f"entry `{_kp_e:g}` · SL `{_kp_s:g}` · TP1 `{_kp_t:g}`{_kp_t2} · "
+                        f"TP1 {_kp_rr:.2f}R away · kronos {_sp2.get('kr_dir')} {_kp_x:+.1f}%\n"
+                        f"{_kp_bits} · cell 58% / +0.41R (114) · both ✅ 65% / +0.56R (71) · bank at TP1")
                     n_alerts += 1 if ok else 0
                     # records-only stamp of the bell that rang, so the
                     # 🏦 TP1 watch can see it (user 2026-10-12); the
@@ -4726,24 +4807,27 @@ def cycle() -> None:
                 ("trigkr", "trig_strong_kr", "trigkr_prime", None,
                  TG_TRIGKR_PRIME),
                 ("leg2", "second_leg", "leg2_prime", None,
-                 TG_LEG2_PRIME)):
+                 TG_LEG2_PRIME),
+                # ⭐🤝 2026-11-07: the three star pairs, each its own card + tier
+                ("startrig", "elite_star", "star_trig", None, TG_STAR_TRIG),
+                ("startn", "elite_star", "star_takenow", None, TG_STAR_TAKENOW),
+                ("starv2", "elite_star", "star_apexv2", None, TG_STAR_APEXV2)):
             for _sg in store.recent_by_stream(_stream_pp, 80):
                 try:
                     _ts_pp = float(_sg.get("ts") or 0)
-                    if _now_pp - _ts_pp > PRIME_PAIR_FRESH:
+                    if _now_pp - _ts_pp > (STAR_PAIR_FRESH if _kind in STAR_PAIR_KINDS
+                                           else PRIME_PAIR_FRESH):
                         continue
                     _sym_pp = _sg.get("symbol")
                     _sd_pp = (_sg.get("side") or "").upper()
-                    if not _sym_pp or (_sym_pp, _sd_pp) in _paired_pp:
+                    if not _sym_pp or (_kind, _sym_pp, _sd_pp) in _paired_pp:
                         continue
                     if (_kind == "conv" and store.seen_between(
                             "elite_star", _sym_pp, _sd_pp,
                             _ts_pp - 900, _ts_pp + 900)):
                         continue
-                    if not store.seen_between(
-                            "prime", _sym_pp, _sd_pp,
-                            _ts_pp - PRIME_PAIR_BEFORE,
-                            _ts_pp + PRIME_PAIR_AFTER):
+                    _pts_pp = _pair_partner_ts(_kind, _sym_pp, _sd_pp, _ts_pp)
+                    if _pts_pp is None:
                         continue
                     if not (_sg.get("entry") and _sg.get("stop")
                             and _sg.get("tp1")):
@@ -4752,7 +4836,7 @@ def cycle() -> None:
                             f"{_tier_pp}:{_sym_pp}:{_sd_pp}",
                             int(PAIR_KEY_H.get(_kind, 3.0) * 3600)):
                         continue
-                    _paired_pp.add((_sym_pp, _sd_pp))
+                    _paired_pp.add((_kind, _sym_pp, _sd_pp))
                     try:
                         _ex_pp = _json_pp.loads(_sg.get("extra") or "{}")
                     except Exception:
@@ -4794,9 +4878,9 @@ def cycle() -> None:
                                 "quiet" if _bstock_quiet(_sym_pp) else "due")
                     if _bell_pp == "due":
                         ok, _m_pp = tg.send(
-                            _fmt_prime_pair(
+                            _fmt_pair_card(
                                 _kind, _sig_pp,
-                                float(_px_pp or _sig_pp["entry"]), _now_pp)
+                                float(_px_pp or _sig_pp["entry"]), _now_pp, _pts_pp)
                             + _kr_note(_sig_pp))
                         n_alerts += 1 if ok else 0
                         _bell_pp = "sent" if ok else f"failed: {_m_pp}"
@@ -6586,8 +6670,19 @@ def cycle() -> None:
                                                     go_at=_ew_now) + "\n", 1)
                                         except Exception:
                                             pass
-                                    if _ew.get("oneh") == "DEAD":
-                                        # GO REVIVED is its own bell
+                                    if _ew.get("oneh") == "DEAD" and _ew.get("star"):
+                                        # ⭐ 2026-11-07 (user: "for go revived … lets remove that"):
+                                        # a star's DEAD-then-GO is a reply under its own fire bell,
+                                        # never a standalone; un-rung stars keep board + ledger.
+                                        if _ew.get("buzzed") and _ew.get("tg_ids"):
+                                            _ok9, _m9x, _ = tg.send_thread(
+                                                _go9, reply_to=_ew.get("tg_ids"))
+                                            _bell9 = ("sent-thread (revived)" if _ok9
+                                                      else f"failed: {_m9x}")
+                                        else:
+                                            _bell9 = "off: star revival of an un-rung fire (board + ledger only)"
+                                    elif _ew.get("oneh") == "DEAD":
+                                        # 💎 CONVICTION REVIVAL — its own bell (user 2026-11-07: "we will keep it")
                                         # for EVERY elite-family fire,
                                         # heard or not (user 2026-10-05
                                         # "separate one"; 2026-10-06
@@ -6628,34 +6723,12 @@ def cycle() -> None:
                                                 # the entry cell (user 2026-10-19): at the
                                                 # GO the class is breakeven everywhere else.
                                                 _bell9 = f"gated: entry cell not met — {_rg9[2]}"
-                                            elif not _ew.get("buzzed"):
-                                                # 📵 2026-11-07 (user: "sort elite star fires and
-                                                # notifications"): a revived GO is a HOLD read —
-                                                # entered at the GO it measured 54% / −0.07R FAST
-                                                # and 55% / −0.03R LATE (6 Oct → 4 Nov). A fire the
-                                                # phone never rang has no seat to hold, so its
-                                                # revival stays on the board and the go_revived
-                                                # ledger, off the phone. Revert: delete this branch.
-                                                _bell9 = "muted: fire never rang (hold read, no seat)"
                                             else:
                                                 _un9 = not (_ew.get("star")
                                                             or _ew.get("appr"))
-                                                _go9x = (_go9.replace(
-                                                    "\n", "\n"
-                                                    + (_star_revived_line(_ew)
-                                                       if _ew.get("star") else _rg9[1])
-                                                    + "\n"
-                                                    + _rg9[2] + "\n"
-                                                    + clock_cells.revived_line(
-                                                        _ew["side"],
-                                                        float(_ew.get("fired_at")
-                                                              or _ew_now),
-                                                        bool(_ew.get("star")))
-                                                    + ("\n" + REVIVED_UNAPPR
-                                                       if _un9 else "")
-                                                    + "\n", 1)
-                                                    if TG_GATES else _go9)
-                                                _go9x = _revival_dress(_go9x, _ew, _age, _ew_now)
+                                                _go9x = _fmt_conv_revival(
+                                                    _ew, _prg, _age, _ew_px, _ew_now,
+                                                    (_rg9 if TG_GATES else (True, "", "")), _un9)
                                                 _ok9, _m9x = tg.send(_go9x)
                                                 _bell9 = ((("sent-standalone-unapproved"
                                                             if _un9 else "sent-standalone")
@@ -8180,14 +8253,9 @@ def cycle() -> None:
                         f"{rung_stats.pkt_hm(_t)} PKT"
                         for _t, _s in sorted(
                             _rg_by.get((_rg_sym, _rg_side), [])))
-                    ok, _ = tg.send(
-                        f"🏦 *{_rg_b2} {_rg_side} — TP1 HIT* "
-                        f"`{_rg_tp1:g}` — BANK 100% HERE (the plan). "
-                        f"Re-enter only on a fresh 🟢 confirm or "
-                        f"re-fire.\n"
-                        f"from: {_rg_from or TP1_STREAMS.get(_rg_src, _rg_src)}\n"
-                        f"fire entry `{_rg_ent:g}` · SL `{_rg_stp:g}` · "
-                        f"TP1 `{_rg_tp1:g}`")
+                    ok, _ = tg.send(   # 2026-11-07 concise ping
+                        f"🏦 *{_rg_b2} {_rg_side} · TP1 HIT `{_rg_tp1:g}` · BANK 100%*\n"
+                        f"from {_rg_from or TP1_STREAMS.get(_rg_src, _rg_src)} · fire `{_rg_ent:g}` · SL `{_rg_stp:g}`")
                     n_alerts += 1 if ok else 0
                 continue
             if _rg_stopped:
@@ -8196,7 +8264,7 @@ def cycle() -> None:
             # 🎯 90% PRINTED (user 2026-10-24: "one more number close to TP,
             # 80-90%"): the plan printed 90% of the way to TP1 and has not
             # banked or stopped — the bank-zone ping, once per plan.
-            if _rg_n90 and store.should_alert(
+            if TG_NEAR90 and _rg_n90 and store.should_alert(   # 📵 muted 2026-11-07 (TG_NEAR90)
                     f"near90:{_rg_sym}:{_rg_side}:{_rg_tp1:g}", 7 * 24 * 3600):
                 try:
                     _rg_b3 = _rg.get("base") or _rg_sym.replace("USDT", "")
