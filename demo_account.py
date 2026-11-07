@@ -79,7 +79,22 @@ STATE_FILE = os.environ.get("DEMO_STATE") or \
 # account 2000 dollars"): load() starts a fresh $2,000 book the first time it
 # sees a file on an older GEN; cutover_gen18() (called by the worker first)
 # closes the old seats at live into THEIR ledger and archives it beside this file.
-GEN = 18
+# 🎮 GEN 19 — THE FIVE, GATED (user 2026-11-07: "we are going with anything that have the
+# win rate over 69% or above for the timings … first stream gated elite star, second star x
+# prime, third star x strong trigger, fourth conviction revival, last apex v2 x elite star …
+# leverage math you are the best so treat it accordingly"). Fresh $2,000 book (cutover_fresh_book
+# closes the GEN 18 seats at live into their archived ledger). Measured on the clean desk
+# 9 Sep → 4 Nov (.gen19_cells, research_meta/dataset2.csv, risk >= 0.3%, held from the fire,
+# the desk ladder): gated ⭐ stars 67% / +0.37R (227); the ≥69% cells together 74% / +0.48R
+# (120), halves +0.54 / +0.43, Sep +0.54 · Oct +0.47 · Nov −0.18 (4), 2.2 fires a day.
+# SIZING = SEATS, not leverage: every lane at 10x (the gated book's widest stop is 6.96% —
+# 10x liquidates at ~9.5%, never before a stop; 15x would liquidate 12% of them at 6.3%).
+# A FULL seat is $100 margin ($1,000 notional, ~$47 risk at the 4.7% median stop = 2.3% of the
+# bank), HALF $50, DOUBLE $200 — STAR_BOOK / star_seat below. No ⭐➕ add-on (the hour-entry
+# add measured ≈ −0.06R in the meta-label lab; the whole seat is taken at the fire).
+# EXIT = the desk ladder (LADDER_SRC): BE at +1R → TP1 lock → 1.2R trail → 48h cut — the
+# cells above were measured with exactly this, so the book can be held to them.
+GEN = 19
 START_BAL = 2000.0
 # 🎮 GEN 16 (user 2026-09-14: "Demo Trading Start Again now. We will
 # have only this and no limit on slots can be 20 at a time depending
@@ -168,7 +183,16 @@ NEAR_TP_FADE = 0.60          # how far it has given back
 # bank beat the full TP1 on every stream, both halves, both sides — star
 # +0.184R vs +0.166R, conviction +0.125R vs +0.101R, trigger +0.099R vs
 # +0.050R, PRIME +0.127R vs +0.100R): back on for all four.
-NEAR_TP_SRC: set = {"elite_star", "strong_trigger", "star_prime", "conv_revival", "prime_trig"}
+# 🪜 GEN 19: the fade bank is OFF — the ≥69% cells were measured on the desk ladder, so the
+# book exits the same way (LADDER_SRC below). Revert: put the streams back in this set.
+NEAR_TP_SRC: set = set()
+# 🪜 THE DESK LADDER (shadow_trader's exit law, now the demo's for every GEN 19 lane): stop
+# → entry at +1R · stop → TP1 when TP1 prints · after TP1 the stop trails the peak by 1.2R ·
+# TP2 closes · 48h cuts at the live price. Nothing banks at TP1 — a winner runs to TP2 or
+# trails out above TP1 (reason "TP1 lock").
+LADDER_SRC: set = {"elite_star", "star_prime", "star_trig", "conv_revival", "star_apexv2"}
+TRAIL_R = 1.2                 # post-TP1 trail distance in initial-risk units (desk law)
+LADDER_HOLD_H = 48.0          # the desk's time-stop
 # 📐 rr re-checked at the LIVE entry for streams whose edge IS an rr
 # law — (lo, hi) half-open, None = unbounded on that side. The star
 # profile was measured at TP1 within 1.2R; the premium cell at
@@ -266,8 +290,8 @@ ELITE_FAMILY_CAP = 0
 # positives banked first, then negatives cut. Healthy signals are
 # NEVER rotated, and at most this many rotations happen per cycle.
 ROTATE_MAX = 0   # GEN 9 user order: rotation REMOVED
-SMART_EXIT_SKIP: set = {"elite_star", "strong_trigger",
-                        "star_prime", "conv_revival", "prime_trig"}   # GEN 18.2: no kronos exit anywhere
+SMART_EXIT_SKIP: set = {"elite_star", "star_prime", "star_trig",
+                        "conv_revival", "star_apexv2"}   # GEN 19: no kronos exit anywhere
 # GEN 12: kronos smart-exit off for all. Exits: SL-or-TP1-bank-100%
 # everywhere EXCEPT ⭐ elite_star's near-TP bank (own block) and
 # 💎🔮 elite_kr's RIDE (half-bank TP1 + BE + trail, in the TP1
@@ -372,18 +396,19 @@ MIN_RANK = 85.0  # GEN 9: anyone can take any place
 # 🎮 GEN 18 — THE FOUR (user 2026-10-22): "only trade on the ELITE STAR gated and
 # strong triggers at priority", then Star × Prime and the conviction revival; GO
 # REVIVED, ARRIVAL T1 and EARLY LANE leave the money (bells, tiers, boards go on).
-CLASS_W = {"elite_star": 104,     # 1. ⭐ ELITE STAR — the star fire that PASSED the
-                                  #    phone's four-rule read, on a 🟢/🟡 clock only;
-                                  #    ⭐➕ adds 2 seats' margin on 1H LIVE or GO FAST
-           "strong_trigger": 103,  # 2. 💥 STRONG TRIGGER conf >=65 (red windows closed)
-           "star_prime": 102,     # 3. ⭐🥇 STAR × PRIME — star fire + PRIME on the coin
-           "conv_revival": 101,   # 4. 💎 CONVICTION REVIVAL — the bell's own rule:
-                                  #    not a star, fire read passed, GO inside the
-                                  #    entry cell (0.3–0.6R left, not 21–05 PKT)
-           "prime_trig": 100}     # 5. 💥🥇 PRIME × STRONG TRIGGER (GEN 18.2, user
-                                  #    2026-10-24: "move it to demo trading with full
-                                  #    leverage") — PRIME fire + strong trigger on the
-                                  #    coin+side; desk replay 64% / +0.32R (155)
+# 🎮 GEN 19 — THE FIVE, GATED (user 2026-11-07), in his order. CLASS_W is the roster.
+CLASS_W = {"elite_star": 105,     # 1. ⭐ ELITE STAR gated (four-rule read) on its ≥69% cells
+                                  #    only — STAR_BOOK: longs 05–09 · 09–13; shorts 05–09 ·
+                                  #    13–17 (half) · 17–21 (double on a BTC-down day) ·
+                                  #    21–01 (half); shorts outside heat 40–79 half
+           "star_prime": 104,     # 2. ⭐🥇 STAR × PRIME — seated at the second fire
+                                  #    (62% / +0.29R entered, 92)
+           "star_trig": 103,      # 3. ⭐💥 STAR × STRONG TRIGGER — second fire
+                                  #    (71% / +0.18R entered, 77, both halves)
+           "conv_revival": 102,   # 4. 💎 CONVICTION REVIVAL — LATE only, half (entered at
+                                  #    the GO: LATE 58% / +0.06R (50), FAST 46% / −0.14R (63))
+           "star_apexv2": 101}    # 5. ⭐🏆² STAR × APEX V2 — second fire
+                                  #    (83% / +0.75R entered, 12 — thin)
 # 🪑 SPARE-SEAT RULE: a listed stream may open only while at least
 # this many seats stay free after it, so the priority three always
 # find room — rotation is off (ROTATE_MAX = 0) and a seat once taken
@@ -429,10 +454,9 @@ TIME_WINDOWS = ("05-09", "09-13", "13-17", "17-21", "21-01", "01-05")
 _RED_LONG = {"21-01", "01-05"}
 # GEN 17: the time gate stays for strong_trigger only (its measured red
 # windows); GO REVIVED and ARRIVAL T1 seat all day as the user named them.
-TIME_CLOSED: dict = {
-    ("strong_trigger", "LONG"): set(_RED_LONG),   # GEN 18: unchanged, his earlier rule
-    ("strong_trigger", "SHORT"): {"09-13", "17-21"},
-}
+# GEN 19: no stream on the roster carries the old window gate — the ⭐ seat reads STAR_BOOK,
+# the pairs and the revival seat all day as they were measured.
+TIME_CLOSED: dict = {}
 TIME_GATED: set = {s for s, _ in TIME_CLOSED}
 PKT_OFFSET_S = 5 * 3600
 _clock = time.time                # tests pin the clock here
@@ -482,12 +506,16 @@ def time_gate_ok(src, side, now=None) -> bool:
 # timing you won't"): the star seat reads the SAME clock cells the phone
 # prints under the star card (clock_cells.STAR_CELLS, the gated-star desk by
 # PKT window and side). 🔴 DON'T = no seat; 🟢 TAKE, 🟡 HALF and 🟡 THIN seat.
-CLOCK_GATED: set = {"elite_star"}
+# GEN 19: the ⭐ seat reads STAR_BOOK (star_seat) instead; the clock call is stamped for
+# information only. Revert: {"elite_star"}.
+CLOCK_GATED: set = set()
 # ⭐➕ GEN 18 ADD-ON (user: "open with 1000 on 10x with our money of 100; if it
 # is GO FAST or the 1H verdict is LIVE we add 200 dollars more and it will be
 # 3000 on leverage"): once per star seat, 2 seats' margin at the seat's
 # leverage, at the live price, averaged into the position.
-ADDON_SRC: set = {"elite_star"}
+# GEN 19: OFF (user 2026-11-07: "previously we had add on to fast and late but now we take
+# full with leverage"; the hour-entry add measured ≈ −0.06R). Revert: {"elite_star"}.
+ADDON_SRC: set = set()
 ADDON_MARGIN_X = 2.0
 
 
@@ -502,6 +530,80 @@ def clock_ok(src, side, now=None):
     except Exception:
         return True, None
     return call != "DON'T", call
+
+
+# ⭐ GEN 19 STAR BOOK (user 2026-11-07: "anything that have the win rate over 69% or above
+# for the timings … separate it times for longs and shorts"): gated ⭐ stars by side × the
+# FIRE's 4h PKT window, clean desk 9 Sep → 4 Nov, held from the fire on the desk ladder.
+# (seat multiplier, word) — None = the cell is under 69% (or closed by the gate): no seat.
+#   LONG  05–09 69% / +0.44R (26) · 09–13 75% / +0.58R (20)          → full
+#   LONG  13–17 27% / −0.51R (11) · 17–21 62% / +0.38R (48) · 21–01 64% / +0.38R (39) → out
+#   SHORT 05–09 71% / +0.33R (17) · 17–21 79% / +0.60R (33)          → full
+#   SHORT 13–17 73% / +0.21R (11) · 21–01 77% / +0.51R (13)          → half (thin)
+#   SHORT 09–13 44% / −0.08R (9) · 01–05 closed by the gate           → out
+# Re-measure with .gen19_cells (scratch) on a new backup; a cell moves at 60 fires.
+STAR_BOOK: dict = {
+    ("LONG", "05-09"): (1.0, "full"), ("LONG", "09-13"): (1.0, "full"),
+    ("LONG", "13-17"): None, ("LONG", "17-21"): None, ("LONG", "21-01"): None, ("LONG", "01-05"): None,
+    ("SHORT", "05-09"): (1.0, "full"), ("SHORT", "09-13"): None, ("SHORT", "13-17"): (0.5, "half"),
+    ("SHORT", "17-21"): (1.0, "full"), ("SHORT", "21-01"): (0.5, "half"), ("SHORT", "01-05"): None,
+}
+# shorts: heat 40–79 at the fire 78% / +0.50R (45) vs 66% / +0.30R (38) outside → outside = half.
+# Longs carry no heat rule (every band 63–66% / +0.33…+0.47R except 25–39 at 53%, thin).
+STAR_SHORT_HEAT = (40.0, 80.0)
+# 17–21 shorts: BTC's day <= 0 at the fire 88% / +0.81R (26, halves +0.67 / +0.96) → DOUBLE;
+# BTC up on the day 43% / −0.17R (7) → half. BTC unreadable → the plain cell.
+STAR_SHORT_1721_BTC = True
+# 💎 conviction revival: LATE (GO after 4h) 58% / +0.06R entered at the GO → half; FAST lost.
+CONV_REV_SIZE: dict = {"LATE": 0.5}
+PAIR_SEAT: set = {"star_prime", "star_trig", "star_apexv2"}   # full, at the second fire
+SIZE_WORD = {2.0: "double", 1.0: "full", 0.5: "half"}
+
+
+def star_seat(side, now=None, heat=None, btc_day=None):
+    """⭐ GEN 19 -> (mult, word, detail); mult None = no seat. The cell, then the
+    shorts' heat rule, then the 17–21 shorts' BTC-day rule; floor half, cap double."""
+    side = (side or "").upper()
+    win = pkt_window4(now)
+    cell = STAR_BOOK.get((side, win))
+    if cell is None:
+        return None, None, f"{win} PKT {side.lower()}s — not in the book (under 69% or gated)"
+    mult, word = cell
+    why = [f"{win} {side.lower()}s {word}"]
+    if side == "SHORT":
+        try:
+            h = float(heat)
+        except (TypeError, ValueError):
+            h = None
+        if h is not None and not (STAR_SHORT_HEAT[0] <= h < STAR_SHORT_HEAT[1]):
+            mult *= 0.5
+            why.append(f"heat {h:.0f} outside 40–79 → half")
+        if win == "17-21" and STAR_SHORT_1721_BTC:
+            try:
+                b = float(btc_day)
+            except (TypeError, ValueError):
+                b = None
+            if b is not None:
+                mult *= 2.0 if b <= 0 else 0.5
+                why.append(f"BTC day {b:+.1f}% → {'double' if b <= 0 else 'half'}")
+    mult = max(0.5, min(2.0, mult))
+    return mult, SIZE_WORD.get(mult, f"x{mult:g}"), " · ".join(why)
+
+
+def seat_size(c: dict, now=None):
+    """GEN 19 -> (mult, word, detail) for a ranked candidate; mult None = no seat."""
+    src = c.get("src")
+    if src == "elite_star":
+        return star_seat(c.get("side"), now, c.get("heat"), c.get("btc_day"))
+    if src == "conv_revival":
+        g = str(c.get("go_tier") or "").upper()
+        m = CONV_REV_SIZE.get(g)
+        if m is None:
+            return None, None, f"revival {g or '?'} — not in the book (LATE only)"
+        return m, SIZE_WORD.get(m, f"x{m:g}"), f"revival {g} {SIZE_WORD.get(m, '')}"
+    if src in PAIR_SEAT:
+        return 1.0, "full", "pair, at the second fire"
+    return None, None, "not on the roster"
 
 
 # 🎯 CONF-BAND SEAT GATES (user 2026-09-07, read off the live desk
@@ -540,11 +642,7 @@ def clock_ok(src, side, now=None):
 # The early lanes' edge is spread across every band, so gating at 85
 # cuts volume ~4x AND expectancy ~40%. His call, his system; revert
 # by deleting the two early_* lines.
-CONF_GATE: dict = {
-    # GEN 18: strong_trigger keeps its measured-green band; the star, Star ×
-    # Prime and the conviction revival carry their own gates upstream.
-    "strong_trigger": ((65.0, 1000.0),),
-}
+CONF_GATE: dict = {}   # GEN 19: every lane carries its gate upstream (star read, pair, bell rule)
 # GEN 6: no conditional seats — the pool is exactly the named three.
 CONDITIONAL_SRC: set = set()
 # 🚀 MOONSHOT was benched 2026-08-11 (9 closed / -0.65R at the time)
@@ -564,9 +662,8 @@ def lev_for(src: str, conf=None, burst=None) -> float:
     3.25%, so that guard bites only on the genuinely wild plans.
     ONE source of truth — the 💸 live executor calls this too.
     (The GEN 15 star 6x/8x-by-burst ladder is in git at 2a56c58.)"""
-    return {"elite_star": 10.0, "strong_trigger": 10.0,
-            "star_prime": 10.0, "conv_revival": 10.0,
-            "prime_trig": 10.0}.get(src, LEV_GEN13)       # GEN 18.2: flat 10x
+    return {"elite_star": 10.0, "star_prime": 10.0, "star_trig": 10.0,
+            "conv_revival": 10.0, "star_apexv2": 10.0}.get(src, LEV_GEN13)   # GEN 19: flat 10x
 
 
 def load() -> dict:
@@ -661,7 +758,10 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
                           "srcs": {name}, "rank": base_rank,
                           "burst": float(p.get("burst") or 0),
                           "conf": float(p.get("conf") or 0),
-                          "kr_ok": bool(p.get("kr_agree"))}
+                          "kr_ok": bool(p.get("kr_agree")),
+                          # GEN 19 sizing inputs (star heat / BTC day, the revival's GO tier)
+                          "heat": p.get("heat"), "btc_day": p.get("btc_day"),
+                          "go_tier": p.get("go_tier")}
             else:
                 cur["srcs"].add(name)
                 cur["rank"] = max(cur["rank"], base_rank)
@@ -808,6 +908,9 @@ def try_open(state: dict, cands: list, live_fn, active=None,
         _ck = clock_ok(c["src"], c["side"], _t)   # 🕐 GEN 18: the star's clock
         if not _ck[0]:
             continue            # 🔴 DON'T window for this side — no seat
+        _sz = seat_size(c, _t)    # ⭐ GEN 19: the book's cell → full / half / double, or no seat
+        if _sz[0] is None:
+            continue
         _res = SPARE_RESERVE.get(c["src"])
         if _res is not None and len(state["open"]) >= _slot_cap - _res:
             continue            # 🪑 spare-only stream: seats kept free
@@ -894,7 +997,7 @@ def try_open(state: dict, cands: list, live_fn, active=None,
                 _m_used += float(_op.get("margin") or 0)
             except Exception:
                 continue
-        margin = _bal / MAX_SLOTS
+        margin = _bal / MAX_SLOTS * float(_sz[0])   # GEN 19: × the cell's multiplier
         if margin > _bal - _m_used:
             continue            # collateral spent — no seat
         notional = margin * lev
@@ -916,7 +1019,8 @@ def try_open(state: dict, cands: list, live_fn, active=None,
                "srcs": c.get("srcs", c["src"]),
                "opened_at": _t, "fees": fee_in,
                "tp1_banked": 0.0, "be_set": False, "peak": live,
-               "clock": _ck[1], "adds": []}          # GEN 18 stamps
+               "clock": _ck[1], "adds": [],          # GEN 18 stamps
+               "size": _sz[1], "mult": float(_sz[0]), "size_why": _sz[2]}   # GEN 19 stamps
         state["balance"] -= fee_in
         state["open"].append(pos)
         held.add(c["symbol"])
@@ -970,13 +1074,14 @@ def close_before(state: dict, ts: float, live_fn) -> list:
     return out
 
 
-def cutover_gen18(live_fn) -> list:
+def cutover_fresh_book(live_fn) -> list:
     """🎮 GEN 18 (user 2026-10-22: "close all the trades and restart with the
-    fresh account 2000 dollars"): the previous generation's open seats close at
-    the live price INTO THEIR OWN ledger, that ledger is archived beside the state
-    file, and the fresh $2,000 book is written. Runs once; a file already on GEN
-    18 is left alone; a seat whose price is unreadable makes the whole cut-over
-    wait for the next tick (the old file stays in place)."""
+    fresh account 2000 dollars") and GEN 19 (user 2026-11-07: "fresh account again
+    from 2000 dollars"): the previous generation's open seats close at the live
+    price INTO THEIR OWN ledger, that ledger is archived beside the state file,
+    and the fresh $2,000 book is written. Runs once; a file already on this GEN
+    is left alone; a seat whose price is unreadable makes the whole cut-over wait
+    for the next tick (the old file stays in place)."""
     out = []
     try:
         with open(STATE_FILE, encoding="utf-8") as f:
@@ -991,8 +1096,8 @@ def cutover_gen18(live_fn) -> list:
             if live <= 0:
                 continue
             rec = _close_qty(old, p, p["qty"], live,
-                             "GEN 18 cut-over — closed at live, fresh $2,000 "
-                             "book from here (user 2026-10-22)")
+                             f"GEN {GEN} cut-over — closed at live, fresh $2,000 "
+                             f"book from here (user {CUTOVER_DATE})")
             old.setdefault("closed", []).append(rec)
             old["open"].remove(p)
             out.append(("close", rec))
@@ -1015,6 +1120,10 @@ def cutover_gen18(live_fn) -> list:
           "started_at": time.time(), "open": [], "closed": [],
           "equity_hist": [], "from": arch, "cutover_closed": len(out)})
     return out
+
+
+cutover_gen18 = cutover_fresh_book        # the GEN 18 name, kept for callers
+CUTOVER_DATE = "2026-11-07"
 
 
 def _add_on(state: dict, p: dict, live: float, why: str, now: float):
@@ -1111,13 +1220,35 @@ def manage(state: dict, live_fn, kr_get=None, addon_fn=None) -> list:
         # the PEAK open gain and only ever moves the safe way, riding
         # toward TP2. Strong signals that get flipped against tighten
         # to TRAIL_LOCK_FLIP instead of closing (below).
-        if p.get("be_set") and p["qty"] > 0:
+        _lad = p.get("src") in LADDER_SRC and p["qty"] > 0
+        if _lad:
+            # 🪜 GEN 19: THE DESK LADDER (shadow_trader.manage, verbatim in spirit) —
+            # +1R → stop to entry · TP1 printed → stop to TP1 · after TP1 the stop
+            # trails the peak by TRAIL_R × the initial risk · TP2 / 48h below.
+            _r0l = (float(p.get("risk0") or 0) or abs(p["entry"] - p["stop"])
+                    or p["entry"] * 0.02)
+            _gl = (live - p["entry"]) if lng else (p["entry"] - live)
+            if not p.get("be_set") and _gl >= _r0l:
+                p["stop"] = (max(p["stop"], p["entry"]) if lng
+                             else min(p["stop"], p["entry"]))
+                p["be_set"] = True
+            _t1l = live >= p["tp1"] if lng else live <= p["tp1"]
+            if _t1l and not p.get("tp1_lock"):
+                p["stop"] = (max(p["stop"], p["tp1"]) if lng
+                             else min(p["stop"], p["tp1"]))
+                p["tp1_lock"] = True
+            if p.get("tp1_lock"):
+                _trl = (_pk - TRAIL_R * _r0l) if lng else (_pk + TRAIL_R * _r0l)
+                p["stop"] = (max(p["stop"], _trl) if lng
+                             else min(p["stop"], _trl))
+        elif p.get("be_set") and p["qty"] > 0:
             _lk = float(p.get("trail_lock") or TRAIL_LOCK)
             _cand = p["entry"] + (_pk - p["entry"]) * _lk
             p["stop"] = (max(p["stop"], _cand) if lng
                          else min(p["stop"], _cand))
         hit_stop = live <= p["stop"] if lng else live >= p["stop"]
-        hit_tp1 = live >= p["tp1"] if lng else live <= p["tp1"]
+        # a ladder seat never banks at TP1 — it locks and trails (hit_tp1 False for it)
+        hit_tp1 = (live >= p["tp1"] if lng else live <= p["tp1"]) and not _lad
         # ⭐➕ GEN 18 ADD-ON (user 2026-10-22): an open star seat whose own
         # ignition watch reads 1H LIVE or GO FAST gets 2 seats' margin more,
         # once, at the live price — never on a seat already at its stop or TP1.
@@ -1233,7 +1364,8 @@ def manage(state: dict, live_fn, kr_get=None, addon_fn=None) -> list:
         if hit_stop:
             px = p["stop"]
             rec = _close_qty(state, p, p["qty"], px,
-                             "BE stop" if p["be_set"] else "stop")
+                             "TP1 lock — trailed out above TP1 (ladder)" if p.get("tp1_lock")
+                             else "BE stop" if p["be_set"] else "stop")
             state["closed"].append(rec)
             events.append(("close", rec))
             continue
@@ -1291,6 +1423,12 @@ def manage(state: dict, live_fn, kr_get=None, addon_fn=None) -> list:
         if p["qty"] > 0 and hit_tp2:
             px = t2 if t2 else live
             rec = _close_qty(state, p, p["qty"], px, "TP2")
+            state["closed"].append(rec)
+            events.append(("close", rec))
+            continue
+        if _lad and float(_clock()) - float(p["opened_at"]) >= LADDER_HOLD_H * 3600:
+            rec = _close_qty(state, p, p["qty"], live,
+                             f"TIME — {LADDER_HOLD_H:.0f}h ladder cut at live (desk law)")
             state["closed"].append(rec)
             events.append(("close", rec))
             continue

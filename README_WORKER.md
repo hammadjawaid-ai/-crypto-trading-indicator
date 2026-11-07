@@ -200,3 +200,42 @@ User: "lets build it and deploy … concise and straight to the point … we are
   the three new tiers; Demo header says THE FIVE with the roster history in an expander.
 - Guards: `.bells2_test.py` (49), `.star_bell_test.py` (22), `.prime_pair_test.py`, `.agrade_test.py`,
   `.clock_cells_test.py` updated to the new law.
+
+## 🎮 GEN 19 — THE FIVE, GATED (2026-11-07) — the demo book rebuilt on the ≥69% cells
+
+User: "we are going with anything that have the win rate over 69% or above for the timings and you deploy that …
+first stream gated elite star, second star x prime, third star x strong trigger, fourth conviction revival, last apex v2 x
+elite star … leverage math you are the best so treat it accordingly … fresh account again from 2000 dollars".
+- Fresh $2,000 book: `demo_account.cutover_fresh_book` closes the GEN 18 seats at the live price into their archived
+  ledger (`demo_gen18_<date>.json` beside the state file), then `load()` starts GEN 19. `cutover_gen18` stays as an alias.
+- The roster (`CLASS_W`, in his order): ⭐ ELITE STAR gated on its ≥69% cells · ⭐🥇 STAR × PRIME · ⭐💥 STAR × STRONG
+  TRIGGER · 💎 CONVICTION REVIVAL (LATE only, half) · ⭐🏆² STAR × APEX V2. STRONG TRIGGER and PRIME × STRONG TRIGGER
+  left the money (bells, tiers, boards go on). Pairs seat at the second fire from the pairing pass (`_DEMO_ST`, `_DEMO_SV2`).
+- ⭐ STAR BOOK (`STAR_BOOK` / `star_seat`, clean desk 9 Sep → 4 Nov, held from the fire, the desk ladder; `.gen19_cells`
+  in the scratch): LONG 05–09 69% / +0.44R (26) full · 09–13 75% / +0.58R (20) full; 13–17 (27%), 17–21 (62%), 21–01
+  (64%) out. SHORT 05–09 71% / +0.33R (17) full · 13–17 73% / +0.21R (11) half · 17–21 79% / +0.60R (33) full, DOUBLE when
+  BTC's day ≤ 0 (88% / +0.81R on 26), half when up (43% / −0.17R on 7) · 21–01 77% / +0.51R (13) half; 09–13 out; shorts
+  outside heat 40–79 half (78% / +0.50R inside vs 66% / +0.30R). Longs carry no heat rule. The book as one stream: 74% /
+  +0.48R (120), halves +0.54 / +0.43, Sep +0.54 · Oct +0.47 · Nov −0.18 (4), 2.2 fires a day. ONE TRADE beside a star
+  does not hurt inside these cells — no size-down. The star feed now carries `heat` and `btc_day` for the sizing.
+- Leverage math: 10x everywhere. The gated book's widest stop is 6.96%; 10x liquidates near 9.5% (never before a stop),
+  15x would liquidate 12% of these trades at its 6.3% line. Conviction is expressed in SEATS: full $100 margin ($1,000
+  notional, ~$47 risk at the 4.7% median stop = 2.3% of the bank), half $50, double $200; heat cap 35% unchanged.
+- Exit = the desk ladder (`LADDER_SRC`, `TRAIL_R = 1.2`, `LADDER_HOLD_H = 48`): stop → entry at +1R, stop → TP1 when
+  TP1 prints (no bank), after TP1 the stop trails the peak by 1.2R, TP2 closes, 48h cuts at live. The cells were measured
+  with exactly this; the fade bank (`NEAR_TP_SRC`) and the TP1 bank are off for the five. The ⭐➕ add-on is off
+  (`ADDON_SRC`): the whole seat is taken at the fire (the hour-entry add measured ≈ −0.06R in the meta-label lab).
+- Page: header `🎮 DEMO $2,000 — GEN 19 · THE FIVE, GATED`, the roster history expander (GEN 17 → 19). Demo bells
+  carry the tag `🎮 *DEMO $2,000 GEN19*` and the seat size on the open card.
+- Guard: `.demo_gen19_test.py` (book cells, sizing, the ladder on both sides, TP2, 48h, no add-on, cut-over, wiring).
+  `.demo_gen18_test.py` is history now (it asserts GEN 18).
+
+## ⭐⚡ GO FAST / LATE reply — the 🕐 clock read and the class line are back, concise (2026-11-07)
+
+User: "for go fast and late we should add the information inside the signal on telegram … concise but dont let go of it".
+- `rung_stats.go_text` is five lines: header · plan · ignited/held/entered · 🕐 clock · class. The 🕐 line
+  (`clock_cells.go_clock_short`) = the FIRE's window cell for this GO class (⭐⚡ ELITE GO cells for a star, 💎⚡ GO LIVE
+  cells for a conviction fire, the revived cells when the hour read DEAD; desk cell, replay fallback, else thin) + where
+  the GO is landing with the entered-at-the-bell call (🟢 entry has paid / 🟡 hold only / 🔴 entry lost). The class line
+  = `GO_CLASS_SHORT` (the 14 → 28 Sep replay cell: ✅ LONG · FAST 79% / +0.21R per GO entry (77); ⚠️ SHORT; ⚠️ LATE).
+- Guard: `.bells2_test.py` (51) checks the five lines.

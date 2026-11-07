@@ -81,7 +81,9 @@ ew["oneh"] = "DEAD"
 v2 = rs.verdict_text(ew, -0.1, now)
 check("DEAD verdict reply = 2 lines, HOLD no add", len(v2.split("\n")) == 2 and "HOLD, no add" in v2, v2)
 g = rs.go_text(dict(ew, oneh="LIVE"), 0.4, 1800, 1.02, now)
-check("GO reply = 3 lines, PROTECT not an entry, FAST", len(g.split("\n")) == 3 and "PROTECT, not an entry" in g and "GO FAST" in g, g)
+check("GO reply = 5 lines (header · plan · record · 🕐 clock · class), PROTECT not an entry, FAST",
+      len(g.split("\n")) == 5 and "PROTECT, not an entry" in g and "GO FAST" in g
+      and g.split("\n")[3].startswith("🕐") and "landing" in g and g.split("\n")[4].startswith("class ✅ LONG · FAST 79%"), g)
 g2 = rs.go_text(dict(ew, oneh="DEAD"), 0.3, 5 * 3600, 1.02, now)
 check("DEAD→GO reply says REVIVED and LATE", "GO LATE · REVIVED" in g2, g2)
 check("short clock line", re.match(r"^🕐 [🟢🟡🔴] \d\d–\d\d (longs|shorts) ", cc.star_line_short("LONG", now)) is not None, cc.star_line_short("LONG", now))
@@ -130,7 +132,7 @@ check("bench behind a toggle, ACTIVE stays", 'key="desk_bench_toggle"' in A and 
 check("⭐🤝 star pairs board exists and is called", "def _render_star_pairs_board(pb_state)" in A and "_render_star_pairs_board(pb_state)" in A[A.index("def _render_star_pairs_board") + 100:])
 check("star pairs board draws the four streams", all(f'("{s}", ' in A for s in ("star_trig", "star_prime", "star_takenow", "star_apexv2")))
 check("tier labels for the three new tiers", all(f'"{t}": "' in A for t in ("star_trig", "star_takenow", "star_apexv2")))
-check("GEN 18 header says THE FIVE", "GEN 18 · THE FIVE" in A)
+check("GEN 19 header says THE FIVE, GATED", "GEN 19 · THE FIVE, GATED" in A)
 
 print(f"\n{PASS} passed, {len(FAIL)} failed" + (f": {FAIL}" if FAIL else " — ALL PASS"))
 sys.exit(1 if FAIL else 0)

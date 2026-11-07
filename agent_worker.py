@@ -808,7 +808,9 @@ _DEMO_T1: list = []
 # 🎮 GEN 17.2 seat feed (user 2026-10-14): ⭐🥇 STAR × PRIME — a star fire with
 # a PRIME signal on the same coin+side, appended by the pairing pass.
 _DEMO_SP: list = []
-_DEMO_PT: list = []     # 💥🥇 GEN 18.2 seat feed (user 2026-10-24)
+_DEMO_PT: list = []     # 💥🥇 GEN 18.2 seat feed (user 2026-10-24) — off the GEN 19 roster, feed kept
+_DEMO_ST: list = []     # ⭐💥 GEN 19 seat feed: STAR × STRONG TRIGGER at the second fire
+_DEMO_SV2: list = []    # ⭐🏆² GEN 19 seat feed: STAR × APEX V2 at the second fire
 _DEMO_PB: list = []     # 🔶💥 GEN 16.5 pressed-first breaks, LONGS ONLY
 # 🗞 NEWS RADAR runs off the main loop (its RSS pass takes ~16-18s);
 # news_radar holds its own lock, this just avoids piling up threads.
@@ -3407,6 +3409,9 @@ def cycle() -> None:
                                  # under 65 = 6x.
                                  "burst": (_b9v if _b9v < 900
                                            else 0.0),
+                                 # GEN 19 sizing inputs (shorts' heat rule, 17–21 BTC rule)
+                                 "heat": _pmx.get("heat"),
+                                 "btc_day": _btc_day_pct(),
                                  "src": "elite_star",
                                  # GEN 17.3: seat only on a passed read
                                  "seat": bool(_sg9[0]),
@@ -4878,6 +4883,21 @@ def cycle() -> None:
                             score=float(_sig_pp.get("score") or 85),
                             burst=0.0, fired_at=_now_pp))
                         del _DEMO_SP[:-12]
+                    elif _kind == "startrig":
+                        # 🎮 GEN 19 seat feed (user 2026-11-07): the star's plan, seated
+                        # at the second fire (71% / +0.18R entered, 77)
+                        _DEMO_ST.append(dict(
+                            _sig_pp, src="star_trig",
+                            score=float(_sig_pp.get("score") or 85),
+                            burst=0.0, fired_at=_now_pp))
+                        del _DEMO_ST[:-12]
+                    elif _kind == "starv2":
+                        # 🎮 GEN 19 seat feed: STAR × APEX V2 at the second fire (83% / +0.75R, 12)
+                        _DEMO_SV2.append(dict(
+                            _sig_pp, src="star_apexv2",
+                            score=float(_sig_pp.get("score") or 85),
+                            burst=0.0, fired_at=_now_pp))
+                        del _DEMO_SV2[:-12]
                     _bell_pp = ("off" if not _on_pp else
                                 "band-out" if (_bands_pp is not None
                                                and _band_pp not in _bands_pp) else
@@ -6307,15 +6327,15 @@ def cycle() -> None:
     # TP2/48h exits. Simulated only — no real orders; buzzes every
     # move so the user watches it trade.
     try:
-        # 🎮 GEN 18 cut-over (user 2026-10-22): the GEN 17 seats close at the
-        # live price into their own ledger (archived beside the state file),
-        # then load() starts the fresh $2,000 book. Runs once.
+        # 🎮 GEN 19 cut-over (user 2026-11-07; GEN 18's on 2026-10-22): the previous
+        # generation's seats close at the live price into their own ledger (archived
+        # beside the state file), then load() starts the fresh $2,000 book. Runs once.
         try:
-            for _ev18, _rec18 in demo_account.cutover_gen18(_live):
-                print(f"[gen18] cut-over close {_rec18['base']} "
+            for _ev18, _rec18 in demo_account.cutover_fresh_book(_live):
+                print(f"[gen{demo_account.GEN}] cut-over close {_rec18['base']} "
                       f"{_rec18['side']} {_rec18['pnl']:+.2f}$", flush=True)
         except Exception as _c18_exc:
-            print("  gen18 cut-over error:", _c18_exc, flush=True)
+            print("  demo cut-over error:", _c18_exc, flush=True)
         _dz = demo_account.load()
         # GEN 6 (user 2026-08-23: "we only go with Strong triggers
         # and Re Run, and Elite conviction max... nothing else should
@@ -6325,11 +6345,11 @@ def cycle() -> None:
         # GEN 8 form boosts: each pool's own live desk ledger (duo
         # form = the duo85 tier; young tiers just read ~0 = neutral).
         _dz_form = {}
-        for _dt, _sh in (("elite_star", "elite_star"),         # GEN 18
-                         ("strong_trigger", "trig_strong"),
+        for _dt, _sh in (("elite_star", "elite_star"),         # GEN 19: the five
                          ("star_prime", "star_prime"),
+                         ("star_trig", "star_trig"),
                          ("conv_revival", "go_revived"),
-                         ("prime_trig", "prime_trig")):        # GEN 18.2
+                         ("star_apexv2", "star_apexv2")):
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_sh)["net_r"]
             except Exception:
@@ -6868,6 +6888,7 @@ def cycle() -> None:
                                     _DEMO_GO.append(dict(
                                         _rv_sig, src="conv_revival",
                                         score=85.0, burst=0.0, conf=None,
+                                        go_tier=str(_ew.get("go") or "").upper(),   # GEN 19: LATE seats, FAST no
                                         fired_at=_ew_now))
                                     del _DEMO_GO[:-12]
                                 else:
@@ -6985,44 +7006,47 @@ def cycle() -> None:
         # 🎮 GEN 17 POOLS (user 2026-10-14): exactly the three, in his order.
         _DEMO_GO[:] = [d for d in _DEMO_GO
                        if _now - d["fired_at"] <= DEMO_FIRE_TTL_S]
-        # 🎮 GEN 18 POOLS (user 2026-10-22): THE FOUR, nothing else.
+        # 🎮 GEN 19 POOLS (user 2026-11-07): THE FIVE, GATED — nothing else.
         _dz_pools = {
             # 1. ⭐ ELITE STAR — the star fire that PASSED the phone's four-rule
             # read (heat >= 25 · BTC day <= +1.5% · not 01–05 PKT · stop <= 7%);
-            # the star's clock (🔴 = no seat) is read in demo_account.try_open
+            # the ≥69% cell book, heat and BTC-day sizing are read in
+            # demo_account.star_seat (full / half / double, or no seat)
             "elite_star": ([dict(d) for d in _DEMO_STARS
                             if d.get("seat") and d.get("entry")
                             and d.get("stop") and d.get("tp1")]
                            + [d for d in _dz_reo
                               if d["src"] == "elite_star"]),
-            # 2. 💥 STRONG TRIGGER conf >= 65 (gate in demo_account)
-            "strong_trigger": ([f for f in _dz_fires
-                                if f["src"] == "strong_trigger"]
-                               + [d for d in _dz_reo
-                                  if d["src"] == "strong_trigger"]),
-            # 3. ⭐🥇 STAR × PRIME: star fire + PRIME on the coin, every band
+            # 2. ⭐🥇 STAR × PRIME: the star's plan, seated at the second fire
             "star_prime": ([dict(d) for d in _DEMO_SP
                             if _now - d["fired_at"] <= DEMO_FIRE_TTL_S
                             and d.get("entry") and d.get("stop")
                             and d.get("tp1")]
                            + [d for d in _dz_reo
                               if d["src"] == "star_prime"]),
+            # 3. ⭐💥 STAR × STRONG TRIGGER: the star's plan, at the second fire
+            "star_trig": ([dict(d) for d in _DEMO_ST
+                           if _now - d["fired_at"] <= DEMO_FIRE_TTL_S
+                           and d.get("entry") and d.get("stop")
+                           and d.get("tp1")]
+                          + [d for d in _dz_reo
+                             if d["src"] == "star_trig"]),
             # 4. 💎 CONVICTION REVIVAL — entry at the GO price with the fire's
-            # plan, only when the bell's rule held (fed above)
+            # plan, only when the bell's rule held (fed above); LATE only, half
+            # (demo_account.seat_size)
             "conv_revival": ([dict(d) for d in _DEMO_GO
                               if d.get("src") == "conv_revival"
                               and d.get("entry") and d.get("stop")
                               and d.get("tp1")]
                              + [d for d in _dz_reo
                                 if d["src"] == "conv_revival"]),
-            # 5. 💥🥇 PRIME × STRONG TRIGGER (GEN 18.2, user 2026-10-24: "move it to
-            # demo trading with full leverage") — the PRIME plan, every band
-            "prime_trig": ([dict(d) for d in _DEMO_PT
-                            if _now - d["fired_at"] <= DEMO_FIRE_TTL_S
-                            and d.get("entry") and d.get("stop")
-                            and d.get("tp1")]
-                           + [d for d in _dz_reo
-                              if d["src"] == "prime_trig"])}
+            # 5. ⭐🏆² STAR × APEX V2: the star's plan, at the second fire
+            "star_apexv2": ([dict(d) for d in _DEMO_SV2
+                             if _now - d["fired_at"] <= DEMO_FIRE_TTL_S
+                             and d.get("entry") and d.get("stop")
+                             and d.get("tp1")]
+                            + [d for d in _dz_reo
+                               if d["src"] == "star_apexv2"])}
         # 🔄 GEN 7 rotation input: every (coin, side) with a LIVE
         # signal this cycle — positions outside this set are the
         # rotation candidates ("a losing trade stands only while
@@ -7047,22 +7071,7 @@ def cycle() -> None:
                 return _v
             except Exception:
                 return None
-        def _dz_star_state(sym, side):
-            """⭐➕ GEN 18 add-on read: the open star seat's own ignition
-            watch — its 1H verdict and GO (newest watch for the coin+side)."""
-            best = None
-            for _w18 in list(_EGO_WATCH):
-                try:
-                    if (_w18.get("symbol") == sym and _w18.get("star")
-                            and (_w18.get("side") or "").upper() == (side or "").upper()
-                            and _w18.get("fam", "elite") == "elite"):
-                        if best is None or float(_w18.get("fired_at") or 0) > float(best.get("fired_at") or 0):
-                            best = _w18
-                except Exception:
-                    continue
-            return {"oneh": best.get("oneh"), "go": best.get("go")} if best else None
-        _dz_events = demo_account.manage(_dz, _live, _dz_kr,
-                                         addon_fn=_dz_star_state)
+        _dz_events = demo_account.manage(_dz, _live, _dz_kr)   # GEN 19: no ⭐➕ add-on
         # 🔁 GEN 8 MOMENTUM RE-ENTRY (user 2026-09-05: "let it ride
         # to tp1 and close it. if the momentum is still there open
         # the trade again"): every TP1 bank gets a 1h-burst check —
@@ -7100,9 +7109,9 @@ def cycle() -> None:
                      "score": float(_rp8.get("score") or 80),
                      "src": (_rec8.get("src")
                              if _rec8.get("src") in
-                             ("elite_star", "strong_trigger",
-                              "star_prime", "conv_revival", "prime_trig")
-                             else "strong_trigger"),   # GEN 18.2
+                             ("elite_star", "star_prime", "star_trig",
+                              "conv_revival", "star_apexv2")
+                             else "elite_star"),   # GEN 19
                      "chain": int(_rp8.get("chain") or 0) + 1,
                      "fired_at": _now})
                 print(f"[gen8] 🔁 momentum re-entry queued "
@@ -7150,7 +7159,7 @@ def cycle() -> None:
 
         for _rr in _dz_rot:
             ok, _ = _dz_tg(
-                f"🎮🔄 *DEMO $1500 GEN9* — ROTATED OUT "
+                f"🎮🔄 *DEMO $2,000 GEN19* — ROTATED OUT "
                 f"{_rr['base']} {_rr['side']} ({_rr['reason']}) → "
                 f"{'+' if _rr['pnl'] >= 0 else ''}"
                 f"${_rr['pnl']:,.2f}\n"
@@ -7160,7 +7169,7 @@ def cycle() -> None:
         for _po in _dz_opened:
             _agr = int(_po.get("agree", 1))
             ok, _ = _dz_tg(
-                f"🎮 *DEMO $1500 GEN9* — OPENED {_po['base']} "
+                f"🎮 *DEMO $2,000 GEN19* — OPENED {_po['base']} "
                 f"{_po['side']} "
                 f"({'🤝 ' + str(_agr) + ' SYSTEMS AGREE · ' if _agr > 1 else ''}"
                 f"src `{_po.get('srcs', _po['src'])}` · score "
@@ -7170,7 +7179,7 @@ def cycle() -> None:
                 f"TP1 `{_po['tp1']:g}` · notional "
                 f"${_po['notional']:,.0f} "
                 f"(${_po.get('margin', 0):,.0f} margin × "
-                f"{_po.get('lev', '?')}x)\n"
+                f"{_po.get('lev', '?')}x · {_po.get('size') or 'full'} seat)\n"
                 f"balance `${_dz['balance']:,.2f}`")
             n_alerts += 1 if ok else 0
         for _ev, _rec in _dz_events:
@@ -7178,7 +7187,7 @@ def cycle() -> None:
                 # 🧠🛡 strength-aware guard — position still open, the
                 # brain gave a STRONG signal room instead of banking
                 ok, _ = _dz_tg(
-                    f"🎮🧠 *DEMO $1500 GEN9* — RIDING THROUGH THE "
+                    f"🎮🧠 *DEMO $2,000 GEN19* — RIDING THROUGH THE "
                     f"FLIP {_rec['base']} {_rec['side']}\n"
                     f"{_rec['reason']}\nstop now "
                     f"`{_rec['stop']:g}` · balance "
@@ -7200,7 +7209,7 @@ def cycle() -> None:
             _tag = ("💰 TP1 half-banked" if _ev == "tp1"
                     else "CLOSED")
             ok, _ = _dz_tg(
-                f"🎮 *DEMO $1500 GEN9* — {_tag} {_rec['base']} "
+                f"🎮 *DEMO $2,000 GEN19* — {_tag} {_rec['base']} "
                 f"{_rec['side']} ({_rec['reason']}) → "
                 f"{'+' if _rec['pnl'] >= 0 else ''}"
                 f"${_rec['pnl']:,.2f}\n"

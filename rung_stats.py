@@ -54,6 +54,10 @@ GO_CLASS = {"long_fast": "✅ LONG · FAST — the measured cell: 79% win / +1.1
             "late": "⚠️ LATE (over 4h) — late GOs measured 52% / −1.74% / −0.10R "
                     "(27): size down or pass",
             "window": "replay 14 → 28 Sep, fire stop"}
+# the same cells, one short line each (2026-11-07 concise GO reply, user: "dont let go of it")
+GO_CLASS_SHORT = {"long_fast": "✅ LONG · FAST 79% / +1.15% / +0.21R per GO entry (77)",
+                  "short": "⚠️ SHORT 48% / −1.92% / −0.16R per GO entry (42) — size down or pass",
+                  "late": "⚠️ LATE (over 4h) 52% / −1.74% / −0.10R per GO entry (27) — size down or pass"}
 
 
 # ───────────────────────── clock helpers ─────────────────────────
@@ -399,10 +403,23 @@ def go_text(ew: dict, prg: float, age_s: float, px: float, now: float,
     if bank:                      # 🎯 bank zone (user 2026-10-24) — the chip
         import bank_zone as _bz
         plan = plan + " · " + _bz.chip(bank)
-    # 2026-11-07 concise reply: header · plan · one record line (held vs entered)
-    return "\n".join([head, plan,
-                       f"ignited {prg * 100:+.0f}% · live `{float(px):g}` · held {lab} {rec(c)} · "
-                       f"entered at the GO ≈ 0R"])
+    # 2026-11-07 concise reply: header · plan · one record line (held vs entered) · the 🕐
+    # clock read (the fire's window cell for this GO class + where the GO lands) · the class
+    # line — the user the same evening: "add the information inside the signal … concise
+    # but dont let go of it". Five lines.
+    lines = [head, plan,
+             f"ignited {prg * 100:+.0f}% · live `{float(px):g}` · held {lab} {rec(c)} · "
+             f"entered at the GO ≈ 0R"]
+    try:
+        import clock_cells as _cc
+        lines.append(_cc.go_clock_short(
+            side, float(ew.get("fired_at") or (now - age_s)), now,
+            "LATE" if late else "FAST", star, rev))
+    except Exception:
+        pass
+    lines.append("class " + GO_CLASS_SHORT["short" if side == "SHORT" else "late" if late else "long_fast"]
+                 + f" · {GO_CLASS['window']}")
+    return "\n".join(lines)
 
 
 def freeze_text(ew: dict, now: float, db_path: str | None = None) -> str:

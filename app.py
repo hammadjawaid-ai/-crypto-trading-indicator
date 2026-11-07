@@ -9885,16 +9885,25 @@ if active_section == "🎮 Demo Trading":
         "<span style='font-size:1.5rem;font-weight:900;background:"
         "linear-gradient(90deg,#40c4ff,#b388ff);-webkit-background-"
         "clip:text;-webkit-text-fill-color:transparent;background-"
-        "clip:text'>🎮 DEMO $2,000 — GEN 18 · THE FIVE"
+        "clip:text'>🎮 DEMO $2,000 — GEN 19 · THE FIVE, GATED"
         "</span><br><span style='color:#e6e9f0;font-size:0.84rem'>"
-        "<b>THE FIVE, in order:</b> 1. ⭐ ELITE STAR gated (🟢/🟡 clock for its side; ⭐➕ +$200 margin "
-        "once its 1H verdict is LIVE or a GO FAST lands) · 2. 💥 STRONG TRIGGER conf ≥65 (red windows closed) "
-        "· 3. ⭐🥇 STAR × PRIME · 4. 💎 CONVICTION REVIVAL (the bell's rule) · 5. 💥🥇 PRIME × STRONG TRIGGER. "
-        "All 10x, $100 margin a seat, exits SL / TP1 banked 100% / TP2, no time stop. Fresh $2,000 book since "
-        f"22 Oct · day {_days:.1f}.</span></div>",
+        "<b>THE FIVE, in order:</b> 1. ⭐ ELITE STAR gated, on its ≥69% cells only — longs 05–09 · 09–13 full; "
+        "shorts 05–09 full · 13–17 half · 17–21 full (double on a BTC-down day, half on an up day) · 21–01 half; "
+        "shorts outside heat 40–79 half · 2. ⭐🥇 STAR × PRIME · 3. ⭐💥 STAR × STRONG TRIGGER · "
+        "4. 💎 CONVICTION REVIVAL LATE only, half · 5. ⭐🏆² STAR × APEX V2 — pairs seat at the second fire. "
+        "All 10x; full seat $100 margin, half $50, double $200; exit = the desk ladder (BE at +1R → TP1 lock → "
+        "1.2R trail → 48h), no TP1 bank, no add-on. Fresh $2,000 book since 7 Nov · "
+        f"day {_days:.1f}.</span></div>",
         unsafe_allow_html=True)
-    with st.expander("roster history (GEN 17 → 18.2)", expanded=False):   # 2026-11-07: moved out of the header
+    with st.expander("roster history (GEN 17 → 19)", expanded=False):   # 2026-11-07: moved out of the header
         st.caption(
+            "GEN 19 (7 Nov): the GEN 18 seats closed at the live price, ledger archived; the gated ⭐ star kept "
+            "only its ≥69% side × window cells (clean desk 9 Sep → 4 Nov: the book 74% / +0.48R over 120, both "
+            "halves), STRONG TRIGGER and PRIME × STRONG TRIGGER left the money, STAR × STRONG TRIGGER and STAR × "
+            "APEX V2 joined, the revival seats LATE only at half, the ⭐➕ add-on and the fade bank went, the desk "
+            "ladder became the exit. GEN 18 (22 Oct → 7 Nov, $2,000 → ~$1,680): ⭐ star on a 🟢/🟡 clock with "
+            "the add-on, 💥 STRONG TRIGGER conf ≥65, ⭐🥇 STAR × PRIME, 💎 CONVICTION REVIVAL, 💥🥇 PRIME × "
+            "STRONG TRIGGER; exits SL / TP1 banked 100% / fade bank. "
             "GEN 18 (22 Oct): the GEN 17 seats closed at the live price, ledger archived; GO REVIVED star "
             "revivals, ARRIVAL T1 and EARLY LANE left the money (bells, desk tiers and boards go on). 18.1 "
             "(24 Oct): the fade bank back on for the four. 18.2 (24 Oct): 💥🥇 PRIME × STRONG TRIGGER as the "

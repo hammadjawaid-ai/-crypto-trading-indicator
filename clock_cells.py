@@ -257,6 +257,51 @@ GO_LATE_GO_POOLED = {"05–09": (82, 0.53, 82, 0.12, 22), "09–13": (79, 0.59, 
                      "17–21": (70, 0.27, 55, -0.04, 20), "21–01": (50, -0.06, 50, -0.30, 6)}
 
 
+def _short_cell(desk: dict, replay: dict, side: str, ts: float) -> tuple[str, str]:
+    """(light, 'HH–HH longs 86% / +0.65R (14[, replay])') — the desk cell when it has
+    MIN_N+ trades, else the replay cell, else 'thin'."""
+    win = window_of(ts)
+    for cells, tag in ((desk, ""), (replay, ", replay")):
+        c = cells.get((side, win))
+        if isinstance(c, tuple) and c[2] >= MIN_N:
+            w, r, n = c
+            e = "🟢" if (w >= 65 and r >= 0.25) else "🔴" if (w <= 45 or r <= 0) else "🟡"
+            return e, f"{win} {side.lower()}s {w}% / {r:+.2f}R ({n}{tag})"
+    return "🟡", f"{win} {side.lower()}s thin"
+
+
+def go_clock_short(side: str, fired_at: float, go_at: float, kind: str = "FAST",
+                   star: bool = True, revived: bool = False) -> str:
+    """🕐 one line for the GO reply (user 2026-11-07: "add the information inside the
+    signal … concise but dont let go of it"): the FIRE's window cell for this GO class —
+    ⭐⚡ ELITE GO for a star, 💎⚡ GO LIVE for a conviction fire, the revived cells when the
+    hour read DEAD — then where the GO is landing, with the entered-at-the-bell call."""
+    side = (side or "").upper()
+    kind = "LATE" if str(kind).upper() == "LATE" else "FAST"
+    if revived:
+        e, fire = _short_cell(REVIVED_STAR_CELLS if star else REVIVED_CONV_CELLS,
+                              REVIVED_STAR_REPLAY_CELLS if star else REVIVED_CONV_REPLAY_CELLS,
+                              side, fired_at)
+    elif star:
+        e, fire = _short_cell(ELITE_GO_CELLS, ELITE_GO_REPLAY_CELLS, side, fired_at)
+    else:
+        e, fire = _short_cell(GOLIVE_CELLS, GOLIVE_REPLAY_CELLS, side, fired_at)
+    cells = GO_FAST_GO_CELLS if kind == "FAST" else GO_LATE_GO_CELLS
+    pooled = GO_FAST_GO_POOLED if kind == "FAST" else GO_LATE_GO_POOLED
+    gw = window_of(go_at)
+    c, tag = cells.get((side, gw)), ""
+    if c is None or c[4] < MIN_N:
+        c, tag = pooled.get(gw), ", both sides"
+    if c is None or c[4] < MIN_N:
+        land = f"landing {gw}: thin"
+    else:
+        hw, hr, ew, er, n = c
+        call = ("🟢 entry has paid" if (er >= 0.10 and ew >= 65)
+                else "🟡 hold only" if er > -0.10 else "🔴 entry lost")
+        land = f"landing {gw}: held {hw}% / {hr:+.2f}R · entered {ew}% / {er:+.2f}R ({n}{tag}) {call}"
+    return f"🕐 {e} fired {fire} · {land}"
+
+
 def go_timing_line(kind: str, side: str, fired_at: float, go_at: float = None) -> str:
     """🕐 the ⭐ GO FAST / LATE timing read. Without go_at: the FIRE's window (for the card and
     the fire bell — what a GO on this fire has done). With go_at: the GO's own window (for the
