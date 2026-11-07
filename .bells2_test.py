@@ -86,7 +86,7 @@ check("GO reply = 5 lines (header · plan · record · 🕐 clock · class), PRO
       and g.split("\n")[3].startswith("🕐") and "landing" in g and g.split("\n")[4].startswith("class ✅ LONG · FAST 79%"), g)
 g2 = rs.go_text(dict(ew, oneh="DEAD"), 0.3, 5 * 3600, 1.02, now)
 check("DEAD→GO reply says REVIVED and LATE", "GO LATE · REVIVED" in g2, g2)
-check("short clock line", re.match(r"^🕐 [🟢🟡🔴] \d\d–\d\d (longs|shorts) ", cc.star_line_short("LONG", now)) is not None, cc.star_line_short("LONG", now))
+check("short clock line", re.match(r"^🕐 [🟢🟡🔴] \d\d–\d\d (longs|shorts)( |$)", cc.star_line_short("LONG", now)) is not None, cc.star_line_short("LONG", now))   # 01–05: gate-closed cell ends at the side word
 # pair card + conviction revival card without the full worker import: exec the two functions' source
 ns = {}
 src = W

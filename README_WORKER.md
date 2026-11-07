@@ -229,6 +229,9 @@ elite star … leverage math you are the best so treat it accordingly … fresh 
   carry the tag `🎮 *DEMO $2,000 GEN19*` and the seat size on the open card.
 - Guard: `.demo_gen19_test.py` (book cells, sizing, the ladder on both sides, TP2, 48h, no add-on, cut-over, wiring).
   `.demo_gen18_test.py` is history now (it asserts GEN 18).
+- 🎮 GEN 19.1 (user 2026-11-08: "add 17-21 take full longs and 21-01 halves longs"): LONG 17–21 full (62% / +0.38R
+  over 48, halves +0.51 / +0.31) and LONG 21–01 half (64% / +0.38R over 39, halves +0.79 / −0.20) join the star book;
+  both sit under his 69% line, his call. The book and balance carry on (no cut-over).
 
 ## ⭐⚡ GO FAST / LATE reply — the 🕐 clock read and the class line are back, concise (2026-11-07)
 

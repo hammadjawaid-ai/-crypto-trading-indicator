@@ -397,8 +397,9 @@ MIN_RANK = 85.0  # GEN 9: anyone can take any place
 # strong triggers at priority", then Star × Prime and the conviction revival; GO
 # REVIVED, ARRIVAL T1 and EARLY LANE leave the money (bells, tiers, boards go on).
 # 🎮 GEN 19 — THE FIVE, GATED (user 2026-11-07), in his order. CLASS_W is the roster.
-CLASS_W = {"elite_star": 105,     # 1. ⭐ ELITE STAR gated (four-rule read) on its ≥69% cells
-                                  #    only — STAR_BOOK: longs 05–09 · 09–13; shorts 05–09 ·
+CLASS_W = {"elite_star": 105,     # 1. ⭐ ELITE STAR gated (four-rule read) on its book cells
+                                  #    — STAR_BOOK: longs 05–09 · 09–13 · 17–21, 21–01 half
+                                  #    (19.1, his add); shorts 05–09 ·
                                   #    13–17 (half) · 17–21 (double on a BTC-down day) ·
                                   #    21–01 (half); shorts outside heat 40–79 half
            "star_prime": 104,     # 2. ⭐🥇 STAR × PRIME — seated at the second fire
@@ -537,14 +538,17 @@ def clock_ok(src, side, now=None):
 # FIRE's 4h PKT window, clean desk 9 Sep → 4 Nov, held from the fire on the desk ladder.
 # (seat multiplier, word) — None = the cell is under 69% (or closed by the gate): no seat.
 #   LONG  05–09 69% / +0.44R (26) · 09–13 75% / +0.58R (20)          → full
-#   LONG  13–17 27% / −0.51R (11) · 17–21 62% / +0.38R (48) · 21–01 64% / +0.38R (39) → out
+#   LONG  17–21 62% / +0.38R (48, halves +0.51/+0.31)                  → full (GEN 19.1, his add)
+#   LONG  21–01 64% / +0.38R (39, halves +0.79/−0.20)                  → half (GEN 19.1, his add)
+#   LONG  13–17 27% / −0.51R (11)                                     → out
 #   SHORT 05–09 71% / +0.33R (17) · 17–21 79% / +0.60R (33)          → full
 #   SHORT 13–17 73% / +0.21R (11) · 21–01 77% / +0.51R (13)          → half (thin)
 #   SHORT 09–13 44% / −0.08R (9) · 01–05 closed by the gate           → out
 # Re-measure with .gen19_cells (scratch) on a new backup; a cell moves at 60 fires.
 STAR_BOOK: dict = {
     ("LONG", "05-09"): (1.0, "full"), ("LONG", "09-13"): (1.0, "full"),
-    ("LONG", "13-17"): None, ("LONG", "17-21"): None, ("LONG", "21-01"): None, ("LONG", "01-05"): None,
+    ("LONG", "13-17"): None, ("LONG", "17-21"): (1.0, "full"), ("LONG", "21-01"): (0.5, "half"),
+    ("LONG", "01-05"): None,   # 🎮 GEN 19.1 (user 2026-11-08: "add 17-21 take full longs and 21-01 halves longs")
     ("SHORT", "05-09"): (1.0, "full"), ("SHORT", "09-13"): None, ("SHORT", "13-17"): (0.5, "half"),
     ("SHORT", "17-21"): (1.0, "full"), ("SHORT", "21-01"): (0.5, "half"), ("SHORT", "01-05"): None,
 }

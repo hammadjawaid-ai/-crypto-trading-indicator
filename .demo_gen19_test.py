@@ -44,14 +44,15 @@ if da.LADDER_SRC != FIVE or da.TRAIL_R != 1.2 or da.LADDER_HOLD_H != 48.0:
 if da.SMART_EXIT_SKIP != FIVE:
     fails.append("kronos smart exit must skip the five")
 # ⭐ the star book
-want = {("LONG", "05-09"): (1.0, "full"), ("LONG", "09-13"): (1.0, "full"), ("LONG", "13-17"): None, ("LONG", "17-21"): None,
-        ("LONG", "21-01"): None, ("LONG", "01-05"): None, ("SHORT", "05-09"): (1.0, "full"), ("SHORT", "09-13"): None,
+want = {("LONG", "05-09"): (1.0, "full"), ("LONG", "09-13"): (1.0, "full"), ("LONG", "13-17"): None, ("LONG", "17-21"): (1.0, "full"),
+        ("LONG", "21-01"): (0.5, "half"), ("LONG", "01-05"): None, ("SHORT", "05-09"): (1.0, "full"), ("SHORT", "09-13"): None,
         ("SHORT", "13-17"): (0.5, "half"), ("SHORT", "17-21"): (1.0, "full"), ("SHORT", "21-01"): (0.5, "half"), ("SHORT", "01-05"): None}
 if da.STAR_BOOK != want:
     fails.append(f"STAR_BOOK: {da.STAR_BOOK}")
 for side, t, heat, btc, mult, word in (("LONG", T07, 50, -1.0, 1.0, "full"), ("LONG", T11, 90, 3.0, 1.0, "full"),   # longs: no heat / BTC rule
-                                        ("LONG", T15, 50, -1.0, None, None), ("LONG", T19, 50, -1.0, None, None),
-                                        ("LONG", T23, 50, -1.0, None, None), ("LONG", T03, 50, -1.0, None, None),
+                                        ("LONG", T15, 50, -1.0, None, None), ("LONG", T19, 50, -1.0, 1.0, "full"),   # 19.1
+                                        ("LONG", T19, 90, 3.0, 1.0, "full"),                                          # no heat / BTC rule on longs
+                                        ("LONG", T23, 50, -1.0, 0.5, "half"), ("LONG", T03, 50, -1.0, None, None),   # 19.1
                                         ("SHORT", T07, 50, 0.5, 1.0, "full"), ("SHORT", T07, 90, 0.5, 0.5, "half"),
                                         ("SHORT", T11, 50, -1.0, None, None), ("SHORT", T15, 50, -1.0, 0.5, "half"),
                                         ("SHORT", T15, 20, -1.0, 0.5, "half"),                         # floor half
@@ -103,12 +104,18 @@ if set(got) != set(want_open) or any(abs(got[k][2] - want_open[k][2]) > 1 or abs
     fails.append(f"opens at 07:00 PKT: {got}")
 if "DDDUSDT" in got:
     fails.append("a FAST revival must not seat")
-# 19:00 PKT: LONG star no seat; SHORT star heat 55 + BTC down = DOUBLE $200 / $2,000
+# 19:00 PKT: LONG star full (19.1); SHORT star heat 55 + BTC down = DOUBLE $200 / $2,000
 st2 = fresh()
 o2, _ = da.try_open(st2, [cand("elite_star", heat=55, btc_day=-1.2), cand("elite_star", "BBBUSDT", "SHORT", 100.0, 104.0, 94.0, 90.0, heat=55, btc_day=-1.2)],
                     live, now=T19)
-if len(o2) != 1 or o2[0]["symbol"] != "BBBUSDT" or o2[0]["size"] != "double" or abs(o2[0]["margin"] - 200.0) > 0.5 or abs(o2[0]["notional"] - 2000.0) > 5:
-    fails.append(f"19:00 PKT: {[(p['symbol'], p['size'], p['margin'], p['notional']) for p in o2]}")
+got2 = {p["symbol"]: (p["size"], round(p["margin"]), round(p["notional"])) for p in o2}
+if got2.get("AAAUSDT", (None,))[0] != "full" or got2.get("BBBUSDT") is None or got2["BBBUSDT"][0] != "double"         or abs(got2["BBBUSDT"][1] - 200.0) > 1 or abs(got2["BBBUSDT"][2] - 2000.0) > 8:
+    fails.append(f"19:00 PKT: {got2}")
+# 23:00 PKT: LONG star half $50 (19.1)
+st2b = fresh()
+o2b, _ = da.try_open(st2b, [cand("elite_star", heat=55, btc_day=-1.2)], live, now=T23)
+if len(o2b) != 1 or o2b[0]["size"] != "half" or abs(o2b[0]["margin"] - 50.0) > 0.5:
+    fails.append(f"23:00 PKT long: {[(p['size'], p['margin']) for p in o2b]}")
 # 15:00 PKT: no long star; a short star seats half
 st3 = fresh()
 o3, _ = da.try_open(st3, [cand("elite_star", heat=55, btc_day=-1.2), cand("elite_star", "BBBUSDT", "SHORT", 100.0, 104.0, 94.0, 90.0, heat=55, btc_day=-1.2)],
