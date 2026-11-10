@@ -127,8 +127,19 @@ SENTRY_GRADES = {
 # BSTOCK_VALIDATED — the MONEY gate. False: no demo seat until the
 #   cohort validation comes back green ("give them real size when
 #   validated"). Flip on green; the demo unlocks automatically.
-BSTOCK_BUZZ = False
+# 🏦 2026-11-10 (user: "bring B stocks and stock back to the system on elite conviction
+# and rest of the streams should also pick them up like stars, apex, prime"): the phone is
+# ON for tokenized names — every stream's bell treats them like crypto (_bstock_quiet()
+# returns False). The MONEY gate below is untouched: no demo seat until he says so.
+BSTOCK_BUZZ = True
 BSTOCK_VALIDATED = False
+# 🏦 2026-11-10 universe: tokenized stocks are back in the scan. get_top_symbols returns the
+# top-n CRYPTO by volume plus every tokenized name with >= BSTOCK_MIN_QV of 24h quote volume
+# appended alongside (the 2026-08-17 "ride alongside the 100" shape), so a thin tokenized
+# listing never crowds a coin out and an illiquid one is not scanned. False = the crypto-only
+# universe of 2026-08-17 again.
+BSTOCK_IN_UNIVERSE = True
+BSTOCK_MIN_QV = 2_000_000.0
 # WLFI + LINK added 2026-08-15; ETHFI added 2026-08-16 (user orders)
 # — 21-coin sentry watch.
 # GIGGLE dropped 2026-08-17 with the crypto-only ruling (it's a
@@ -261,7 +272,13 @@ TOKENIZED_STOCKS = {"CRCLBUSDT", "SPCXBUSDT", "SOXLBUSDT", "SNDKBUSDT",
                     "TSLABUSDT", "AAPLBUSDT", "MSFTBUSDT", "AMZNBUSDT",
                     "METABUSDT", "NFLXBUSDT", "AMDBUSDT", "COINBUSDT",
                     "HOODBUSDT", "PLTRBUSDT", "ORCLBUSDT", "IBITBUSDT",
-                    "AMATBUSDT"}
+                    "AMATBUSDT",
+                    # listed since August and seen on the ledger (2026-11-10 sweep of the
+                    # 4 Nov backup): these leaked into the crypto universe by volume rank
+                    # because the set is exact names — now tagged like the rest
+                    "TQQQBUSDT", "SOXSBUSDT", "MRVLBUSDT", "LITEBUSDT", "BEBUSDT",
+                    "MRNABUSDT", "CRWVBUSDT", "COHRBUSDT", "BMNRBUSDT", "AVGOBUSDT",
+                    "SMCIBUSDT", "BABABUSDT", "TSMBUSDT"}
 EXCLUDE_BASES = ("USDC", "FDUSD", "TUSD", "BUSD", "DAI", "USDP", "EUR", "GBP",
                  "USD1", "USDE", "USDD", "AEUR", "XUSD", "EURI", "RLUSD",
                  "USDG", "GUSD", "PYUSD",

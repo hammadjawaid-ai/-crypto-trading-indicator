@@ -150,17 +150,23 @@ def get_top_symbols(n: int = config.TOP_N) -> pd.DataFrame:
     if df.empty:
         raise BinanceError("No USDT pairs returned by Binance ticker endpoint.")
     full = df.sort_values("quoteVolume", ascending=False)
-    # 🏦 CRYPTO-ONLY UNIVERSE (user 2026-08-17, final word: "focus
-    # should be only on crypto — its memory and brain should only
-    # focus on crypto"). Tokenized stocks/ETFs are dropped at the
-    # source: no scan cost, no kronos budget, no board slot, no
-    # buzz, no demo seat, nothing in the brain's memory. This is
-    # stronger than the earlier mute — they don't exist upstream.
-    # Re-admit by removing this filter (config.TOKENIZED_STOCKS is
-    # the list) only if their edge is ever validated.
+    # 🏦 TOKENIZED STOCKS — 2026-08-17 the universe went crypto-only ("focus should be
+    # only on crypto"); 2026-11-10 the user brought them back ("bring B stocks and stock
+    # back to the system … rest of the streams should also pick them up"). Shape: the
+    # top-n CRYPTO by volume, then every tokenized name (config.TOKENIZED_STOCKS) with
+    # >= config.BSTOCK_MIN_QV of 24h quote volume appended alongside — so the coins keep
+    # their n seats and the liquid tokenized names ride with them (~15–25 today). Flip
+    # config.BSTOCK_IN_UNIVERSE to False for the crypto-only universe again.
     try:
-        _tok = getattr(config, "TOKENIZED_STOCKS", set())
-        full = full[~full["symbol"].isin(_tok)]
+        _tok = set(getattr(config, "TOKENIZED_STOCKS", set()))
+        _is_tok = full["symbol"].isin(_tok)
+        crypto = full[~_is_tok].head(n)
+        if getattr(config, "BSTOCK_IN_UNIVERSE", False):
+            _qv = float(getattr(config, "BSTOCK_MIN_QV", 0.0) or 0.0)
+            toks = full[_is_tok & (full["quoteVolume"] >= _qv)]
+            return (pd.concat([crypto, toks]).drop_duplicates("symbol")
+                    .reset_index(drop=True))
+        return crypto.reset_index(drop=True)
     except Exception:
         pass
     return full.head(n).reset_index(drop=True)

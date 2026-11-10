@@ -261,3 +261,25 @@ ones that is for later but keep record".
   the 🏦 TP1 HIT ping (`stamp_src`, when the fire's stream has a table). Not stamped: 📰 news, 👁 coin watch,
   🎮 demo bells, 📊 scoreboard (no record to print), 💎🏆 A-GRADE (rides the star card; no clean close since 9 Sep).
 - A label, never a gate; the roster is unchanged. Guard: `.tg_cells_test.py` (56); `.bells2_test.py` updated (51).
+
+## 🏦 B-STOCKS BACK (2026-11-10) — universe + phone on every stream, money gate still closed
+
+User: "bring B stocks and stock back to the system on elite conviction and rest of the streams should also pick them
+up like stars, apex, prime etc". History: 06 Aug let in everywhere → 15 Aug removed ("lost money") → 17 Aug phone on,
+then muted the same day and the universe went crypto-only at the source.
+- Universe (`binance_client.get_top_symbols`): the top-n CRYPTO by 24h volume, then every name in
+  `config.TOKENIZED_STOCKS` with ≥ `BSTOCK_MIN_QV` ($2M) of 24h quote volume appended alongside — coins keep their n
+  seats, thin tokenized listings are not scanned. Live shape at the switch: 100 crypto + 19 tokenized (NVDAB, SNDKB,
+  SPCXB, SOXLB, CRCLB, MUB, GOOGLB, SKHYB, MSTRB, KORUB, INTCB, QQQB, SOXSB, TQQQB, TSLAB, SNXXB, AMDB, BEB, BMNRB).
+  Every caller (scan_all / elite / PRIME / APEX / fast30 / ignition / takenow / moonshot / pre-burst / OI load / the
+  page) sees the same list. `config.BSTOCK_IN_UNIVERSE = False` = the crypto-only universe again.
+- Phone: `config.BSTOCK_BUZZ = True` → the worker's shared `_bstock_quiet()` returns False, so every bell (💎 elite
+  conviction, ⭐ star, 🏆 APEX / APEX V2, 🥇 PRIME and the pairs, 💥 triggers, 🦅 eagle, 👑 one trade, …) rings for
+  tokenized names exactly like crypto. Desk tiers, boards and Kronos reads follow automatically (they were only
+  starved upstream).
+- Set: 13 tickers listed since August added (TQQQB, SOXSB, MRVLB, LITEB, BEB, MRNAB, CRWVB, COHRB, BMNRB, AVGOB,
+  SMCIB, BABAB, TSMB) — they had leaked into the crypto ranking untagged. Exact names, never a B-suffix rule (ARB /
+  BNB / SHIB / TRB / CKB / DGB are crypto).
+- MONEY gate unchanged: `BSTOCK_VALIDATED = False` → no demo / GEN 19 seat for a tokenized name until he says so.
+- Honest asterisk stands: every validated edge was measured on crypto; tokenized fires are extrapolation the desk
+  records must prove. Guard: `.bstock_restore_test.py` (24).
