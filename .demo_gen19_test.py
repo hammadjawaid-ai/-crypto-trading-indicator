@@ -22,12 +22,18 @@ da.STATE_FILE = os.path.join(tmp, "demo.json")
 FIVE = {"elite_star", "star_prime", "star_trig", "conv_revival", "star_apexv2"}
 
 
-def T(h_pkt, d=7):
-    """PKT hour on 7 Nov 2026 -> epoch (UTC = PKT − 5)."""
-    return float(calendar.timegm((2026, 11, d, (h_pkt - 5) % 24, 0, 0))) + (0 if h_pkt >= 5 else -0)
+import time as _time
+_TODAY = _time.gmtime()          # the seats are "opened today" so the 72h stale-seat note never fires (2026-11-10 fix)
 
 
-T07, T11, T15, T19, T23, T03 = T(7), T(11), T(15), T(19), T(23), float(calendar.timegm((2026, 11, 6, 22, 0, 0)))
+def T(h_pkt, d=None):
+    """PKT hour on today's UTC date -> epoch (UTC = PKT − 5)."""
+    y, m, dd = _TODAY.tm_year, _TODAY.tm_mon, (_TODAY.tm_mday if d is None else d)
+    return float(calendar.timegm((y, m, dd, (h_pkt - 5) % 24, 0, 0)))
+
+
+T07, T11, T15, T19, T23 = T(7), T(11), T(15), T(19), T(23)
+T03 = T07 - 4 * 3600             # 03:00 PKT the same morning (01–05 window)
 if da.GEN != 19 or da.START_BAL != 2000.0:
     fails.append(f"GEN/START_BAL: {da.GEN} {da.START_BAL}")
 if set(da.CLASS_W) != FIVE:

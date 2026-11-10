@@ -280,6 +280,8 @@ then muted the same day and the universe went crypto-only at the source.
 - Set: 13 tickers listed since August added (TQQQB, SOXSB, MRVLB, LITEB, BEB, MRNAB, CRWVB, COHRB, BMNRB, AVGOB,
   SMCIB, BABAB, TSMB) — they had leaked into the crypto ranking untagged. Exact names, never a B-suffix rule (ARB /
   BNB / SHIB / TRB / CKB / DGB are crypto).
-- MONEY gate unchanged: `BSTOCK_VALIDATED = False` → no demo / GEN 19 seat for a tokenized name until he says so.
+- MONEY gate: opened the same day on his word ("this will be added to the demo trading picking as well") —
+  `BSTOCK_VALIDATED = True`, so tokenized names take demo / GEN 19 seats under the same cells as any coin (the
+  cells were measured on crypto; the tokenized desk record is the proof). False = no demo seat again.
 - Honest asterisk stands: every validated edge was measured on crypto; tokenized fires are extrapolation the desk
   records must prove. Guard: `.bstock_restore_test.py` (24).

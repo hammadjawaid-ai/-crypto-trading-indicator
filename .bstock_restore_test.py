@@ -33,7 +33,7 @@ def check(name, cond, detail=""):
 print("1. switches")
 check("phone ON (BSTOCK_BUZZ)", config.BSTOCK_BUZZ is True)
 check("universe ON (BSTOCK_IN_UNIVERSE) with a volume floor", config.BSTOCK_IN_UNIVERSE is True and config.BSTOCK_MIN_QV >= 1_000_000)
-check("money gate still CLOSED (BSTOCK_VALIDATED)", config.BSTOCK_VALIDATED is False)
+check("money gate OPEN on his word (BSTOCK_VALIDATED) — demo / GEN 19 seats", config.BSTOCK_VALIDATED is True)
 print("2. the set")
 for s in ("TQQQBUSDT", "MRVLBUSDT", "CRWVBUSDT", "TSMBUSDT", "SNDKBUSDT", "NVDABUSDT"):
     check(f"{s} tagged tokenized", s in config.TOKENIZED_STOCKS)
@@ -72,8 +72,12 @@ check("worker: _bstock_quiet() returns False when BSTOCK_BUZZ is on (every strea
       'if getattr(config, "BSTOCK_BUZZ", False)' in body and "return False" in body)
 cand = {"symbol": "SNDKBUSDT", "base": "SNDKB", "side": "LONG", "entry": 100.0, "stop": 96.0, "tp1": 106.0, "tp2": 110.0,
         "score": 90.0, "conf": 80.0, "burst": 0.0, "src": "elite_star", "heat": 50, "btc_day": -1.0}
-check("demo: a tokenized star takes no seat while BSTOCK_VALIDATED is False",
+check("demo: a tokenized star ranks like a coin now (BSTOCK_VALIDATED True)",
+      len(da.rank_candidates({"elite_star": [cand]}, {})) == 1)
+config.BSTOCK_VALIDATED = False
+check("demo: with the gate closed again it would take no seat (the revert works)",
       da.rank_candidates({"elite_star": [cand]}, {}) == [])
+config.BSTOCK_VALIDATED = True
 check("demo: a crypto star still ranks", len(da.rank_candidates({"elite_star": [dict(cand, symbol="SOLUSDT", base="SOL")]}, {})) == 1)
 print(f"\n{PASS} passed, {len(FAIL)} failed" + (f": {FAIL}" if FAIL else " — ALL PASS"))
 sys.exit(1 if FAIL else 0)

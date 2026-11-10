@@ -130,9 +130,12 @@ SENTRY_GRADES = {
 # 🏦 2026-11-10 (user: "bring B stocks and stock back to the system on elite conviction
 # and rest of the streams should also pick them up like stars, apex, prime"): the phone is
 # ON for tokenized names — every stream's bell treats them like crypto (_bstock_quiet()
-# returns False). The MONEY gate below is untouched: no demo seat until he says so.
+# returns False). The MONEY gate: opened the same day on his word ("this will be added to the
+# demo trading picking as well") — tokenized names take demo / GEN 19 seats like any coin.
+# Honest note: opened on his order, not on a validated tokenized record; the desk tiers are
+# the proof. False = no demo seat for a tokenized name.
 BSTOCK_BUZZ = True
-BSTOCK_VALIDATED = False
+BSTOCK_VALIDATED = True
 # 🏦 2026-11-10 universe: tokenized stocks are back in the scan. get_top_symbols returns the
 # top-n CRYPTO by volume plus every tokenized name with >= BSTOCK_MIN_QV of 24h quote volume
 # appended alongside (the 2026-08-17 "ride alongside the 100" shape), so a thin tokenized
