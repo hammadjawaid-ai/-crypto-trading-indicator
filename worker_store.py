@@ -327,6 +327,53 @@ def shadow_summary() -> list[dict]:
         "FROM shadow_trades GROUP BY tier ORDER BY net_r DESC")
 
 
+def shadow_tokenized(symbols, since: float = 0.0) -> dict:
+    """🏦 The desk record of tokenized names on its own (user 2026-11-10: "have these for
+    tokenized desk records separately as well"). Clean closes only (status='CLOSED'; thin-stop
+    rows are VOID). Reads the (symbol, opened_at) index — never the whole ledger. Read-only.
+    -> {"since": ts,
+        "tiers":   {tier: {"n", "wins", "net_r",            # all-time tokenized closes
+                           "n_since", "wins_since", "net_since",   # opened at/after `since`
+                           "open"}},
+        "symbols": {symbol: {"n", "wins", "net_r", "open"}}}   # since `since`"""
+    syms = [str(s) for s in (symbols or []) if s]
+    out = {"since": float(since or 0.0), "tiers": {}, "symbols": {}}
+    if not syms:
+        return out
+    ph = ",".join("?" * len(syms))
+    c = _open()
+    try:
+        for tier, n, w, net, n2, w2, net2 in c.execute(
+                f"SELECT tier, COUNT(*), SUM(pnl_r>0), COALESCE(SUM(pnl_r),0), "
+                f"SUM(opened_at>=?), SUM(CASE WHEN opened_at>=? AND pnl_r>0 THEN 1 ELSE 0 END), "
+                f"COALESCE(SUM(CASE WHEN opened_at>=? THEN pnl_r ELSE 0 END),0) "
+                f"FROM shadow_trades WHERE symbol IN ({ph}) AND status='CLOSED' "
+                f"AND pnl_r IS NOT NULL GROUP BY tier",
+                [since, since, since] + syms):
+            out["tiers"][tier] = {"n": int(n or 0), "wins": int(w or 0), "net_r": float(net or 0.0),
+                                  "n_since": int(n2 or 0), "wins_since": int(w2 or 0),
+                                  "net_since": float(net2 or 0.0), "open": 0}
+        for tier, n in c.execute(
+                f"SELECT tier, COUNT(*) FROM shadow_trades WHERE symbol IN ({ph}) "
+                f"AND status='OPEN' GROUP BY tier", syms):
+            out["tiers"].setdefault(tier, {"n": 0, "wins": 0, "net_r": 0.0, "n_since": 0,
+                                           "wins_since": 0, "net_since": 0.0, "open": 0})["open"] = int(n or 0)
+        for sym, st, n, w, net in c.execute(
+                f"SELECT symbol, status, COUNT(*), SUM(pnl_r>0), COALESCE(SUM(pnl_r),0) "
+                f"FROM shadow_trades WHERE symbol IN ({ph}) AND opened_at>=? "
+                f"AND status IN ('CLOSED','OPEN') GROUP BY symbol, status", syms + [since]):
+            d = out["symbols"].setdefault(sym, {"n": 0, "wins": 0, "net_r": 0.0, "open": 0})
+            if st == "CLOSED":
+                d.update(n=int(n or 0), wins=int(w or 0), net_r=float(net or 0.0))
+            else:
+                d["open"] = int(n or 0)
+    except Exception:
+        pass
+    finally:
+        c.close()
+    return out
+
+
 def conf_bands(days: float = 0.0) -> list[dict]:
     """🎯 Win rate + net R by CONFIDENCE BAND, per desk tier.
 

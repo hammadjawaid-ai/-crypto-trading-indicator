@@ -4956,6 +4956,57 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                      value=False, key="desk_bench_toggle"):
             for rec in _bench_rows:
                 _desk_row(rec, retired=rec.get("tier") in _retired)
+        # 🏦 TOKENIZED DESK (user 2026-11-10: "have these for tokenized desk records
+        # separately as well") — the same tiers, tokenized names only: since the
+        # restore (the forward proof), all-time, and the tier's crypto record beside it.
+        try:
+            _tk = _tokenized_desk_cached(int(time.time() // 600))
+            _tk_t = _tk.get("tiers") or {}
+            _tk_n = sum(int(v.get("n_since") or 0) for v in _tk_t.values())
+            _tk_w = sum(int(v.get("wins_since") or 0) for v in _tk_t.values())
+            _tk_r = sum(float(v.get("net_since") or 0.0) for v in _tk_t.values())
+            _tk_o = sum(int(v.get("open") or 0) for v in _tk_t.values())
+            _tk_day = time.strftime("%d %b", time.gmtime(float(_tk.get("since") or 0) + 5 * 3600)).lstrip("0")
+            st.markdown(
+                f"**🏦 TOKENIZED DESK — tokenized stocks, their own record** · since {_tk_day}: "
+                + (f"{_tk_n} closed · win {_tk_w / _tk_n * 100:.0f}% · net {_tk_r:+.2f}R" if _tk_n
+                   else "no closes yet")
+                + f" · {_tk_o} open")
+            st.caption("Back in the scan and on every bell since 10 Nov; every cell on the phone was measured "
+                       "on crypto, so this ledger is the proof for tokenized names. Seat-level, after fees, "
+                       "clean closes only.")
+            with st.expander("🏦 by stream and by stock", expanded=False):
+                _all = {r.get("tier"): r for r in _sh_sum}
+                _rows_tk = sorted(_tk_t.items(), key=lambda kv: (-int(kv[1].get("n_since") or 0),
+                                                                  -int(kv[1].get("open") or 0),
+                                                                  -int(kv[1].get("n") or 0)))
+                for _tt, _tv in _rows_tk:
+                    _ns, _ws_, _rs_ = int(_tv.get("n_since") or 0), int(_tv.get("wins_since") or 0), float(_tv.get("net_since") or 0.0)
+                    _na, _wa, _ra = int(_tv.get("n") or 0), int(_tv.get("wins") or 0), float(_tv.get("net_r") or 0.0)
+                    _ar = _all.get(_tt) or {}
+                    _nc = int(_ar.get("n") or 0) - _na
+                    _wc = int(_ar.get("wins") or 0) - _wa
+                    _rc = float(_ar.get("net_r") or 0.0) - _ra
+                    st.markdown(
+                        f"· **{str(_tier_names.get(_tt, _tt)).split(' — ')[0].split(' (')[0]}** — since {_tk_day}: "
+                        + (f"{_ns} closed · {_ws_ / _ns * 100:.0f}% · {_rs_:+.2f}R" if _ns else "no closes yet")
+                        + f" · {int(_tv.get('open') or 0)} open · all-time tokenized: "
+                        + (f"{_na} · {_wa / _na * 100:.0f}% · {_ra / _na:+.2f}R a trade" if _na else "none")
+                        + " · crypto, same tier: "
+                        + (f"{_wc / _nc * 100:.0f}% · {_rc / _nc:+.2f}R a trade ({_nc})" if _nc > 0 else "—"))
+                _sy = sorted((_tk.get("symbols") or {}).items(),
+                             key=lambda kv: (-int(kv[1].get("n") or 0), -int(kv[1].get("open") or 0)))
+                if _sy:
+                    st.caption("by stock, since " + _tk_day + ": " + " · ".join(
+                        f"{_s.replace('USDT', '')} "
+                        + (f"{int(_v['n'])} closed {int(_v['wins']) / int(_v['n']) * 100:.0f}% {float(_v['net_r']):+.1f}R"
+                           if int(_v.get('n') or 0) else "no closes")
+                        + (f" ({int(_v['open'])} open)" if int(_v.get('open') or 0) else "")
+                        for _s, _v in _sy[:30]))
+                else:
+                    st.caption("· no tokenized seat opened since the restore yet")
+        except Exception as _tk_exc:
+            st.caption(f"🏦 tokenized desk: {_tk_exc}")
         # 🧠 EDGE MINER (user 2026-07-28: "you have huge data from the
         # desk — decide what is exactly working") — mines every closed
         # desk trade joined to its at-fire snapshot. Descriptive, honest
@@ -9449,6 +9500,14 @@ def _warm_caption() -> str:
     return (f"⚡ scanner boards pre-computed {(time.time() - ls) / 60:.0f} min "
             f"ago in {_WARM_STATUS.get('sweep_s')}s (refreshed every "
             f"{WARM_EVERY // 60} min; worker signal cadence unchanged).")
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _tokenized_desk_cached(_bust: int = 0):
+    """🏦 the tokenized names' own desk record (user 2026-11-10) — one indexed read, 10-min cache."""
+    import worker_store as _ws_t
+    return _ws_t.shadow_tokenized(sorted(getattr(config, "TOKENIZED_STOCKS", ())),
+                                  float(getattr(config, "BSTOCK_RESTORED_TS", 0.0) or 0.0))
 
 
 @st.cache_data(ttl=600, show_spinner=False)

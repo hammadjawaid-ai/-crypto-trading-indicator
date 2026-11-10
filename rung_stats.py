@@ -356,6 +356,7 @@ def verdict_text(ew: dict, prg: float, now: float,
     # 🕐 2026-11-08: the verdict class in the FIRE's window (stars; the user's 68 / 60 lights)
     st_line = ("\n" + tg_cells.stamp("star_live" if live else "star_dead", side,
                                      float(ew.get("fired_at") or now))) if star else ""
+    st_line += tg_cells.tok_note(ew.get("symbol"), "elite_star" if star else "elite_conv")   # 🏦 2026-11-10
     if live:
         return (f"⏱ *{base} {side} · 1H LIVE {when} PKT · HOLD FULL*\n"
                 f"{prg * 100:+.0f}% of the path · LIVE {fam} {rec(C['live'])}" + st_line)
@@ -424,6 +425,9 @@ def go_text(ew: dict, prg: float, age_s: float, px: float, now: float,
         pass
     lines.append("class " + GO_CLASS_SHORT["short" if side == "SHORT" else "late" if late else "long_fast"]
                  + f" · {GO_CLASS['window']}")
+    _tn = tg_cells.tok_note(ew.get("symbol"), "elite_star" if star else "elite_conv")   # 🏦 2026-11-10
+    if _tn:
+        lines.append(_tn.strip("\n"))
     return "\n".join(lines)
 
 

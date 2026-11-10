@@ -86,13 +86,13 @@ check("GO FAST long landing 17–21: 🔴 entered 59% — hold only", "🔴 ente
 W = open(os.path.join(ROOT, "agent_worker.py"), encoding="utf-8").read()
 for need, lab in (('tg_cells.stamp("elite_star", _pmx.get("side"), time.time())', "⭐ star card stamp"),
                   ('_cl9 = tg_cells.light_of("elite_star", _pmx.get("side"), time.time())', "⭐ size word from the same light"),
-                  ('st_line = tg_cells.stamp("conv_revival", cls, now)', "💎 revival stamp"),
+                  ('st_line = (tg_cells.stamp("conv_revival", cls, now)', "💎 revival stamp"),
                   ('lines.append(tg_cells.stamp(_tbl, side, now))', "pair card stamp"),
                   ('PAIR_STAMP = {"star": "star_prime", "startrig": "star_trig", "startn": "star_takenow"', "pair stamp map"),
-                  ('l6 = tg_cells.stamp("prime_trig", None, now)', "💥🥇 stamp"),
-                  ('+ tg_cells.stamp("apex_v2", sd, now))', "🏆💎 APEX V2 GATED stamp"),
-                  ('_st = tg_cells.stamp("apex_v2", ew.get("side"), float(ew.get("fired_at") or time.time()))', "⏱🏆 APEX V2 verdict stamp"),
-                  ('+ tg_cells.stamp_src(_rg_src, _rg_side, _rg_ts))', "🏦 TP1 ping stamp"),
+                  ('l6 = (tg_cells.stamp("prime_trig", None, now)', "💥🥇 stamp"),
+                  ('+ tg_cells.stamp("apex_v2", sd, now)', "🏆💎 APEX V2 GATED stamp"),
+                  ('_st = (tg_cells.stamp("apex_v2", ew.get("side"), float(ew.get("fired_at") or time.time()))', "⏱🏆 APEX V2 verdict stamp"),
+                  ('+ tg_cells.stamp_src(_rg_src, _rg_side, _rg_ts)', "🏦 TP1 ping stamp"),
                   ("import tg_cells", "import")):
     check(f"worker: {lab}", need in W)
 check("worker: the old star clock line is gone from the card", "clock_cells.star_line_short(" not in W)

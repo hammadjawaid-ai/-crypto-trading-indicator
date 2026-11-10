@@ -285,3 +285,18 @@ then muted the same day and the universe went crypto-only at the source.
   cells were measured on crypto; the tokenized desk record is the proof). False = no demo seat again.
 - Honest asterisk stands: every validated edge was measured on crypto; tokenized fires are extrapolation the desk
   records must prove. Guard: `.bstock_restore_test.py` (24).
+
+## 🏦 TOKENIZED DESK RECORDS, SEPARATELY (2026-11-10)
+
+User: "yes have these for tokenized desk records separately as well" (after the same-day restore and the demo gate).
+- `worker_store.shadow_tokenized(symbols, since)`: the desk record of tokenized names only, per tier (all-time,
+  since the restore, open) and per stock (since the restore). Clean closes only (VOID thin-stop rows excluded); it
+  reads the (symbol, opened_at) index, never the whole ledger. `config.BSTOCK_RESTORED_TS` = 10 Nov 2026 00:00 PKT.
+- Phone: every bell that fires on a tokenized name carries one more line (`tg_cells.tok_note`): that stream's own
+  record on tokenized names since 10 Nov ("no closes yet" / "n closed, … thin" under 10 / "w% / R (n)"), and the
+  reminder that the 🕐 cell above it is crypto-measured. Rides the ⭐ star card, ⏱ verdict, GO replies, 💎 revival,
+  the pair cards, 💥🥇, 🏆💎 APEX V2 + verdict, the 🏦 TP1 ping. A coin's card is unchanged. Cached 30 min.
+- Page: 🏦 TOKENIZED DESK under the Decision Desk — a headline (closed / win / net R / open since 10 Nov) and an
+  expander with each stream's tokenized record since the restore, its all-time tokenized record, the same tier's
+  crypto record beside it, and the per-stock line. 10-min cache.
+- Guard: `.bstock_restore_test.py` (38), `.tg_cells_test.py` (56).

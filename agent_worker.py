@@ -477,7 +477,8 @@ def _fmt_conv_revival(ew, prg, age_s, px, now, rg, unappr=False):
         read = " · ".join(x for x in (str(rg[1] or "").split(" — ")[0], str(rg[2] or "").split(" — ")[0]) if x)
         rec_line = (CONV_REV_CARD_REC.get(cls, "") + " · 6 Oct → 4 Nov"
                     + (" · UNAPPROVED fire — size down" if unappr else ""))
-        st_line = tg_cells.stamp("conv_revival", cls, now)   # 🕐 2026-11-08: this GO class in this window
+        st_line = (tg_cells.stamp("conv_revival", cls, now)   # 🕐 2026-11-08: this GO class in this window
+                   + tg_cells.tok_note(ew.get("symbol"), "go_revived"))   # 🏦 2026-11-10
         return "\n".join(x for x in (head, plan, read, rec_line, st_line) if x)
     except Exception:
         return _revival_dress(rung_stats.go_text(ew, prg, age_s, px, now), ew, age_s, now)
@@ -645,7 +646,8 @@ def _fmt_prime_trig(sig, px, now):
     plan = plan + (f" · {bl}" if bl else "")
     rd = str(rd).split(" — ")[0] if rd else ""
     l5 = f"pair {PRIME_TRIG_REC} · forward {fwd} · bank at TP1"
-    l6 = tg_cells.stamp("prime_trig", None, now)   # 🕐 2026-11-08
+    l6 = (tg_cells.stamp("prime_trig", None, now)   # 🕐 2026-11-08
+          + tg_cells.tok_note(sig.get("symbol"), "prime_trig"))   # 🏦 2026-11-10
     return "\n".join(x for x in (head, plan, rd, l5, l6) if x)
 
 
@@ -2150,12 +2152,14 @@ def _fmt_apex_v2_gated(sig, px, read_line, now):
             f"entry `{float(sig['entry']):g}` · live `{e:g}` · SL `{st:g}` · {tps} · "
             f"score {float(sig.get('score') or 0):.0f} · heat {float(sig.get('heat') or 0):.0f}\n"
             f"⏱ 1h verdict replies here · LIVE 70% / +0.54R (46) · DEAD 34% / −0.24R (79) · gated forward {fwd}\n"
-            + tg_cells.stamp("apex_v2", sd, now))   # 🕐 2026-11-08: APEX V2 fires in this window, this side
+            + tg_cells.stamp("apex_v2", sd, now)   # 🕐 2026-11-08: APEX V2 fires in this window, this side
+            + tg_cells.tok_note(sig.get("symbol"), "apex_v2"))   # 🏦 2026-11-10
 
 
 def _fmt_apex_v2_verdict(ew, prg):
     """⏱🏆 the 1H VERDICT reply under a gated APEX V2 bell (user 2026-11-01)."""
-    _st = tg_cells.stamp("apex_v2", ew.get("side"), float(ew.get("fired_at") or time.time()))   # 🕐 2026-11-08
+    _st = (tg_cells.stamp("apex_v2", ew.get("side"), float(ew.get("fired_at") or time.time()))   # 🕐 2026-11-08
+           + tg_cells.tok_note(ew.get("symbol"), "apex_v2"))   # 🏦 2026-11-10
     if ew.get("oneh") == "LIVE":
         return (f"⏱🏆 *{ew['base']} {ew['side']} · 1H LIVE · HOLD FULL*\n"
                 f"{prg * 100:+.0f}% of the path · LIVE APEX V2 70% / +0.54R (46) held · entered at the hour ≈ 0R\n{_st}")
@@ -2598,6 +2602,9 @@ def _fmt_pair_card(kind, sig, px, now, partner_ts=None):
     _tbl = PAIR_STAMP.get(kind)
     if _tbl:   # 🕐 2026-11-08: the pair's own record in this window (side-keyed where measured)
         lines.append(tg_cells.stamp(_tbl, side, now))
+    _tn = tg_cells.tok_note(sig.get("symbol"), kd["tier"])   # 🏦 2026-11-10: tokenized names, their own record
+    if _tn:
+        lines.append(_tn.strip("\n"))
     return "\n".join(lines)
 
 
@@ -3271,6 +3278,7 @@ def cycle() -> None:
                                 _msg9 = _msg9.replace(
                                     "\n", "\n" + str(_gate9[1]).split(" — ")[0] + "\n"
                                     + tg_cells.stamp("elite_star", _pmx.get("side"), time.time())
+                                    + tg_cells.tok_note(_pmx.get("symbol"), "elite_star")   # 🏦 2026-11-10
                                     + "\n", 1)   # 2026-11-08: the read's ticks + the 🕐 window stamp (68 / 60 lights)
                             except Exception as _gt_exc:
                                 _gate9 = (True, f"read: error {_gt_exc}")
@@ -8281,7 +8289,8 @@ def cycle() -> None:
                     ok, _ = tg.send(   # 2026-11-07 concise ping
                         f"🏦 *{_rg_b2} {_rg_side} · TP1 HIT `{_rg_tp1:g}` · BANK 100%*\n"
                         f"from {_rg_from or TP1_STREAMS.get(_rg_src, _rg_src)} · fire `{_rg_ent:g}` · SL `{_rg_stp:g}`"
-                        + tg_cells.stamp_src(_rg_src, _rg_side, _rg_ts))   # 🕐 2026-11-08: the fire's window cell
+                        + tg_cells.stamp_src(_rg_src, _rg_side, _rg_ts)   # 🕐 2026-11-08: the fire's window cell
+                        + tg_cells.tok_note(_rg_sym, _rg_src))   # 🏦 2026-11-10
                     n_alerts += 1 if ok else 0
                 continue
             if _rg_stopped:

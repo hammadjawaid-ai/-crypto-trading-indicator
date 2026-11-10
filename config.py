@@ -143,6 +143,10 @@ BSTOCK_VALIDATED = True
 # universe of 2026-08-17 again.
 BSTOCK_IN_UNIVERSE = True
 BSTOCK_MIN_QV = 2_000_000.0
+# 🏦 the restore moment — 10 Nov 2026 00:00 PKT (09 Nov 19:00 UTC). The tokenized desk record
+# "since the restore" (the page's 🏦 TOKENIZED DESK and the 🏦 line on tokenized bells) counts
+# trades OPENED from here: the forward proof he asked to keep separately.
+BSTOCK_RESTORED_TS = 1794250800.0
 # WLFI + LINK added 2026-08-15; ETHFI added 2026-08-16 (user orders)
 # — 21-coin sentry watch.
 # GIGGLE dropped 2026-08-17 with the crypto-only ruling (it's a

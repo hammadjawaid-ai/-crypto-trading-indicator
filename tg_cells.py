@@ -180,3 +180,68 @@ def stamp_src(src: str, side, ts: float) -> str:
         return ""
     key = side if TABLES[t][2] == "side" else None
     return "\n" + stamp(t, key, ts)
+
+
+# ───────── 🏦 tokenized names: their own desk record, on its own line ─────────
+# (user 2026-11-10: "have these for tokenized desk records separately as well"). Every 🕐 cell
+# above was measured on crypto; a bell on a tokenized stock adds this line: the same stream's
+# record on tokenized names since the restore (config.BSTOCK_RESTORED_TS). Cached 30 min.
+TOK_LABEL = {"elite_star": "⭐ stars", "elite_conv": "💎 conviction", "go_revived": "revivals at the GO",
+             "star_prime": "⭐🥇 pairs", "star_trig": "⭐💥 pairs", "star_takenow": "⭐✅🔥 pairs",
+             "star_apexv2": "⭐🏆² pairs", "conv_prime": "💎🥇 pairs", "leg2_prime": "🔥🥇 pairs",
+             "trigkr_prime": "💥🔮🥇 pairs", "prime_trig": "💥🥇 pairs", "apex_v2": "🏆² APEX V2",
+             "apex_v2_gated": "🏆💎 APEX V2 GATED"}
+TOK_TTL = 1800.0
+_TOK_CACHE: dict = {"t": 0.0, "d": None}
+
+
+def is_tokenized(symbol) -> bool:
+    try:
+        import config
+        return bool(symbol) and str(symbol) in getattr(config, "TOKENIZED_STOCKS", ())
+    except Exception:
+        return False
+
+
+def tok_data(now: float | None = None) -> dict:
+    """The tokenized desk split (worker_store.shadow_tokenized), cached TOK_TTL."""
+    import time as _t
+    now = _t.time() if now is None else float(now)
+    if _TOK_CACHE["d"] is not None and now - _TOK_CACHE["t"] < TOK_TTL:
+        return _TOK_CACHE["d"]
+    try:
+        import config
+        import worker_store as _ws
+        d = _ws.shadow_tokenized(sorted(getattr(config, "TOKENIZED_STOCKS", ())),
+                                 float(getattr(config, "BSTOCK_RESTORED_TS", 0.0) or 0.0))
+    except Exception:
+        d = {"since": 0.0, "tiers": {}, "symbols": {}}
+    _TOK_CACHE.update(t=now, d=d)
+    return d
+
+
+def tok_rec(n: int, wins: int, net: float) -> str:
+    """'no closes yet' · '3 closed, 67% / +0.21R — thin' · '64% / +0.18R (22)'."""
+    n = int(n or 0)
+    if n <= 0:
+        return "no closes yet"
+    w, r = wins / n * 100.0, float(net) / n
+    return f"{n} closed, {w:.0f}% / {r:+.2f}R — thin" if n < THIN_N else f"{w:.0f}% / {r:+.2f}R ({n})"
+
+
+def tok_note(symbol, tier: str, now: float | None = None) -> str:
+    """'\n🏦 tokenized stock · ⭐ stars on tokenized names since 10 Nov: … · 🕐 cell is crypto-measured'
+    for a tokenized symbol, '' for a coin. Never raises."""
+    try:
+        if not is_tokenized(symbol):
+            return ""
+        d = tok_data(now)
+        t = (d.get("tiers") or {}).get(str(tier)) or {}
+        import time as _t
+        since = float(d.get("since") or 0.0)
+        day = _t.strftime("%d %b", _t.gmtime(since + 5 * 3600)).lstrip("0") if since else "the start"
+        return (f"\n🏦 tokenized stock · {TOK_LABEL.get(str(tier), str(tier))} on tokenized names since {day}: "
+                f"{tok_rec(t.get('n_since'), t.get('wins_since') or 0, t.get('net_since') or 0.0)}"
+                f" · the 🕐 cell is crypto-measured")
+    except Exception:
+        return ""
