@@ -107,6 +107,9 @@ def open_from_signal(tier: str, p: dict, live_px: float | None) -> bool:
     # single rows); fees alone cost >=0.4R on such a stop.
     if abs(entry - stop) / entry < store.MIN_RISK_FRAC:
         return False
+    # 🏦 2026-11-11 split records: a tokenized seat lives in its own tier (tok:<tier>), so
+    # the stream's record stays crypto-only (store.desk_tier; config.BSTOCK_SPLIT_TIERS).
+    tier = store.desk_tier(tier, sym)
     if store.shadow_has_open(tier, sym):
         return False
     _cf = p.get("conf")
@@ -163,7 +166,7 @@ def manage(prices: dict) -> list[dict]:
         reason = None
         stopped = (px <= stop) if long else (px >= stop)
         hit_tp2 = tp2 > 0 and ((px >= tp2) if long else (px <= tp2))
-        _hold_h = MAX_HOLD_H_BY_TIER.get(t["tier"], MAX_HOLD_H)
+        _hold_h = MAX_HOLD_H_BY_TIER.get(store.base_tier(t["tier"]), MAX_HOLD_H)
         expired = (now - float(t["opened_at"])) >= _hold_h * 3600
         if stopped:
             exit_px, reason = stop, ("TP1_LOCK" if st.get("tp1_hit")

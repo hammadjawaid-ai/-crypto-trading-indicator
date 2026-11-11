@@ -34,7 +34,7 @@ def _load(limit: int = 6000):
                       "SELECT tier,symbol,side,entry,stop,stop0,tp1,tp2,"
                       "peak,be_set,tp1_hit,opened_at,closed_at,exit_px,"
                       "exit_reason,pnl_r FROM shadow_trades "
-                      "WHERE status='CLOSED' ORDER BY opened_at "
+                      "WHERE status='CLOSED' AND tier NOT LIKE 'tok:%' ORDER BY opened_at "
                       f"LIMIT {int(limit)}")]
                   for row in cur.fetchall()]
         sigs = [dict(zip([d[0] for d in cur.description], row))

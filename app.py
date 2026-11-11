@@ -4974,7 +4974,9 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                 + f" · {_tk_o} open")
             st.caption("Back in the scan and on every bell since 10 Nov; every cell on the phone was measured "
                        "on crypto, so this ledger is the proof for tokenized names. Seat-level, after fees, "
-                       "clean closes only.")
+                       "clean closes only. Split since 11 Nov: every stream record above and on the phone is "
+                       "crypto-only; a tokenized seat is kept here under its own tier and never counts in the "
+                       "stream's numbers.")
             with st.expander("🏦 by stream and by stock", expanded=False):
                 _all = {r.get("tier"): r for r in _sh_sum}
                 _rows_tk = sorted(_tk_t.items(), key=lambda kv: (-int(kv[1].get("n_since") or 0),
@@ -4984,9 +4986,11 @@ def _render_brain_memory(pb_state, live_prices=None, best_zone_only=False):
                     _ns, _ws_, _rs_ = int(_tv.get("n_since") or 0), int(_tv.get("wins_since") or 0), float(_tv.get("net_since") or 0.0)
                     _na, _wa, _ra = int(_tv.get("n") or 0), int(_tv.get("wins") or 0), float(_tv.get("net_r") or 0.0)
                     _ar = _all.get(_tt) or {}
-                    _nc = int(_ar.get("n") or 0) - _na
-                    _wc = int(_ar.get("wins") or 0) - _wa
-                    _rc = float(_ar.get("net_r") or 0.0) - _ra
+                    # 2026-11-11 split: the stream's own row is already crypto-only, nothing to subtract
+                    _sp = bool(getattr(config, "BSTOCK_SPLIT_TIERS", False))
+                    _nc = int(_ar.get("n") or 0) - (0 if _sp else _na)
+                    _wc = int(_ar.get("wins") or 0) - (0 if _sp else _wa)
+                    _rc = float(_ar.get("net_r") or 0.0) - (0.0 if _sp else _ra)
                     st.markdown(
                         f"· **{str(_tier_names.get(_tt, _tt)).split(' — ')[0].split(' (')[0]}** — since {_tk_day}: "
                         + (f"{_ns} closed · {_ws_ / _ns * 100:.0f}% · {_rs_:+.2f}R" if _ns else "no closes yet")

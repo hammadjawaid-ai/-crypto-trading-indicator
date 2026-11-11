@@ -127,5 +127,41 @@ check("worker: the 🏦 note rides the star card, revival, pairs, 💥🥇, APEX
 A = open(os.path.join(ROOT, "app.py"), encoding="utf-8").read()
 check("page: the 🏦 TOKENIZED DESK block under the Decision Desk, cached",
       "🏦 TOKENIZED DESK — tokenized stocks, their own record" in A and "def _tokenized_desk_cached(" in A and "_tokenized_desk_cached(int(time.time() // 600))" in A)
+print("6. split records: a stream's record is crypto-only, tokenized seats live in tok:<tier> (2026-11-11)")
+import shadow_trader as sht      # noqa: E402
+check("the split switch is on and the prefix is tok:", config.BSTOCK_SPLIT_TIERS is True and store.TOK_PREFIX == "tok:")
+check("desk_tier: tokenized -> tok:<tier>, crypto unchanged, never double-prefixed",
+      store.desk_tier("elite_star", "SNDKBUSDT") == "tok:elite_star" and store.desk_tier("elite_star", "SOLUSDT") == "elite_star"
+      and store.desk_tier("tok:elite_star", "SNDKBUSDT") == "tok:elite_star" and store.base_tier("tok:prime") == "prime" and store.base_tier("prime") == "prime")
+before = {r["tier"]: r for r in store.shadow_summary(include_tok=True)}
+moved = store.shadow_split_tokenized(sorted(config.TOKENIZED_STOCKS))
+check("one-time relabel moves the 6 tokenized rows seeded above (VOID and OPEN included), crypto rows stay", moved == 6, moved)
+check("relabel is idempotent", store.shadow_split_tokenized(sorted(config.TOKENIZED_STOCKS)) == 0)
+summ = {r["tier"]: r for r in store.shadow_summary()}
+check("stream summary is crypto-only: elite_star = the SOL row alone, no tok: tier listed",
+      int(summ["elite_star"]["n"]) == 1 and abs(float(summ["elite_star"]["net_r"]) - 2.0) < 1e-9 and not any(t.startswith("tok:") for t in summ), summ)
+allr = {r["tier"]: r for r in store.shadow_summary(include_tok=True)}
+check("the tokenized tiers exist beside it when asked for", int(allr["tok:elite_star"]["n"]) == 3 and int(allr["tok:elite_star"]["open_n"]) == 1 and "tok:star_prime" in allr, allr)
+tc._TOK_CACHE.update(t=0.0, d=None)
+dd2 = store.shadow_tokenized(sorted(config.TOKENIZED_STOCKS), since)
+es2 = dd2["tiers"].get("elite_star") or {}
+check("the tokenized read still keys by the stream and gives the same record after the relabel",
+      (es2.get("n"), es2.get("wins"), round(es2.get("net_r", 9), 2), es2.get("n_since"), es2.get("open")) == (3, 2, 0.5, 2, 1) and "tok:elite_star" not in dd2["tiers"], dd2["tiers"])
+check("the 🏦 bell line still reads it", "2 closed, 50% / -0.25R" in tc.tok_note("SNDKBUSDT", "elite_star"))
+rs._CACHE.clear()
+check("the bell's stream record (rung_stats.tier_rec) counts crypto only", rs.tier_rec("elite_star")[0] == 1, rs.tier_rec("elite_star"))
+ok_t = sht.open_from_signal("prime", {"symbol": "NVDABUSDT", "side": "LONG", "stop": 96.0, "tp1": 106.0, "tp2": 110.0}, 100.0)
+ok_c = sht.open_from_signal("prime", {"symbol": "ETHUSDT", "side": "LONG", "stop": 96.0, "tp1": 106.0, "tp2": 110.0}, 100.0)
+opn = {(r["tier"], r["symbol"]) for r in store.shadow_open_trades()}
+check("a new tokenized seat opens under tok:prime, a coin under prime", ok_t and ok_c and ("tok:prime", "NVDABUSDT") in opn and ("prime", "ETHUSDT") in opn, opn)
+check("one open seat per tokenized tier + coin still holds", sht.open_from_signal("prime", {"symbol": "NVDABUSDT", "side": "LONG", "stop": 96.0, "tp1": 106.0, "tp2": 110.0}, 100.0) is False)
+closed = sht.manage({"NVDABUSDT": 95.0, "ETHUSDT": 95.0})
+check("the desk manages a tok: seat like any other (both stop out)", {c["tier"] for c in closed} >= {"tok:prime", "prime"}, [(c["tier"], c["reason"]) for c in closed])
+check("recent form for the demo and the green light reads the stream's crypto rows only", store.shadow_recent_net("prime")["n"] == 1 and store.shadow_recent_net("tok:prime")["n"] == 1)
+check("conf / heat / recent readers skip tok: tiers", all(not str(r.get("tier", "")).startswith("tok:") for r in store.shadow_recent(50)))
+config.BSTOCK_SPLIT_TIERS = False
+check("switch off -> a new tokenized seat shares the stream tier again", store.desk_tier("elite_star", "SNDKBUSDT") == "elite_star")
+config.BSTOCK_SPLIT_TIERS = True
+check("worker: the one-time relabel runs in cycle() beside the hygiene sweep", "store.shadow_split_tokenized(sorted(getattr(config, \"TOKENIZED_STOCKS\", ())))" in W)
 print(f"\n{PASS} passed, {len(FAIL)} failed" + (f": {FAIL}" if FAIL else " — ALL PASS"))
 sys.exit(1 if FAIL else 0)

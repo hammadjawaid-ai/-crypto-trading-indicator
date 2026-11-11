@@ -262,7 +262,7 @@ def heat_bands() -> list[dict]:
             return []
         rows = c.execute(
             "SELECT heat, pnl_r FROM shadow_trades WHERE status = 'CLOSED' "
-            "AND heat IS NOT NULL AND pnl_r IS NOT NULL").fetchall()
+            f"AND heat IS NOT NULL AND pnl_r IS NOT NULL AND {NOT_TOK}").fetchall()
     except Exception:
         return []
     finally:
@@ -316,7 +316,9 @@ def shadow_close(tid: int, exit_px: float, reason: str,
         c.close()
 
 
-def shadow_summary() -> list[dict]:
+def shadow_summary(include_tok: bool = False) -> list[dict]:
+    """Per-tier desk record. Tokenized tiers (tok:*) are left out unless asked for: a
+    stream's record is crypto-only (2026-11-11 split)."""
     return _rows(
         "SELECT tier, "
         "SUM(CASE WHEN status='CLOSED' THEN 1 ELSE 0 END) AS n, "
@@ -324,7 +326,47 @@ def shadow_summary() -> list[dict]:
         "AS wins, "
         "SUM(CASE WHEN status='CLOSED' THEN pnl_r ELSE 0 END) AS net_r, "
         "SUM(CASE WHEN status='OPEN' THEN 1 ELSE 0 END) AS open_n "
-        "FROM shadow_trades GROUP BY tier ORDER BY net_r DESC")
+        "FROM shadow_trades " + ("" if include_tok else f"WHERE {NOT_TOK} ")
+        + "GROUP BY tier ORDER BY net_r DESC")
+
+
+TOK_PREFIX = "tok:"      # 🏦 desk tier prefix of a tokenized seat (config.BSTOCK_SPLIT_TIERS)
+NOT_TOK = "tier NOT LIKE 'tok:%'"   # the all-tier readers' crypto-only clause
+
+
+def base_tier(tier) -> str:
+    """'tok:elite_star' -> 'elite_star' (the stream a tokenized tier belongs to)."""
+    t = str(tier or "")
+    return t[len(TOK_PREFIX):] if t.startswith(TOK_PREFIX) else t
+
+
+def desk_tier(tier, symbol) -> str:
+    """The tier a desk seat is recorded under: tok:<tier> for a tokenized symbol while
+    config.BSTOCK_SPLIT_TIERS is on, else the stream's own tier."""
+    t = str(tier or "")
+    if (getattr(config, "BSTOCK_SPLIT_TIERS", False) and not t.startswith(TOK_PREFIX)
+            and symbol in getattr(config, "TOKENIZED_STOCKS", ())):
+        return TOK_PREFIX + t
+    return t
+
+
+def shadow_split_tokenized(symbols) -> int:
+    """🏦 One-time relabel (2026-11-11): every desk row of a tokenized symbol moves to its
+    tok:<tier> tier, open seats included, so the stream tiers hold crypto only. Idempotent;
+    returns the rows moved. Reverse: UPDATE ... SET tier = substr(tier, 5) WHERE tier LIKE 'tok:%'."""
+    syms = [str(s) for s in (symbols or []) if s]
+    if not syms:
+        return 0
+    ph = ",".join("?" * len(syms))
+    c = _open()
+    try:
+        cur = c.execute(
+            f"UPDATE shadow_trades SET tier = '{TOK_PREFIX}' || tier "
+            f"WHERE symbol IN ({ph}) AND {NOT_TOK}", syms)
+        c.commit()
+        return int(cur.rowcount or 0)
+    finally:
+        c.close()
 
 
 def shadow_tokenized(symbols, since: float = 0.0) -> dict:
@@ -350,14 +392,19 @@ def shadow_tokenized(symbols, since: float = 0.0) -> dict:
                 f"FROM shadow_trades WHERE symbol IN ({ph}) AND status='CLOSED' "
                 f"AND pnl_r IS NOT NULL GROUP BY tier",
                 [since, since, since] + syms):
-            out["tiers"][tier] = {"n": int(n or 0), "wins": int(w or 0), "net_r": float(net or 0.0),
-                                  "n_since": int(n2 or 0), "wins_since": int(w2 or 0),
-                                  "net_since": float(net2 or 0.0), "open": 0}
+            d0 = out["tiers"].setdefault(base_tier(tier), {"n": 0, "wins": 0, "net_r": 0.0, "n_since": 0,
+                                                          "wins_since": 0, "net_since": 0.0, "open": 0})
+            d0["n"] += int(n or 0)                 # tok:<tier> and any not-yet-relabelled row merge
+            d0["wins"] += int(w or 0)
+            d0["net_r"] += float(net or 0.0)
+            d0["n_since"] += int(n2 or 0)
+            d0["wins_since"] += int(w2 or 0)
+            d0["net_since"] += float(net2 or 0.0)
         for tier, n in c.execute(
                 f"SELECT tier, COUNT(*) FROM shadow_trades WHERE symbol IN ({ph}) "
                 f"AND status='OPEN' GROUP BY tier", syms):
-            out["tiers"].setdefault(tier, {"n": 0, "wins": 0, "net_r": 0.0, "n_since": 0,
-                                           "wins_since": 0, "net_since": 0.0, "open": 0})["open"] = int(n or 0)
+            out["tiers"].setdefault(base_tier(tier), {"n": 0, "wins": 0, "net_r": 0.0, "n_since": 0,
+                                                      "wins_since": 0, "net_since": 0.0, "open": 0})["open"] += int(n or 0)
         for sym, st, n, w, net in c.execute(
                 f"SELECT symbol, status, COUNT(*), SUM(pnl_r>0), COALESCE(SUM(pnl_r),0) "
                 f"FROM shadow_trades WHERE symbol IN ({ph}) AND opened_at>=? "
@@ -396,7 +443,7 @@ def conf_bands(days: float = 0.0) -> list[dict]:
             return []
         sql = ("SELECT tier, conf, pnl_r FROM shadow_trades "
                "WHERE status = 'CLOSED' AND conf IS NOT NULL "
-               "AND pnl_r IS NOT NULL")
+               f"AND pnl_r IS NOT NULL AND {NOT_TOK}")
         args: tuple = ()
         if days and days > 0:
             sql += " AND closed_at >= ?"
@@ -451,7 +498,7 @@ def conf_open_count() -> int:
             return 0
         return int(c.execute(
             "SELECT COUNT(*) FROM shadow_trades "
-            "WHERE status = 'OPEN' AND conf IS NOT NULL"
+            f"WHERE status = 'OPEN' AND conf IS NOT NULL AND {NOT_TOK}"
         ).fetchone()[0])
     except Exception:
         return 0
@@ -755,7 +802,7 @@ def golden_cells(min_n: int = 25, min_win: float = 55.0) -> list[dict]:
                       "SELECT tier, symbol, side, opened_at, pnl_r "
                       "FROM shadow_trades WHERE status = 'CLOSED' "
                       "AND pnl_r IS NOT NULL "
-                      "AND opened_at IS NOT NULL")]
+                      f"AND opened_at IS NOT NULL AND {NOT_TOK}")]
     except Exception:
         return []
     finally:
@@ -847,7 +894,7 @@ def shadow_closed_all(limit: int = 6000) -> list[dict]:
     REPLAY that bridges desk records to real-account constraints."""
     return _rows(
         "SELECT tier,symbol,side,opened_at,closed_at,pnl_r "
-        "FROM shadow_trades WHERE status='CLOSED' "
+        f"FROM shadow_trades WHERE status='CLOSED' AND {NOT_TOK} "
         "ORDER BY opened_at LIMIT ?", (limit,))
 
 
@@ -869,7 +916,7 @@ def shadow_recent_net(tier: str, days: float = 14.0) -> dict:
 
 def shadow_recent(limit: int = 30) -> list[dict]:
     return _rows(
-        "SELECT * FROM shadow_trades WHERE status='CLOSED' "
+        f"SELECT * FROM shadow_trades WHERE status='CLOSED' AND {NOT_TOK} "
         "ORDER BY closed_at DESC LIMIT ?", (limit,))
 
 

@@ -2683,6 +2683,15 @@ def cycle() -> None:
                   f"in all ({_vd['void_net_r']:+.1f}R)", flush=True)
         except Exception as _vd_exc:
             print("ledger hygiene error:", _vd_exc, flush=True)
+        # 🏦 2026-11-11 split records (user: tokenized results "should not impact the current
+        # results for the streams"): relabel every tokenized desk row to its tok:<tier> tier,
+        # once per process, idempotent. New tokenized seats open there already.
+        try:
+            if getattr(config, "BSTOCK_SPLIT_TIERS", False):
+                _tk_n = store.shadow_split_tokenized(sorted(getattr(config, "TOKENIZED_STOCKS", ())))
+                print(f"🏦 tokenized split: {_tk_n} desk rows moved to tok:<tier> tiers", flush=True)
+        except Exception as _tk_exc:
+            print("tokenized split error:", _tk_exc, flush=True)
     # 📡 CHANNEL DESK (user 2026-11-05 "yes lets do it"): outside Telegram
     # signal channels → own demo books v2/v3 + 🚦 light. Own state, own
     # switch (channel_desk.TG_CHANNEL_DESK); never raises, never touches

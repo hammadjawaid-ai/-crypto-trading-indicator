@@ -147,6 +147,15 @@ BSTOCK_MIN_QV = 2_000_000.0
 # "since the restore" (the page's 🏦 TOKENIZED DESK and the 🏦 line on tokenized bells) counts
 # trades OPENED from here: the forward proof he asked to keep separately.
 BSTOCK_RESTORED_TS = 1794250800.0
+# 🏦 2026-11-11 SPLIT RECORDS (user: "for every stream for tokenized stocks we should have the
+# results separately, they should not impact the current results for the streams"): a
+# tokenized seat is recorded under its own desk tier, "tok:" + the stream's tier
+# (tok:elite_star, tok:prime, ...). Every stream record on the page, the phone and the demo's
+# form read is then crypto-only by construction; the tokenized record sits beside it in the
+# 🏦 TOKENIZED DESK and on the 🏦 line of a tokenized bell. Existing tokenized rows are
+# relabelled once by the worker (worker_store.shadow_split_tokenized). False = new tokenized
+# seats share the stream's tier again (rows already relabelled stay split).
+BSTOCK_SPLIT_TIERS = True
 # WLFI + LINK added 2026-08-15; ETHFI added 2026-08-16 (user orders)
 # — 21-coin sentry watch.
 # GIGGLE dropped 2026-08-17 with the crypto-only ruling (it's a

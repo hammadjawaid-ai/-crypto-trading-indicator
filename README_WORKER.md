@@ -300,3 +300,20 @@ User: "yes have these for tokenized desk records separately as well" (after the 
   expander with each stream's tokenized record since the restore, its all-time tokenized record, the same tier's
   crypto record beside it, and the per-stock line. 10-min cache.
 - Guard: `.bstock_restore_test.py` (38), `.tg_cells_test.py` (56).
+
+## 🏦 SPLIT RECORDS (2026-11-11) — a stream's record is crypto-only
+
+User: "for every stream for tokenized stocks we should have the results separately, they should not impact the current
+results for the streams ... keep them a split".
+- A tokenized seat is recorded under its own desk tier, `tok:` + the stream's tier (`tok:elite_star`, `tok:prime`, ...):
+  `worker_store.desk_tier`, applied in `shadow_trader.open_from_signal`. Switch `config.BSTOCK_SPLIT_TIERS`.
+- Existing tokenized rows (open seats included) are relabelled once per worker start by
+  `worker_store.shadow_split_tokenized` (called in `cycle()` beside the hygiene sweep; idempotent). Reverse:
+  `UPDATE shadow_trades SET tier = substr(tier, 5) WHERE tier LIKE 'tok:%'`.
+- Every reader keyed by a stream tier is crypto-only with no change: the Decision Desk rows and lights, the bells'
+  forward records (`rung_stats`), the window clock, the board ledgers, the demo's form read. The all-tier readers
+  (`shadow_summary`, conf / heat bands, confluence, recent closes, edge miner) skip `tok:*` tiers.
+- The tokenized record sits beside it: 🏦 TOKENIZED DESK on the page and the 🏦 line on a tokenized bell, both keyed by
+  the stream (`shadow_tokenized` strips the prefix). `shadow_summary(include_tok=True)` lists the tok tiers.
+- Not split: the demo account is one book (its closed-trade list shows the coin); the signals table and the boards
+  still show tokenized fires as signals. Guard: `.bstock_restore_test.py` (54).
