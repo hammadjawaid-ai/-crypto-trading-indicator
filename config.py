@@ -147,7 +147,9 @@ BSTOCK_MIN_QV = 2_000_000.0
 # instance once the scan grew from 100 to 119 symbols; user chose the trim over a bigger plan):
 # only the BSTOCK_MAX_N largest tokenized names by 24h volume ride with the coins. Raise it
 # only with more CPU / RAM behind the service. 0 or None = no cap.
-BSTOCK_MAX_N = 6
+# 2026-11-13 later: back to no cap on his word ("its working fine ... switch it back to 19 stocks
+# instead of top ones"). If the 502 restart loop returns, set this to 6 again: one line.
+BSTOCK_MAX_N = 0
 # 🏦 the restore moment — 10 Nov 2026 00:00 PKT (09 Nov 19:00 UTC). The tokenized desk record
 # "since the restore" (the page's 🏦 TOKENIZED DESK and the 🏦 line on tokenized bells) counts
 # trades OPENED from here: the forward proof he asked to keep separately.
