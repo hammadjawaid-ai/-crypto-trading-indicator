@@ -96,5 +96,21 @@ for need, lab in (('tg_cells.stamp("elite_star", _pmx.get("side"), time.time())'
                   ("import tg_cells", "import")):
     check(f"worker: {lab}", need in W)
 check("worker: the old star clock line is gone from the card", "clock_cells.star_line_short(" not in W)
+print("6. ⚠️ against the market (2026-11-13)")
+check("no read stored -> no mark (tests and a cold worker stay quiet)", tc.market_note("LONG") == "")
+up = [100.0] * 49 + [101.0]
+dn = [100.0] * 49 + [90.0]
+check("regime from 50 completed closes: above / below with the gap", tc.regime_from_closes(up)[0] is False and tc.regime_from_closes(dn)[0] is True
+      and abs(tc.regime_from_closes(dn)[1] - (90.0 / 99.8 - 1) * 100) < 1e-6 and tc.regime_from_closes([1.0] * 49) == (None, None))
+tc.set_btc_regime(dn)
+mn = tc.market_note("LONG")
+check("BTC below -> a LONG bell carries the mark with the gap and the record", mn.startswith(chr(10) + "⚠️ *AGAINST THE MARKET* — BTC 9.8% under its 50-day average") and "34% / −0.28R (1,332" in mn, mn)
+check("shorts are never marked", tc.market_note("SHORT") == "" and tc.market_note(None) == "")
+check("a stale read (older than 36h) prints nothing", tc.market_note("LONG", now=tc._MKT["t"] + 37 * 3600) == "")
+tc.set_btc_regime(up)
+check("BTC above -> no mark", tc.market_note("LONG") == "")
+tc._MKT.update(t=0.0, below=None, gap=None)
+check("worker: the read refreshes every cycle and rides the five fire bells",
+      'tg_cells.set_btc_regime(_bd50["close"].to_numpy(float)[:-1])' in W and W.count("tg_cells.market_note(") == 5, W.count("tg_cells.market_note("))
 print(f"\n{PASS} passed, {len(FAIL)} failed" + (f": {FAIL}" if FAIL else " — ALL PASS"))
 sys.exit(1 if FAIL else 0)

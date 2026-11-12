@@ -245,3 +245,56 @@ def tok_note(symbol, tier: str, now: float | None = None) -> str:
                 f" · the 🕐 cell is crypto-measured")
     except Exception:
         return ""
+
+
+# ───────── ⚠️ against the market: a LONG bell while BTC sits under its 50-day average ─────────
+# (user 2026-11-13: "yes marked against the market that is better on telegram notifications").
+# Measured on the desk: with BTC's last daily close below its 50-day average, longs ran
+# 37% / -0.10R (4,047, Jul -> 4 Nov, the audit) and 34% / -0.28R (1,332, 5 -> 12 Nov, fresh
+# data), while shorts ran 57% / +0.18R (887) in that second window. The mirror did not hold
+# for shorts, so only longs are marked. The worker refreshes the read every cycle
+# (set_btc_regime); a read older than MKT_MAX_AGE prints nothing. A mark, never a mute.
+MKT_REC = "longs in this state 34% / −0.28R (1,332, 5–12 Nov) · 37% / −0.10R (4,047, Jul–Nov)"
+MKT_MAX_AGE = 36 * 3600.0
+_MKT: dict = {"t": 0.0, "below": None, "gap": None}
+
+
+def regime_from_closes(closes):
+    """(below, gap %) from COMPLETED daily closes, newest last; (None, None) under 50 closes."""
+    xs = []
+    for x in closes:
+        try:
+            xs.append(float(x))
+        except (TypeError, ValueError):
+            continue
+    if len(xs) < 50:
+        return None, None
+    sma = sum(xs[-50:]) / 50.0
+    if sma <= 0:
+        return None, None
+    return xs[-1] < sma, (xs[-1] / sma - 1.0) * 100.0
+
+
+def set_btc_regime(closes, now: float | None = None):
+    """Store the read (called by the worker each cycle). Returns below / None."""
+    import time as _t
+    below, gap = regime_from_closes(closes)
+    if below is None:
+        return None
+    _MKT.update(t=float(_t.time() if now is None else now), below=bool(below), gap=float(gap))
+    return bool(below)
+
+
+def market_note(side, now: float | None = None) -> str:
+    """'\n⚠️ *AGAINST THE MARKET* — BTC 11.5% under its 50-day average · …' for a LONG while the
+    stored read says below; '' otherwise (shorts, BTC above, no read, stale read). Never raises."""
+    try:
+        import time as _t
+        if str(side or "").upper() != "LONG" or _MKT.get("below") is not True:
+            return ""
+        if float(_t.time() if now is None else now) - float(_MKT.get("t") or 0.0) > MKT_MAX_AGE:
+            return ""
+        return (f"\n⚠️ *AGAINST THE MARKET* — BTC {abs(float(_MKT['gap'])):.1f}% under its 50-day average · {MKT_REC}")
+    except Exception:
+        return ""
+

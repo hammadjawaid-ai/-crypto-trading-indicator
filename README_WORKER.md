@@ -332,3 +332,15 @@ User: "yes switch gated star to the 88% exit and deploy".
   record-level win rate reads lower than the 88% trade-level figure.
 - Guard: `.demo_gen19_test.py` (long and short scale-out, once only, rest stops at entry, rest runs the ladder,
   pairs untouched).
+
+## ⚠️ AGAINST THE MARKET mark on LONG bells (2026-11-13)
+
+User: "yes marked against the market that is better on telegram notifications".
+- The worker reads BTC's last completed daily close against its 50-day average every cycle
+  (`tg_cells.set_btc_regime`). A LONG fire bell sent while BTC sits below it carries one line:
+  `⚠️ AGAINST THE MARKET — BTC x% under its 50-day average · longs in this state …`.
+- Rides the ⭐ star card, 💎 CONVICTION REVIVAL, every pair card, 💥🥇 PRIME × STRONG TRIGGER and 🏆💎 APEX V2 GATED.
+  Shorts are never marked (the mirror did not hold). Replies and the TP1 ping are not marked.
+- A mark, never a mute. No read or a read older than 36h prints nothing.
+- Measured: longs in that state 37% / −0.10R (4,047, Jul → 4 Nov) and 34% / −0.28R (1,332, 5 → 12 Nov); shorts in the
+  second window 57% / +0.18R (887). Guard: `.tg_cells_test.py` (63).

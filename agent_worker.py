@@ -478,7 +478,8 @@ def _fmt_conv_revival(ew, prg, age_s, px, now, rg, unappr=False):
         rec_line = (CONV_REV_CARD_REC.get(cls, "") + " · 6 Oct → 4 Nov"
                     + (" · UNAPPROVED fire — size down" if unappr else ""))
         st_line = (tg_cells.stamp("conv_revival", cls, now)   # 🕐 2026-11-08: this GO class in this window
-                   + tg_cells.tok_note(ew.get("symbol"), "go_revived"))   # 🏦 2026-11-10
+                   + tg_cells.tok_note(ew.get("symbol"), "go_revived")   # 🏦 2026-11-10
+                   + tg_cells.market_note(ew.get("side")))   # ⚠️ 2026-11-13
         return "\n".join(x for x in (head, plan, read, rec_line, st_line) if x)
     except Exception:
         return _revival_dress(rung_stats.go_text(ew, prg, age_s, px, now), ew, age_s, now)
@@ -647,7 +648,8 @@ def _fmt_prime_trig(sig, px, now):
     rd = str(rd).split(" — ")[0] if rd else ""
     l5 = f"pair {PRIME_TRIG_REC} · forward {fwd} · bank at TP1"
     l6 = (tg_cells.stamp("prime_trig", None, now)   # 🕐 2026-11-08
-          + tg_cells.tok_note(sig.get("symbol"), "prime_trig"))   # 🏦 2026-11-10
+          + tg_cells.tok_note(sig.get("symbol"), "prime_trig")   # 🏦 2026-11-10
+          + tg_cells.market_note(side))   # ⚠️ 2026-11-13
     return "\n".join(x for x in (head, plan, rd, l5, l6) if x)
 
 
@@ -2153,7 +2155,8 @@ def _fmt_apex_v2_gated(sig, px, read_line, now):
             f"score {float(sig.get('score') or 0):.0f} · heat {float(sig.get('heat') or 0):.0f}\n"
             f"⏱ 1h verdict replies here · LIVE 70% / +0.54R (46) · DEAD 34% / −0.24R (79) · gated forward {fwd}\n"
             + tg_cells.stamp("apex_v2", sd, now)   # 🕐 2026-11-08: APEX V2 fires in this window, this side
-            + tg_cells.tok_note(sig.get("symbol"), "apex_v2"))   # 🏦 2026-11-10
+            + tg_cells.tok_note(sig.get("symbol"), "apex_v2")   # 🏦 2026-11-10
+            + tg_cells.market_note(sd))   # ⚠️ 2026-11-13
 
 
 def _fmt_apex_v2_verdict(ew, prg):
@@ -2605,6 +2608,9 @@ def _fmt_pair_card(kind, sig, px, now, partner_ts=None):
     _tn = tg_cells.tok_note(sig.get("symbol"), kd["tier"])   # 🏦 2026-11-10: tokenized names, their own record
     if _tn:
         lines.append(_tn.strip("\n"))
+    _mn = tg_cells.market_note(side)   # ⚠️ 2026-11-13: a LONG pair while BTC is under its 50-day average
+    if _mn:
+        lines.append(_mn.strip("\n"))
     return "\n".join(lines)
 
 
@@ -2692,6 +2698,14 @@ def cycle() -> None:
                 print(f"🏦 tokenized split: {_tk_n} desk rows moved to tok:<tier> tiers", flush=True)
         except Exception as _tk_exc:
             print("tokenized split error:", _tk_exc, flush=True)
+    # ⚠️ 2026-11-13 the market read for the bells (user: "marked against the market"): BTC's
+    # last COMPLETED daily close vs its 50-day average, refreshed every cycle. A LONG fire bell
+    # sent while BTC sits below it carries one ⚠️ line (tg_cells.market_note). Never a mute.
+    try:
+        _bd50 = binance_client.get_klines("BTCUSDT", "1d", limit=60)
+        tg_cells.set_btc_regime(_bd50["close"].to_numpy(float)[:-1])
+    except Exception as _mk_exc:
+        print("market read error:", _mk_exc, flush=True)
     # 📡 CHANNEL DESK (user 2026-11-05 "yes lets do it"): outside Telegram
     # signal channels → own demo books v2/v3 + 🚦 light. Own state, own
     # switch (channel_desk.TG_CHANNEL_DESK); never raises, never touches
@@ -3288,6 +3302,7 @@ def cycle() -> None:
                                     "\n", "\n" + str(_gate9[1]).split(" — ")[0] + "\n"
                                     + tg_cells.stamp("elite_star", _pmx.get("side"), time.time())
                                     + tg_cells.tok_note(_pmx.get("symbol"), "elite_star")   # 🏦 2026-11-10
+                                    + tg_cells.market_note(_pmx.get("side"))   # ⚠️ 2026-11-13
                                     + "\n", 1)   # 2026-11-08: the read's ticks + the 🕐 window stamp (68 / 60 lights)
                             except Exception as _gt_exc:
                                 _gate9 = (True, f"read: error {_gt_exc}")
