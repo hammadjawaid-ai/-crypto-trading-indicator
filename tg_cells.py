@@ -298,3 +298,102 @@ def market_note(side, now: float | None = None) -> str:
     except Exception:
         return ""
 
+
+# ───────── 🚦 the gatekeeper: one line on every fire bell (never a mute) ─────────
+# (user 2026-11-13: "build the gatekeeper and make it inside the streams, like not muted but
+# just a line so I know things on telegram signals or buzzes"). Four reads, one size:
+#   1. MARKET SIDE  BTC's last daily close vs its 50-day average (set_btc_regime). A long while
+#      BTC is below = against the market (34% / -0.28R over 1,332, 5-12 Nov; 37% / -0.10R over
+#      4,047 before); a short there = with it (57% / +0.18R over 887). The mirror above the
+#      average was not measured as a penalty for shorts.
+#   2. STREAM TRUST the audit's verdict for the stream (and side where it was measured).
+#   3. BURST        other coins that rang a fire bell on this side in the last 2h: three or
+#      more is one market move, not that many trades (11 Nov: nine star x PRIME longs, 0 won).
+#   4. SIZE         full with no warning, half with one, small with two or more.
+# GATEKEEPER = False puts the plain ⚠️ against-the-market line back.
+GATEKEEPER = True
+GATE_BURST_S = 2 * 3600.0
+GATE_BURST_N = 3
+BELL_STREAMS = ("elite_star", "star_prime", "star_trig", "star_takenow", "star_apexv2",
+                "conv_prime", "leg2_prime", "trigkr_prime", "prime_trig", "apex_v2_gated")
+# stream -> (light, text) or {side: (light, text)}; records = clean desk, the audit + the 12 Nov ledger
+GATE_TRUST = {
+    "elite_star": ("✅", "proven stream"),
+    "star_prime": {"SHORT": ("✅", "pair shorts 72% / +0.44R (69)"), "LONG": ("🟡", "pair longs 51% / +0.05R (101)")},
+    "star_trig": ("🟡", "pair 71% / +0.19R (103), fading"),
+    "star_takenow": ("🟡", "pair thin (52)"),
+    "star_apexv2": ("🟡", "pair thin (12)"),
+    "conv_prime": {"SHORT": ("✅", "pair shorts 74% / +0.83R (27)"), "LONG": ("🔴", "pair longs 32% / −0.15R (41)")},
+    "leg2_prime": ("🟡", "pair thin (19)"),
+    "trigkr_prime": ("🔴", "pair did not hold"),
+    "prime_trig": ("🟡", "pays only with the APEX card on"),
+    "conv_revival": ("🔴", "entered at the GO ≈ 0R: a hold read"),
+    "go_revived": ("🔴", "entered at the GO ≈ 0R: a hold read"),
+    "apex_v2_gated": {"SHORT": ("✅", "APEX V2 shorts 62% / +0.29R (79)"), "LONG": ("🔴", "APEX V2 longs 41% / −0.03R (124)")},
+}
+GATE_SIZE = ("full", "half", "small")
+
+
+def _gate_trust(stream, side):
+    t = GATE_TRUST.get(str(stream or ""))
+    if isinstance(t, dict):
+        t = t.get(str(side or "").upper())
+    return t or ("🟡", "unrated stream")
+
+
+def gate(stream, side, now: float | None = None, symbol=None) -> dict:
+    """-> {"size": "full|half|small", "line": "🚦 …", "warn": n}. Never raises."""
+    import time as _t
+    now = float(_t.time() if now is None else now)
+    sd = str(side or "").upper()
+    word = "long" if sd == "LONG" else "short"
+    warn = 0
+    bits = []
+    # 1. market side
+    fresh = _MKT.get("below") is not None and now - float(_MKT.get("t") or 0.0) <= MKT_MAX_AGE
+    if not fresh:
+        bits.append("⚪ no market read")
+    else:
+        gap = abs(float(_MKT.get("gap") or 0.0))
+        if _MKT["below"]:
+            if sd == "LONG":
+                warn += 1
+                bits.append(f"🔴 long against the market (BTC {gap:.1f}% under its 50d)")
+            else:
+                bits.append(f"🟢 short with the market (BTC {gap:.1f}% under its 50d)")
+        else:
+            bits.append((f"🟢 long with the market (BTC {gap:.1f}% over its 50d)") if sd == "LONG"
+                        else f"🟡 short while BTC is {gap:.1f}% over its 50d")
+    # 2. stream trust
+    lt, tx = _gate_trust(stream, sd)
+    if lt == "🔴":
+        warn += 1
+    bits.append(f"{lt} {tx}")
+    # 3. burst
+    try:
+        import worker_store as _ws
+        others = _ws.bell_burst(sd, now - GATE_BURST_S, BELL_STREAMS, symbol)
+    except Exception:
+        others = None
+    if others is not None:
+        tot = others + 1
+        if tot >= GATE_BURST_N:
+            warn += 1
+            bits.append(f"🔴 {tot} {word} bells in 2h: one move, not {tot} trades")
+        elif tot == 2:
+            bits.append(f"🟡 2nd {word} bell in 2h")
+        else:
+            bits.append(f"🟢 first {word} bell in 2h")
+    size = GATE_SIZE[min(warn, 2)]
+    return {"size": size, "warn": warn, "line": f"🚦 *GATE → {size.upper()}* · " + " · ".join(bits)}
+
+
+def gate_note(stream, side, now: float | None = None, symbol=None) -> str:
+    """'\n🚦 *GATE → HALF* · …' for a fire bell; the plain ⚠️ line when GATEKEEPER is off."""
+    try:
+        if not GATEKEEPER:
+            return market_note(side, now)
+        return "\n" + gate(stream, side, now, symbol)["line"]
+    except Exception:
+        return ""
+

@@ -479,7 +479,7 @@ def _fmt_conv_revival(ew, prg, age_s, px, now, rg, unappr=False):
                     + (" · UNAPPROVED fire — size down" if unappr else ""))
         st_line = (tg_cells.stamp("conv_revival", cls, now)   # 🕐 2026-11-08: this GO class in this window
                    + tg_cells.tok_note(ew.get("symbol"), "go_revived")   # 🏦 2026-11-10
-                   + tg_cells.market_note(ew.get("side")))   # ⚠️ 2026-11-13
+                   + tg_cells.gate_note("conv_revival", ew.get("side"), symbol=ew.get("symbol")))   # 🚦 gatekeeper
         return "\n".join(x for x in (head, plan, read, rec_line, st_line) if x)
     except Exception:
         return _revival_dress(rung_stats.go_text(ew, prg, age_s, px, now), ew, age_s, now)
@@ -649,7 +649,7 @@ def _fmt_prime_trig(sig, px, now):
     l5 = f"pair {PRIME_TRIG_REC} · forward {fwd} · bank at TP1"
     l6 = (tg_cells.stamp("prime_trig", None, now)   # 🕐 2026-11-08
           + tg_cells.tok_note(sig.get("symbol"), "prime_trig")   # 🏦 2026-11-10
-          + tg_cells.market_note(side))   # ⚠️ 2026-11-13
+          + tg_cells.gate_note("prime_trig", side, symbol=sig.get("symbol")))   # 🚦 gatekeeper
     return "\n".join(x for x in (head, plan, rd, l5, l6) if x)
 
 
@@ -2156,7 +2156,7 @@ def _fmt_apex_v2_gated(sig, px, read_line, now):
             f"⏱ 1h verdict replies here · LIVE 70% / +0.54R (46) · DEAD 34% / −0.24R (79) · gated forward {fwd}\n"
             + tg_cells.stamp("apex_v2", sd, now)   # 🕐 2026-11-08: APEX V2 fires in this window, this side
             + tg_cells.tok_note(sig.get("symbol"), "apex_v2")   # 🏦 2026-11-10
-            + tg_cells.market_note(sd))   # ⚠️ 2026-11-13
+            + tg_cells.gate_note("apex_v2_gated", sd, symbol=sig.get("symbol")))   # 🚦 gatekeeper
 
 
 def _fmt_apex_v2_verdict(ew, prg):
@@ -2608,7 +2608,7 @@ def _fmt_pair_card(kind, sig, px, now, partner_ts=None):
     _tn = tg_cells.tok_note(sig.get("symbol"), kd["tier"])   # 🏦 2026-11-10: tokenized names, their own record
     if _tn:
         lines.append(_tn.strip("\n"))
-    _mn = tg_cells.market_note(side)   # ⚠️ 2026-11-13: a LONG pair while BTC is under its 50-day average
+    _mn = tg_cells.gate_note(kd["tier"], side, symbol=sig.get("symbol"))   # 🚦 2026-11-13 gatekeeper line
     if _mn:
         lines.append(_mn.strip("\n"))
     return "\n".join(lines)
@@ -3274,8 +3274,13 @@ def cycle() -> None:
                                 except Exception:
                                     _partners9, _sizedown9 = (), False
                                 try:   # 🕐 the window stamp's light sets the size word (🟢 full · 🟡 half · 🔴 small)
+                                    # 🚦 2026-11-13: the header's size word is the gatekeeper's (market side ·
+                                    # stream trust · burst); the old clock-light word is the fallback
                                     _cl9 = tg_cells.light_of("elite_star", _pmx.get("side"), time.time())
                                     _size9 = {"🟢": "full", "🟡": "half", "🔴": "small"}.get(_cl9)
+                                    if tg_cells.GATEKEEPER:
+                                        _size9 = tg_cells.gate("elite_star", _pmx.get("side"),
+                                                               symbol=_pmx.get("symbol"))["size"]
                                 except Exception:
                                     _size9 = None
                                 _msg9 = rung_stats.star_fire(
@@ -3302,7 +3307,8 @@ def cycle() -> None:
                                     "\n", "\n" + str(_gate9[1]).split(" — ")[0] + "\n"
                                     + tg_cells.stamp("elite_star", _pmx.get("side"), time.time())
                                     + tg_cells.tok_note(_pmx.get("symbol"), "elite_star")   # 🏦 2026-11-10
-                                    + tg_cells.market_note(_pmx.get("side"))   # ⚠️ 2026-11-13
+                                    + tg_cells.gate_note("elite_star", _pmx.get("side"),
+                                                         symbol=_pmx.get("symbol"))   # 🚦 2026-11-13 gatekeeper
                                     + "\n", 1)   # 2026-11-08: the read's ticks + the 🕐 window stamp (68 / 60 lights)
                             except Exception as _gt_exc:
                                 _gate9 = (True, f"read: error {_gt_exc}")

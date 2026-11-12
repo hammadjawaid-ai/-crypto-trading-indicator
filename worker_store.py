@@ -369,6 +369,28 @@ def shadow_split_tokenized(symbols) -> int:
         c.close()
 
 
+def bell_burst(side: str, since: float, streams, exclude_symbol=None) -> int:
+    """🚦 How many OTHER coins rang a fire bell on this side since `since` (the gatekeeper's
+    burst read, 2026-11-13). Stars count only when their gate passed. Read-only; 0 on error."""
+    st = [str(x) for x in (streams or []) if x]
+    if not st:
+        return 0
+    ph = ",".join("?" * len(st))
+    c = _open()
+    try:
+        row = c.execute(
+            f"SELECT COUNT(DISTINCT symbol) FROM signals WHERE upper(side)=? AND ts>=? "
+            f"AND stream IN ({ph}) AND symbol != ? "
+            f"AND (stream != 'elite_star' OR extra LIKE '%\"gate\": \"pass\"%' "
+            f"OR extra LIKE '%\"gate\": \"1317-pass\"%')",
+            [(side or "").upper(), float(since)] + st + [str(exclude_symbol or "")]).fetchone()
+        return int(row[0] or 0)
+    except Exception:
+        return 0
+    finally:
+        c.close()
+
+
 def shadow_tokenized(symbols, since: float = 0.0) -> dict:
     """🏦 The desk record of tokenized names on its own (user 2026-11-10: "have these for
     tokenized desk records separately as well"). Clean closes only (status='CLOSED'; thin-stop

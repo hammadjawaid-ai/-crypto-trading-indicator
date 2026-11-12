@@ -344,3 +344,17 @@ User: "yes marked against the market that is better on telegram notifications".
 - A mark, never a mute. No read or a read older than 36h prints nothing.
 - Measured: longs in that state 37% / −0.10R (4,047, Jul → 4 Nov) and 34% / −0.28R (1,332, 5 → 12 Nov); shorts in the
   second window 57% / +0.18R (887). Guard: `.tg_cells_test.py` (63).
+
+## 🚦 GATEKEEPER line on every fire bell (2026-11-13)
+
+User: "build the gatekeeper and make it inside the streams, like not muted but just a line so I know things".
+- One line per fire bell, `🚦 GATE → FULL|HALF|SMALL · market side · stream trust · burst`, from `tg_cells.gate`:
+  1. market side: BTC's last daily close vs its 50-day average (long below it = against, short below it = with);
+  2. stream trust: the audit's verdict per stream, by side where measured (`GATE_TRUST`);
+  3. burst: other coins that rang a fire bell on this side in the last 2h (`worker_store.bell_burst`; muted stars do
+     not count); three or more = one market move;
+  4. size: full with no warning, half with one, small with two or more.
+- Rides the ⭐ star card (its header size word is now the gatekeeper's), 💎 CONVICTION REVIVAL, every pair card,
+  💥🥇 PRIME × STRONG TRIGGER, 🏆💎 APEX V2 GATED. It replaces the plain ⚠️ line. Nothing is muted.
+- One switch: `tg_cells.GATEKEEPER = False` puts the plain ⚠️ against-the-market line back.
+- Guard: `.tg_cells_test.py` (75), `.bells2_test.py` (51).
