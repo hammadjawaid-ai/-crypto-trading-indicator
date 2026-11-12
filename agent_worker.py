@@ -7235,7 +7235,7 @@ def cycle() -> None:
                     f"${_rec['notional_total']:,.0f}")
                 n_alerts += 1 if ok else 0
                 continue
-            _tag = ("💰 TP1 half-banked" if _ev == "tp1"
+            _tag = ("💰 HALF BANKED" if _ev == "tp1"
                     else "CLOSED")
             ok, _ = _dz_tg(
                 f"🎮 *DEMO $2,000 GEN19* — {_tag} {_rec['base']} "

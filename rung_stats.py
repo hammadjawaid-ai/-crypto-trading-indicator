@@ -308,6 +308,13 @@ def star_fire(p: dict, conf, now: float, chips=(), kr_line: str = "",
     if bank:                      # 🎯 bank zone (user 2026-10-24) — the chip, on the plan line
         import bank_zone as _bz
         lines[-1] = lines[-1] + " · " + _bz.chip(bank)
+    # 🎯 the accuracy exit (user 2026-11-13: "switch gated star to the 88% exit"): half off at
+    # +0.3R, then the stop goes to entry; the level and the measured record, one line
+    try:
+        _half_lvl = e + (1 if side == "LONG" else -1) * 0.3 * abs(e - s)
+        lines.append(f"exit: half off at `{_half_lvl:.6g}` (+0.3R) → stop to entry · gated ⭐ 88% / +0.16R (225)")
+    except Exception:
+        pass
     # one "with:" line: partners · ONE TRADE size-down · conf · heat (2026-11-07 concise card)
     bits = []
     pl = star_partner_line(partners)

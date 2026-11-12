@@ -9956,7 +9956,8 @@ if active_section == "🎮 Demo Trading":
         "shorts outside heat 40–79 half · 2. ⭐🥇 STAR × PRIME · 3. ⭐💥 STAR × STRONG TRIGGER · "
         "4. 💎 CONVICTION REVIVAL LATE only, half · 5. ⭐🏆² STAR × APEX V2 — pairs seat at the second fire. "
         "All 10x; full seat $100 margin, half $50, double $200; exit = the desk ladder (BE at +1R → TP1 lock → "
-        "1.2R trail → 48h), no TP1 bank, no add-on. Fresh $2,000 book since 7 Nov · "
+        "1.2R trail → 48h), no TP1 bank, no add-on. ⭐ star seats since 13 Nov (19.2): half off at +0.3R, stop to "
+        "entry on the rest, then the ladder (88% / +0.16R measured on 225 gated stars vs the ladder's 66% / +0.32R). Fresh $2,000 book since 7 Nov · "
         f"day {_days:.1f}.</span></div>",
         unsafe_allow_html=True)
     with st.expander("roster history (GEN 17 → 19)", expanded=False):   # 2026-11-07: moved out of the header

@@ -192,6 +192,16 @@ NEAR_TP_SRC: set = set()
 # trails out above TP1 (reason "TP1 lock").
 LADDER_SRC: set = {"elite_star", "star_prime", "star_trig", "conv_revival", "star_apexv2"}
 TRAIL_R = 1.2                 # post-TP1 trail distance in initial-risk units (desk law)
+# 🎯 GEN 19.2 ACCURACY EXIT (user 2026-11-13: "yes switch gated star to the 88% exit and
+# deploy"): a ⭐ star seat banks HALF at +0.3R (a resting limit at entry + 0.3 x the initial
+# risk), the stop on the rest moves to entry at that moment, and the rest runs the desk ladder.
+# Measured on the audit's real-order ruler (resting stop + resting limit, stop first inside a
+# bar), 225 gated stars 9 Sep -> 4 Nov: 88% of trades end positive / +0.16R a trade (halves
+# +0.20 / +0.12R) against the plain ladder's 66% / +0.32R: accuracy bought with profit, and a
+# loss is still a full 1R. Stars only; the pairs and the revival keep the plain ladder.
+# Revert: SCALE_OUT_SRC = set().
+SCALE_OUT_SRC: set = {"elite_star"}
+SCALE_OUT_R = 0.3
 LADDER_HOLD_H = 48.0          # the desk's time-stop
 # 📐 rr re-checked at the LIVE entry for streams whose edge IS an rr
 # law — (lo, hi) half-open, None = unbounded on that side. The star
@@ -1232,6 +1242,24 @@ def manage(state: dict, live_fn, kr_get=None, addon_fn=None) -> list:
             _r0l = (float(p.get("risk0") or 0) or abs(p["entry"] - p["stop"])
                     or p["entry"] * 0.02)
             _gl = (live - p["entry"]) if lng else (p["entry"] - live)
+            if (p.get("src") in SCALE_OUT_SRC and not p.get("scaled")
+                    and _gl >= SCALE_OUT_R * _r0l):
+                # 🎯 GEN 19.2: half off at the +0.3R level, stop to entry on the rest
+                _half = p["qty"] / 2.0
+                _lvl = p["entry"] + (1 if lng else -1) * SCALE_OUT_R * _r0l
+                rec = _close_qty(state, p, _half, _lvl,
+                                 f"🎯 half banked at +{SCALE_OUT_R:g}R, stop to entry on "
+                                 f"the rest (accuracy exit)")
+                p["qty"] -= _half
+                p["tp1_banked"] = _half
+                p["scaled"] = True
+                p["notional"] = round(float(p.get("notional") or 0) / 2.0, 2)
+                p["margin"] = round(float(p.get("margin") or 0) / 2.0, 2)
+                p["stop"] = (max(p["stop"], p["entry"]) if lng
+                             else min(p["stop"], p["entry"]))
+                p["be_set"] = True
+                state["closed"].append(rec)
+                events.append(("tp1", rec))
             if not p.get("be_set") and _gl >= _r0l:
                 p["stop"] = (max(p["stop"], p["entry"]) if lng
                              else min(p["stop"], p["entry"]))

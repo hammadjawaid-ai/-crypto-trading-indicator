@@ -317,3 +317,18 @@ results for the streams ... keep them a split".
   the stream (`shadow_tokenized` strips the prefix). `shadow_summary(include_tok=True)` lists the tok tiers.
 - Not split: the demo account is one book (its closed-trade list shows the coin); the signals table and the boards
   still show tokenized fires as signals. Guard: `.bstock_restore_test.py` (54).
+
+## 🎯 GEN 19.2 — the accuracy exit on ⭐ star seats (2026-11-13)
+
+User: "yes switch gated star to the 88% exit and deploy".
+- A demo ⭐ star seat banks HALF at +0.3R (entry + 0.3 x the initial risk), moves the stop to entry on the rest, and
+  the rest runs the desk ladder (`demo_account.SCALE_OUT_SRC = {"elite_star"}`, `SCALE_OUT_R = 0.3`). Once per seat.
+  The pairs and the conviction revival keep the plain ladder. Revert: `SCALE_OUT_SRC = set()`.
+- Measured by the 10 Nov audit on a real-order ruler (resting stop + resting limit, stop first inside a bar), 225 gated
+  stars 9 Sep -> 4 Nov: 88% of trades end positive / +0.16R a trade (halves +0.20 / +0.12R) against the plain ladder's
+  66% / +0.32R. Accuracy bought with profit; a loss is still a full 1R.
+- The ⭐ star bell prints the level: `exit: half off at <price> (+0.3R) → stop to entry · gated ⭐ 88% / +0.16R (225)`.
+- The demo's closed list shows two records for such a trade (the banked half, then the rest), so the page's
+  record-level win rate reads lower than the 88% trade-level figure.
+- Guard: `.demo_gen19_test.py` (long and short scale-out, once only, rest stops at entry, rest runs the ladder,
+  pairs untouched).

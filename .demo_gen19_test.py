@@ -128,6 +128,8 @@ o3, _ = da.try_open(st3, [cand("elite_star", heat=55, btc_day=-1.2), cand("elite
                     live, now=T15)
 if [(p["symbol"], p["size"]) for p in o3] != [("BBBUSDT", "half")]:
     fails.append(f"15:00 PKT: {[(p['symbol'], p['size']) for p in o3]}")
+_so = set(da.SCALE_OUT_SRC)
+da.SCALE_OUT_SRC = set()      # the plain-ladder checks below
 # 🪜 the ladder on a LONG: +1R -> BE; TP1 -> lock, no bank; trail; stop out at the lock with a profit
 st4 = fresh()
 o4, _ = da.try_open(st4, [cand("elite_star", heat=50, btc_day=-1.0)], live, now=T07)
@@ -202,6 +204,42 @@ da.try_open(st9, [cand("elite_star", heat=50, btc_day=-1.0)], live, now=T07)
 px["AAAUSDT"] = 102.0
 if any(e == "add" for e, _ in da.manage(st9, live, None, addon_fn=lambda s, d: {"oneh": "LIVE", "go": "FAST"})):
     fails.append("the add-on is off in GEN 19")
+da.SCALE_OUT_SRC = _so
+# 🎯 GEN 19.2 accuracy exit: a star banks half at +0.3R, stop to entry on the rest, once; the pairs do not
+if da.SCALE_OUT_SRC != {"elite_star"} or da.SCALE_OUT_R != 0.3:
+    fails.append(f"scale-out constants: {da.SCALE_OUT_SRC} {da.SCALE_OUT_R}")
+stS = fresh()
+px["AAAUSDT"] = 100.0
+px["BBBUSDT"] = 100.0
+da.try_open(stS, [cand("elite_star", heat=50, btc_day=-1.0), cand("star_prime", "BBBUSDT")], live, now=T07)
+pS = next(q for q in stS["open"] if q["src"] == "elite_star")
+pP = next(q for q in stS["open"] if q["src"] == "star_prime")
+q0, qp0 = pS["qty"], pP["qty"]
+px["AAAUSDT"] = 101.3
+px["BBBUSDT"] = 101.3
+ev = da.manage(stS, live, None)
+if (len(ev) != 1 or ev[0][0] != "tp1" or abs(ev[0][1]["exit"] - 101.2) > 1e-9 or ev[0][1]["pnl"] <= 0
+        or abs(pS["qty"] - q0 / 2) > 1e-9 or not pS.get("scaled") or abs(pS["stop"] - 100.0) > 1e-9 or not pS.get("be_set")):
+    fails.append(f"star scale-out at +0.3R: {ev} qty {pS['qty']} stop {pS['stop']}")
+if abs(pP["qty"] - qp0) > 1e-9 or pP.get("scaled") or abs(pP["stop"] - 96.0) > 1e-9:
+    fails.append("a pair seat must keep the plain ladder (no scale-out)")
+if da.manage(stS, live, None):
+    fails.append("the scale-out happens once")
+px["AAAUSDT"] = 99.9
+ev = da.manage(stS, live, None)
+if len(ev) != 1 or ev[0][1]["reason"] != "BE stop" or abs(ev[0][1]["exit"] - 100.0) > 1e-9 or abs(ev[0][1]["qty"] - q0 / 2) > 1e-9:
+    fails.append(f"the rest stops out at entry: {ev}")
+stS2 = fresh()
+px["AAAUSDT"] = 100.0
+da.try_open(stS2, [cand("elite_star", "AAAUSDT", "SHORT", 100.0, 104.0, 94.0, 90.0, heat=50, btc_day=-1.0)], live, now=T07)
+px["AAAUSDT"] = 98.7
+ev = da.manage(stS2, live, None)
+if len(ev) != 1 or abs(ev[0][1]["exit"] - 98.8) > 1e-9 or ev[0][1]["pnl"] <= 0 or abs(stS2["open"][0]["stop"] - 100.0) > 1e-9:
+    fails.append(f"short star scale-out: {ev}")
+px["AAAUSDT"] = 93.0
+da.manage(stS2, live, None)
+if not stS2["open"][0].get("tp1_lock") or abs(stS2["open"][0]["stop"] - 94.0) > 1e-9:
+    fails.append("after the scale-out the rest runs the ladder (TP1 lock)")
 # cut-over: an old GEN 18 file with an open seat → closed at live into the archive, fresh GEN 19 $2,000 book, once
 old = {"gen": 18, "balance": 1616.23, "start": 2000.0, "started_at": 1.0, "open": [
     {"symbol": "AAAUSDT", "base": "AAA", "side": "LONG", "entry": 100.0, "stop": 96.0, "tp1": 106.0, "tp2": None, "qty": 10.0,
