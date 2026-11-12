@@ -28,7 +28,9 @@ def _brain() -> None:
     # warm before the first heavy scan competes for the box — the
     # health check timing out under combined load was restarting the
     # service (the recurring 502).
-    time.sleep(45)
+    # 45 -> 120s (2026-11-13, the same loop came back with a 119-symbol scan): the web
+    # process gets two quiet minutes to pass its health checks before the first heavy scan.
+    time.sleep(120)
     import agent_worker
     try:
         import telegram_notify as tg

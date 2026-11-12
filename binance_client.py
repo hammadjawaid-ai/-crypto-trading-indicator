@@ -164,6 +164,9 @@ def get_top_symbols(n: int = config.TOP_N) -> pd.DataFrame:
         if getattr(config, "BSTOCK_IN_UNIVERSE", False):
             _qv = float(getattr(config, "BSTOCK_MIN_QV", 0.0) or 0.0)
             toks = full[_is_tok & (full["quoteVolume"] >= _qv)]
+            _cap = int(getattr(config, "BSTOCK_MAX_N", 0) or 0)   # 2026-11-13 load trim: the largest N only
+            if _cap > 0:
+                toks = toks.head(_cap)
             return (pd.concat([crypto, toks]).drop_duplicates("symbol")
                     .reset_index(drop=True))
         return crypto.reset_index(drop=True)

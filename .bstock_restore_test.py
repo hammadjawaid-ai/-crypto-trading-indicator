@@ -60,6 +60,11 @@ check("the illiquid tokenized name is left out; ARB (crypto, rank 5) is not pull
 check("stables / leveraged / non-USDT dropped as before", not ({"USDCUSDT", "BTCUPUSDT", "ETHBTC"} & set(u)))
 u4 = bc.get_top_symbols(4)["symbol"].tolist()
 check("n=4 → ARB joins the crypto block, tokenized still appended", u4[:4] == ["BTCUSDT", "ETHUSDT", "SOLUSDT", "ARBUSDT"] and len(u4) == 6, u4)
+check("load trim: the cap is 6 and keeps the largest tokenized names first", config.BSTOCK_MAX_N == 6)
+config.BSTOCK_MAX_N = 1
+u1 = bc.get_top_symbols(3)["symbol"].tolist()
+check("cap 1 -> only the biggest tokenized name rides along", u1 == ["BTCUSDT", "ETHUSDT", "SOLUSDT", "SNDKBUSDT"], u1)
+config.BSTOCK_MAX_N = 6
 config.BSTOCK_IN_UNIVERSE = False
 u0 = bc.get_top_symbols(5)["symbol"].tolist()
 check("switch OFF → the crypto-only universe again", u0 == ["BTCUSDT", "ETHUSDT", "SOLUSDT", "ARBUSDT"], u0)
