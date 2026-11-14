@@ -9732,7 +9732,7 @@ if _mig_token and _qp.get("admin") == _mig_token:
 # ===========================================================================
 if active_section == "📈 Long Term Investment":
     import longterm_page as _lt_page
-    _lt_page.render(load_fear_greed)
+    _lt_page.render(load_fear_greed, admin=bool(_mig_token and _qp.get("admin") == _mig_token))
     st.stop()
 
 # default 100 (user 2026-08-09: "make it 100 match") — the page's

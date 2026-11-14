@@ -184,21 +184,40 @@ def value(state: dict, price: float) -> float:
     return state["cash"] + state["units"] * float(price)
 
 
-def _ladder_up(units: float, cash: float, sold, tps) -> list:
-    """Worth of 1.0 of allocation as price climbs to each take-profit in turn (the rest marked at that level)."""
-    out = []
-    for j, tp in enumerate(tps):
-        if not sold[j] and units > 0:
-            u = units * TP_FRACS[min(j, len(TP_FRACS) - 1)]
-            units -= u
-            cash += u * tp
-        out.append(cash + units * tp)
+def add_plan(row: dict, state: dict, marks) -> list:
+    """When price goes up instead of dipping: which money goes in at which level. The nearest landmark above
+    the price takes the LOWEST unfilled tranche's money, the next landmark the next one up. Each entry is
+    {"name", "price", "k" (tranche index), "share" (of this name's money)}. Empty once every tranche is in."""
+    if state.get("stopped"):
+        return []
+    open_k = [k for k in range(len(row["rungs"]) - 1, 0, -1) if not state["filled"][k] and state["weights"][k] > 0]
+    return [{"name": m["name"], "price": float(m["price"]), "k": k, "share": state["weights"][k]} for m, k in zip(marks or [], open_k)]
+
+
+def climb(row: dict, units: float, cash: float, sold, adds=()) -> list:
+    """Worth of 1.0 of allocation at each sell level as price climbs from here: it buys each (price, share) in
+    `adds` as it passes it and sells at each take-profit it passes (what is left is marked at that level)."""
+    steps = sorted([(float(p), 0, w) for p, w in adds] + [(float(tp), 1, j) for j, tp in enumerate(row["tps"])])
+    sold = list(sold)
+    out = [None] * len(row["tps"])
+    for price, kind, x in steps:
+        if kind == 0:
+            units += x / price
+            cash -= x
+        else:
+            if not sold[x] and units > 0:
+                u = units * TP_FRACS[min(x, len(TP_FRACS) - 1)]
+                units -= u
+                cash += u * price
+            out[x] = cash + units * price
     return out
 
 
-def outcomes(row: dict, state: dict) -> dict:
-    """What each sell level is worth per 1.0 of allocation, two ways: 'now' = with what is held today and no
-    further buys; 'full' = if every remaining tranche fills at its own level first. Plus the stop, both ways."""
+def outcomes(row: dict, state: dict, marks=None) -> dict:
+    """What each sell level is worth per 1.0 of allocation, three ways: 'now' = with what is held today and no
+    further buys; 'up' = price rises first and each add in add_plan() triggers at its level on the way;
+    'full' = every remaining tranche fills at its own (lower) level first. Plus the stop, with and without
+    the remaining buys."""
     units, cash, sold = state["units"], state["cash"], list(state["sold"])
     fu, fc = units, cash
     if not state["stopped"]:
@@ -206,7 +225,8 @@ def outcomes(row: dict, state: dict) -> dict:
             if not state["filled"][k] and state["weights"][k] > 0:
                 fu += state["weights"][k] / r
                 fc -= state["weights"][k]
-    return {"now": _ladder_up(units, cash, sold, row["tps"]), "full": _ladder_up(fu, fc, sold, row["tps"]),
+    return {"now": climb(row, units, cash, sold), "full": climb(row, fu, fc, sold),
+            "up": climb(row, units, cash, sold, [(a["price"], a["share"]) for a in add_plan(row, state, marks)]),
             "stop_now": cash + units * row["stop"], "stop_full": fc + fu * row["stop"]}
 
 
@@ -312,3 +332,87 @@ def save_picks(picks, total, preset, addup: bool = True) -> bool:
         return True
     except Exception:
         return False
+
+
+# ───────────────────────── real fills: the buys and sells actually made ─────────────────────────
+FILLS_FILE = ".longterm_fills.json"
+
+
+def load_fills() -> list:
+    """The recorded real buys and sells, oldest first: {"tk", "side", "price", "usd", "units", "ts"}.
+    Kept on the state disk only, never in the code repository (which is public). [] when there is none."""
+    try:
+        with open(os.path.join(_state_dir(), FILLS_FILE), encoding="utf-8") as f:
+            d = json.load(f)
+        if not isinstance(d, list):
+            return []
+        return sorted([x for x in d if isinstance(x, dict) and x.get("tk")], key=lambda x: x.get("ts") or 0)
+    except Exception:
+        return []
+
+
+def save_fills(fills) -> bool:
+    """Atomic write of the fills beside the other durable state. Fail-soft."""
+    try:
+        path = os.path.join(_state_dir(), FILLS_FILE)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(list(fills), f)
+        os.replace(tmp, path)
+        return True
+    except Exception:
+        return False
+
+
+def parse_fills(text: str, valid, now: float) -> tuple:
+    """Lines of 'NAME buy|sell PRICE USDT [UNITS]' -> (fills, rejected lines). Units default to USDT / PRICE."""
+    good, bad = [], []
+    for i, line in enumerate((text or "").splitlines()):
+        raw = line.strip()
+        if not raw:
+            continue
+        parts = raw.replace(",", "").replace("$", "").split()
+        try:
+            tk, side = parts[0].upper(), parts[1].lower()
+            nums = [float(x) for x in parts[2:5]]
+            if tk not in valid or side not in ("buy", "sell") or len(nums) < 2 or nums[0] <= 0 or nums[1] <= 0:
+                raise ValueError(raw)
+            units = nums[2] if len(nums) > 2 and nums[2] > 0 else nums[1] / nums[0]
+            good.append({"tk": tk, "side": side, "price": nums[0], "usd": nums[1], "units": units, "ts": now + i * 0.001})
+        except Exception:
+            bad.append(raw)
+    return good, bad
+
+
+def actual_state(row: dict, fills, tranche_usd: float | None = None) -> tuple:
+    """(state, alloc) from the real fills of one name, in the shape walk() returns, per 1.0 of `alloc`.
+
+    alloc is what was really spent plus the tranches still to come, each sized like the first buy unless
+    tranche_usd says otherwise. The n-th buy is tranche n (later buys join the last tranche); the n-th sell
+    is sell level n. Nothing is inferred from candles: only recorded fills count. (None, 0.0) without a buy.
+    """
+    buys = sorted([f for f in fills if f.get("side") == "buy"], key=lambda f: f.get("ts") or 0)
+    sells = sorted([f for f in fills if f.get("side") == "sell"], key=lambda f: f.get("ts") or 0)
+    n, m = len(row["rungs"]), len(row["tps"])
+    if not buys:
+        return None, 0.0
+    tranche = float(tranche_usd or buys[0]["usd"])
+    usd_k, units_k, ts_k = [0.0] * n, [0.0] * n, [None] * n
+    for i, b in enumerate(buys):
+        k = min(i, n - 1)
+        usd_k[k] += float(b["usd"])
+        units_k[k] += float(b["units"])
+        ts_k[k] = ts_k[k] or b.get("ts")
+    filled = [usd_k[k] > 0 for k in range(n)]
+    plan_usd = [usd_k[k] if filled[k] else tranche for k in range(n)]
+    alloc = sum(plan_usd)
+    spent, bought = sum(usd_k), sum(units_k)
+    sold_units, proceeds = sum(float(x["units"]) for x in sells), sum(float(x["usd"]) for x in sells)
+    state = {"filled": filled, "fill_ts": ts_k, "fill_px": [(usd_k[k] / units_k[k]) if units_k[k] > 0 else None for k in range(n)],
+             "fill_usd": usd_k, "sold": [j < len(sells) for j in range(m)],
+             "sold_ts": [sells[j].get("ts") if j < len(sells) else None for j in range(m)], "stopped": False, "stop_ts": None, "adds": [],
+             "units": max(0.0, bought - sold_units) / alloc, "cash": (alloc - spent + proceeds) / alloc, "spent": spent / alloc,
+             "weights": [u / alloc for u in plan_usd], "avg_cost": (spent / bought) if bought > 0 else None,
+             "hi": None, "lo": None, "last": None, "actual": True}
+    return state, alloc
+

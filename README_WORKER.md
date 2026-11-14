@@ -414,3 +414,17 @@ strong buy hold as per our plans".
   - The workbook follows: three tranches everywhere, builder for up to four names, isolated stops now use explicit
     `dip50` / `dip75` fields. `longterm_build.BUILD_VER = 2` makes the server rebuild at once and the page ignore
     an older-shaped copy. Guard: `.longterm_test.py` (70).
+- **Adds if price goes up, and real fills (2026-11-14, user: "if the price goes up when to add more capital, please
+  add those to the charts as well" · "I have bought the following … I have filled the orders").**
+  - Going up: `longterm.add_plan` pairs the nearest live landmark above the price with the LOWEST unfilled tranche's
+    money, the next landmark with the tranche above it. The chart numbers them ("Add 1 above 88.92 · 200-day ·
+    $1,000"), the next steps spell them out, and the returns table has a third column for that path
+    (`outcomes()["up"]`, via `climb`). The workbook's charts carry the same Add lines.
+  - Real fills: `.longterm_fills.json` on the state disk ONLY. This repository is public, so real purchases are
+    never committed. They are shown and edited only when the page is opened with the admin link (the site's
+    existing `?admin=` check, passed as `render(..., admin=)`); `LONGTERM_FILLS_PUBLIC=1` would show them to all.
+    Entry: one line each, `NAME buy|sell PRICE USDT [UNITS]`. A name with real fills is tracked from them
+    (`longterm.actual_state`): the n-th buy is tranche n at its real price and amount, each tranche still to come is
+    sized like the first buy, and the page flags a level the market touched that has no recorded fill yet.
+    Without the admin link the page shows the mechanical plan view only.
+  - Guard: `.longterm_test.py` (82).

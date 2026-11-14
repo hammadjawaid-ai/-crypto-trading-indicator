@@ -58,3 +58,5 @@ research_meta/kl_channel/
 .longterm_portfolio.json
 # 📈 the daily-rebuilt workbook when run off the server (the server writes to STATE_DIR/longterm)
 longterm_data/_live/
+# 📈 real long-term buys and sells: private, never committed (this repository is public)
+.longterm_fills.json

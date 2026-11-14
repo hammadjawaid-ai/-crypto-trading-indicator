@@ -1,5 +1,5 @@
-"""Local preview of the 📈 Long Term Investment page on its own (no scanner, no warmers):
-streamlit run research_meta/portfolio_1114/lt_preview.py --server.port 8766"""
+"""Local preview of the Long Term Investment page on its own (no scanner, no warmers):
+streamlit run research_meta/portfolio_1114/lt_preview.py --server.port 8766   (add ?admin=1 to see the real-fills view)"""
 import os
 import sys
 
@@ -14,4 +14,4 @@ import streamlit as st
 st.set_page_config(page_title="Long Term Investment (preview)", layout="wide")
 import longterm_page
 
-longterm_page.render(None)
+longterm_page.render(None, admin=st.query_params.get("admin") == "1")

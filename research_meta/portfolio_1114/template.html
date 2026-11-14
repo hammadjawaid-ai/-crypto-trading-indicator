@@ -6,11 +6,11 @@
 <title>Three of Ten</title>
 <style>
 :root{--page:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;--grid:#e1e0d9;--axis:#c3c2b7;--border:rgba(11,11,11,.10);
---s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--ma200:#898781;--ma50:#c3c2b7;--up:#006300;--down:#b02a2a;--wash:#eef3fa;--warn:#fff6df;--warnb:#e9c46a}
+--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--ma200:#898781;--ma50:#c3c2b7;--up:#006300;--down:#b02a2a;--wash:#eef3fa;--warn:#fff6df;--warnb:#e9c46a;--add:#c2477a}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--page:#0d0d0d;--surface:#1a1a19;--ink:#f0efec;--ink2:#c3c2b7;--muted:#898781;--grid:#2c2c2a;--axis:#383835;--border:rgba(255,255,255,.10);
---s1:#3987e5;--s2:#d95926;--s3:#199e70;--ma200:#898781;--ma50:#52514e;--up:#0ca30c;--down:#e66767;--wash:#18212c;--warn:#2a2412;--warnb:#7a6420;color-scheme:dark}}
+--s1:#3987e5;--s2:#d95926;--s3:#199e70;--ma200:#898781;--ma50:#52514e;--up:#0ca30c;--down:#e66767;--wash:#18212c;--warn:#2a2412;--warnb:#7a6420;--add:#d55181;color-scheme:dark}}
 :root[data-theme="dark"]{--page:#0d0d0d;--surface:#1a1a19;--ink:#f0efec;--ink2:#c3c2b7;--muted:#898781;--grid:#2c2c2a;--axis:#383835;--border:rgba(255,255,255,.10);
---s1:#3987e5;--s2:#d95926;--s3:#199e70;--ma200:#898781;--ma50:#52514e;--up:#0ca30c;--down:#e66767;--wash:#18212c;--warn:#2a2412;--warnb:#7a6420;color-scheme:dark}
+--s1:#3987e5;--s2:#d95926;--s3:#199e70;--ma200:#898781;--ma50:#52514e;--up:#0ca30c;--down:#e66767;--wash:#18212c;--warn:#2a2412;--warnb:#7a6420;--add:#d55181;color-scheme:dark}
 *{box-sizing:border-box}
 body{margin:0;background:var(--page);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
 main{max-width:1080px;margin:0 auto;padding-block:28px 80px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
@@ -174,7 +174,7 @@ details.name .body{padding:0 0 16px}
 
 <section id="names">
 <h2>Each name</h2>
-<p class="lead">Each chart shows two years of price on a log scale with three buy tranches and the prices that would be 2× and 3× today's. The tranches follow one rule for every name: buy 1 is today's price, and buys 2 and 3 sit at the dips that an asset with this volatility reaches in about two in three and one in three six-month periods. A stop sits one step lower, at the dip reached in about 15% of six-month periods. The tables then show how often the asset's own history actually got there.</p>
+<p class="lead">Each chart shows two years of price on a log scale with three buy tranches and the prices that would be 2× and 3× today's. The tranches follow one rule for every name: buy 1 is today's price, and buys 2 and 3 sit at the dips that an asset with this volatility reaches in about two in three and one in three six-month periods. A stop sits one step lower, at the dip reached in about 15% of six-month periods. The "Add" lines are where money would go in if price rises first and holds above them. The tables then show how often the asset's own history actually got there.</p>
 <div id="namecards"></div>
 </section>
 
@@ -510,10 +510,11 @@ const fg=D.fng, st=fg.stats;
       const s=a.series,hl=[];
       a.rungs.forEach((r,i)=>hl.push({y:r.price,label:i?`Buy ${i+1} · ${px(r.price)} · ${pc(-r.depth)}`:`Buy 1 · ${px(r.price)} · today`,short:`B${i+1} ${px(r.price)}`,color:'var(--s3)',dash:true}));
       hl.push({y:a.stop15.price,label:`Stop · ${px(a.stop15.price)} · ${pc(-a.stop15.depth)}`,short:`Stop ${px(a.stop15.price)}`,color:'var(--ink2)',dash:true});
+      (a.addups||[]).slice(0,3).forEach((u,i)=>hl.push({y:u.price,label:`Add ${i+1} · ${px(u.price)} · ${u.name.split(' / ')[0].replace(' average','')}`,short:`A${i+1} ${px(u.price)}`,color:'var(--add)',dash:true}));
       const hi2=Math.max(...s.c.filter(v=>v!=null));
       hl.push({y:a.px*2,label:`2× · ${px(a.px*2)}`,short:`2× ${px(a.px*2)}`,color:'var(--s2)',dash:true});
       if(a.px*3<=hi2*1.15)hl.push({y:a.px*3,label:`3× · ${px(a.px*3)}`,short:`3× ${px(a.px*3)}`,color:'var(--s2)',dash:true});
-      chart($('#pc-'+k),{x:s.t,series:[{name:'Price',color:'var(--s1)',y:s.c},{name:'50-day average',color:'var(--ma50)',w:1.5,y:s.s50},{name:'200-day average',color:'var(--ma200)',w:1.5,y:s.s200}],log:true,h:360,right:158,rightNarrow:78,hlines:hl,yfmt:px,legendExtra:[['Buy tranches','var(--s3)'],['Spot stop','var(--ink2)'],['2× and 3× today','var(--s2)']],aria:k+' price with buy rungs'});
+      chart($('#pc-'+k),{x:s.t,series:[{name:'Price',color:'var(--s1)',y:s.c},{name:'50-day average',color:'var(--ma50)',w:1.5,y:s.s50},{name:'200-day average',color:'var(--ma200)',w:1.5,y:s.s200}],log:true,h:360,right:158,rightNarrow:78,hlines:hl,yfmt:px,legendExtra:[['Buy tranches','var(--s3)'],['Spot stop','var(--ink2)'],['Add if price holds above','var(--add)'],['2× and 3× today','var(--s2)']],aria:k+' price with buy rungs'});
       chart($('#rc-'+k),{x:s.t,series:[{name:'RSI',color:'var(--s1)',w:1.5,y:s.rsi,fmt:v=>v.toFixed(0)}],h:120,ymin:0,ymax:100,yticks:[0,30,70,100],right:158,rightNarrow:78,hlines:[{y:30,label:'30 oversold',short:'30',color:'var(--axis)'},{y:70,label:'70 overbought',short:'70',color:'var(--axis)'}],aria:k+' RSI'});
     };
     d.addEventListener('toggle',render);render();
