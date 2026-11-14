@@ -9547,6 +9547,9 @@ if _qp_mode not in ("Futures", "Spot"):
 SECTIONS = [
     "🎯 True Signal",
     "🎮 Demo Trading",
+    # 📈 2026-11-14 (user: "deploy this as separate section … on the left
+    # long term investment as headline"): the long-term plan tracker.
+    "📈 Long Term Investment",
     "💎 Best Trade Zone",
     "🔍 Market Scanner", "🔮 Forecast", "🚀 Breakout Radar",
     "🤖 Ask the Oracle", "🪙 Coin Analysis", "📰 News & Sentiment",
@@ -9715,6 +9718,22 @@ if _mig_token and _qp.get("admin") == _mig_token:
                    f"check the inventory above matches the old "
                    f"service.")
     st.divider()
+
+# ===========================================================================
+# 📈 LONG TERM INVESTMENT (user 2026-11-14: "deploy this as separate section
+# on our deployed website and its separate section on the left long term
+# investment as headline" · "it should be updated as the market unfolds" ·
+# "have the portfolio and colors to buy strong buy hold as per our plans").
+# Its own page, drawn HERE — before the shared header, the news/social loads
+# and every scanner call — and then the script stops, so opening it costs
+# eleven cached daily-candle requests and nothing else. The plan levels are
+# frozen in longterm_data/plan.json; logic in longterm.py, page in
+# longterm_page.py. Nothing below this block runs for this section.
+# ===========================================================================
+if active_section == "📈 Long Term Investment":
+    import longterm_page as _lt_page
+    _lt_page.render(load_fear_greed)
+    st.stop()
 
 # default 100 (user 2026-08-09: "make it 100 match") — the page's
 # universe now EXACTLY matches the 24/7 worker's WORKER_SCAN_N=100,

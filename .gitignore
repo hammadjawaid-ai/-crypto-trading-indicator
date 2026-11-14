@@ -53,3 +53,6 @@ screenshot*.png
 research_meta/tg_user.session*
 research_meta/channel_export/
 research_meta/kl_channel/
+
+# 📈 Long Term Investment — the saved "my three" choice, machine-specific
+.longterm_portfolio.json

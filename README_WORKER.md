@@ -358,3 +358,27 @@ User: "build the gatekeeper and make it inside the streams, like not muted but j
   💥🥇 PRIME × STRONG TRIGGER, 🏆💎 APEX V2 GATED. It replaces the plain ⚠️ line. Nothing is muted.
 - One switch: `tg_cells.GATEKEEPER = False` puts the plain ⚠️ against-the-market line back.
 - Guard: `.tg_cells_test.py` (75), `.bells2_test.py` (51).
+
+## 📈 LONG TERM INVESTMENT section (2026-11-14)
+
+User: "deploy this as separate section on our deployed website and its separate section on the left long term
+investment as headline" · "it should be updated as the market unfolds" · "have the portfolio and colors to buy
+strong buy hold as per our plans".
+- A page of its own on the left menu. `app.py` draws it before the shared header and every scanner or news load,
+  then stops: opening it costs eleven cached daily-candle requests (ten names + BTC, five-minute cache).
+- The plan is FROZEN in `longterm_data/plan.json` at the 13 Nov 2026 close: per name four buy rungs (today, then
+  the dips reached in about 75% / 50% / 30% of six-month periods by volatility), a stop one step lower (the 15%
+  dip), take-profits at 1.5x / 2x / 3x, and the add-up landmarks. Re-anchor only by re-running
+  `research_meta/portfolio_1114/freeze_plan.py` after `build_data.py`.
+- Live: prices from the app's own candle feed (the three stocks through their tokenized tickers, which trade
+  around the clock). `longterm.walk` replays the daily candles since the plan date: a rung fills when a low
+  touches it, the stop sells everything and ends the plan, a take-profit sells its share when a high touches it.
+- Plan signal (a plan state, never a forecast): STRONG BUY = price at or under buy 3; BUY = at or under the first
+  buy level (2% tolerance); HOLD = above the buy levels, under take-profit 1; TAKE PROFIT = at or above a
+  take-profit; STOP HIT = the stop was reached.
+- "My portfolio": up to three names, an amount and a rung split, saved in `.longterm_portfolio.json` on the state
+  disk; shows what the plan has bought and sold so far, the average buy price, worth now and every order's status.
+- The research workbook (charts, odds, builder, method) ships as a snapshot, `longterm_data/workbook.html` and
+  `.pdf`, shown behind a toggle with a PDF download. It refreshes only when rebuilt and pushed.
+- Files: `longterm.py` (logic, no Streamlit), `longterm_page.py` (page). Guard: `.longterm_test.py` (36).
+  Local preview without the scanner: `streamlit run research_meta/portfolio_1114/lt_preview.py`.

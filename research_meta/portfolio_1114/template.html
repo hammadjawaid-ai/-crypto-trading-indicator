@@ -1,0 +1,706 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Three of Ten</title>
+<style>
+:root{--page:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;--grid:#e1e0d9;--axis:#c3c2b7;--border:rgba(11,11,11,.10);
+--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--ma200:#898781;--ma50:#c3c2b7;--up:#006300;--down:#b02a2a;--wash:#eef3fa;--warn:#fff6df;--warnb:#e9c46a}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--page:#0d0d0d;--surface:#1a1a19;--ink:#f0efec;--ink2:#c3c2b7;--muted:#898781;--grid:#2c2c2a;--axis:#383835;--border:rgba(255,255,255,.10);
+--s1:#3987e5;--s2:#d95926;--s3:#199e70;--ma200:#898781;--ma50:#52514e;--up:#0ca30c;--down:#e66767;--wash:#18212c;--warn:#2a2412;--warnb:#7a6420;color-scheme:dark}}
+:root[data-theme="dark"]{--page:#0d0d0d;--surface:#1a1a19;--ink:#f0efec;--ink2:#c3c2b7;--muted:#898781;--grid:#2c2c2a;--axis:#383835;--border:rgba(255,255,255,.10);
+--s1:#3987e5;--s2:#d95926;--s3:#199e70;--ma200:#898781;--ma50:#52514e;--up:#0ca30c;--down:#e66767;--wash:#18212c;--warn:#2a2412;--warnb:#7a6420;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1080px;margin:0 auto;padding-block:28px 80px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+h1{font-size:30px;line-height:1.15;margin:0 0 6px;letter-spacing:-.01em}
+h2{font-size:21px;margin:44px 0 6px;letter-spacing:-.01em}
+h3{font-size:16px;margin:0 0 2px}
+h4{font-size:14px;margin:18px 0 6px}
+p{margin:8px 0}
+a{color:var(--s1)}
+.sub{color:var(--ink2);margin:0 0 14px}
+.lead{color:var(--ink2);max-width:760px}
+.notice{background:var(--warn);border:1px solid var(--warnb);border-radius:10px;padding:12px 14px;margin:14px 0 4px;max-width:860px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin:12px 0}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.grid2>.card{margin:0;min-width:0}
+@media (max-width:760px){.grid2{grid-template-columns:1fr}}
+.cap{color:var(--ink2);font-size:13px;margin:0 0 8px}
+.note{color:var(--ink2);font-size:13px}
+.read{padding-left:20px;max-width:860px}
+.read li{margin:8px 0}
+.toc{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0 0}
+.toc a{font-size:13px;text-decoration:none;color:var(--ink2);border:1px solid var(--border);border-radius:999px;padding:4px 11px;background:var(--surface)}
+.toc a:hover{color:var(--ink)}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13.5px;font-variant-numeric:tabular-nums}
+th,td{padding:7px 9px;text-align:right;border-bottom:1px solid var(--grid);white-space:nowrap}
+th{font-weight:600;color:var(--ink2);font-size:12px;vertical-align:bottom;white-space:normal;line-height:1.25}
+th:first-child,td:first-child{text-align:left}
+td.l,th.l{text-align:left}
+tr:last-child td{border-bottom:0}
+td.wrap{white-space:normal;min-width:220px}
+.up{color:var(--up)}.dn{color:var(--down)}.mu{color:var(--muted)}
+.tk{font-weight:600}
+.meter{display:inline-block;width:64px;height:6px;border-radius:3px;background:var(--grid);position:relative;vertical-align:middle;margin-right:6px}
+.meter i{position:absolute;top:-2px;width:10px;height:10px;border-radius:50%;background:var(--s1);border:2px solid var(--surface);margin-left:-5px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:8px;margin:10px 0 12px}
+.tile{border:1px solid var(--border);border-radius:10px;padding:9px 11px}
+.tile b{display:block;font-size:19px;font-weight:600;line-height:1.2}
+.tile span{font-size:12px;color:var(--ink2)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--ink2);margin:2px 0 4px}
+.legend i{display:inline-block;width:16px;height:0;border-top:2px solid;vertical-align:middle;margin-right:5px}
+.legend i.d{border-top-style:dashed}
+.chart{position:relative}
+.chart svg{display:block;width:100%;touch-action:pan-y}
+.tip{position:absolute;top:6px;pointer-events:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 9px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.10);display:none;white-space:nowrap;z-index:2}
+.tip b{display:block;margin-bottom:2px}
+.tip i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+.tip div{display:flex;justify-content:space-between;gap:14px}
+.facts{padding-left:18px;margin:6px 0}
+.facts li{margin:4px 0}
+details.name{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin:12px 0;padding:0 16px}
+details.name>summary{cursor:pointer;list-style:none;padding:14px 0;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline}
+details.name>summary::-webkit-details-marker{display:none}
+details.name>summary h3{font-size:18px;margin:0}
+details.name>summary .s{font-size:13px;color:var(--ink2)}
+details.name>summary::after{content:"open";margin-left:auto;font-size:12px;color:var(--muted)}
+details.name[open]>summary::after{content:"close"}
+details.name .body{padding:0 0 16px}
+.pick{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px}
+.pick button{font:inherit;font-size:14px;padding:6px 13px;border-radius:999px;border:1px solid var(--axis);background:var(--surface);color:var(--ink);cursor:pointer}
+.pick button[aria-pressed="true"]{background:var(--s1);border-color:var(--s1);color:#fff}
+.pick button:disabled{opacity:.4;cursor:not-allowed}
+.ctl{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:end;margin:8px 0}
+.ctl label{font-size:12px;color:var(--ink2);display:flex;flex-direction:column;gap:3px}
+.ctl input,.ctl select{font:inherit;font-size:14px;padding:6px 8px;border:1px solid var(--axis);border-radius:8px;background:var(--surface);color:var(--ink);width:150px}
+.ctl input.sm{width:84px}
+.sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin:10px 0}
+.small{font-size:12.5px;color:var(--ink2)}
+.src li{margin:3px 0;font-size:13px}
+.printonly{display:none}
+@media print{
+  @page{size:A4 landscape;margin:10mm}
+  body{background:#fff;font-size:12.5px}
+  main{max-width:none;padding:0}
+  .printonly{display:block}
+  .tip,.pick button:not([aria-pressed="true"]){display:none!important}
+  .tw{overflow:visible}
+  table{font-size:10.5px}
+  th,td{white-space:normal;padding:4px 6px}
+  td.wrap{min-width:0}
+  .chart,tr,.tile,.notice,.tiles,.sum{break-inside:avoid}
+  h2,h3,h4,.cap{break-after:avoid}
+  details.name{border:0;padding:0;break-before:page}
+  details.name>summary::after,details.name[open]>summary::after{content:none}
+  #levels,#builder,#leverage{break-before:page}
+  a{text-decoration:underline}
+}
+</style>
+</head>
+<body>
+<main>
+<h1>Three of ten: a long-term plan workbook</h1>
+<p class="sub" id="asof"></p>
+<div class="notice"><b>This is research, not financial advice.</b> Nothing on this page says which names to buy, and it was not written by a licensed adviser. Every level comes from one rule applied the same way to all ten names, so they can be compared. The odds are frequencies from past prices: they describe what happened, not what will. Prices are a snapshot and do not update.</div>
+<p class="printonly small">Interactive version, with hover charts and a plan builder for any three names: <a href="https://claude.ai/artifact/YGjK9rqCwghAf6XBjhpsyX">claude.ai/artifact/YGjK9rqCwghAf6XBjhpsyX</a>. The contents below are clickable.</p>
+<nav class="toc"><a href="#read">Short read</a><a href="#market">The market</a><a href="#compare">Ten compared</a><a href="#score">Scorecard</a><a href="#chips">Nvidia, Broadcom, Marvell</a><a href="#names">Each name</a><a href="#levels">Levels for all ten</a><a href="#builder">Plan builder</a><a href="#leverage">Leverage</a><a href="#method">Method and sources</a></nav>
+
+<section id="read">
+<h2>The short read</h2>
+<ol class="read" id="readlist"></ol>
+</section>
+
+<section id="market">
+<h2>The market you would be buying into</h2>
+<div class="card">
+  <h3>Bitcoin's cycle clock</h3>
+  <p class="cap">Fall from the cycle top (%), by days since that top. Daily closes.</p>
+  <div class="chart" id="c-cycle"></div>
+  <p class="note" id="n-cycle"></p>
+</div>
+<div class="grid2">
+  <div class="card"><h3>Bitcoin, two years</h3><p class="cap">Daily close, log scale, with the 200-day average</p><div class="chart" id="c-btc"></div></div>
+  <div class="card"><h3>Fear &amp; Greed, two years</h3><p class="cap">0 = extreme fear, 100 = extreme greed (alternative.me)</p><div class="chart" id="c-fng"></div><p class="note" id="n-fng"></p></div>
+</div>
+<div class="card">
+  <h3>What followed the first day of each extreme-fear spell</h3>
+  <p class="cap">A spell starts when the index prints 15 or lower after 45 days without one. Returns are from that day's close.</p>
+  <div class="tw"><table id="t-fng"></table></div>
+  <p class="note" id="n-fng2"></p>
+</div>
+<div class="card">
+  <h3>This week, as reported</h3>
+  <ul class="facts">
+    <li>Bitcoin fell below $70,000 on 13 Nov. Reports cite more than $2.5B of net outflows from US spot Bitcoin ETFs between 30 Oct and 11 Nov, thin order books, and about $1.4B of liquidations (<a href="https://www.tradingview.com/news/cointelegraph:8724d357c094b:0-bitcoin-slides-below-70k-amid-thin-liquidity-etf-outflows/">Cointelegraph</a>, <a href="https://www.tokenpost.com/news/investing/56358">TokenPost</a>).</li>
+    <li>Rates: reports describe the US 10-year yield above 5% and markets pricing a Federal Reserve rate <em>rise</em> in December on sticky inflation. Higher rates have been a headwind for both crypto and growth stocks.</li>
+    <li>AI stocks: a chip sell-off began on 5 Nov, two days after the US midterms (Nvidia about −9%, Broadcom about −10% that day), described as the worst rout since the April 2025 tariff shock (<a href="https://finance.yahoo.com/markets/stocks/articles/stock-market-today-nov-5-220938210.html">Yahoo Finance</a>).</li>
+    <li>Nvidia: Reuters reported that Jensen Huang resigned as chief executive on 11 Nov, with CFO Colette Kress as interim CEO; the shares fell again on 12–13 Nov (<a href="https://www.kitco.com/news/off-the-wire/2026-11-12/global-ai-stocks-sink-nvidia-ceos-exit-deepens-sector-selloff">Reuters via Kitco</a>, <a href="https://www.cnbc.com/2026/11/12/stock-market-today-live-updates.html">CNBC</a>). Nvidia's next quarterly report is expected on 17 Nov. Please confirm both against Nvidia's own investor page before acting on them.</li>
+  </ul>
+</div>
+</section>
+
+<section id="compare">
+<h2>The ten, measured the same way</h2>
+<p class="lead">The three right-hand columns speak most directly to a goal of doubling. They count past 12-month windows that started in a market like today's: for coins, days when Bitcoin was under its 200-day average; for stocks, days when the stock itself was 25% or more under its high.</p>
+<div class="card"><div class="tw"><table id="t-cmp"></table></div><p class="note" id="n-cmp"></p></div>
+<div class="card"><h3>The seven coins: size and on-chain activity</h3><div class="tw"><table id="t-fund"></table></div><p class="note">CoinGecko and DefiLlama, fetched with the prices. Total value locked is in dollars, so part of each year-on-year fall is the token price itself.</p></div>
+<div class="card"><h3>The three stocks: latest reported quarter</h3><div class="tw"><table id="t-stk"></table></div><p class="note" id="n-stk"></p></div>
+<div class="card">
+  <h3>How much the ten move together</h3>
+  <p class="cap">Correlation of weekly returns, <span id="corrw"></span> weeks. 1.00 means they move as one.</p>
+  <div class="tw"><table id="t-corr"></table></div>
+  <p class="note">Coin against coin is 0.5 to 0.8: three coins behave much like one position. Coin against stock is 0.1 to 0.3. The stocks are tied to each other and to the Nasdaq instead.</p>
+</div>
+<div class="card" id="score">
+  <h3>Scorecard: the ten ranked on eight tests</h3>
+  <p class="cap">#1 is the best of the ten on that test. This page does not choose three. It puts every name's rank on every test in one place and orders the ten by whichever tests you tick.</p>
+  <div class="tw"><table id="t-score"></table></div>
+  <p class="note" id="n-score"></p>
+  <p class="note">The tests pull against each other: the names with the most room to double are the least steady, and the names with the best record in falling markets (the two large stocks) have the least room to double by volatility. Which tests count is the decision.</p>
+</div>
+</section>
+
+<section id="chips">
+<h2>Nvidia, Broadcom, Marvell: which held up better</h2>
+<p class="lead">Marvell is not one of the ten, but it sells into the same AI build-out as the other two. "Held up" here means how far each fell in past sell-offs, how long it took to get back, and how much of the time it sat deep under its high.</p>
+<div class="card"><h3>Distance below the high, two years</h3><p class="cap">Each stock's close as a percentage below its own highest close to date</p><div class="chart" id="c-uw"></div></div>
+<div class="card"><h3>Past sell-offs</h3><p class="cap">Largest fall inside each period, and calendar days from that low back to the earlier peak</p><div class="tw"><table id="t-eps"></table></div></div>
+<div class="card"><h3>Side by side</h3><div class="tw"><table id="t-chips"></table></div><p class="note" id="n-chips"></p></div>
+</section>
+
+<section id="names">
+<h2>Each name</h2>
+<p class="lead">Each chart shows two years of price on a log scale with four buy rungs and the prices that would be 2× and 3× today's. The rungs follow one rule for every name: rung 1 is today's price, and rungs 2 to 4 sit at the dips that an asset with this volatility reaches in about 75%, 50% and 30% of six-month periods. A stop sits one step lower, at the dip reached in about 15% of six-month periods. The tables then show how often the asset's own history actually got there.</p>
+<div id="namecards"></div>
+</section>
+
+<section id="levels">
+<h2>Plan levels for all ten</h2>
+<p class="lead">The same two plans for every name, so any three can be read straight off. Plan A is spot: four equal buys, a stop one step under the last rung, and take-profits at 1.5×, 2× and 3× today's price. Plan B is one isolated long at today's price with the stop at the 50% dip, kept 5 points above liquidation.</p>
+<div class="card"><h3>Plan A · Spot ladder</h3><div class="tw"><table id="t-lvA"></table></div><p class="note">Loss at the stop is on that name's money if all four rungs filled first.</p></div>
+<div class="card"><h3>Plan B · Isolated futures</h3><div class="tw"><table id="t-lvB"></table></div><p class="note">Loss is on the margin posted for that name. The last two columns count past 12-month windows in similar markets where the stop was touched before price doubled; Sui, Arbitrum and Broadcom rest on a single stretch each.</p></div>
+<div class="card"><h3>If price rises first: where the next tranche could go</h3>
+<p class="cap">The next landmarks above today's price. If price climbs through one before reaching the next buy rung, the money held for the lowest unfilled rung can go in there instead.</p>
+<div class="tw"><table id="t-lvU"></table></div>
+<p class="note">The two averages move a little every day, so re-read them on the day; the highs are fixed prices. Levels closer than 3% to today's price or to each other are merged.</p>
+<h4>Did adding on strength pay in the past?</h4>
+<div class="tw"><table id="t-addev"></table></div>
+<p class="note" id="n-addev"></p></div>
+</section>
+
+<section id="builder">
+<h2>Plan builder: spot and isolated, side by side</h2>
+<p class="lead">Pick three and set the money once. Plan A is a spot ladder with a stop under the last rung. Plan B puts the same money on isolated futures, shown at 2× and at 3×: one entry at today's price, a stop-loss above the liquidation price, and the same take-profit levels. The page starts on the first three names in the list only so it is not empty; that is not a suggestion.</p>
+<div class="card">
+  <div class="pick" id="b-pick"></div>
+  <div class="ctl">
+    <label>Total to invest ($)<input id="b-total" type="number" min="100" step="100" value="10000"></label>
+    <label>Split across the three (%)<span style="display:flex;gap:6px"><input class="sm" id="b-w0" type="number" min="0" max="100" value="34"><input class="sm" id="b-w1" type="number" min="0" max="100" value="33"><input class="sm" id="b-w2" type="number" min="0" max="100" value="33"></span></label>
+    <label>Take profit: a third at<select id="b-s0"></select></label>
+    <label>then a third at<select id="b-s1"></select></label>
+    <label>then the rest at<select id="b-s2"></select></label>
+  </div>
+  <p class="small">Take-profit levels are multiples of today's price, so they are fixed prices you could place as resting orders. Both plans use the same ones.</p>
+</div>
+<div class="card">
+  <h3>Plan A · Spot ladder</h3>
+  <p class="cap">No leverage, no liquidation, no funding. Buys more as price falls; the stop ends the plan if price goes one step below the last rung.</p>
+  <div class="ctl">
+    <label>Money per rung<select id="b-rw"><option value="25,25,25,25">Equal: 25 / 25 / 25 / 25</option><option value="15,20,30,35">Heavier lower: 15 / 20 / 30 / 35</option><option value="50,20,15,15">Half now: 50 / 20 / 15 / 15</option><option value="100,0,0,0">All now, no ladder</option></select></label>
+    <label>Stop-loss<select id="b-ss"><option value="15">Under rung 4, at the 15% dip</option><option value="none">No stop, hold through</option></select></label>
+    <label>If price rises first<select id="b-au"><option value="off">Wait for the dips only</option><option value="on">Add at each level up</option></select></label>
+  </div>
+  <div id="b-sheets"></div>
+</div>
+<div class="card">
+  <h3>Plan B · Isolated futures at 2× and 3×</h3>
+  <p class="cap">The whole allocation is posted as margin on one long per name, opened at today's price. There is no ladder: each add would move the average entry and the liquidation price, and the stop only works if it sits above liquidation.</p>
+  <div class="ctl">
+    <label>Stop-loss rule<select id="b-is"><option value="r3">At the 50% dip, kept above liquidation</option><option value="r2">At the 75% dip (tight)</option><option value="0.15">15% under entry</option><option value="0.20">20% under entry</option><option value="0.25">25% under entry</option><option value="none">No stop: liquidation ends it</option></select></label>
+    <label>Funding per 8 hours (%)<input class="sm" id="b-fund" type="number" step="0.005" value="0.01"></label>
+  </div>
+  <div id="b-iso"></div>
+  <ul class="facts small">
+    <li>A stop is always kept at least 5 points above the liquidation price. When the rule you chose would sit lower, it is pulled up and marked.</li>
+    <li>The loss shown at the stop assumes it fills at the stop price. In a fast fall or a weekend gap it fills lower.</li>
+    <li>Funding is charged on the open position every 8 hours. 0.01% is the usual baseline when longs pay; it can be lower or negative in a falling market and several times higher in a hot one.</li>
+  </ul>
+</div>
+<div class="card">
+  <h3>The plans side by side in 2,000 simulated years</h3>
+  <p class="small">Each run walks the three prices forward 365 days using their own last-year volatility and their measured correlation. Plan A fills a rung when price closes at or below it; both plans sell at each take-profit when price closes at or above it and close everything when the stop is touched. The only thing that changes between rows is the assumed market direction. This is a calculator for comparing plans under an assumption, not a forecast.</p>
+  <div class="tw"><table id="b-sim"></table></div>
+  <p class="note" id="b-simnote"></p>
+</div>
+</section>
+
+<section id="leverage">
+<h2>Spot or isolated futures</h2>
+<p class="lead">An isolated long is closed by the exchange when price falls by roughly one divided by the leverage. The table counts how often each name fell that far within six months of a random day.</p>
+<div class="card"><div class="tw"><table id="t-lev"></table></div>
+<ul class="facts small">
+  <li>A buy ladder and leverage pull against each other. At 3× the position is liquidated near −31%, which is above rung 3 for every coin here, so the lower rungs would never be reached with the first position still alive.</li>
+  <li>Perpetual futures also pay or receive funding every eight hours, and a 6 to 12 month hold pays it roughly a thousand times. Spot has no funding and cannot be liquidated.</li>
+  <li>Liquidation distance uses a 2% maintenance margin; the exact figure varies by exchange and position size.</li>
+</ul></div>
+</section>
+
+<section id="method">
+<h2>Method, limits and sources</h2>
+<div class="card">
+<ul class="facts">
+  <li><b>Prices.</b> Coins: Binance spot daily candles, from each listing. Stocks: Yahoo Finance daily, ten years (SanDisk only since its February 2025 listing). Everything is as of the last completed daily close.</li>
+  <li><b>Buy rungs.</b> For a price with no trend and annual volatility σ, the chance of touching a dip of depth d within six months is 2·Φ(ln(1−d) / (σ·√0.5)). Rungs 2 to 4 solve that for 75%, 50% and 30%, using the last year's daily volatility. The "history" columns are plain counts over every six-month window in the asset's own record.</li>
+  <li><b>Upside odds.</b> "Touched" means the daily high reached the level at any point inside the next 12 months. "Still there" means the close 12 months later was at or above it. The gap between the two is the case for resting sell orders.</li>
+  <li><b>Stops.</b> The spot stop is the dip reached in about 15% of six-month periods by the same volatility formula, one step under rung 4. The isolated stop follows the rule you choose and is never closer than 5 points to liquidation. "Stop first / 2× first / neither" counts, for every day in the record, which of the two prices was touched first in the following 12 months; a day on which both were touched counts as the stop.</li>
+  <li><b>Isolated futures.</b> Liquidation distance is 1 ÷ leverage minus a 2% maintenance margin (about −48% at 2×, −31% at 3×); your exchange's figure depends on the contract and position size. Funding is taken on the entry value of whatever is still open.</li>
+  <li><b>Adding on strength.</b> A reclaim is the first close above the average after at least 20 trading days below it (50-day) or 30 (200-day); a new 90-day high counts when there was none in the 60 days before. Results are pooled across the group and measured from that day's close.</li>
+  <li><b>Small samples.</b> The coin history covers about six years, which holds two bear markets. Days inside one bear market are not independent, so a figure built on 800 days may rest on two or three real episodes. Sui and Arbitrum have 3.5 years. SanDisk has under two, all of it one boom, so its history columns are left blank.</li>
+  <li><b>The simulation</b> assumes volatility and correlation stay at last year's levels and that prices have no memory. Real markets trend and gap, and in sell-offs correlations rise, so real bad cases are worse than the simulated ones.</li>
+  <li><b>Tokenized stocks.</b> Some exchanges list tokenized versions of the three stocks. The levels here are from the US listings; a tokenized version trades around the clock and can sit at a small premium or discount.</li>
+</ul>
+<h4>Sources</h4>
+<ul class="facts src">
+  <li>Nvidia fiscal Q2 2027 results: <a href="https://www.outlookbusiness.com/corporate/nvidia-quarter-results-revenue-profits-data-centre-chips-jensen-huang-ai-investment-risk">Outlook Business</a>, <a href="https://pulse2.com/nvidia-operating-income-jumps-124-to-63-7-billion-as-revenue-doubles-and-q3-outlook-hits-108-billion/">Pulse 2.0</a></li>
+  <li>Broadcom fiscal Q3 2026 results: <a href="https://investors.broadcom.com/news-releases/news-release-details/broadcom-inc-announces-third-quarter-fiscal-year-2026-financial">Broadcom investor relations</a></li>
+  <li>SanDisk fiscal Q1 2027 results: <a href="https://www.storagenewsletter.com/?p=306769">StorageNewsletter</a>, <a href="https://www.fool.com/investing/2026/11/03/is-sandisks-incredible-run-about-to-end/">Motley Fool</a></li>
+  <li>Uniswap fee switch and burn: <a href="https://cointelegraph.com/news/uniswap-executes-100m-uni-burn-after-fee-switch-approval">Cointelegraph</a></li>
+  <li>Sui unlock and ecosystem items: <a href="https://en.coinotag.com/sui-unlock-13-15-million-sui-november-1">Coinotag</a>, <a href="https://coinmarketcap.com/cmc-ai/sui/latest-updates">CoinMarketCap updates</a></li>
+  <li>Avalanche treasury companies: <a href="https://finance.yahoo.com/news/avalanche-gets-own-dat-goal-205159081.html">Yahoo Finance</a></li>
+  <li>Injective buybacks and ETF filings: <a href="https://www.coingecko.com/learn/injective-2026-convergence-report">CoinGecko</a>, <a href="https://tokenrelations.substack.com/p/injective-completes-second-community-buyback">Token Relations</a></li>
+  <li>NEAR Intents and upgrades: <a href="https://invezz.com/news/2026/05/26/near-price-rallies-70-in-a-week-whats-driving-the-surge/">Invezz</a>, <a href="https://decrypt.co/368737/near-protocol-jumps-28-on-privacy-ai-and-scaling-upgrades">Decrypt</a></li>
+  <li>Solana ETFs and Alpenglow: <a href="https://solanacompass.com/news/solana-closes-august-with-first-monthly-gain-in-10-months-as-institutions-and-governance-converge">Solana Compass</a></li>
+  <li>Arbitrum unlock schedule: <a href="https://tokenomist.ai/arbitrum/unlock-events?event-type=past">Tokenomist</a></li>
+  <li>Marvell fiscal Q2 2027 results: <a href="https://pulse2.com/marvell-data-center-revenue-growth-accelerates-to-46-as-ai-demand-drives-record-2-74-billion-quarter/">Pulse 2.0</a>, <a href="https://www.zacks.com/stock/news/2981826/mrvl-q2-earnings-beat-on-data-center-strength-outlook-raised">Zacks</a></li>
+  <li>Data: Binance, Yahoo Finance, alternative.me, CoinGecko, DefiLlama</li>
+</ul>
+</div>
+</section>
+</main>
+
+<script>
+const D = /*DATA*/null;
+const A = D.assets, PICKS = D.picks;
+const $ = s => document.querySelector(s);
+const QS = new URLSearchParams(location.search), PRINT = QS.has('print');   /* ?print opens every card so the page can be saved as a PDF */
+if (QS.has('preview')) for (const sh of document.styleSheets) for (const r of [...sh.cssRules]) if (r.media && r.media.mediaText === 'print') for (const q of r.cssRules) if (q.selectorText) sh.insertRule(q.cssText, sh.cssRules.length);   /* ?preview shows the print layout on screen */
+
+/* ── research notes (hand-written from the sources listed at the bottom) ── */
+const NOTES = {
+ SOL:{what:"The largest of the seven by a distance, and the busiest chain: the most stablecoins, DEX volume and app fees. It is also the most tied to Bitcoin.",
+  facts:["US spot Solana ETFs trade; 2026 reports put their assets above $1B, with flows swinging between record months and near zero.","Alpenglow, a consensus upgrade aimed at confirmations near 150 milliseconds, was on test networks in May 2026. Reports disagree on whether it is live on mainnet yet.","Most oversold name on the list: daily RSI 19, down 26% in 30 days."]},
+ INJ:{what:"A small trading-focused chain. The token has a hard supply and a monthly buyback-and-burn. It is the only coin here in an uptrend rather than a dip.",
+  facts:["Two staked-INJ ETF filings (21Shares, Canary) were reported as under SEC review during 2026. No approval was found.","Community buyback rounds burn INJ each month; the amounts reported for 2026 are small next to the $800M market value.","On-chain footprint is thin for the valuation: about $22M locked and $78M of DEX volume in 30 days.","Up 98% in 90 days and 39% above its 200-day average, so the 'buy the dip' rungs start from a high point of its recent range."]},
+ NEAR:{what:"A general-purpose chain whose 2026 story is NEAR Intents, a cross-chain swap layer, plus an AI-agent pitch. Fully circulating, with ongoing inflation.",
+  facts:["Intents carries the activity: $4.1B of DEX volume in 30 days against only $157M locked on the chain itself.","Rallied about 70% in a week in May 2026 on Intents volume and scaling upgrades; still up 115% over 90 days even after a 35% fall in the last 30.","Highest volatility of the seven coins (102% a year)."]},
+ SUI:{what:"A newer high-speed chain. Only 41% of the supply is circulating, so new tokens keep arriving every month.",
+  facts:["The 1 Nov 2026 unlock released about 13 million SUI (roughly $12M), mostly to early contributors. The fully diluted value is 2.4 times the market value.","Value locked fell from $1.37B a year ago to $391M.","Reported this month: Samsung Wallet adding Sui-based USDC for US users; two wallet projects (Suiet, Suiball) shutting down.","A spot exchange-traded product was reported listed in February 2026."]},
+ AVAX:{what:"An older smart-contract chain now pitched at institutions and tokenized assets. It never came near its 2021 high in the last cycle.",
+  facts:["94% under its November 2021 high of $147; the last cycle's peak was about $65, in March 2024.","Reports put tokenized assets on Avalanche near $2.1B in early 2026. Two listed AVAX treasury companies exist; one fell 38% on its first trading day in June 2026.","Value locked fell from $1.37B to $580M in a year. A June 2026 report described declining on-chain activity."]},
+ UNI:{what:"The largest decentralized exchange. Since December 2025 a slice of trading fees buys and burns UNI, so it is the one token here with a direct claim on revenue.",
+  facts:["Governance passed the fee switch on 25 Dec 2025 and burned 100 million UNI on 28 Dec 2025.","Last 30 days: $62.9B traded, $74M paid in fees by traders, about $8M of that kept by the protocol. Annualized, protocol revenue is near $96M against a $3.4B market value, about 35 times revenue.","Fee capture so far covers v2 and v3 pools; coverage noted the revenue was smaller than hoped, and the price fell after the burn."]},
+ ARB:{what:"The largest Ethereum layer-2 by value locked. The token is for governance; network revenue goes to the DAO treasury, not to holders.",
+  facts:["Monthly unlocks run until about spring 2027; 69% of supply is circulating.","Value locked fell from $2.91B to $1.34B in a year, though $3.7B of stablecoins sit on the chain.","Offchain Labs, the developer, has a programme to buy ARB over time. No DAO vote directing network revenue to buybacks was found.","94% under its January 2024 high."]},
+ SNDK:{what:"NAND flash memory, spun out of Western Digital in February 2025. Earnings exploded with AI data-centre demand, and the stock has since fallen 62% from its high while still up 263% in a year.",
+  eps:49.51,q:"Fiscal Q1 2027 (reported 29 Oct 2026)",rev:"about $11B",yoy:"+378%",epsTxt:"$49.51",guide:"Q2 revenue $12.2–12.6B, gross margin near 85%, EPS $55–57",next:"late Jan 2027 (expected)",
+  facts:["Management said demand exceeds supply and that customers stay on allocation beyond calendar 2027. It bought back $5.0B of stock in the quarter.","At today's price the stock costs about 4 to 5 times its current annualized earnings. A multiple that low on a memory maker usually means the market expects margins to fall from a cyclical peak.","Guidance was given 'on a pre-split basis', which implies a share split is pending. If one takes effect, every price level here rescales by the split ratio.","Volatility is 114% a year, higher than any coin on this list."]},
+ NVDA:{what:"The dominant AI chip maker. Revenue doubled year on year last quarter; the stock is 33% under its high after this month's sell-off and a reported change of chief executive.",
+  eps:2.22,q:"Fiscal Q2 2027 (quarter to 26 Jul 2026)",rev:"$96.2B",yoy:"+106%",epsTxt:"$2.22",guide:"Q3 revenue $108B ±2%; CFO guided about 70% growth for fiscal 2028",next:"17 Nov 2026 (reported date)",
+  facts:["Data-centre revenue was $89.0B, gross margin 75%. About $26B went to buybacks and dividends in the quarter.","Reuters reported on 11 Nov that Jensen Huang resigned as CEO, with CFO Colette Kress as interim. Results are due on 17 Nov, three days after this was written, so the price can gap either way before a first rung is even placed.","Daily RSI 25, and 20% under the 200-day average."]},
+ AVGO:{what:"Custom AI chips and networking for the largest cloud companies, plus a software arm. The steadiest of the three stocks by volatility.",
+  eps:3.32,q:"Fiscal Q3 2026 (quarter to 2 Aug 2026)",rev:"$29.6B",yoy:"+86%",epsTxt:"$3.32",guide:"Q4 revenue about $34.8B, AI chips about $21.7B",next:"mid-Dec 2026 (expected)",
+  facts:["AI semiconductor revenue was $16.7B, up 221% on the year. Management said it has supply secured for about $115B of AI revenue in fiscal 2027.","Fell about 10% on 5 Nov and about 5% on 13 Nov with the wider AI sell-off; no company-specific warning was found.","Only 6% under its 200-day average and RSI 53: it has fallen less than the other two."]}
+};
+
+/* ── formatting ── */
+const px = v => v==null?'—':v>=10000?Math.round(v).toLocaleString('en-US'):v>=1000?v.toLocaleString('en-US',{maximumFractionDigits:0}):v>=100?v.toFixed(1):v>=10?v.toFixed(2):v>=1?v.toFixed(3):v.toFixed(4);
+const usd = v => '$'+Math.round(v).toLocaleString('en-US');
+const pc = (v,d=0) => v==null?'—':(v>0?'+':v<0?'−':'')+Math.abs(v*100).toFixed(d)+'%';
+const pcs = (v,d=0) => v==null?'<span class="mu">—</span>':`<span class="${v>0?'up':v<0?'dn':''}">${pc(v,d)}</span>`;
+const fr = v => v==null?'<span class="mu">—</span>':Math.round(v*100)+'%';
+const big = v => !v?'—':v>=1e9?'$'+(v/1e9).toFixed(v>=1e10?1:2)+'B':v>=1e6?'$'+Math.round(v/1e6)+'M':'$'+Math.round(v/1e3)+'K';
+const dt = t => new Date(t*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
+const mo = t => new Date(t*1000).toLocaleDateString('en-GB',{month:'short',year:'numeric',timeZone:'UTC'});
+const thin = a => a.years<3;
+
+/* ── chart ── */
+const RENDER = [];
+function ticksLin(lo,hi,nt){const span=hi-lo;if(!(span>0))return[lo];const s0=Math.pow(10,Math.floor(Math.log10(span/nt)));let st=s0*10;for(const k of [1,2,5,10]){if(span/(s0*k)<=nt+1){st=s0*k;break}}const o=[];for(let v=Math.ceil(lo/st-1e-9)*st;v<=hi+1e-9;v+=st)o.push(+v.toPrecision(10));return o}
+function ticksLog(lo,hi){const k0=Math.floor(Math.log10(lo)),k1=Math.ceil(Math.log10(hi));for(const set of [[1,2,5],[1,1.5,2,3,5,7]]){const o=[];for(let k=k0;k<=k1;k++)for(const b of set){const v=b*Math.pow(10,k);if(v>=lo&&v<=hi)o.push(+v.toPrecision(6))}if(o.length>=3)return o}return ticksLin(lo,hi,4)}
+function chart(host,o){
+  const draw=()=>{
+  const W=Math.max(300,host.clientWidth||700),H=o.h||300,nar=W<520,m={l:o.left||50,r:(nar&&o.rightNarrow)||o.right||14,t:10,b:o.xtitle?40:24},pw=W-m.l-m.r,ph=H-m.t-m.b,n=o.x.length;
+  let lo=Infinity,hi=-Infinity;
+  o.series.forEach(s=>s.y.forEach(v=>{if(v!=null){if(v<lo)lo=v;if(v>hi)hi=v}}));
+  (o.hlines||[]).forEach(h=>{if(h.y<lo)lo=h.y;if(h.y>hi)hi=h.y});
+  if(o.ymin!=null)lo=o.ymin;if(o.ymax!=null)hi=o.ymax;
+  if(o.log){lo*=.95;hi*=1.05}else if(o.ymin==null&&o.ymax==null){const p=(hi-lo)*.06;lo-=p;hi+=p}
+  const f=o.log?Math.log:(v=>v),Y=v=>m.t+(1-(f(v)-f(lo))/(f(hi)-f(lo)))*ph;
+  const x0=o.xnum?o.x[0]:0,x1=o.xnum?o.x[n-1]:n-1,X=i=>m.l+((o.xnum?o.x[i]:i)-x0)/(x1-x0)*pw;
+  const yf=o.yfmt||(v=>v);
+  let g='';
+  (o.yticks||(o.log?ticksLog(lo,hi):ticksLin(lo,hi,5))).forEach(v=>{const y=Y(v);g+=`<line x1="${m.l}" x2="${m.l+pw}" y1="${y}" y2="${y}" stroke="var(--grid)"/><text x="${m.l-7}" y="${y+4}" text-anchor="end" font-size="11" fill="var(--muted)">${yf(v)}</text>`});
+  if(o.xnum){ticksLin(x0,x1,6).forEach(v=>{const x=m.l+(v-x0)/(x1-x0)*pw;g+=`<text x="${x}" y="${m.t+ph+16}" text-anchor="middle" font-size="11" fill="var(--muted)">${v}</text>`})}
+  else{let pm=-1,first=true,lastx=-99;for(let i=0;i<n;i++){const d=new Date(o.x[i]*1000),mm=d.getUTCMonth();if(mm!==pm){pm=mm;if(mm%3===0&&i>0){const x=X(i);if(x-lastx>58&&x<m.l+pw-18){g+=`<line x1="${x}" x2="${x}" y1="${m.t+ph}" y2="${m.t+ph+4}" stroke="var(--axis)"/><text x="${x}" y="${m.t+ph+16}" text-anchor="middle" font-size="11" fill="var(--muted)">${d.toLocaleDateString('en-GB',{month:'short',timeZone:'UTC'})}${(mm===0||first)?' '+d.getUTCFullYear():''}</text>`;first=false;lastx=x}}}}}
+  if(o.xtitle)g+=`<text x="${m.l+pw/2}" y="${H-4}" text-anchor="middle" font-size="11" fill="var(--muted)">${o.xtitle}</text>`;
+  g+=`<line x1="${m.l}" x2="${m.l+pw}" y1="${m.t+ph}" y2="${m.t+ph}" stroke="var(--axis)"/>`;
+  const hl=(o.hlines||[]).map(h=>({...h,py:Y(h.y),ly:Y(h.y)})).sort((a,b)=>a.py-b.py);
+  for(let i=1;i<hl.length;i++)if(hl[i].ly-hl[i-1].ly<13)hl[i].ly=hl[i-1].ly+13;
+  hl.forEach(h=>{g+=`<line x1="${m.l}" x2="${m.l+pw}" y1="${h.py}" y2="${h.py}" stroke="${h.color||'var(--axis)'}" stroke-width="${h.w||1.25}" ${h.dash?'stroke-dasharray="5 4"':''}/>`;
+    if(h.label)g+=`<text x="${m.l+pw+7}" y="${h.ly+4}" font-size="11" fill="var(--ink2)">${(nar&&h.short)||h.label}</text>`});
+  o.series.forEach(s=>{let d='',pen=false;for(let i=0;i<n;i++){const v=s.y[i];if(v==null||(o.log&&v<=0)){pen=false;continue}d+=(pen?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1);pen=true}
+    g+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="${s.w||2}" stroke-linejoin="round" stroke-linecap="round"/>`});
+  (o.marks||[]).forEach(k=>{const x=X(k.i),y=Y(k.y);g+=`<circle cx="${x}" cy="${y}" r="4.5" fill="${k.color}" stroke="var(--surface)" stroke-width="2"/>`;if(k.text)g+=`<text x="${x+(k.dx||8)}" y="${y+(k.dy||-8)}" font-size="11.5" font-weight="600" fill="var(--ink)" text-anchor="${k.anchor||'start'}">${k.text}</text>`});
+  g+=`<line id="ch" y1="${m.t}" y2="${m.t+ph}" stroke="var(--axis)" style="display:none"/><g id="dots"></g>`;
+  let lg='';
+  if(o.series.length>1||o.legendExtra){lg='<div class="legend">'+o.series.map(s=>`<span><i style="border-color:${s.color}"></i>${s.name}</span>`).join('')+(o.legendExtra||[]).map(e=>`<span><i class="d" style="border-color:${e[1]}"></i>${e[0]}</span>`).join('')+'</div>'}
+  host.innerHTML=lg+`<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${o.aria||''}">${g}</svg><div class="tip"></div>`;
+  const svg=host.querySelector('svg'),tip=host.querySelector('.tip'),ch=svg.querySelector('#ch'),dots=svg.querySelector('#dots');
+  const move=e=>{const r=svg.getBoundingClientRect(),sx=(e.clientX-r.left)/r.width*W;let i;
+    if(o.xnum){const xv=x0+(sx-m.l)/pw*(x1-x0);i=0;let b=1e18;for(let k=0;k<n;k++){const dd=Math.abs(o.x[k]-xv);if(dd<b){b=dd;i=k}}}else i=Math.round((sx-m.l)/pw*(n-1));
+    i=Math.max(0,Math.min(n-1,i));const xx=X(i);ch.setAttribute('x1',xx);ch.setAttribute('x2',xx);ch.style.display='';
+    let dh='',rows='';o.series.forEach(s=>{const v=s.y[i];if(v!=null){dh+=`<circle cx="${xx}" cy="${Y(v)}" r="4" fill="${s.color}" stroke="var(--surface)" stroke-width="2"/>`;rows+=`<div><span><i style="background:${s.color}"></i>${s.name}</span><span>${(s.fmt||yf)(v)}</span></div>`}});
+    dots.innerHTML=dh;tip.innerHTML=`<b>${o.xfmt?o.xfmt(o.x[i]):dt(o.x[i])}</b>${rows}`;tip.style.display='block';
+    const px_=xx/W*r.width,tw=tip.offsetWidth;tip.style.left=(px_+14+tw>r.width?px_-tw-14:px_+14)+'px';tip.style.top=(svg.offsetTop+6)+'px'};
+  svg.addEventListener('pointermove',move);svg.addEventListener('pointerdown',move);
+  svg.addEventListener('pointerleave',()=>{ch.style.display='none';dots.innerHTML='';tip.style.display='none'});
+  };
+  RENDER.push(draw);draw();
+}
+let rz;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>RENDER.forEach(f=>f()),150)});
+
+/* ── header ── */
+const btc=A.BTC, coins=PICKS.filter(k=>!A[k].stock), stocks=PICKS.filter(k=>A[k].stock);
+$('#asof').textContent=`Prices at the close of ${dt(btc.asof)} · $10,000 · a 6 to 12 month plan · ten names, three to choose`;
+const rng=(arr)=>{const v=arr.filter(x=>x!=null);return [Math.min(...v),Math.max(...v)]};
+const cyc=D.cycle, cur=cyc[2], dayNow=cur.days, ddNow=cur.series[cur.series.length-1][1];
+const fg=D.fng, st=fg.stats;
+(function(){
+  const cr=D.corr,ix=k=>cr.order.indexOf(k);const cc=[];coins.forEach(k=>cc.push(cr.m[ix(k)][ix('BTC')]));const [c0,c1]=rng(cc);
+  const big4=['SOL','NEAR','AVAX','UNI'];
+  const med=big4.map(k=>`${pc(A[k].end12_med_reg)} (${k})`).join(', ');
+  const t2=rng(big4.map(k=>A[k].up['1.00'].reg)), e2=rng(big4.map(k=>A[k].up['1.00'].end_reg));
+  const l3=rng(coins.map(k=>A[k].liq['3'].r6)), l2=rng(coins.map(k=>A[k].liq['2'].r6));
+  const items=[
+   `<b>Bitcoin closed at $${px(btc.px)}, ${Math.round(-btc.dd_ath*100)}% under its October 2025 top and below its 200-day average.</b> Every coin on this list moves with it (weekly correlation ${c0.toFixed(2)} to ${c1.toFixed(2)}), so three coins behave more like one position than three.`,
+   `<b>This is day ${dayNow} since the top.</b> The last two cycles made their lows on days ${cyc[0].bottom_day} and ${cyc[1].bottom_day}, at ${pc(cyc[0].bottom_dd)} and ${pc(cyc[1].bottom_dd)}. This cycle's low so far came on day ${cur.bottom_day} at ${pc(cur.bottom_dd)}. By the calendar a low is due or already in; by depth this fall is far shallower than the last two. Two past cycles is a very small sample either way.`,
+   `<b>Fear &amp; Greed reads ${fg.today} today (extreme fear).</b> On its own that has not been a buy signal. Twelve months after extreme-fear days Bitcoin's median result was ${pc(st.med_low)} and it was higher ${Math.round(st.up_low*100)}% of the time, which is the same as any other day (${pc(st.med_all)}, ${Math.round(st.up_all*100)}%).`,
+   `<b>Buying these coins while Bitcoin was under its 200-day average, then holding 12 months, usually lost money:</b> median ${med}. A double was touched in ${Math.round(t2[0]*100)}–${Math.round(t2[1]*100)}% of those windows but was still there at month 12 in only ${Math.round(e2[0]*100)}–${Math.round(e2[1]*100)}%. Resting sell orders are what turned a touch into money.`,
+   `<b>A target of +100% to +200% on the whole $10,000 needs all three picks to roughly double or triple from their average cost.</b> Nothing in this data supports "easily 200–500%". The volatility that gives a coin a real chance of doubling gives it the same chance of halving.`,
+   `<b>Isolated futures do not fit a dip-buying ladder.</b> A 3× long on any of the seven coins was liquidated within six months in ${Math.round(l3[0]*100)}–${Math.round(l3[1]*100)}% of past bear-market windows, and a 2× long in ${Math.round(l2[0]*100)}–${Math.round(l2[1]*100)}%.`,
+   `<b>The three stocks are inside an AI sell-off:</b> Nvidia ${pc(A.NVDA.dd_ath)}, Broadcom ${pc(A.AVGO.dd_ath)} and SanDisk ${pc(A.SNDK.dd_ath)} from their highs, with Nvidia's results due on 17 Nov. They barely move with the coins (correlation 0.1 to 0.3), which is the one real source of diversification on this list.`];
+  $('#readlist').innerHTML=items.map(x=>`<li>${x}</li>`).join('');
+})();
+
+/* ── market charts ── */
+(function(){
+  const cut=800,days=new Set();cyc.forEach(c=>c.series.forEach(p=>{if(p[0]<=cut)days.add(p[0])}));const xs=[...days].sort((a,b)=>a-b);
+  const col=['var(--s2)','var(--s3)','var(--s1)'];
+  const ser=cyc.map((c,i)=>{const mp=new Map(c.series);return{name:c.label.replace(' top',' cycle'),color:col[i],w:i===2?2.5:2,y:xs.map(d=>mp.has(d)?mp.get(d)*100:null),fmt:v=>v.toFixed(0)+'%'}});
+  const marks=cyc.slice(0,2).map((c,i)=>({i:xs.indexOf(Math.round(c.bottom_day/3)*3),y:c.bottom_dd*100,color:col[i]}));
+  const li=xs.indexOf(cur.series[cur.series.length-1][0]);
+  marks.push({i:li,y:ddNow*100,color:col[2],text:`today: day ${dayNow}, ${pc(ddNow)}`,dx:9,dy:-9});
+  chart($('#c-cycle'),{x:xs,xnum:true,series:ser,h:320,ymin:-90,ymax:0,yticks:[0,-20,-40,-60,-80],yfmt:v=>v+'%',xtitle:'days since the cycle top',xfmt:v=>'Day '+v,marks,aria:'Bitcoin drawdown from each cycle top by days since the top'});
+  $('#n-cycle').innerHTML=`Lows: 2017 cycle on day ${cyc[0].bottom_day} at ${pc(cyc[0].bottom_dd)}; 2021 cycle on day ${cyc[1].bottom_day} at ${pc(cyc[1].bottom_dd)}; this cycle so far on day ${cur.bottom_day} at ${pc(cur.bottom_dd)}. Twelve months after those two lows Bitcoin was up ${pc(cyc[0].after_bottom_365)} and ${pc(cyc[1].after_bottom_365)}. The dots mark each low.`;
+  const s=btc.series;
+  chart($('#c-btc'),{x:s.t,series:[{name:'Bitcoin',color:'var(--s1)',y:s.c},{name:'200-day average',color:'var(--ma200)',w:1.5,y:s.s200}],log:true,h:250,left:56,yfmt:v=>'$'+(v/1000).toFixed(0)+'K',aria:'Bitcoin price two years'});
+  const F=fg.series;
+  chart($('#c-fng'),{x:F.map(p=>p[0]),series:[{name:'Fear & Greed',color:'var(--s1)',w:1.5,y:F.map(p=>p[1])}],h:250,ymin:0,ymax:100,yticks:[0,25,50,75,100],left:34,right:92,rightNarrow:44,hlines:[{y:25,label:'extreme fear',short:'fear',color:'var(--axis)'},{y:75,label:'extreme greed',short:'greed',color:'var(--axis)'}],aria:'Fear and Greed index two years'});
+  $('#n-fng').textContent=`Today ${fg.today}; yesterday ${fg.now}; 30-day average ${fg.avg30}.`;
+  let h='<tr><th>Spell began</th><th>Index</th><th>BTC</th><th>90 days later</th><th>180 days</th><th>12 months</th><th>Worst point in the next 6 months</th><th class="l">The seven coins, 12 months later</th></tr>';
+  fg.episodes.forEach(e=>{const al=Object.entries(e.alts||{}).map(([k,v])=>`${k} ${pcs(v)}`).join(' · ');
+    h+=`<tr><td>${dt(e.t)}</td><td>${e.v}</td><td>$${px(e.btc)}</td><td>${pcs(e.f90)}</td><td>${pcs(e.f180)}</td><td>${pcs(e.f365)}</td><td>${pcs(e.mae180)}</td><td class="l wrap">${al||'<span class="mu">not listed yet</span>'}</td></tr>`});
+  $('#t-fng').innerHTML=h;
+  $('#n-fng2').innerHTML=`Across all ${st.n_low} extreme-fear days with a full year after them, Bitcoin's median 12-month result was ${pc(st.med_low)} (higher ${Math.round(st.up_low*100)}% of the time), against ${pc(st.med_all)} (${Math.round(st.up_all*100)}%) for every day in the record. In most spells price went lower first: see the "worst point" column.`;
+})();
+
+/* ── compare tables ── */
+(function(){
+  let h=`<tr><th>Name</th><th>Price</th><th>From its high</th><th class="l">Place in 52-week range</th><th>30 days</th><th>90 days</th><th>1 year</th><th>RSI daily / weekly</th><th>Against 200-day average</th><th>Volatility, 1 year</th><th>Median 12-month result, similar markets</th><th>Touched 2× within 12 months</th><th>Still 2× at month 12</th></tr>`;
+  const row=(k,mk)=>{const a=A[k],t=thin(a),u=a.up['1.00'];
+    return `<tr><td><span class="tk">${k}</span> <span class="mu">${a.name}</span></td><td>${px(a.px)}</td><td>${pcs(a.dd_ath)}</td><td class="l"><span class="meter"><i style="left:${Math.round(a.pos52*100)}%"></i></span>${Math.round(a.pos52*100)}%</td><td>${pcs(a.ret_30d)}</td><td>${pcs(a.ret_90d)}</td><td>${pcs(a.ret_1y)}</td><td>${Math.round(a.rsi_d)} / ${Math.round(a.rsi_w)}</td><td>${pcs(a.px/a.s200-1)}</td><td>${Math.round(a.vol_y*100)}%</td>`+
+     (mk?'<td class="mu">—</td><td class="mu">—</td><td class="mu">—</td>':`<td>${t?'<span class="mu">too new</span>':pcs(a.end12_med_reg)}</td><td>${t?'<span class="mu">too new</span>':fr(u.reg)}</td><td>${t?'<span class="mu">too new</span>':fr(u.end_reg)}</td>`)+'</tr>'};
+  PICKS.forEach(k=>h+=row(k));['BTC','QQQ'].forEach(k=>{if(A[k])h+=row(k,true)});
+  $('#t-cmp').innerHTML=h;
+  $('#n-cmp').innerHTML=`Similar markets: coins, ${A.SOL.n12_reg} days when Bitcoin was under its 200-day average (Sui and Arbitrum have only ${A.SUI.n12_reg}, one stretch of 2025, so read theirs as thin); Nvidia, ${A.NVDA.n12_reg} days 25%+ under its high; Broadcom, ${A.AVGO.n12_reg}. SanDisk listed in February 2025 and has no usable history. RSI under 30 is the usual "oversold" line.`;
+  let f='<tr><th>Coin</th><th>Rank</th><th>Market value</th><th>Fully diluted</th><th>Supply circulating</th><th>Value locked (a year ago)</th><th>Stablecoins</th><th>DEX volume, 30 days</th><th>App fees, 30 days</th></tr>';
+  coins.forEach(k=>{const x=A[k].fund||{};const c=x.circ&&x.total?Math.round(x.circ/x.total*100)+'%':'—';
+    f+=`<tr><td class="tk">${k}</td><td>${x.rank||'—'}</td><td>${big(x.mcap)}</td><td>${big(x.fdv)}</td><td>${c}</td><td>${big(x.tvl)}${x.tvl_1y?` <span class="mu">(${big(x.tvl_1y)})</span>`:''}</td><td>${big(x.stables)}</td><td>${big(x.dex30)}</td><td>${big(k==='UNI'?x.fees30:x.appfees30)}</td></tr>`});
+  $('#t-fund').innerHTML=f;
+  let s='<tr><th>Stock</th><th class="l">Quarter</th><th>Revenue</th><th>On the year</th><th>EPS (non-GAAP)</th><th>Price ÷ annualized EPS</th><th class="l">Next report</th></tr>';
+  stocks.forEach(k=>{const n=NOTES[k];s+=`<tr><td class="tk">${k}</td><td class="l wrap" style="min-width:150px">${n.q}</td><td>${n.rev}</td><td>${n.yoy}</td><td>${n.epsTxt}</td><td>${(A[k].px/(n.eps*4)).toFixed(1)}×</td><td class="l">${n.next}</td></tr>`});
+  $('#t-stk').innerHTML=s;
+  $('#n-stk').innerHTML=stocks.map(k=>`<b>${k}</b> guidance: ${NOTES[k].guide}.`).join(' ')+' Price ÷ annualized EPS is today\'s price over four times the latest quarter\'s earnings, a rough yardstick only.';
+  const cr=D.corr,ord=PICKS.concat(['BTC','QQQ']).filter(k=>cr.order.includes(k));
+  $('#corrw').textContent=cr.weeks;
+  let c='<tr><th></th>'+ord.map(k=>`<th>${k}</th>`).join('')+'</tr>';
+  ord.forEach(a=>{c+=`<tr><td class="tk">${a}</td>`+ord.map(b=>{const v=cr.m[cr.order.indexOf(a)][cr.order.indexOf(b)];return a===b?'<td class="mu">·</td>':`<td style="background:color-mix(in srgb, var(--s1) ${Math.round(Math.max(0,v)*38)}%, transparent)">${v.toFixed(2)}</td>`}).join('')+'</tr>'});
+  $('#t-corr').innerHTML=c;
+})();
+
+/* ── scorecard: the ten ranked on each test; the reader ticks what matters ── */
+(function(){
+  const cr=D.corr,ix=k=>cr.order.indexOf(k);
+  const T=[
+   {id:'hist',name:'Held up in markets like this',sub:'median 12-month result',v:a=>thin(a)?null:a.end12_med_reg,hi:true,f:v=>pc(v)},
+   {id:'kept',name:'Kept a double',sub:'still 2× at month 12',v:a=>thin(a)?null:a.up['1.00'].end_reg,hi:true,f:v=>fr(v)},
+   {id:'stop',name:'Stop hit least',sub:'spot stop reached within 6 months',v:a=>thin(a)?null:a.stop15.emp_reg,hi:false,f:v=>fr(v)},
+   {id:'rsi',name:'Most oversold now',sub:'daily RSI',v:a=>a.rsi_d,hi:false,f:v=>Math.round(v)},
+   {id:'disc',name:'Furthest under its high',sub:'',v:a=>a.dd_ath,hi:false,f:v=>pc(v)},
+   {id:'room',name:'Room to double',sub:'2× within 12 months, by volatility',v:a=>a.up['1.00'].model,hi:true,f:v=>fr(v)},
+   {id:'calm',name:'Steadiest',sub:'1-year volatility',v:a=>a.vol_y,hi:false,f:v=>Math.round(v*100)+'%'},
+   {id:'btc',name:'Least tied to Bitcoin',sub:'weekly correlation',v:a=>cr.m[ix(a.tk)][ix('BTC')],hi:false,f:v=>v.toFixed(2)}];
+  T.forEach(t=>{const vals=PICKS.map(k=>({k,v:t.v(A[k])})).filter(x=>x.v!=null).sort((x,y)=>t.hi?y.v-x.v:x.v-y.v);t.rank={};vals.forEach((x,i)=>t.rank[x.k]=i+1)});
+  const on=new Set();
+  const draw=()=>{
+    let h='<tr><th>Name</th>'+T.map(t=>`<th><label style="cursor:pointer"><input type="checkbox" data-t="${t.id}" ${on.has(t.id)?'checked':''}> ${t.name}${t.sub?`<br><span class="mu" style="font-weight:400">${t.sub}</span>`:''}</label></th>`).join('')+'<th>Order by ticked tests</th></tr>';
+    const score=k=>{let s=0;T.forEach(t=>{if(on.has(t.id))s+=(t.rank[k]||PICKS.length)});return s};
+    const ord=PICKS.slice().sort((a,b)=>score(a)-score(b));
+    PICKS.forEach(k=>{h+=`<tr><td class="tk">${k}</td>`+T.map(t=>{const v=t.v(A[k]),r=t.rank[k];return v==null?'<td class="mu">too new</td>':`<td>${t.f(v)} <span class="mu">#${r}</span></td>`}).join('')+`<td>${on.size?'#'+(ord.indexOf(k)+1):'<span class="mu">—</span>'}</td></tr>`});
+    $('#t-score').innerHTML=h;
+    $('#n-score').innerHTML=on.size?`By the ${on.size} test${on.size>1?'s':''} you ticked, the order is: <b>${ord.join(', ')}</b>. Ranks are added up and the lowest total comes first; a name with no history takes last place on that test.`:'Tick the tests that matter to you and the last column puts the ten in order by those tests alone.';
+    $('#t-score').querySelectorAll('input').forEach(c=>c.onchange=()=>{c.checked?on.add(c.dataset.t):on.delete(c.dataset.t);draw()});
+  };
+  draw();
+})();
+
+/* ── each name ── */
+(function(){
+  const host=$('#namecards');
+  PICKS.forEach((k,idx)=>{
+    const a=A[k],n=NOTES[k],t=thin(a),x=a.fund||{};
+    const d=document.createElement('details');d.className='name';d.id='n-'+k;if(idx===0||PRINT)d.open=true;
+    const reg=a.stock?'25%+ under its high':'BTC under its 200-day';
+    let rung='<tr><th>Buy rung</th><th>Price</th><th>Dip from today</th><th>Reached within 6 months: by volatility</th><th>In its own history</th><th>History, '+reg+'</th></tr>';
+    a.rungs.forEach((r,i)=>{rung+=`<tr><td>${i+1}</td><td>${px(r.price)}</td><td>${i?pc(-r.depth):'today'}</td><td>${i?fr(r.p):'now'}</td><td>${i?(t?'<span class="mu">too new</span>':fr(r.emp_all)):'now'}</td><td>${i?(t?'<span class="mu">too new</span>':fr(r.emp_reg)):'now'}</td></tr>`});
+    rung+=`<tr><td>Stop</td><td>${px(a.stop15.price)}</td><td>${pc(-a.stop15.depth)}</td><td>15%</td><td>${t?'<span class="mu">too new</span>':fr(a.stop15.emp_all)}</td><td>${t?'<span class="mu">too new</span>':fr(a.stop15.emp_reg)}</td></tr>`;
+    let sell='<tr><th>Level</th><th>Price</th><th>From today</th><th>Touched within 12 months: by volatility</th><th>In its own history</th><th>History, '+reg+'</th><th>Still there at month 12 (same)</th></tr>';
+    [['0.50','1.5×'],['1.00','2×'],['2.00','3×'],['4.00','5×']].forEach(([key,lab])=>{const u=a.up[key];sell+=`<tr><td>${lab} today</td><td>${px(a.px*(1+ +key))}</td><td>${pc(+key)}</td><td>${fr(u.model)}</td><td>${t?'<span class="mu">too new</span>':fr(u.all)}</td><td>${t?'<span class="mu">too new</span>':fr(u.reg)}</td><td>${t?'<span class="mu">too new</span>':fr(u.end_reg)}</td></tr>`});
+    const lm=[];if(a.s200)lm.push(`200-day average ${px(a.s200)} (${pc(a.s200/a.px-1)})`);lm.push(`52-week high ${px(a.hi52)} (${pc(a.hi52/a.px-1)})`);lm.push(`52-week low ${px(a.lo52)} (${pc(a.lo52/a.px-1)})`);lm.push(`all-time high ${px(a.ath)} in ${mo(a.ath_t)} (${pc(a.ath/a.px-1)})`);
+    const fundLine=a.stock?`${n.q}: revenue ${n.rev} (${n.yoy} on the year), EPS ${n.epsTxt}. Guidance: ${n.guide}. Next report: ${n.next}.`:`Rank ${x.rank||'—'} by market value (${big(x.mcap)}; fully diluted ${big(x.fdv)}).`;
+    d.innerHTML=`<summary><h3>${k} · ${a.name}</h3><span class="s">${px(a.px)} · ${pc(a.dd_ath)} from its high · RSI ${Math.round(a.rsi_d)} · ${pc(a.px/a.s200-1)} against the 200-day</span></summary>
+    <div class="body">
+      <p>${n.what}</p>
+      <div class="tiles">
+        <div class="tile"><b>${px(a.px)}</b><span>price</span></div>
+        <div class="tile"><b>${pc(a.dd_ath)}</b><span>from its high</span></div>
+        <div class="tile"><b>${Math.round(a.rsi_d)} / ${Math.round(a.rsi_w)}</b><span>RSI daily / weekly</span></div>
+        <div class="tile"><b>${Math.round(a.vol_y*100)}%</b><span>volatility, 1 year</span></div>
+        <div class="tile"><b>${a.beta}</b><span>beta to ${a.beta_ref==='QQQ'?'the Nasdaq':'Bitcoin'}</span></div>
+        <div class="tile"><b>${pc(a.maxdd_2y)}</b><span>deepest fall, 2 years</span></div>
+      </div>
+      <ul class="facts"><li>${fundLine}</li>${n.facts.map(f=>`<li>${f}</li>`).join('')}</ul>
+      <div class="chart" id="pc-${k}"></div>
+      <p class="cap" style="margin-top:10px">RSI (14 days). Under 30 is the usual oversold line, over 70 overbought.</p>
+      <div class="chart" id="rc-${k}"></div>
+      <h4>Where the buy rungs sit</h4>
+      <div class="tw"><table>${rung}</table></div>
+      <h4>What the upside levels would take</h4>
+      <div class="tw"><table>${sell}</table></div>
+      <p class="note">Landmarks from today's price: ${lm.join(' · ')}.${t?' SanDisk has under two years of history, all of it one boom, so only the volatility column is shown.':''}${(!a.stock&&a.n12_reg<400)?` History in similar markets rests on ${a.n12_reg} days from a single stretch, so treat it as thin.`:''}</p>
+    </div>`;
+    host.appendChild(d);
+    let done=false;
+    const render=()=>{if(done||!d.open)return;done=true;
+      const s=a.series,hl=[];
+      a.rungs.forEach((r,i)=>hl.push({y:r.price,label:i?`Buy ${i+1} · ${px(r.price)} · ${pc(-r.depth)}`:`Buy 1 · ${px(r.price)} · today`,short:`B${i+1} ${px(r.price)}`,color:'var(--s3)',dash:true}));
+      hl.push({y:a.stop15.price,label:`Stop · ${px(a.stop15.price)} · ${pc(-a.stop15.depth)}`,short:`Stop ${px(a.stop15.price)}`,color:'var(--ink2)',dash:true});
+      const hi2=Math.max(...s.c.filter(v=>v!=null));
+      hl.push({y:a.px*2,label:`2× · ${px(a.px*2)}`,short:`2× ${px(a.px*2)}`,color:'var(--s2)',dash:true});
+      if(a.px*3<=hi2*1.15)hl.push({y:a.px*3,label:`3× · ${px(a.px*3)}`,short:`3× ${px(a.px*3)}`,color:'var(--s2)',dash:true});
+      chart($('#pc-'+k),{x:s.t,series:[{name:'Price',color:'var(--s1)',y:s.c},{name:'50-day average',color:'var(--ma50)',w:1.5,y:s.s50},{name:'200-day average',color:'var(--ma200)',w:1.5,y:s.s200}],log:true,h:360,right:158,rightNarrow:78,hlines:hl,yfmt:px,legendExtra:[['Buy rungs','var(--s3)'],['Spot stop','var(--ink2)'],['2× and 3× today','var(--s2)']],aria:k+' price with buy rungs'});
+      chart($('#rc-'+k),{x:s.t,series:[{name:'RSI',color:'var(--s1)',w:1.5,y:s.rsi,fmt:v=>v.toFixed(0)}],h:120,ymin:0,ymax:100,yticks:[0,30,70,100],right:158,rightNarrow:78,hlines:[{y:30,label:'30 oversold',short:'30',color:'var(--axis)'},{y:70,label:'70 overbought',short:'70',color:'var(--axis)'}],aria:k+' RSI'});
+    };
+    d.addEventListener('toggle',render);render();
+  });
+})();
+
+/* ── if price rises first, and the three chip stocks ── */
+(function(){
+  let h='<tr><th>Name</th><th>Price today</th><th class="l">Add 1</th><th class="l">Add 2</th><th class="l">Add 3</th></tr>';
+  PICKS.forEach(k=>{const a=A[k];h+=`<tr><td><span class="tk">${k}</span> <span class="mu">${a.name}</span></td><td>${px(a.px)}</td>`+[0,1,2].map(i=>{const x=a.addups[i];return x?`<td class="l">${px(x.price)} <span class="mu">${pc(x.up)} · ${x.name}</span></td>`:'<td class="l mu">—</td>'}).join('')+'</tr>'});
+  $('#t-lvU').innerHTML=h;
+  const E=D.addup_ev,lab={e50:'First close back above the 50-day average',e200:'First close back above the 200-day average',e90:'First new 90-day high',base:'Any day at all'};
+  let g='<tr><th class="l">Group</th><th class="l">Bought on</th><th>Times</th><th>Median 6 months later</th><th>Higher after 6 months</th><th>Median 12 months later</th><th>Higher after 12 months</th><th>Typical worst dip in the next 6 months</th></tr>';
+  [['coins','The seven coins'],['stocks','Nvidia, Broadcom, Marvell']].forEach(([gk,gn])=>['e50','e200','e90','base'].forEach((k,i)=>{const v=E[gk][k];g+=`<tr><td class="l">${i?'':'<b>'+gn+'</b>'}</td><td class="l">${lab[k]}</td><td>${v.n6.toLocaleString('en-US')}</td><td>${pcs(v.med6)}</td><td>${fr(v.up6)}</td><td>${pcs(v.med12)}</td><td>${fr(v.up12)}</td><td>${pcs(v.mae6)}</td></tr>`}));
+  $('#t-addev').innerHTML=g;
+  const c=E.coins,s=E.stocks;
+  $('#n-addev').innerHTML=`For the coins, buying a reclaim did no better than buying on an ordinary day over six months (median ${pc(c.e200.med6)} after a 200-day reclaim, ${pc(c.base.med6)} for any day), and the typical position was still down about ${Math.round(-c.e200.mae6*100)}% at some point in the following six months. For the three stocks a reclaim was followed by somewhat better results than an ordinary day, on few cases (${s.e200.n6} reclaims of the 200-day average in ten years). SanDisk is left out as too new.`;
+
+  const SC=D.stk_cmp,three=['NVDA','AVGO','MRVL'],R=SC.rows,col=['var(--s1)','var(--s2)','var(--s3)'];
+  chart($('#c-uw'),{x:R.NVDA.uw.t,series:three.map((k,i)=>({name:R[k].name,color:col[i],y:R[k].uw.v,fmt:v=>v.toFixed(0)+'%'})),h:280,ymax:0,ymin:Math.min(...three.map(k=>Math.min(...R[k].uw.v)))-4,yfmt:v=>v+'%',aria:'Nvidia, Broadcom and Marvell distance below their highs'});
+  let e='<tr><th>Stock</th>'+SC.episodes.map(x=>`<th>${x}</th>`).join('')+'</tr>';
+  three.concat(['SOXX','QQQ']).forEach(k=>{const r=R[k];e+=`<tr><td><span class="tk">${k}</span> <span class="mu">${r.name}</span></td>`+r.eps.map(x=>x?`<td>${pcs(x.dd)} <span class="mu">${x.rec!=null?x.rec+' days back':'not back yet'}</span></td>`:'<td class="mu">—</td>').join('')+'</tr>'});
+  $('#t-eps').innerHTML=e;
+  const MQ={NVDA:NOTES.NVDA,AVGO:NOTES.AVGO,MRVL:{q:'Fiscal Q2 2027 (reported late Aug 2026)',rev:'$2.74B',yoy:'+37%',eps:0.94,epsTxt:'$0.94',guide:'Q3 revenue $3.15B ±5%, EPS about $1.10',next:'early Dec 2026 (expected)'}};
+  const rows=[
+   ['Price',k=>px(A[k].px)],
+   ['From its high',k=>pcs(A[k].dd_ath)],
+   ['Since 4 Nov, the day before the sell-off began',k=>pcs(R[k].since_nov4)],
+   ['1 year',k=>pcs(A[k].ret_1y)],
+   ['Against the 200-day average',k=>pcs(A[k].px/A[k].s200-1)],
+   ['RSI, daily',k=>Math.round(A[k].rsi_d)],
+   ['Volatility, 1 year',k=>Math.round(A[k].vol_y*100)+'%'],
+   ['Fall for each 1% the Nasdaq fell (weekly, 5 years)',k=>R[k].down_cap.toFixed(2)+'%'],
+   ['Rise for each 1% the Nasdaq rose',k=>R[k].up_cap.toFixed(2)+'%'],
+   ['Worst week in 5 years',k=>pcs(R[k].worst_week)],
+   ['Weeks down 10% or more, 5 years',k=>fr(R[k].weeks_m10)],
+   ['Days spent 25% or more under its high, 5 years',k=>fr(R[k].under25)],
+   ['Median 12-month result when bought 25%+ under its high',k=>pcs(A[k].end12_med_reg)],
+   ['Latest quarter',k=>MQ[k].q],
+   ['Revenue (on the year)',k=>`${MQ[k].rev} (${MQ[k].yoy})`],
+   ['Price ÷ annualized EPS',k=>(A[k].px/(MQ[k].eps*4)).toFixed(1)+'×'],
+   ['Next report',k=>MQ[k].next]];
+  let t='<tr><th class="l"></th>'+three.map(k=>`<th>${R[k].name}</th>`).join('')+'</tr>';
+  rows.forEach(([l,f])=>{t+=`<tr><td class="l">${l}</td>`+three.map(k=>`<td>${f(k)}</td>`).join('')+'</tr>'});
+  $('#t-chips').innerHTML=t;
+  $('#n-chips').innerHTML=`On these measures Broadcom has held up best of the three: it spent ${fr(R.AVGO.under25)} of the last five years 25% or more under its high, against ${fr(R.NVDA.under25)} for Nvidia and ${fr(R.MRVL.under25)} for Marvell, and it fell least for each 1% the Nasdaq fell. Nvidia fell further in 2018 and 2022 but has been the steadiest over the past year. Marvell has held up worst: it fell ${Math.round(-R.MRVL.eps[2].dd*100)}% in 2022 and ${Math.round(-R.MRVL.eps[3].dd*100)}% in 2025, and its worst week was ${pc(R.MRVL.worst_week)}. Holding up better is not the same as rising more: Marvell is the only one of the three up over the past year. Marvell guidance: ${MQ.MRVL.guide}.`;
+})();
+
+/* ── plan levels for all ten ── */
+(function(){
+  const nm=k=>`<td><span class="tk">${k}</span> <span class="mu">${A[k].name}</span></td>`;
+  let h='<tr><th>Name</th><th>Buy 1</th><th>Buy 2</th><th>Buy 3</th><th>Buy 4</th><th>Average cost if all fill</th><th>Stop</th><th>Loss at the stop</th><th>Take profit 1</th><th>Take profit 2</th><th>Take profit 3</th></tr>';
+  PICKS.forEach(k=>{const a=A[k],r=a.rungs,avg=r.length/r.reduce((s,x)=>s+1/x.price,0);
+    h+='<tr>'+nm(k)+r.map(x=>`<td>${px(x.price)}</td>`).join('')+`<td>${px(avg)}</td><td>${px(a.stop15.price)}</td><td>${pcs(a.stop15.price/avg-1)}</td><td>${px(a.px*1.5)}</td><td>${px(a.px*2)}</td><td>${px(a.px*3)}</td></tr>`});
+  $('#t-lvA').innerHTML=h;
+  let g='<tr><th>Name</th><th>Entry</th><th>2× liquidation</th><th>2× stop</th><th>2× loss on margin</th><th>3× liquidation</th><th>3× stop</th><th>3× loss on margin</th><th>Stop touched before 2×, at 2×</th><th>At 3×</th></tr>';
+  PICKS.forEach(k=>{const a=A[k],c=[2,3].map(L=>{const s=isoStop(a,L,'r3');return{L,s,f:ftRow(a,'1.00',s.sd)}});
+    g+='<tr>'+nm(k)+`<td>${px(a.px)}</td>`+c.map(v=>`<td>${px(a.px*(1-v.s.dist))}</td><td>${px(a.px*(1-v.s.sd))} <span class="mu">${pc(-v.s.sd)}</span></td><td>${pcs(-v.s.sd*v.L)}</td>`).join('')+c.map(v=>`<td>${v.f?fr(v.f[1]):'<span class="mu">too new</span>'}</td>`).join('')+'</tr>'});
+  $('#t-lvB').innerHTML=g;
+})();
+
+/* ── leverage ── */
+(function(){
+  let h='<tr><th rowspan="2">Name</th><th colspan="2">2× (closed near −48%)</th><th colspan="2">3× (near −31%)</th><th colspan="2">5× (near −18%)</th><th colspan="2">10× (near −8%)</th></tr><tr>'+'<th>history</th><th>similar markets</th>'.repeat(4)+'</tr>';
+  PICKS.forEach(k=>{const a=A[k],t=thin(a);h+=`<tr><td class="tk">${k}</td>`+['2','3','5','10'].map(L=>{const q=a.liq[L];return t?`<td class="mu" colspan="2" style="text-align:center">by volatility ${fr(q.m6)}</td>`:`<td>${fr(q.e6)}</td><td>${fr(q.r6)}</td>`}).join('')+'</tr>'});
+  $('#t-lev').innerHTML=h;
+})();
+
+/* ── builder ── */
+const B={picks:(QS.get("picks")||"").split(",").filter(k=>PICKS.includes(k)).slice(0,3),run:0};
+if(!B.picks.length)B.picks=PICKS.slice(0,3);
+const MULTS=[[1.25,'0.25'],[1.5,'0.50'],[2,'1.00'],[3,'2.00'],[5,'4.00']];
+['#b-s0','#b-s1','#b-s2'].forEach((id,i)=>{$(id).innerHTML=MULTS.map(([m_],j)=>`<option value="${j}" ${j===i+1?'selected':''}>${m_}× today</option>`).join('')});
+const usds=v=>(v<0?'−':'+')+'$'+Math.abs(Math.round(v)).toLocaleString('en-US');
+const un=u=>u>=100?u.toFixed(0):u>=1?u.toFixed(2):u.toFixed(4);
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function chol(M){const n=M.length,L=M.map(r=>r.map(()=>0));for(let i=0;i<n;i++)for(let j=0;j<=i;j++){let s=M[i][j];for(let k=0;k<j;k++)s-=L[i][k]*L[j][k];L[i][j]=i===j?Math.sqrt(Math.max(s,1e-9)):s/L[j][j]}return L}
+function cholFor(as){const cr=D.corr,ix=t=>cr.order.indexOf(t);return chol(as.map(a=>as.map(b=>cr.m[ix(a.tk)][ix(b.tk)])))}
+/* isolated stop: the chosen rule, never closer than 5 points to the liquidation price */
+function isoStop(a,L,rule){const dist=a.liq[String(L)].dist,cap=dist-.05;let sd=rule==='none'?null:rule==='r3'?a.rungs[2].depth:rule==='r2'?a.rungs[1].depth:+rule;const capped=sd!=null&&sd>cap;if(capped)sd=cap;return{dist,sd,capped}}
+/* history in similar markets: [target first, stop first, neither, mean end of neither] for a stop depth */
+function ftRow(a,key,depth){if(!a.ft||thin(a))return null;const t=a.ft.t[key];if(!t||!t.reg)return null;const i=Math.max(0,Math.min(a.ft.stops.length-1,Math.round(depth*100)-a.ft.stops[0]));return t.reg[i]}
+function plan(){
+  const total=Math.max(0,+$('#b-total').value||0),w=[0,1,2].map(i=>Math.max(0,+$('#b-w'+i).value||0)),ws=w.reduce((a,b)=>a+b,0)||1;
+  const rw=$('#b-rw').value.split(',').map(Number),sm=[0,1,2].map(i=>MULTS[+$('#b-s'+i).value]).sort((a,b)=>a[0]-b[0]),fr_=[1/3,1/2,1],ss=$('#b-ss').value;
+  return {total,addup:$('#b-au').value==='on',rule:$('#b-is').value,f8:Math.max(0,+$('#b-fund').value||0)/100,assets:B.picks.map((k,i)=>{const a=A[k],alloc=total*w[i]/ws;
+    return {tk:k,a,px:a.px,alloc,sd:a.vol_y/Math.sqrt(365),rungs:a.rungs.map((r,j)=>({price:r.price,depth:r.depth,usd:alloc*rw[j]/100,lg:Math.log(1-r.depth),r})).filter(r=>r.usd>0),
+      sells:sm.map((s,j)=>({mult:s[0],key:s[1],frac:fr_[j],lg:Math.log(s[0])})),
+      adds:a.addups.map(x=>({name:x.name,price:x.price,up:x.up,lg:Math.log(x.price/a.px)})),stop:ss==='15'?{depth:a.stop15.depth,price:a.stop15.price,lg:Math.log(1-a.stop15.depth),s:a.stop15}:null}})};
+}
+function summarize(res,N,extra){const so=Array.from(res).sort((a,b)=>a-b),q=p=>so[Math.min(N-1,Math.floor(p*N))],cnt=f=>so.filter(f).length/N;
+  return Object.assign({med:q(.5),p10:q(.1),p90:q(.9),x2:cnt(v=>v>=1),x15:cnt(v=>v>=.5),loss:cnt(v=>v<0),bad:cnt(v=>v<=-.3)},extra)}
+function gaussFn(){const rnd=mulberry32(20261114);return ()=>{let u=0;while(u===0)u=rnd();return Math.sqrt(-2*Math.log(u))*Math.cos(6.283185307179586*rnd())}}
+/* Plan A: spot ladder, optional stop under the last rung */
+function simulate(P,M,N){
+  const as=P.assets,k=as.length,L=cholFor(as),g=gaussFn(),mu=Math.log(1+M)/365,res=new Float64Array(N);let dep=0,stp=0;const z=new Array(k),lp=new Array(k);
+  for(let s=0;s<N;s++){
+    const st=as.map(a=>({u:a.rungs[0].usd/a.rungs[0].price,cash:a.alloc-a.rungs[0].usd,f:a.rungs.map((_,i)=>i===0),sd:[false,false,false],sp:a.rungs[0].usd,done:false,ad:a.adds.map(()=>false)}));
+    lp.fill(0);
+    for(let d=0;d<365;d++){for(let i=0;i<k;i++)z[i]=g();
+      for(let i=0;i<k;i++){let e=0;for(let j=0;j<=i;j++)e+=L[i][j]*z[j];lp[i]+=mu+as[i].sd*e;const a=as[i],q=st[i];if(q.done)continue;
+        for(let r=1;r<a.rungs.length;r++)if(!q.f[r]&&lp[i]<=a.rungs[r].lg){q.f[r]=true;q.u+=a.rungs[r].usd/a.rungs[r].price;q.cash-=a.rungs[r].usd;q.sp+=a.rungs[r].usd}
+        if(a.stop&&lp[i]<=a.stop.lg){q.cash+=q.u*a.stop.price;q.u=0;q.done=true;stp++;continue}
+        if(P.addup)for(let j=0;j<a.adds.length;j++)if(!q.ad[j]&&lp[i]>=a.adds[j].lg){q.ad[j]=true;let r=0;for(let x=a.rungs.length-1;x>=1;x--)if(!q.f[x]){r=x;break}if(r){q.f[r]=true;q.u+=a.rungs[r].usd/a.adds[j].price;q.cash-=a.rungs[r].usd;q.sp+=a.rungs[r].usd}}
+        for(let t=0;t<3;t++)if(!q.sd[t]&&lp[i]>=a.sells[t].lg&&q.u>0){q.sd[t]=true;const u=q.u*a.sells[t].frac;q.u-=u;q.cash+=u*a.px*a.sells[t].mult}}}
+    let v=0;for(let i=0;i<k;i++){v+=st[i].cash+st[i].u*as[i].px*Math.exp(lp[i]);dep+=st[i].sp}
+    res[s]=v/P.total-1}
+  return summarize(res,N,{dep:dep/N/P.total,stp:stp/N/k});
+}
+/* Plan B: one isolated long per name at leverage Lv, stop (or liquidation), same take-profits, funding on the open position */
+function simulateIso(P,M,N,Lv){
+  const as=P.assets,k=as.length,L=cholFor(as),g=gaussFn(),mu=Math.log(1+M)/365,res=new Float64Array(N);let stp=0;const z=new Array(k),lp=new Array(k);
+  const cfg=as.map(a=>{const s=isoStop(a.a,Lv,P.rule),ex=s.sd==null?s.dist:s.sd;return{ex,lg:Math.log(1-ex),u0:a.alloc*Lv/a.px,liq:s.sd==null}});
+  for(let s=0;s<N;s++){
+    const st=as.map((a,i)=>({u:cfg[i].u0,real:0,fund:0,sd:[false,false,false],done:false}));
+    lp.fill(0);
+    for(let d=0;d<365;d++){for(let i=0;i<k;i++)z[i]=g();
+      for(let i=0;i<k;i++){let e=0;for(let j=0;j<=i;j++)e+=L[i][j]*z[j];lp[i]+=mu+as[i].sd*e;const a=as[i],q=st[i],c=cfg[i];if(q.done)continue;
+        q.fund+=P.f8*3*q.u*a.px;
+        if(lp[i]<=c.lg){q.real+=c.liq?-a.alloc*q.u/c.u0:-q.u*a.px*c.ex;q.u=0;q.done=true;stp++;continue}
+        for(let t=0;t<3;t++)if(!q.sd[t]&&lp[i]>=a.sells[t].lg&&q.u>0){q.sd[t]=true;const u=q.u*a.sells[t].frac;q.u-=u;q.real+=u*a.px*(a.sells[t].mult-1);if(q.u<1e-12)q.done=true}}}
+    let v=0;for(let i=0;i<k;i++){const q=st[i];v+=Math.max(0,as[i].alloc+q.real+q.u*as[i].px*(Math.exp(lp[i])-1)-q.fund)}
+    res[s]=v/P.total-1}
+  return summarize(res,N,{dep:1,stp:stp/N/k});
+}
+function renderBuilder(){
+  $('#b-pick').innerHTML=PICKS.map(k=>`<button type="button" data-k="${k}" aria-pressed="${B.picks.includes(k)}" ${(!B.picks.includes(k)&&B.picks.length>=3)?'disabled':''}>${k}</button>`).join('')+`<span class="small" style="align-self:center">${B.picks.length}/3 chosen${B.picks.length<3?' · choose '+(3-B.picks.length)+' more':''}</span>`;
+  $('#b-pick').querySelectorAll('button').forEach(b=>b.onclick=()=>{const k=b.dataset.k;if(B.picks.includes(k))B.picks=B.picks.filter(x=>x!==k);else if(B.picks.length<3)B.picks.push(k);renderBuilder()});
+  const P=plan(),run=++B.run;
+  if(!P.assets.length||!P.total){$('#b-sheets').innerHTML='<p class="note">Choose at least one name and an amount.</p>';$('#b-iso').innerHTML='';$('#b-sim').innerHTML='';$('#b-simnote').textContent='';return}
+  /* ── Plan A sheets ── */
+  let h='',best=0,first=0,worst=0;
+  P.assets.forEach(x=>{const a=x.a,t=thin(a);let cu=0,cd=0;
+    let tb='<tr><th class="l">Order</th><th>Price</th><th>From today</th><th>Amount</th><th>Units</th><th>Result</th><th>How often price got there (history, similar markets)</th></tr>';
+    x.rungs.forEach((r,i)=>{const u=r.usd/r.price;cu+=u;cd+=r.usd;tb+=`<tr><td class="l">Buy ${i+1}</td><td>${px(r.price)}</td><td>${r.depth?pc(-r.depth):'today'}</td><td>${usd(r.usd)}</td><td>${un(u)}</td><td>average cost ${px(cd/cu)}</td><td>${r.depth?(t?'<span class="mu">too new</span> (by volatility '+fr(r.r.p)+')':fr(r.r.emp_reg)+' within 6 months'):'filled at once'}</td></tr>`});
+    if(P.addup)x.adds.forEach((ad,j)=>{const ri=x.rungs.length-1-j,rr=x.rungs[ri];if(ri<1||!rr)return;tb+=`<tr><td class="l">Add ${j+1}, if price rises first</td><td>${px(ad.price)}</td><td>${pc(ad.up)}</td><td>${usd(rr.usd)}</td><td>${un(rr.usd/ad.price)}</td><td>uses the money held for buy ${ri+1}</td><td>${ad.name}</td></tr>`});
+    const avg=cd/cu,r1=x.rungs[0];let left=cu,cash=0,left1=r1.usd/r1.price,cash1=0;
+    x.sells.forEach((s,i)=>{const p_=x.px*s.mult,u=left*s.frac,u1=left1*s.frac;left-=u;cash+=u*p_;left1-=u1;cash1+=u1*p_;const up=a.up[s.key];
+      tb+=`<tr><td class="l">Take profit ${i+1} (${i<2?'a third':'the rest'})</td><td>${px(p_)}</td><td>${pc(s.mult-1)}</td><td>${usd(u*p_)}</td><td>${un(u)}</td><td>${pcs(p_/avg-1)} on the full ladder's cost</td><td>${t?'<span class="mu">too new</span> (by volatility '+fr(up.model)+')':fr(up.reg)+' touched within 12 months'}</td></tr>`});
+    const lowest=x.rungs[x.rungs.length-1].price;let wv;
+    if(x.stop){const sv=cu*x.stop.price;wv=sv+(x.alloc-cd);
+      tb+=`<tr><td class="l">Stop-loss (sell everything)</td><td>${px(x.stop.price)}</td><td>${pc(-x.stop.depth)}</td><td>${usd(sv)}</td><td>${un(cu)}</td><td><span class="dn">${usds(sv-cd)}</span> (${pc(sv/cd-1)}) if every rung filled first</td><td>${t?'<span class="mu">too new</span> (by volatility 15%)':fr(x.stop.s.emp_reg)+' within 6 months'}</td></tr>`}
+    else wv=cu*lowest+(x.alloc-cd);
+    best+=cash+(x.alloc-cd);first+=cash1+(x.alloc-r1.usd);worst+=wv;
+    h+=`<h4>${x.tk} · ${a.name} · ${usd(x.alloc)}</h4><div class="tw"><table>${tb}</table></div><p class="small">All rungs filled: ${usd(cd)} buys ${un(cu)} units at an average ${px(avg)}; all three take-profits then return ${usd(cash)} (${pc(cash/cd-1)}). If price never dips and only rung 1 fills, ${usd(r1.usd)} returns ${usd(cash1)} and ${usd(x.alloc-r1.usd)} stays in cash.</p>`});
+  h+=`<div class="sum">
+    <div class="tile"><b>${usd(best)}</b><span>every rung fills, then every take-profit hits: ${pc(best/P.total-1)} on the account</span></div>
+    <div class="tile"><b>${usd(first)}</b><span>no dips, only the first rungs fill, every take-profit hits: ${pc(first/P.total-1)}</span></div>
+    <div class="tile"><b>${usd(worst)}</b><span>${P.assets[0].stop?'every rung fills, then all three stops hit':'every rung fills and price sits at the lowest rung'}: ${pc(worst/P.total-1)}</span></div></div>`;
+  $('#b-sheets').innerHTML=h;
+  /* ── Plan B sheets ── */
+  let g='';const tot={2:{w:0,b:0},3:{w:0,b:0}};
+  P.assets.forEach(x=>{const a=x.a;
+    const c=[2,3].map(Lv=>{const s=isoStop(a,Lv,P.rule),notional=x.alloc*Lv,units=notional/a.px,loss=s.sd==null?-x.alloc:-notional*s.sd;
+      const tps=x.sells.map(sl=>({p:a.px*sl.mult,profit:notional/3*(sl.mult-1)})),all=tps.reduce((q,v)=>q+v.profit,0),f=ftRow(a,'1.00',s.sd==null?s.dist:s.sd);
+      tot[Lv].w+=loss;tot[Lv].b+=all;return{Lv,s,notional,units,loss,tps,all,f,fund:notional*P.f8*3*30}});
+    const row=(lab,fn)=>`<tr><td class="l">${lab}</td>${c.map(v=>`<td>${fn(v)}</td>`).join('')}</tr>`;
+    let tb='<tr><th class="l"></th><th>2× isolated</th><th>3× isolated</th></tr>';
+    tb+=row('Margin posted',()=>usd(x.alloc));
+    tb+=row('Position size',v=>usd(v.notional));
+    tb+=row('Entry price · units',v=>`${px(a.px)} · ${un(v.units)}`);
+    tb+=row('Liquidation price',v=>`${px(a.px*(1-v.s.dist))} (${pc(-v.s.dist)})`);
+    tb+=row('Stop-loss price',v=>v.s.sd==null?'<span class="mu">none: liquidation ends it</span>':`${px(a.px*(1-v.s.sd))} (${pc(-v.s.sd)})${v.s.capped?' <span class="mu">pulled up</span>':''}`);
+    tb+=row('Loss if the stop is hit',v=>`<span class="dn">${usds(v.loss)}</span> (${pc(v.loss/x.alloc)} of margin)`);
+    x.sells.forEach((sl,i)=>{tb+=row(`Take profit ${i+1} (a third) at ${px(a.px*sl.mult)}`,v=>`<span class="up">${usds(v.tps[i].profit)}</span>`)});
+    tb+=row('All three take-profits hit',v=>`<span class="up">${usds(v.all)}</span> (${pc(v.all/x.alloc)} on margin)`);
+    tb+=row('Funding per 30 days held',v=>`<span class="dn">${usds(-v.fund)}</span>`);
+    tb+=row('History, similar markets, next 12 months',v=>v.f?`stop first ${fr(v.f[1])} · 2× first ${fr(v.f[0])} · neither ${fr(v.f[2])}`:'<span class="mu">too new</span>');
+    g+=`<h4>${x.tk} · ${a.name} · ${usd(x.alloc)} margin</h4><div class="tw"><table>${tb}</table></div>`});
+  g+=`<div class="sum">`+[2,3].map(Lv=>`<div class="tile"><b>${usd(P.total+tot[Lv].w)}</b><span>${Lv}×: all three stopped out, ${pc(tot[Lv].w/P.total)} on the account</span></div><div class="tile"><b>${usd(P.total+tot[Lv].b)}</b><span>${Lv}×: every take-profit hits on all three, ${pc(tot[Lv].b/P.total)}</span></div>`).join('')+`</div>`;
+  $('#b-iso').innerHTML=g;
+  /* ── simulation, the three plans on the same random paths ── */
+  $('#b-sim').innerHTML='<tr><td class="mu l">calculating…</td></tr>';
+  const sc=[['Bear market continues','median price −35% in a year',-.35],['Sideways','median price flat',0],['Recovery','median price +60%',.6],['Strong bull run','median price +150%',1.5]];
+  const head='<tr><th class="l">If the market does this</th><th>Middle outcome</th><th>Bad case (1 in 10)</th><th>Good case (1 in 10)</th><th>Account at +100% or more</th><th>At +50% or more</th><th>Ends at a loss</th><th>Down 30% or more</th><th>Stops hit (share of names)</th><th>Money put to work</th></tr>';
+  const groups=[['Plan A · Spot ladder',M=>simulate(P,M,2000)],['Plan B · Isolated 2×',M=>simulateIso(P,M,2000,2)],['Plan B · Isolated 3×',M=>simulateIso(P,M,2000,3)]];
+  let out=head,gi=0;
+  const step=()=>{if(run!==B.run)return;if(gi>=groups.length){$('#b-sim').innerHTML=out;
+      const cr=D.corr,ix=t=>cr.order.indexOf(t),pr=[];for(let i=0;i<B.picks.length;i++)for(let j=i+1;j<B.picks.length;j++)pr.push(`${B.picks[i]}–${B.picks[j]} ${cr.m[ix(B.picks[i])][ix(B.picks[j])].toFixed(2)}`);
+      $('#b-simnote').textContent=`Outcomes are on the whole ${usd(P.total)}, cash included, after 12 months. All three plans are run on the same 2,000 price paths. "Median price" is the assumed middle path for each of the three names. Correlations used: ${pr.join(', ')||'n/a'}. Volatility: ${P.assets.map(x=>x.tk+' '+Math.round(x.a.vol_y*100)+'%').join(', ')}. Isolated rows include funding at ${(P.f8*100).toFixed(3)}% per 8 hours.`;return}
+    const [nm,fn]=groups[gi++];out+=`<tr><td class="l" colspan="10" style="background:var(--wash)"><b>${nm}</b></td></tr>`;
+    sc.forEach(([n2,sub,M])=>{const r=fn(M);out+=`<tr><td class="l">${n2}<br><span class="mu">${sub}</span></td><td>${pcs(r.med)}</td><td>${pcs(r.p10)}</td><td>${pcs(r.p90)}</td><td>${fr(r.x2)}</td><td>${fr(r.x15)}</td><td>${fr(r.loss)}</td><td>${fr(r.bad)}</td><td>${fr(r.stp)}</td><td>${fr(r.dep)}</td></tr>`});
+    setTimeout(step,10)};
+  setTimeout(step,30);
+}
+['#b-total','#b-w0','#b-w1','#b-w2','#b-rw','#b-ss','#b-au','#b-is','#b-fund','#b-s0','#b-s1','#b-s2'].forEach(id=>$(id).addEventListener('change',renderBuilder));
+renderBuilder();
+/* ?only=section[&card=TICKER] shows one part alone, for checking the layout */
+if(QS.get('only')){document.querySelectorAll('main>*').forEach(s=>{if(s.id!==QS.get('only'))s.style.display='none'});const c=QS.get('card');if(c)document.querySelectorAll('details.name').forEach(d=>{if(d.id!=='n-'+c)d.style.display='none'})}
+</script>
+</body>
+</html>
