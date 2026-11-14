@@ -43,7 +43,7 @@ PICKS = ["INJ", "SOL", "NEAR", "SNDK", "NVDA", "AVGO", "SUI", "AVAX", "UNI", "AR
 CG = {"INJ": "injective-protocol", "SOL": "solana", "NEAR": "near", "SUI": "sui", "AVAX": "avalanche-2", "UNI": "uniswap", "ARB": "arbitrum", "BTC": "bitcoin"}
 LLAMA_CHAIN = {"INJ": "Injective", "SOL": "Solana", "NEAR": "Near", "SUI": "Sui", "AVAX": "Avalanche", "ARB": "Arbitrum"}
 LLAMA_FEES = {"INJ": "injective", "SOL": "solana", "NEAR": "near", "SUI": "sui", "AVAX": "avalanche", "ARB": "arbitrum", "UNI": "uniswap"}
-RUNG_P = [0.75, 0.50, 0.30]            # rungs sit at the dips reached in 75% / 50% / 30% of six-month windows
+RUNG_P = [2 / 3, 1 / 3]                # three tranches (user 2026-11-14): today, then the dips reached in about two in three and one in three six-month windows
 DIPS = [0.10, 0.15, 0.20, 0.25, 0.30, 0.40, 0.50, 0.60, 0.70]
 UPS = [0.25, 0.50, 1.00, 2.00, 4.00]
 LEV = [1, 2, 3, 5, 10]
@@ -242,6 +242,8 @@ def compute(raw_dir, log=print):
                            "r6": 0.0 if L == 1 else pr(ok6 & reg, mae6 <= -dist)}
         # spot plan stop: one step under rung 4, the dip reached in ~15% of six-month windows
         dep15 = 1 - math.exp(s6 * N.inv_cdf(0.15 / 2))
+        dip50 = 1 - math.exp(s6 * N.inv_cdf(0.50 / 2))          # the isolated plan's default stop
+        dip75 = 1 - math.exp(s6 * N.inv_cdf(0.75 / 2))          # its tight stop
         stop15 = {"depth": dep15, "price": px * (1 - dep15), "emp_all": pr(ok6, mae6 <= -dep15), "emp_reg": pr(ok6 & reg, mae6 <= -dep15)}
         # first touch within 12 months: a stop 5..50% under the start close against a target (+50 / +100 / +200%)
         lows, highs, cl = d.l.values, d.h.values, c.values
@@ -302,7 +304,7 @@ def compute(raw_dir, log=print):
                 "end12_med_all": nn(end12[ok12].median()) if ok12.sum() else None,
                 "end12_med_reg": nn(end12[ok12 & reg].median()) if (ok12 & reg).sum() >= 60 else None,
                 "end6_med_reg": nn(end6[end6.notna() & reg].median()) if (end6.notna() & reg).sum() >= 60 else None,
-                "dip": dip, "rungs": rungs, "up": up, "liq": liq, "stop15": stop15, "ft": ft, "addups": addups, "hi90": hi90,
+                "dip": dip, "rungs": rungs, "up": up, "liq": liq, "stop15": stop15, "ft": ft, "addups": addups, "hi90": hi90, "dip50": dip50, "dip75": dip75,
                 "series": {"t": [int(x) for x in tail.t], "c": [nn(x, 6) for x in tail.c], "s50": [nn(x, 6) for x in tail.s50],
                            "s200": [nn(x, 6) for x in tail.s200], "rsi": [nn(x, 1) for x in tail.rsi]},
                 "long": {"t": [int(x.timestamp()) for x in wkl.index], "c": [nn(x, 6) for x in wkl.values]}}
@@ -560,6 +562,7 @@ def render_html(out, template_text):
 
 # ───────────────────────── the server's daily rebuild ─────────────────────────
 ENABLED = os.environ.get("LONGTERM_REBUILD", "1") != "0"      # set LONGTERM_REBUILD=0 in the environment to switch it off
+BUILD_VER = 2                    # bump when the workbook's shape changes: the server rebuilds at once, the page ignores older copies
 AFTER_CLOSE_S = 20 * 60          # build once the 00:00 UTC daily close is 20 minutes old
 RETRY_S = 2 * 3600               # after a failed try, wait this long before the next
 WARMUP_S = 15 * 60               # never during the first minutes after a start (the scanner's first pass)
@@ -643,7 +646,7 @@ def build_server(log=print, now=None) -> dict:
         with open(tmp, "w", encoding="utf-8", newline="\n") as f:
             f.write(page)
         os.replace(tmp, live_workbook())
-        st.update(last_ok=time.time(), asof=asof, asof_label=_day_label(asof), secs=round(time.time() - now, 1),
+        st.update(ver=BUILD_VER, last_ok=time.time(), asof=asof, asof_label=_day_label(asof), secs=round(time.time() - now, 1),
                   sources=src, error=None)
         log(f"longterm workbook rebuilt: prices to {_day_label(asof)}, {st['secs']}s, stale {src.get('stale')}, fallback {src.get('stock_fallback')}")
     except Exception as exc:
@@ -660,6 +663,8 @@ def due(st: dict, now: float, boot: float) -> bool:
         return False
     if now - float(st.get("last_try") or 0) < RETRY_S:
         return False
+    if st.get("ver") != BUILD_VER:
+        return True
     day = lambda t: int((float(t) - AFTER_CLOSE_S) // 86400)
     return day(now) != day(st.get("last_ok") or 0)
 

@@ -102,7 +102,7 @@ details.name .body{padding:0 0 16px}
 </head>
 <body>
 <main>
-<h1>Three of ten: a long-term plan workbook</h1>
+<h1>Ten names: a long-term plan workbook</h1>
 <p class="sub" id="asof"></p>
 <div class="notice"><b>This is research, not financial advice.</b> Nothing on this page says which names to buy, and it was not written by a licensed adviser. Every level comes from one rule applied the same way to all ten names, so they can be compared. The odds are frequencies from past prices: they describe what happened, not what will. Prices are a snapshot and do not update.</div>
 <div class="notice" id="banner" style="display:none"></div>
@@ -157,7 +157,7 @@ details.name .body{padding:0 0 16px}
 </div>
 <div class="card" id="score">
   <h3>Scorecard: the ten ranked on eight tests</h3>
-  <p class="cap">#1 is the best of the ten on that test. This page does not choose three. It puts every name's rank on every test in one place and orders the ten by whichever tests you tick.</p>
+  <p class="cap">#1 is the best of the ten on that test. This page does not choose names. It puts every name's rank on every test in one place and orders the ten by whichever tests you tick.</p>
   <div class="tw"><table id="t-score"></table></div>
   <p class="note" id="n-score"></p>
   <p class="note">The tests pull against each other: the names with the most room to double are the least steady, and the names with the best record in falling markets (the two large stocks) have the least room to double by volatility. Which tests count is the decision.</p>
@@ -174,17 +174,17 @@ details.name .body{padding:0 0 16px}
 
 <section id="names">
 <h2>Each name</h2>
-<p class="lead">Each chart shows two years of price on a log scale with four buy rungs and the prices that would be 2× and 3× today's. The rungs follow one rule for every name: rung 1 is today's price, and rungs 2 to 4 sit at the dips that an asset with this volatility reaches in about 75%, 50% and 30% of six-month periods. A stop sits one step lower, at the dip reached in about 15% of six-month periods. The tables then show how often the asset's own history actually got there.</p>
+<p class="lead">Each chart shows two years of price on a log scale with three buy tranches and the prices that would be 2× and 3× today's. The tranches follow one rule for every name: buy 1 is today's price, and buys 2 and 3 sit at the dips that an asset with this volatility reaches in about two in three and one in three six-month periods. A stop sits one step lower, at the dip reached in about 15% of six-month periods. The tables then show how often the asset's own history actually got there.</p>
 <div id="namecards"></div>
 </section>
 
 <section id="levels">
 <h2>Plan levels for all ten</h2>
-<p class="lead">The same two plans for every name, so any three can be read straight off. Plan A is spot: four equal buys, a stop one step under the last rung, and take-profits at 1.5×, 2× and 3× today's price. Plan B is one isolated long at today's price with the stop at the 50% dip, kept 5 points above liquidation.</p>
-<div class="card"><h3>Plan A · Spot ladder</h3><div class="tw"><table id="t-lvA"></table></div><p class="note">Loss at the stop is on that name's money if all four rungs filled first.</p></div>
+<p class="lead">The same two plans for every name, so any of them can be read straight off. Plan A is spot: three equal buys, a stop one step under the last one, and take-profits at 1.5×, 2× and 3× today's price. Plan B is one isolated long at today's price with the stop at the 50% dip, kept 5 points above liquidation.</p>
+<div class="card"><h3>Plan A · Spot ladder</h3><div class="tw"><table id="t-lvA"></table></div><p class="note">Loss at the stop is on that name's money if all three buys filled first.</p></div>
 <div class="card"><h3>Plan B · Isolated futures</h3><div class="tw"><table id="t-lvB"></table></div><p class="note">Loss is on the margin posted for that name. The last two columns count past 12-month windows in similar markets where the stop was touched before price doubled; Sui, Arbitrum and Broadcom rest on a single stretch each.</p></div>
 <div class="card"><h3>If price rises first: where the next tranche could go</h3>
-<p class="cap">The next landmarks above today's price. If price climbs through one before reaching the next buy rung, the money held for the lowest unfilled rung can go in there instead.</p>
+<p class="cap">The next landmarks above today's price. If price climbs through one before reaching the next buy level, the money held for the lowest unfilled buy can go in there instead.</p>
 <div class="tw"><table id="t-lvU"></table></div>
 <p class="note">The two averages move a little every day, so re-read them on the day; the highs are fixed prices. Levels closer than 3% to today's price or to each other are merged.</p>
 <h4>Did adding on strength pay in the past?</h4>
@@ -194,12 +194,12 @@ details.name .body{padding:0 0 16px}
 
 <section id="builder">
 <h2>Plan builder: spot and isolated, side by side</h2>
-<p class="lead">Pick three and set the money once. Plan A is a spot ladder with a stop under the last rung. Plan B puts the same money on isolated futures, shown at 2× and at 3×: one entry at today's price, a stop-loss above the liquidation price, and the same take-profit levels. The page starts on the first three names in the list only so it is not empty; that is not a suggestion.</p>
+<p class="lead">Pick up to four names and set the money once; the split boxes are used in the order you pick. Plan A is a spot ladder with a stop under the last rung. Plan B puts the same money on isolated futures, shown at 2× and at 3×: one entry at today's price, a stop-loss above the liquidation price, and the same take-profit levels. The page starts on the first three names in the list only so it is not empty; that is not a suggestion.</p>
 <div class="card">
   <div class="pick" id="b-pick"></div>
   <div class="ctl">
     <label>Total to invest ($)<input id="b-total" type="number" min="100" step="100" value="10000"></label>
-    <label>Split across the three (%)<span style="display:flex;gap:6px"><input class="sm" id="b-w0" type="number" min="0" max="100" value="34"><input class="sm" id="b-w1" type="number" min="0" max="100" value="33"><input class="sm" id="b-w2" type="number" min="0" max="100" value="33"></span></label>
+    <label>Split across the names (%)<span style="display:flex;gap:6px"><input class="sm" id="b-w0" type="number" min="0" max="100" value="25"><input class="sm" id="b-w1" type="number" min="0" max="100" value="25"><input class="sm" id="b-w2" type="number" min="0" max="100" value="25"><input class="sm" id="b-w3" type="number" min="0" max="100" value="25"></span></label>
     <label>Take profit: a third at<select id="b-s0"></select></label>
     <label>then a third at<select id="b-s1"></select></label>
     <label>then the rest at<select id="b-s2"></select></label>
@@ -208,10 +208,10 @@ details.name .body{padding:0 0 16px}
 </div>
 <div class="card">
   <h3>Plan A · Spot ladder</h3>
-  <p class="cap">No leverage, no liquidation, no funding. Buys more as price falls; the stop ends the plan if price goes one step below the last rung.</p>
+  <p class="cap">No leverage, no liquidation, no funding. Buys more as price falls; the stop ends the plan if price goes one step below the last buy.</p>
   <div class="ctl">
-    <label>Money per rung<select id="b-rw"><option value="25,25,25,25">Equal: 25 / 25 / 25 / 25</option><option value="15,20,30,35">Heavier lower: 15 / 20 / 30 / 35</option><option value="50,20,15,15">Half now: 50 / 20 / 15 / 15</option><option value="100,0,0,0">All now, no ladder</option></select></label>
-    <label>Stop-loss<select id="b-ss"><option value="15">Under rung 4, at the 15% dip</option><option value="none">No stop, hold through</option></select></label>
+    <label>Money per tranche<select id="b-rw"><option value="33.34,33.33,33.33">Equal thirds: 33 / 33 / 33</option><option value="20,30,50">Heavier lower: 20 / 30 / 50</option><option value="50,25,25">Half now: 50 / 25 / 25</option><option value="100,0,0">All now, no ladder</option></select></label>
+    <label>Stop-loss<select id="b-ss"><option value="15">Under the last buy, at the 15% dip</option><option value="none">No stop, hold through</option></select></label>
     <label>If price rises first<select id="b-au"><option value="off">Wait for the dips only</option><option value="on">Add at each level up</option></select></label>
   </div>
   <div id="b-sheets"></div>
@@ -243,7 +243,7 @@ details.name .body{padding:0 0 16px}
 <p class="lead">An isolated long is closed by the exchange when price falls by roughly one divided by the leverage. The table counts how often each name fell that far within six months of a random day.</p>
 <div class="card"><div class="tw"><table id="t-lev"></table></div>
 <ul class="facts small">
-  <li>A buy ladder and leverage pull against each other. At 3× the position is liquidated near −31%, which is above rung 3 for every coin here, so the lower rungs would never be reached with the first position still alive.</li>
+  <li>A buy ladder and leverage pull against each other. At 3× the position is liquidated near −31%, which is above the last buy for every coin here, so that tranche would never be reached with the first position still alive.</li>
   <li>Perpetual futures also pay or receive funding every eight hours, and a 6 to 12 month hold pays it roughly a thousand times. Spot has no funding and cannot be liquidated.</li>
   <li>Liquidation distance uses a 2% maintenance margin; the exact figure varies by exchange and position size.</li>
 </ul></div>
@@ -254,9 +254,9 @@ details.name .body{padding:0 0 16px}
 <div class="card">
 <ul class="facts">
   <li><b>Prices.</b> Coins: Binance spot daily candles, from each listing. Stocks: Yahoo Finance daily, ten years (SanDisk only since its February 2025 listing). Everything is as of the last completed daily close.</li>
-  <li><b>Buy rungs.</b> For a price with no trend and annual volatility σ, the chance of touching a dip of depth d within six months is 2·Φ(ln(1−d) / (σ·√0.5)). Rungs 2 to 4 solve that for 75%, 50% and 30%, using the last year's daily volatility. The "history" columns are plain counts over every six-month window in the asset's own record.</li>
+  <li><b>Buy tranches.</b> For a price with no trend and annual volatility σ, the chance of touching a dip of depth d within six months is 2·Φ(ln(1−d) / (σ·√0.5)). Buys 2 and 3 solve that for two in three (67%) and one in three (33%), using the last year's daily volatility. The "history" columns are plain counts over every six-month window in the asset's own record.</li>
   <li><b>Upside odds.</b> "Touched" means the daily high reached the level at any point inside the next 12 months. "Still there" means the close 12 months later was at or above it. The gap between the two is the case for resting sell orders.</li>
-  <li><b>Stops.</b> The spot stop is the dip reached in about 15% of six-month periods by the same volatility formula, one step under rung 4. The isolated stop follows the rule you choose and is never closer than 5 points to liquidation. "Stop first / 2× first / neither" counts, for every day in the record, which of the two prices was touched first in the following 12 months; a day on which both were touched counts as the stop.</li>
+  <li><b>Stops.</b> The spot stop is the dip reached in about 15% of six-month periods by the same volatility formula, one step under the last buy. The isolated stop follows the rule you choose and is never closer than 5 points to liquidation. "Stop first / 2× first / neither" counts, for every day in the record, which of the two prices was touched first in the following 12 months; a day on which both were touched counts as the stop.</li>
   <li><b>Isolated futures.</b> Liquidation distance is 1 ÷ leverage minus a 2% maintenance margin (about −48% at 2×, −31% at 3×); your exchange's figure depends on the contract and position size. Funding is taken on the entry value of whatever is still open.</li>
   <li><b>Adding on strength.</b> A reclaim is the first close above the average after at least 20 trading days below it (50-day) or 30 (200-day); a new 90-day high counts when there was none in the 60 days before. Results are pooled across the group and measured from that day's close.</li>
   <li><b>Small samples.</b> The coin history covers about six years, which holds two bear markets. Days inside one bear market are not independent, so a figure built on 800 days may rest on two or three real episodes. Sui and Arbitrum have 3.5 years. SanDisk has under two, all of it one boom, so its history columns are left blank.</li>
@@ -376,7 +376,7 @@ let rz;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>
 
 /* ── header ── */
 const btc=A.BTC, coins=PICKS.filter(k=>!A[k].stock), stocks=PICKS.filter(k=>A[k].stock);
-$('#asof').textContent=`Prices at the close of ${dt(btc.asof)} · $10,000 · a 6 to 12 month plan · ten names, three to choose`;
+$('#asof').textContent=`Prices at the close of ${dt(btc.asof)} · $10,000 · a 6 to 12 month plan · ten names, up to four to hold · three buy tranches each`;
 const rng=(arr)=>{const v=arr.filter(x=>x!=null);return [Math.min(...v),Math.max(...v)]};
 const cyc=D.cycle, cur=cyc[2], dayNow=cur.days, ddNow=cur.series[cur.series.length-1][1];
 const fg=D.fng, st=fg.stats;
@@ -391,7 +391,7 @@ const fg=D.fng, st=fg.stats;
    `<b>This is day ${dayNow} since the top.</b> The last two cycles made their lows on days ${cyc[0].bottom_day} and ${cyc[1].bottom_day}, at ${pc(cyc[0].bottom_dd)} and ${pc(cyc[1].bottom_dd)}. This cycle's low so far came on day ${cur.bottom_day} at ${pc(cur.bottom_dd)}. By the calendar a low is due or already in; by depth this fall is far shallower than the last two. Two past cycles is a very small sample either way.`,
    `<b>Fear &amp; Greed reads ${fg.today} today (extreme fear).</b> On its own that has not been a buy signal. Twelve months after extreme-fear days Bitcoin's median result was ${pc(st.med_low)} and it was higher ${Math.round(st.up_low*100)}% of the time, which is the same as any other day (${pc(st.med_all)}, ${Math.round(st.up_all*100)}%).`,
    `<b>Buying these coins while Bitcoin was under its 200-day average, then holding 12 months, usually lost money:</b> median ${med}. A double was touched in ${Math.round(t2[0]*100)}–${Math.round(t2[1]*100)}% of those windows but was still there at month 12 in only ${Math.round(e2[0]*100)}–${Math.round(e2[1]*100)}%. Resting sell orders are what turned a touch into money.`,
-   `<b>A target of +100% to +200% on the whole $10,000 needs all three picks to roughly double or triple from their average cost.</b> Nothing in this data supports "easily 200–500%". The volatility that gives a coin a real chance of doubling gives it the same chance of halving.`,
+   `<b>A target of +100% to +200% on the whole $10,000 needs every pick to roughly double or triple from its average cost.</b> Nothing in this data supports "easily 200–500%". The volatility that gives a coin a real chance of doubling gives it the same chance of halving.`,
    `<b>Isolated futures do not fit a dip-buying ladder.</b> A 3× long on any of the seven coins was liquidated within six months in ${Math.round(l3[0]*100)}–${Math.round(l3[1]*100)}% of past bear-market windows, and a 2× long in ${Math.round(l2[0]*100)}–${Math.round(l2[1]*100)}%.`,
    `<b>The three stocks are inside an AI sell-off:</b> Nvidia ${pc(A.NVDA.dd_ath)}, Broadcom ${pc(A.AVGO.dd_ath)} and SanDisk ${pc(A.SNDK.dd_ath)} from their highs, with Nvidia's results due on 17 Nov. They barely move with the coins (correlation 0.1 to 0.3), which is the one real source of diversification on this list.`];
   $('#readlist').innerHTML=items.map(x=>`<li>${x}</li>`).join('');
@@ -476,7 +476,7 @@ const fg=D.fng, st=fg.stats;
     const a=A[k],n=NOTES[k],t=thin(a),x=a.fund||{};
     const d=document.createElement('details');d.className='name';d.id='n-'+k;if(idx===0||PRINT)d.open=true;
     const reg=a.stock?'25%+ under its high':'BTC under its 200-day';
-    let rung='<tr><th>Buy rung</th><th>Price</th><th>Dip from today</th><th>Reached within 6 months: by volatility</th><th>In its own history</th><th>History, '+reg+'</th></tr>';
+    let rung='<tr><th>Buy</th><th>Price</th><th>Dip from today</th><th>Reached within 6 months: by volatility</th><th>In its own history</th><th>History, '+reg+'</th></tr>';
     a.rungs.forEach((r,i)=>{rung+=`<tr><td>${i+1}</td><td>${px(r.price)}</td><td>${i?pc(-r.depth):'today'}</td><td>${i?fr(r.p):'now'}</td><td>${i?(t?'<span class="mu">too new</span>':fr(r.emp_all)):'now'}</td><td>${i?(t?'<span class="mu">too new</span>':fr(r.emp_reg)):'now'}</td></tr>`});
     rung+=`<tr><td>Stop</td><td>${px(a.stop15.price)}</td><td>${pc(-a.stop15.depth)}</td><td>15%</td><td>${t?'<span class="mu">too new</span>':fr(a.stop15.emp_all)}</td><td>${t?'<span class="mu">too new</span>':fr(a.stop15.emp_reg)}</td></tr>`;
     let sell='<tr><th>Level</th><th>Price</th><th>From today</th><th>Touched within 12 months: by volatility</th><th>In its own history</th><th>History, '+reg+'</th><th>Still there at month 12 (same)</th></tr>';
@@ -498,7 +498,7 @@ const fg=D.fng, st=fg.stats;
       <div class="chart" id="pc-${k}"></div>
       <p class="cap" style="margin-top:10px">RSI (14 days). Under 30 is the usual oversold line, over 70 overbought.</p>
       <div class="chart" id="rc-${k}"></div>
-      <h4>Where the buy rungs sit</h4>
+      <h4>Where the buy tranches sit</h4>
       <div class="tw"><table>${rung}</table></div>
       <h4>What the upside levels would take</h4>
       <div class="tw"><table>${sell}</table></div>
@@ -513,7 +513,7 @@ const fg=D.fng, st=fg.stats;
       const hi2=Math.max(...s.c.filter(v=>v!=null));
       hl.push({y:a.px*2,label:`2× · ${px(a.px*2)}`,short:`2× ${px(a.px*2)}`,color:'var(--s2)',dash:true});
       if(a.px*3<=hi2*1.15)hl.push({y:a.px*3,label:`3× · ${px(a.px*3)}`,short:`3× ${px(a.px*3)}`,color:'var(--s2)',dash:true});
-      chart($('#pc-'+k),{x:s.t,series:[{name:'Price',color:'var(--s1)',y:s.c},{name:'50-day average',color:'var(--ma50)',w:1.5,y:s.s50},{name:'200-day average',color:'var(--ma200)',w:1.5,y:s.s200}],log:true,h:360,right:158,rightNarrow:78,hlines:hl,yfmt:px,legendExtra:[['Buy rungs','var(--s3)'],['Spot stop','var(--ink2)'],['2× and 3× today','var(--s2)']],aria:k+' price with buy rungs'});
+      chart($('#pc-'+k),{x:s.t,series:[{name:'Price',color:'var(--s1)',y:s.c},{name:'50-day average',color:'var(--ma50)',w:1.5,y:s.s50},{name:'200-day average',color:'var(--ma200)',w:1.5,y:s.s200}],log:true,h:360,right:158,rightNarrow:78,hlines:hl,yfmt:px,legendExtra:[['Buy tranches','var(--s3)'],['Spot stop','var(--ink2)'],['2× and 3× today','var(--s2)']],aria:k+' price with buy rungs'});
       chart($('#rc-'+k),{x:s.t,series:[{name:'RSI',color:'var(--s1)',w:1.5,y:s.rsi,fmt:v=>v.toFixed(0)}],h:120,ymin:0,ymax:100,yticks:[0,30,70,100],right:158,rightNarrow:78,hlines:[{y:30,label:'30 oversold',short:'30',color:'var(--axis)'},{y:70,label:'70 overbought',short:'70',color:'var(--axis)'}],aria:k+' RSI'});
     };
     d.addEventListener('toggle',render);render();
@@ -565,7 +565,7 @@ const fg=D.fng, st=fg.stats;
 /* ── plan levels for all ten ── */
 (function(){
   const nm=k=>`<td><span class="tk">${k}</span> <span class="mu">${A[k].name}</span></td>`;
-  let h='<tr><th>Name</th><th>Buy 1</th><th>Buy 2</th><th>Buy 3</th><th>Buy 4</th><th>Average cost if all fill</th><th>Stop</th><th>Loss at the stop</th><th>Take profit 1</th><th>Take profit 2</th><th>Take profit 3</th></tr>';
+  let h='<tr><th>Name</th>'+A[PICKS[0]].rungs.map((_,i)=>`<th>Buy ${i+1}</th>`).join('')+'<th>Average cost if all fill</th><th>Stop</th><th>Loss at the stop</th><th>Take profit 1</th><th>Take profit 2</th><th>Take profit 3</th></tr>';
   PICKS.forEach(k=>{const a=A[k],r=a.rungs,avg=r.length/r.reduce((s,x)=>s+1/x.price,0);
     h+='<tr>'+nm(k)+r.map(x=>`<td>${px(x.price)}</td>`).join('')+`<td>${px(avg)}</td><td>${px(a.stop15.price)}</td><td>${pcs(a.stop15.price/avg-1)}</td><td>${px(a.px*1.5)}</td><td>${px(a.px*2)}</td><td>${px(a.px*3)}</td></tr>`});
   $('#t-lvA').innerHTML=h;
@@ -583,7 +583,7 @@ const fg=D.fng, st=fg.stats;
 })();
 
 /* ── builder ── */
-const B={picks:(QS.get("picks")||"").split(",").filter(k=>PICKS.includes(k)).slice(0,3),run:0};
+const B={picks:(QS.get("picks")||"").split(",").filter(k=>PICKS.includes(k)).slice(0,4),run:0};
 if(!B.picks.length)B.picks=PICKS.slice(0,3);
 const MULTS=[[1.25,'0.25'],[1.5,'0.50'],[2,'1.00'],[3,'2.00'],[5,'4.00']];
 ['#b-s0','#b-s1','#b-s2'].forEach((id,i)=>{$(id).innerHTML=MULTS.map(([m_],j)=>`<option value="${j}" ${j===i+1?'selected':''}>${m_}× today</option>`).join('')});
@@ -593,11 +593,11 @@ function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a
 function chol(M){const n=M.length,L=M.map(r=>r.map(()=>0));for(let i=0;i<n;i++)for(let j=0;j<=i;j++){let s=M[i][j];for(let k=0;k<j;k++)s-=L[i][k]*L[j][k];L[i][j]=i===j?Math.sqrt(Math.max(s,1e-9)):s/L[j][j]}return L}
 function cholFor(as){const cr=D.corr,ix=t=>cr.order.indexOf(t);return chol(as.map(a=>as.map(b=>cr.m[ix(a.tk)][ix(b.tk)])))}
 /* isolated stop: the chosen rule, never closer than 5 points to the liquidation price */
-function isoStop(a,L,rule){const dist=a.liq[String(L)].dist,cap=dist-.05;let sd=rule==='none'?null:rule==='r3'?a.rungs[2].depth:rule==='r2'?a.rungs[1].depth:+rule;const capped=sd!=null&&sd>cap;if(capped)sd=cap;return{dist,sd,capped}}
+function isoStop(a,L,rule){const dist=a.liq[String(L)].dist,cap=dist-.05;let sd=rule==='none'?null:rule==='r3'?a.dip50:rule==='r2'?a.dip75:+rule;const capped=sd!=null&&sd>cap;if(capped)sd=cap;return{dist,sd,capped}}
 /* history in similar markets: [target first, stop first, neither, mean end of neither] for a stop depth */
 function ftRow(a,key,depth){if(!a.ft||thin(a))return null;const t=a.ft.t[key];if(!t||!t.reg)return null;const i=Math.max(0,Math.min(a.ft.stops.length-1,Math.round(depth*100)-a.ft.stops[0]));return t.reg[i]}
 function plan(){
-  const total=Math.max(0,+$('#b-total').value||0),w=[0,1,2].map(i=>Math.max(0,+$('#b-w'+i).value||0)),ws=w.reduce((a,b)=>a+b,0)||1;
+  const total=Math.max(0,+$('#b-total').value||0),w=[0,1,2,3].map(i=>Math.max(0,+$('#b-w'+i).value||0)),ws=w.slice(0,B.picks.length).reduce((a,b)=>a+b,0)||1;
   const rw=$('#b-rw').value.split(',').map(Number),sm=[0,1,2].map(i=>MULTS[+$('#b-s'+i).value]).sort((a,b)=>a[0]-b[0]),fr_=[1/3,1/2,1],ss=$('#b-ss').value;
   return {total,addup:$('#b-au').value==='on',rule:$('#b-is').value,f8:Math.max(0,+$('#b-fund').value||0)/100,assets:B.picks.map((k,i)=>{const a=A[k],alloc=total*w[i]/ws;
     return {tk:k,a,px:a.px,alloc,sd:a.vol_y/Math.sqrt(365),rungs:a.rungs.map((r,j)=>({price:r.price,depth:r.depth,usd:alloc*rw[j]/100,lg:Math.log(1-r.depth),r})).filter(r=>r.usd>0),
@@ -640,8 +640,8 @@ function simulateIso(P,M,N,Lv){
   return summarize(res,N,{dep:1,stp:stp/N/k});
 }
 function renderBuilder(){
-  $('#b-pick').innerHTML=PICKS.map(k=>`<button type="button" data-k="${k}" aria-pressed="${B.picks.includes(k)}" ${(!B.picks.includes(k)&&B.picks.length>=3)?'disabled':''}>${k}</button>`).join('')+`<span class="small" style="align-self:center">${B.picks.length}/3 chosen${B.picks.length<3?' · choose '+(3-B.picks.length)+' more':''}</span>`;
-  $('#b-pick').querySelectorAll('button').forEach(b=>b.onclick=()=>{const k=b.dataset.k;if(B.picks.includes(k))B.picks=B.picks.filter(x=>x!==k);else if(B.picks.length<3)B.picks.push(k);renderBuilder()});
+  $('#b-pick').innerHTML=PICKS.map(k=>`<button type="button" data-k="${k}" aria-pressed="${B.picks.includes(k)}" ${(!B.picks.includes(k)&&B.picks.length>=4)?'disabled':''}>${k}</button>`).join('')+`<span class="small" style="align-self:center">${B.picks.length} chosen · up to 4</span>`;
+  $('#b-pick').querySelectorAll('button').forEach(b=>b.onclick=()=>{const k=b.dataset.k;if(B.picks.includes(k))B.picks=B.picks.filter(x=>x!==k);else if(B.picks.length<4)B.picks.push(k);renderBuilder()});
   const P=plan(),run=++B.run;
   if(!P.assets.length||!P.total){$('#b-sheets').innerHTML='<p class="note">Choose at least one name and an amount.</p>';$('#b-iso').innerHTML='';$('#b-sim').innerHTML='';$('#b-simnote').textContent='';return}
   /* ── Plan A sheets ── */
@@ -655,14 +655,14 @@ function renderBuilder(){
       tb+=`<tr><td class="l">Take profit ${i+1} (${i<2?'a third':'the rest'})</td><td>${px(p_)}</td><td>${pc(s.mult-1)}</td><td>${usd(u*p_)}</td><td>${un(u)}</td><td>${pcs(p_/avg-1)} on the full ladder's cost</td><td>${t?'<span class="mu">too new</span> (by volatility '+fr(up.model)+')':fr(up.reg)+' touched within 12 months'}</td></tr>`});
     const lowest=x.rungs[x.rungs.length-1].price;let wv;
     if(x.stop){const sv=cu*x.stop.price;wv=sv+(x.alloc-cd);
-      tb+=`<tr><td class="l">Stop-loss (sell everything)</td><td>${px(x.stop.price)}</td><td>${pc(-x.stop.depth)}</td><td>${usd(sv)}</td><td>${un(cu)}</td><td><span class="dn">${usds(sv-cd)}</span> (${pc(sv/cd-1)}) if every rung filled first</td><td>${t?'<span class="mu">too new</span> (by volatility 15%)':fr(x.stop.s.emp_reg)+' within 6 months'}</td></tr>`}
+      tb+=`<tr><td class="l">Stop-loss (sell everything)</td><td>${px(x.stop.price)}</td><td>${pc(-x.stop.depth)}</td><td>${usd(sv)}</td><td>${un(cu)}</td><td><span class="dn">${usds(sv-cd)}</span> (${pc(sv/cd-1)}) if every buy filled first</td><td>${t?'<span class="mu">too new</span> (by volatility 15%)':fr(x.stop.s.emp_reg)+' within 6 months'}</td></tr>`}
     else wv=cu*lowest+(x.alloc-cd);
     best+=cash+(x.alloc-cd);first+=cash1+(x.alloc-r1.usd);worst+=wv;
-    h+=`<h4>${x.tk} · ${a.name} · ${usd(x.alloc)}</h4><div class="tw"><table>${tb}</table></div><p class="small">All rungs filled: ${usd(cd)} buys ${un(cu)} units at an average ${px(avg)}; all three take-profits then return ${usd(cash)} (${pc(cash/cd-1)}). If price never dips and only rung 1 fills, ${usd(r1.usd)} returns ${usd(cash1)} and ${usd(x.alloc-r1.usd)} stays in cash.</p>`});
+    h+=`<h4>${x.tk} · ${a.name} · ${usd(x.alloc)}</h4><div class="tw"><table>${tb}</table></div><p class="small">All buys filled: ${usd(cd)} buys ${un(cu)} units at an average ${px(avg)}; all three take-profits then return ${usd(cash)} (${pc(cash/cd-1)}). If price never dips and only buy 1 fills, ${usd(r1.usd)} returns ${usd(cash1)} and ${usd(x.alloc-r1.usd)} stays in cash.</p>`});
   h+=`<div class="sum">
-    <div class="tile"><b>${usd(best)}</b><span>every rung fills, then every take-profit hits: ${pc(best/P.total-1)} on the account</span></div>
-    <div class="tile"><b>${usd(first)}</b><span>no dips, only the first rungs fill, every take-profit hits: ${pc(first/P.total-1)}</span></div>
-    <div class="tile"><b>${usd(worst)}</b><span>${P.assets[0].stop?'every rung fills, then all three stops hit':'every rung fills and price sits at the lowest rung'}: ${pc(worst/P.total-1)}</span></div></div>`;
+    <div class="tile"><b>${usd(best)}</b><span>every buy fills, then every take-profit hits: ${pc(best/P.total-1)} on the account</span></div>
+    <div class="tile"><b>${usd(first)}</b><span>no dips, only the first buys fill, every take-profit hits: ${pc(first/P.total-1)}</span></div>
+    <div class="tile"><b>${usd(worst)}</b><span>${P.assets[0].stop?'every buy fills, then every stop hits':'every buy fills and price sits at the lowest buy'}: ${pc(worst/P.total-1)}</span></div></div>`;
   $('#b-sheets').innerHTML=h;
   /* ── Plan B sheets ── */
   let g='';const tot={2:{w:0,b:0},3:{w:0,b:0}};
@@ -683,7 +683,7 @@ function renderBuilder(){
     tb+=row('Funding per 30 days held',v=>`<span class="dn">${usds(-v.fund)}</span>`);
     tb+=row('History, similar markets, next 12 months',v=>v.f?`stop first ${fr(v.f[1])} · 2× first ${fr(v.f[0])} · neither ${fr(v.f[2])}`:'<span class="mu">too new</span>');
     g+=`<h4>${x.tk} · ${a.name} · ${usd(x.alloc)} margin</h4><div class="tw"><table>${tb}</table></div>`});
-  g+=`<div class="sum">`+[2,3].map(Lv=>`<div class="tile"><b>${usd(P.total+tot[Lv].w)}</b><span>${Lv}×: all three stopped out, ${pc(tot[Lv].w/P.total)} on the account</span></div><div class="tile"><b>${usd(P.total+tot[Lv].b)}</b><span>${Lv}×: every take-profit hits on all three, ${pc(tot[Lv].b/P.total)}</span></div>`).join('')+`</div>`;
+  g+=`<div class="sum">`+[2,3].map(Lv=>`<div class="tile"><b>${usd(P.total+tot[Lv].w)}</b><span>${Lv}×: every name stopped out, ${pc(tot[Lv].w/P.total)} on the account</span></div><div class="tile"><b>${usd(P.total+tot[Lv].b)}</b><span>${Lv}×: every take-profit hits on every name, ${pc(tot[Lv].b/P.total)}</span></div>`).join('')+`</div>`;
   $('#b-iso').innerHTML=g;
   /* ── simulation, the three plans on the same random paths ── */
   $('#b-sim').innerHTML='<tr><td class="mu l">calculating…</td></tr>';
@@ -693,13 +693,13 @@ function renderBuilder(){
   let out=head,gi=0;
   const step=()=>{if(run!==B.run)return;if(gi>=groups.length){$('#b-sim').innerHTML=out;
       const cr=D.corr,ix=t=>cr.order.indexOf(t),pr=[];for(let i=0;i<B.picks.length;i++)for(let j=i+1;j<B.picks.length;j++)pr.push(`${B.picks[i]}–${B.picks[j]} ${cr.m[ix(B.picks[i])][ix(B.picks[j])].toFixed(2)}`);
-      $('#b-simnote').textContent=`Outcomes are on the whole ${usd(P.total)}, cash included, after 12 months. All three plans are run on the same 2,000 price paths. "Median price" is the assumed middle path for each of the three names. Correlations used: ${pr.join(', ')||'n/a'}. Volatility: ${P.assets.map(x=>x.tk+' '+Math.round(x.a.vol_y*100)+'%').join(', ')}. Isolated rows include funding at ${(P.f8*100).toFixed(3)}% per 8 hours.`;return}
+      $('#b-simnote').textContent=`Outcomes are on the whole ${usd(P.total)}, cash included, after 12 months. All three plans are run on the same 2,000 price paths. "Median price" is the assumed middle path for each name. Correlations used: ${pr.join(', ')||'n/a'}. Volatility: ${P.assets.map(x=>x.tk+' '+Math.round(x.a.vol_y*100)+'%').join(', ')}. Isolated rows include funding at ${(P.f8*100).toFixed(3)}% per 8 hours.`;return}
     const [nm,fn]=groups[gi++];out+=`<tr><td class="l" colspan="10" style="background:var(--wash)"><b>${nm}</b></td></tr>`;
     sc.forEach(([n2,sub,M])=>{const r=fn(M);out+=`<tr><td class="l">${n2}<br><span class="mu">${sub}</span></td><td>${pcs(r.med)}</td><td>${pcs(r.p10)}</td><td>${pcs(r.p90)}</td><td>${fr(r.x2)}</td><td>${fr(r.x15)}</td><td>${fr(r.loss)}</td><td>${fr(r.bad)}</td><td>${fr(r.stp)}</td><td>${fr(r.dep)}</td></tr>`});
     setTimeout(step,10)};
   setTimeout(step,30);
 }
-['#b-total','#b-w0','#b-w1','#b-w2','#b-rw','#b-ss','#b-au','#b-is','#b-fund','#b-s0','#b-s1','#b-s2'].forEach(id=>$(id).addEventListener('change',renderBuilder));
+['#b-total','#b-w0','#b-w1','#b-w2','#b-w3','#b-rw','#b-ss','#b-au','#b-is','#b-fund','#b-s0','#b-s1','#b-s2'].forEach(id=>$(id).addEventListener('change',renderBuilder));
 renderBuilder();
 /* ?only=section[&card=TICKER] shows one part alone, for checking the layout */
 if(QS.get('only')){document.querySelectorAll('main>*').forEach(s=>{if(s.id!==QS.get('only'))s.style.display='none'});const c=QS.get('card');if(c)document.querySelectorAll('details.name').forEach(d=>{if(d.id!=='n-'+c)d.style.display='none'})}

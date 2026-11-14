@@ -396,3 +396,21 @@ strong buy hold as per our plans".
     shows the rebuilt copy when there is one, else the repo snapshot. The PDF and the published artifact are not
     rebuilt by the server.
   - Guard: `.longterm_test.py` (50).
+- **Three tranches, up to four names, charts and triggers (2026-11-14, user: "we are buying in 3 trenches not 4" ·
+  "can hold upto 4 instead of 3" · "show when its the time to buy the dip on the charts next buy zone … if the price
+  hold above when to buy on that level as well … do the calculations and show the returns and when to sell").**
+  - The plan now has THREE buys per name: today, then the dips reached in about two in three and one in three
+    six-month periods (`longterm_build.RUNG_P = [2/3, 1/3]`); the stop stays at the 15% dip. `plan.json` was re-frozen
+    from the same 13 Nov close. Presets: equal thirds / 20-30-50 / 50-25-25. STRONG BUY = at or under the LAST buy.
+  - "My portfolio" holds up to four names (`longterm.MAX_PICKS`), each with: a Plotly chart (buy zones shaded, stop,
+    three sell levels, the live "add above" levels), plain next steps (next buy zone, the trigger if price rises, when
+    to sell, the stop), and a returns table (each sell level and the stop, with what is held now and if every buy
+    fills first), plus what the whole portfolio would be worth in three cases.
+  - "Holds above" trigger (`longterm.addup_events`): two daily closes in a row over the 50-day or 200-day average
+    after a close at or under it, or a first close over the highest close of the last 90 days. With the page's switch
+    on (default), a trigger buys the lowest unfilled tranche at that close; the board shows ADD: HELD ABOVE on that
+    day. Stocks count trading days: the US seed history, then tokenized weekday candles. The page states the evidence:
+    for the coins this did not beat buying on an ordinary day.
+  - The workbook follows: three tranches everywhere, builder for up to four names, isolated stops now use explicit
+    `dip50` / `dip75` fields. `longterm_build.BUILD_VER = 2` makes the server rebuild at once and the page ignore
+    an older-shaped copy. Guard: `.longterm_test.py` (70).

@@ -68,7 +68,7 @@ for tk in PICKS:
     a = out["assets"][tk]
     for L in (2, 3):
         dist = a["liq"][str(L)]["dist"]
-        sd = min(a["rungs"][2]["depth"], dist - 0.05)
+        sd = min(a["dip50"], dist - 0.05)
         k = int(round(sd * 100)) - 5
         t = a["ft"]["t"]["1.00"] if a.get("ft") else None
         fa = t["all"][k] if t and t["all"] else None
