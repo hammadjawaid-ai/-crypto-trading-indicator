@@ -9,6 +9,7 @@ The logic is in longterm.py; the plan levels are frozen in longterm_data/plan.js
 from __future__ import annotations
 
 import html
+import os
 import time
 from datetime import datetime, timezone
 
@@ -37,9 +38,23 @@ def _daily(sym: str, limit: int) -> list:
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def _workbook_html() -> str:
-    with open(lt.WORKBOOK_HTML, encoding="utf-8") as f:
+def _read_text(path: str, mtime: float) -> str:
+    """File text, cached per (path, modified time) so a fresh rebuild shows on the next load."""
+    with open(path, encoding="utf-8") as f:
         return f.read()
+
+
+def _workbook() -> tuple:
+    """(html, status): the daily rebuild from the state disk when there is one, else the repo's snapshot."""
+    stt = {}
+    try:
+        import longterm_build as lb
+        p, stt = lb.live_workbook(), lb.read_status()
+        if os.path.exists(p) and stt.get("last_ok"):
+            return _read_text(p, os.path.getmtime(p)), stt
+    except Exception:
+        stt = {}
+    return _read_text(lt.WORKBOOK_HTML, os.path.getmtime(lt.WORKBOOK_HTML)), {k: v for k, v in stt.items() if k == "error"}
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -232,18 +247,28 @@ def render(load_fear_greed=None) -> None:
 
     # ── the research behind it ──
     st.markdown("#### The research workbook")
-    st.caption(f"Charts, odds, fundamentals, the plan builder and the method, as a snapshot from {html.escape(plan.get('plan_date_label', ''))}. "
-               "Its levels match the board above.")
+    wb_html, wb_st = None, {}
+    try:
+        wb_html, wb_st = _workbook()
+    except Exception as exc:
+        st.warning(f"The workbook could not be loaded: {exc}")
+    pdl = html.escape(plan.get("plan_date_label", ""))
+    if wb_st.get("last_ok"):
+        st.caption("Charts, odds, fundamentals, the plan builder and the method. Rebuilt automatically every day after the 00:00 UTC close: "
+                   f"last rebuilt {datetime.fromtimestamp(float(wb_st['last_ok']), timezone.utc):%d %b %H:%M} UTC with prices to the close of "
+                   f"{html.escape(str(wb_st.get('asof_label') or ''))}. Its buy levels restart from that close, so they differ from the fixed plan above.")
+    else:
+        st.caption(f"Charts, odds, fundamentals, the plan builder and the method, as a snapshot from {pdl}; its levels match the board above. "
+                   "The automatic daily rebuild replaces it after its first run.")
+    if wb_st.get("error"):
+        st.caption(f"The latest rebuild attempt did not finish ({html.escape(str(wb_st['error'])[:140])}); the copy shown is the last good one.")
     b1, b2 = st.columns([1, 3])
     try:
-        b1.download_button("⬇ Download the PDF", _workbook_pdf(), file_name="Three-of-Ten-workbook.pdf", mime="application/pdf", key="lt_pdf")
+        b1.download_button(f"⬇ Download the PDF ({pdl} snapshot)", _workbook_pdf(), file_name="Three-of-Ten-workbook.pdf", mime="application/pdf", key="lt_pdf")
     except Exception:
         b1.caption("PDF not available")
-    if b2.toggle("Show the full workbook here", value=False, key="lt_show_wb"):
-        try:
-            components.html(_workbook_html(), height=1400, scrolling=True)
-        except Exception as exc:
-            st.warning(f"The workbook could not be loaded: {exc}")
+    if b2.toggle("Show the full workbook here", value=False, key="lt_show_wb") and wb_html:
+        components.html(wb_html, height=1400, scrolling=True)
 
     st.caption(f"Updated {datetime.now(timezone.utc):%H:%M:%S} UTC · reloads itself every {REFRESH_S // 60} minutes while this tab is open.")
     components.html(

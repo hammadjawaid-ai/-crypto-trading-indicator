@@ -56,3 +56,5 @@ research_meta/kl_channel/
 
 # 📈 Long Term Investment — the saved "my three" choice, machine-specific
 .longterm_portfolio.json
+# 📈 the daily-rebuilt workbook when run off the server (the server writes to STATE_DIR/longterm)
+longterm_data/_live/

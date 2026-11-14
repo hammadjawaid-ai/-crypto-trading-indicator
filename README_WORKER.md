@@ -382,3 +382,17 @@ strong buy hold as per our plans".
   `.pdf`, shown behind a toggle with a PDF download. It refreshes only when rebuilt and pushed.
 - Files: `longterm.py` (logic, no Streamlit), `longterm_page.py` (page). Guard: `.longterm_test.py` (36).
   Local preview without the scanner: `streamlit run research_meta/portfolio_1114/lt_preview.py`.
+- **Daily rebuild (2026-11-14, user: "yes add the daily automatic rebuild on the render").** The workbook's build is
+  now `longterm_build.py` (the same computation the local script used, moved verbatim: its output matched the old
+  data exactly). `agent_worker.cycle()` calls `longterm_build.maybe_rebuild()` every cycle; it returns at once and,
+  when today's copy is due, builds in its own thread into `<STATE_DIR>/longterm/workbook.html`.
+  - Due: once per UTC day, 20 minutes after the 00:00 close; never in the first 15 minutes after a start; a failed
+    try waits 2 hours. Status in `<STATE_DIR>/longterm/build.json`. `LONGTERM_REBUILD=0` in the environment turns it off.
+  - Every source is fail-soft: a feed that is down serves its last good copy; the stocks fall back to the committed
+    10-year seed (`longterm_data/seed/`) and, once that is more than four days old, are extended with the weekday
+    candles of their tokenized tickers. An incomplete build raises and the previous workbook stays.
+  - The rebuilt copy carries a banner: its buy levels restart from the latest close, while the tracked plan on the
+    page stays fixed; the news notes and quarterly figures are dated 14 Nov 2026 and are not refreshed. The page
+    shows the rebuilt copy when there is one, else the repo snapshot. The PDF and the published artifact are not
+    rebuilt by the server.
+  - Guard: `.longterm_test.py` (50).

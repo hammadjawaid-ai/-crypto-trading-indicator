@@ -105,6 +105,7 @@ details.name .body{padding:0 0 16px}
 <h1>Three of ten: a long-term plan workbook</h1>
 <p class="sub" id="asof"></p>
 <div class="notice"><b>This is research, not financial advice.</b> Nothing on this page says which names to buy, and it was not written by a licensed adviser. Every level comes from one rule applied the same way to all ten names, so they can be compared. The odds are frequencies from past prices: they describe what happened, not what will. Prices are a snapshot and do not update.</div>
+<div class="notice" id="banner" style="display:none"></div>
 <p class="printonly small">Interactive version, with hover charts and a plan builder for any three names: <a href="https://claude.ai/artifact/YGjK9rqCwghAf6XBjhpsyX">claude.ai/artifact/YGjK9rqCwghAf6XBjhpsyX</a>. The contents below are clickable.</p>
 <nav class="toc"><a href="#read">Short read</a><a href="#market">The market</a><a href="#compare">Ten compared</a><a href="#score">Scorecard</a><a href="#chips">Nvidia, Broadcom, Marvell</a><a href="#names">Each name</a><a href="#levels">Levels for all ten</a><a href="#builder">Plan builder</a><a href="#leverage">Leverage</a><a href="#method">Method and sources</a></nav>
 
@@ -286,6 +287,7 @@ const D = /*DATA*/null;
 const A = D.assets, PICKS = D.picks;
 const $ = s => document.querySelector(s);
 const QS = new URLSearchParams(location.search), PRINT = QS.has('print');   /* ?print opens every card so the page can be saved as a PDF */
+if (D.banner) { const b_ = $('#banner'); b_.innerHTML = D.banner; b_.style.display = 'block'; }   /* set only on the server's daily rebuild */
 if (QS.has('preview')) for (const sh of document.styleSheets) for (const r of [...sh.cssRules]) if (r.media && r.media.mediaText === 'print') for (const q of r.cssRules) if (q.selectorText) sh.insertRule(q.cssText, sh.cssRules.length);   /* ?preview shows the print layout on screen */
 
 /* ── research notes (hand-written from the sources listed at the bottom) ── */

@@ -2698,6 +2698,16 @@ def cycle() -> None:
                 print(f"🏦 tokenized split: {_tk_n} desk rows moved to tok:<tier> tiers", flush=True)
         except Exception as _tk_exc:
             print("tokenized split error:", _tk_exc, flush=True)
+    # 📈 2026-11-14 the long-term research workbook rebuilds itself once a day (user: "yes add the
+    # daily automatic rebuild on the render"). maybe_rebuild() returns at once: when today's copy is
+    # due (20 minutes after the 00:00 UTC close, never in the first 15 minutes after a start) it
+    # builds in its own thread and writes to <STATE_DIR>/longterm. It reads public price data only,
+    # touches no bell, tier, seat or plan level, and LONGTERM_REBUILD=0 switches it off.
+    try:
+        import longterm_build
+        longterm_build.maybe_rebuild()
+    except Exception as _lt_exc:
+        print("long-term rebuild hook error:", _lt_exc, flush=True)
     # ⚠️ 2026-11-13 the market read for the bells (user: "marked against the market"): BTC's
     # last COMPLETED daily close vs its 50-day average, refreshed every cycle. A LONG fire bell
     # sent while BTC sits below it carries one ⚠️ line (tg_cells.market_note). Never a mute.
