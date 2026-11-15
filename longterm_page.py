@@ -32,17 +32,45 @@ REFRESH_S = 300
 C_PRICE, C_BUY, C_STRONG, C_STOP, C_SELL, C_ADD = "#3987e5", "#1f9d55", "#0b6b2e", "#e66767", "#6da7ec", "#d4a017"
 
 
-@st.cache_data(ttl=REFRESH_S, show_spinner=False)
-def _daily(sym: str, limit: int) -> list:
-    """Daily bars as (ts, high, low, close), oldest first; the last one is still in progress. [] on failure."""
+@st.cache_data(ttl=3600, show_spinner=False)
+def _seed_bn(sym: str) -> list:
+    """A coin's perpetual history shipped with the code (only names whose spot listing is recent), as
+    (ts, high, low, close); [] when there is none."""
     try:
-        df = binance_client.get_klines(sym, "1d", limit=int(limit))
+        with open(os.path.join(lt.HERE, "longterm_data", "seed", f"bn_{sym}.json"), encoding="utf-8") as f:
+            return [(float(r[0]), float(r[2]), float(r[3]), float(r[4])) for r in json.load(f)]
     except Exception:
         return []
-    if df is None or len(df) == 0:
-        return []
-    return [(pd.Timestamp(i).timestamp(), float(h), float(l), float(c))
-            for i, h, l, c in zip(df.index, df["high"], df["low"], df["close"])]
+
+
+@st.cache_data(ttl=REFRESH_S, show_spinner=False)
+def _daily(sym: str, limit: int, deep: bool = False) -> list:
+    """Daily bars as (ts, high, low, close), oldest first; the last one is still in progress. [] on failure.
+    deep (coins): a short frame means the feed fell back to a recent spot listing (Hyperliquid's dates from
+    Sep 2026), so the perpetual feed is asked directly, and failing that the perpetual history shipped with
+    the code is put in front of the spot candles. The averages and the chart then have their full length."""
+    rows = []
+    try:
+        df = binance_client.get_klines(sym, "1d", limit=int(limit))
+        if df is not None and len(df):
+            rows = [(pd.Timestamp(i).timestamp(), float(h), float(l), float(c))
+                    for i, h, l, c in zip(df.index, df["high"], df["low"], df["close"])]
+    except Exception:
+        rows = []
+    if deep and rows and len(rows) < min(int(limit), 250):
+        alt = []
+        try:
+            raw = binance_client._get("/fapi/v1/klines", {"symbol": sym, "interval": "1d", "limit": int(limit)},
+                                      bases=binance_client.FUTURES_BASES, max_attempts=2)
+            alt = [(int(x[0]) / 1000.0, float(x[2]), float(x[3]), float(x[4])) for x in (raw or [])]
+        except Exception:
+            alt = []
+        if len(alt) > len(rows):
+            rows = alt
+        else:
+            first = int(rows[0][0] // 86400)
+            rows = [b for b in _seed_bn(sym) if int(b[0] // 86400) < first] + rows
+    return rows
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -457,7 +485,7 @@ def render(load_fear_greed=None, admin: bool = False) -> None:
     live = {}
     for r in names:
         start = float(r.get("start") or plan["start"])
-        full = _daily(r["sym"], 500)
+        full = _daily(r["sym"], 500, not r.get("stock"))
         if not full:
             live[r["tk"]] = {"price": None}
             continue

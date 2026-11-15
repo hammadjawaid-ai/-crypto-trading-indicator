@@ -452,4 +452,10 @@ strong buy hold as per our plans".
     is then worth), a combined-result grid on the three paths (`_roi_grid`), option A against option B
     (equal split only), every order with money and units (`_orders`), and the chart / next steps / returns
     for one name at a time.
-  - Guard: `.longterm_test.py` (102).
+  - Perpetual history ships with the code (`longterm_data/seed/bn_HYPEUSDT.json`, `bn_ONDOUSDT.json`). Seen live
+    right after the first deploy: the server returned Hyperliquid as 52 spot candles (its spot listing dates from
+    Sep 2026), so its 200-day average was missing. The page (`_daily(..., deep=True)` for coins) now asks the
+    perpetual feed directly when a frame is short and otherwise puts the shipped history in front of the spot
+    candles; the build (`binance_daily`) does the same, so a blocked perpetual feed can no longer fail the
+    daily rebuild.
+  - Guard: `.longterm_test.py` (106).

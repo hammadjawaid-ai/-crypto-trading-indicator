@@ -86,10 +86,11 @@ def _bn_get(path, params):
     return binance_client._get(path, params, bases=binance_client.FUTURES_BASES) if fut else binance_client._get(path, params)
 
 
-def binance_daily(sym):
+def _klines_all(path, sym):
+    """Every completed daily candle of a symbol from one Binance endpoint, as [open_ts, o, h, l, c]."""
     rows, start = [], 1501545600000          # 1 Aug 2017
     while True:
-        k = _bn_get("/fapi/v1/klines" if sym in PERP_HISTORY else "/api/v3/klines", {"symbol": sym, "interval": "1d", "limit": 1000, "startTime": start})
+        k = _bn_get(path, {"symbol": sym, "interval": "1d", "limit": 1000, "startTime": start})
         if not isinstance(k, list) or not k:
             break
         rows += [[int(x[0]) // 1000, float(x[1]), float(x[2]), float(x[3]), float(x[4])] for x in k]
@@ -98,6 +99,33 @@ def binance_daily(sym):
         start = int(k[-1][0]) + 86400000
         time.sleep(0.25)
     return rows[:-1]                         # drop the bar still in progress
+
+
+def bn_seed_rows(sym):
+    """The perpetual history shipped with the code for a PERP_HISTORY symbol (longterm_data/seed), or []."""
+    try:
+        with open(os.path.join(SEED_DIR, f"bn_{sym}.json"), encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+
+def binance_daily(sym):
+    """Daily history from the spot feed; for a PERP_HISTORY symbol from the perpetual feed, and when that
+    feed cannot be reached, the shipped perpetual history followed by the spot candles after it."""
+    if sym not in PERP_HISTORY:
+        return _klines_all("/api/v3/klines", sym)
+    try:
+        rows = _klines_all("/fapi/v1/klines", sym)
+    except Exception:
+        rows = []
+    if len(rows) >= 250:
+        return rows
+    seed, spot = bn_seed_rows(sym), _klines_all("/api/v3/klines", sym)
+    if not seed:
+        return spot
+    STALE.append("bn_" + sym + "_perp")
+    return seed + [r for r in spot if r[0] > seed[-1][0]]
 
 
 def yahoo_daily(sym):
