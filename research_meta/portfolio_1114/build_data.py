@@ -27,7 +27,7 @@ if os.path.exists(OUT + "/template.html"):          # the workbook page = the te
                "</head>\n", "<body>\n", "</body>\n", "</html>\n"):
         assert _frag.count(_s) == 1, _s
         _frag = _frag.replace(_s, "")
-    _frag = _frag.replace("<title>Three of Ten</title>", '<title>Three of Ten</title>\n<meta name="claude:viewport-fit-sides" content="cover">')
+    _frag = _frag.replace("<title>Long-Term Plan</title>", '<title>Long-Term Plan</title>\n<meta name="claude:viewport-fit-sides" content="cover">')
     os.makedirs(OUT + "/share", exist_ok=True)
     open(OUT + "/share/three-of-ten.html", "w", encoding="utf-8", newline="\n").write(_frag)
     print("wrote portfolio_plan.html + share/three-of-ten.html")

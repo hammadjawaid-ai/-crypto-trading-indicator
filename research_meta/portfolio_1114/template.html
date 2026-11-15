@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Three of Ten</title>
+<title>Long-Term Plan</title>
 <style>
 :root{--page:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;--grid:#e1e0d9;--axis:#c3c2b7;--border:rgba(11,11,11,.10);
 --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--ma200:#898781;--ma50:#c3c2b7;--up:#006300;--down:#b02a2a;--wash:#eef3fa;--warn:#fff6df;--warnb:#e9c46a;--add:#c2477a}
@@ -102,12 +102,12 @@ details.name .body{padding:0 0 16px}
 </head>
 <body>
 <main>
-<h1>Ten names: a long-term plan workbook</h1>
+<h1>A long-term plan workbook</h1>
 <p class="sub" id="asof"></p>
-<div class="notice"><b>This is research, not financial advice.</b> Nothing on this page says which names to buy, and it was not written by a licensed adviser. Every level comes from one rule applied the same way to all ten names, so they can be compared. The odds are frequencies from past prices: they describe what happened, not what will. Prices are a snapshot and do not update.</div>
+<div class="notice"><b>This is research, not financial advice.</b> Nothing on this page says which names to buy, and it was not written by a licensed adviser. Every level comes from one rule applied the same way to every name, so they can be compared. The odds are frequencies from past prices: they describe what happened, not what will. Prices are a snapshot and do not update.</div>
 <div class="notice" id="banner" style="display:none"></div>
-<p class="printonly small">Interactive version, with hover charts and a plan builder for any three names: <a href="https://claude.ai/artifact/YGjK9rqCwghAf6XBjhpsyX">claude.ai/artifact/YGjK9rqCwghAf6XBjhpsyX</a>. The contents below are clickable.</p>
-<nav class="toc"><a href="#read">Short read</a><a href="#market">The market</a><a href="#compare">Ten compared</a><a href="#score">Scorecard</a><a href="#chips">Nvidia, Broadcom, Marvell</a><a href="#names">Each name</a><a href="#levels">Levels for all ten</a><a href="#builder">Plan builder</a><a href="#leverage">Leverage</a><a href="#method">Method and sources</a></nav>
+<p class="printonly small">Interactive version, with hover charts and a plan builder: <a href="https://claude.ai/artifact/YGjK9rqCwghAf6XBjhpsyX">claude.ai/artifact/YGjK9rqCwghAf6XBjhpsyX</a>. The contents below are clickable.</p>
+<nav class="toc"><a href="#read">Short read</a><a href="#market">The market</a><a href="#compare">Names compared</a><a href="#score">Scorecard</a><a href="#chips">Nvidia, Broadcom, Marvell</a><a href="#names">Each name</a><a href="#levels">Levels for every name</a><a href="#builder">Plan builder</a><a href="#leverage">Leverage</a><a href="#method">Method and sources</a></nav>
 
 <section id="read">
 <h2>The short read</h2>
@@ -144,20 +144,20 @@ details.name .body{padding:0 0 16px}
 </section>
 
 <section id="compare">
-<h2>The ten, measured the same way</h2>
+<h2>Every name, measured the same way</h2>
 <p class="lead">The three right-hand columns speak most directly to a goal of doubling. They count past 12-month windows that started in a market like today's: for coins, days when Bitcoin was under its 200-day average; for stocks, days when the stock itself was 25% or more under its high.</p>
 <div class="card"><div class="tw"><table id="t-cmp"></table></div><p class="note" id="n-cmp"></p></div>
-<div class="card"><h3>The seven coins: size and on-chain activity</h3><div class="tw"><table id="t-fund"></table></div><p class="note">CoinGecko and DefiLlama, fetched with the prices. Total value locked is in dollars, so part of each year-on-year fall is the token price itself.</p></div>
+<div class="card"><h3>The coins: size and on-chain activity</h3><div class="tw"><table id="t-fund"></table></div><p class="note">CoinGecko and DefiLlama, fetched with the prices. Total value locked is in dollars, so part of each year-on-year fall is the token price itself. A dash means the measure does not apply: the name is not a chain, or the source has no figure.</p></div>
 <div class="card"><h3>The three stocks: latest reported quarter</h3><div class="tw"><table id="t-stk"></table></div><p class="note" id="n-stk"></p></div>
 <div class="card">
-  <h3>How much the ten move together</h3>
+  <h3>How much they move together</h3>
   <p class="cap">Correlation of weekly returns, <span id="corrw"></span> weeks. 1.00 means they move as one.</p>
   <div class="tw"><table id="t-corr"></table></div>
-  <p class="note">Coin against coin is 0.5 to 0.8: three coins behave much like one position. Coin against stock is 0.1 to 0.3. The stocks are tied to each other and to the Nasdaq instead.</p>
+  <p class="note" id="n-corr"></p>
 </div>
 <div class="card" id="score">
-  <h3>Scorecard: the ten ranked on eight tests</h3>
-  <p class="cap">#1 is the best of the ten on that test. This page does not choose names. It puts every name's rank on every test in one place and orders the ten by whichever tests you tick.</p>
+  <h3>Scorecard: every name ranked on eight tests</h3>
+  <p class="cap">#1 is the best on the list on that test. This page does not choose names. It puts every name's rank on every test in one place and orders them by whichever tests you tick.</p>
   <div class="tw"><table id="t-score"></table></div>
   <p class="note" id="n-score"></p>
   <p class="note">The tests pull against each other: the names with the most room to double are the least steady, and the names with the best record in falling markets (the two large stocks) have the least room to double by volatility. Which tests count is the decision.</p>
@@ -166,7 +166,7 @@ details.name .body{padding:0 0 16px}
 
 <section id="chips">
 <h2>Nvidia, Broadcom, Marvell: which held up better</h2>
-<p class="lead">Marvell is not one of the ten, but it sells into the same AI build-out as the other two. "Held up" here means how far each fell in past sell-offs, how long it took to get back, and how much of the time it sat deep under its high.</p>
+<p class="lead">Marvell is not on the list, but it sells into the same AI build-out as the other two. "Held up" here means how far each fell in past sell-offs, how long it took to get back, and how much of the time it sat deep under its high.</p>
 <div class="card"><h3>Distance below the high, two years</h3><p class="cap">Each stock's close as a percentage below its own highest close to date</p><div class="chart" id="c-uw"></div></div>
 <div class="card"><h3>Past sell-offs</h3><p class="cap">Largest fall inside each period, and calendar days from that low back to the earlier peak</p><div class="tw"><table id="t-eps"></table></div></div>
 <div class="card"><h3>Side by side</h3><div class="tw"><table id="t-chips"></table></div><p class="note" id="n-chips"></p></div>
@@ -179,7 +179,7 @@ details.name .body{padding:0 0 16px}
 </section>
 
 <section id="levels">
-<h2>Plan levels for all ten</h2>
+<h2>Plan levels for every name</h2>
 <p class="lead">The same two plans for every name, so any of them can be read straight off. Plan A is spot: three equal buys, a stop one step under the last one, and take-profits at 1.5×, 2× and 3× today's price. Plan B is one isolated long at today's price with the stop at the 50% dip, kept 5 points above liquidation.</p>
 <div class="card"><h3>Plan A · Spot ladder</h3><div class="tw"><table id="t-lvA"></table></div><p class="note">Loss at the stop is on that name's money if all three buys filled first.</p></div>
 <div class="card"><h3>Plan B · Isolated futures</h3><div class="tw"><table id="t-lvB"></table></div><p class="note">Loss is on the margin posted for that name. The last two columns count past 12-month windows in similar markets where the stop was touched before price doubled; Sui, Arbitrum and Broadcom rest on a single stretch each.</p></div>
@@ -253,13 +253,13 @@ details.name .body{padding:0 0 16px}
 <h2>Method, limits and sources</h2>
 <div class="card">
 <ul class="facts">
-  <li><b>Prices.</b> Coins: Binance spot daily candles, from each listing. Stocks: Yahoo Finance daily, ten years (SanDisk only since its February 2025 listing). Everything is as of the last completed daily close.</li>
+  <li><b>Prices.</b> Coins: Binance spot daily candles, from each listing (Hyperliquid and Ondo: Binance's perpetual-futures candles, which go back further). Stocks: Yahoo Finance daily, ten years (SanDisk only since its February 2025 listing). Everything is as of the last completed daily close.</li>
   <li><b>Buy tranches.</b> For a price with no trend and annual volatility σ, the chance of touching a dip of depth d within six months is 2·Φ(ln(1−d) / (σ·√0.5)). Buys 2 and 3 solve that for two in three (67%) and one in three (33%), using the last year's daily volatility. The "history" columns are plain counts over every six-month window in the asset's own record.</li>
   <li><b>Upside odds.</b> "Touched" means the daily high reached the level at any point inside the next 12 months. "Still there" means the close 12 months later was at or above it. The gap between the two is the case for resting sell orders.</li>
   <li><b>Stops.</b> The spot stop is the dip reached in about 15% of six-month periods by the same volatility formula, one step under the last buy. The isolated stop follows the rule you choose and is never closer than 5 points to liquidation. "Stop first / 2× first / neither" counts, for every day in the record, which of the two prices was touched first in the following 12 months; a day on which both were touched counts as the stop.</li>
   <li><b>Isolated futures.</b> Liquidation distance is 1 ÷ leverage minus a 2% maintenance margin (about −48% at 2×, −31% at 3×); your exchange's figure depends on the contract and position size. Funding is taken on the entry value of whatever is still open.</li>
   <li><b>Adding on strength.</b> A reclaim is the first close above the average after at least 20 trading days below it (50-day) or 30 (200-day); a new 90-day high counts when there was none in the 60 days before. Results are pooled across the group and measured from that day's close.</li>
-  <li><b>Small samples.</b> The coin history covers about six years, which holds two bear markets. Days inside one bear market are not independent, so a figure built on 800 days may rest on two or three real episodes. Sui and Arbitrum have 3.5 years. SanDisk has under two, all of it one boom, so its history columns are left blank.</li>
+  <li><b>Small samples.</b> The coin history covers about six years, which holds two bear markets. Days inside one bear market are not independent, so a figure built on 800 days may rest on two or three real episodes. Sui, Arbitrum and Worldcoin have about 3.5 years. Bittensor, Ondo and Hyperliquid have under three (Hyperliquid 1.5) and SanDisk under two, so their history columns are left blank.</li>
   <li><b>The simulation</b> assumes volatility and correlation stay at last year's levels and that prices have no memory. Real markets trend and gap, and in sell-offs correlations rise, so real bad cases are worse than the simulated ones.</li>
   <li><b>Tokenized stocks.</b> Some exchanges list tokenized versions of the three stocks. The levels here are from the US listings; a tokenized version trades around the clock and can sit at a small premium or discount.</li>
 </ul>
@@ -292,12 +292,12 @@ if (QS.has('preview')) for (const sh of document.styleSheets) for (const r of [.
 
 /* ── research notes (hand-written from the sources listed at the bottom) ── */
 const NOTES = {
- SOL:{what:"The largest of the seven by a distance, and the busiest chain: the most stablecoins, DEX volume and app fees. It is also the most tied to Bitcoin.",
+ SOL:{what:"The largest coin on the list, and the general-purpose chain with the most stablecoins and DEX volume here. It moves closely with Bitcoin.",
   facts:["US spot Solana ETFs trade; 2026 reports put their assets above $1B, with flows swinging between record months and near zero.","Alpenglow, a consensus upgrade aimed at confirmations near 150 milliseconds, was on test networks in May 2026. Reports disagree on whether it is live on mainnet yet.","Most oversold name on the list: daily RSI 19, down 26% in 30 days."]},
- INJ:{what:"A small trading-focused chain. The token has a hard supply and a monthly buyback-and-burn. It is the only coin here in an uptrend rather than a dip.",
+ INJ:{what:"A small trading-focused chain. The token has a hard supply and a monthly buyback-and-burn. It was one of the few coins here above its 200-day average when the plan was drawn.",
   facts:["Two staked-INJ ETF filings (21Shares, Canary) were reported as under SEC review during 2026. No approval was found.","Community buyback rounds burn INJ each month; the amounts reported for 2026 are small next to the $800M market value.","On-chain footprint is thin for the valuation: about $22M locked and $78M of DEX volume in 30 days.","Up 98% in 90 days and 39% above its 200-day average, so the 'buy the dip' rungs start from a high point of its recent range."]},
  NEAR:{what:"A general-purpose chain whose 2026 story is NEAR Intents, a cross-chain swap layer, plus an AI-agent pitch. Fully circulating, with ongoing inflation.",
-  facts:["Intents carries the activity: $4.1B of DEX volume in 30 days against only $157M locked on the chain itself.","Rallied about 70% in a week in May 2026 on Intents volume and scaling upgrades; still up 115% over 90 days even after a 35% fall in the last 30.","Highest volatility of the seven coins (102% a year)."]},
+  facts:["Intents carries the activity: $4.1B of DEX volume in 30 days against only $157M locked on the chain itself.","Rallied about 70% in a week in May 2026 on Intents volume and scaling upgrades; still up 115% over 90 days even after a 35% fall in the last 30.","Volatility near 100% a year, among the highest on the list."]},
  SUI:{what:"A newer high-speed chain. Only 41% of the supply is circulating, so new tokens keep arriving every month.",
   facts:["The 1 Nov 2026 unlock released about 13 million SUI (roughly $12M), mostly to early contributors. The fully diluted value is 2.4 times the market value.","Value locked fell from $1.37B a year ago to $391M.","Reported this month: Samsung Wallet adding Sui-based USDC for US users; two wallet projects (Suiet, Suiball) shutting down.","A spot exchange-traded product was reported listed in February 2026."]},
  AVAX:{what:"An older smart-contract chain now pitched at institutions and tokenized assets. It never came near its 2021 high in the last cycle.",
@@ -314,7 +314,19 @@ const NOTES = {
   facts:["Data-centre revenue was $89.0B, gross margin 75%. About $26B went to buybacks and dividends in the quarter.","Reuters reported on 11 Nov that Jensen Huang resigned as CEO, with CFO Colette Kress as interim. Results are due on 17 Nov, three days after this was written, so the price can gap either way before a first rung is even placed.","Daily RSI 25, and 20% under the 200-day average."]},
  AVGO:{what:"Custom AI chips and networking for the largest cloud companies, plus a software arm. The steadiest of the three stocks by volatility.",
   eps:3.32,q:"Fiscal Q3 2026 (quarter to 2 Aug 2026)",rev:"$29.6B",yoy:"+86%",epsTxt:"$3.32",guide:"Q4 revenue about $34.8B, AI chips about $21.7B",next:"mid-Dec 2026 (expected)",
-  facts:["AI semiconductor revenue was $16.7B, up 221% on the year. Management said it has supply secured for about $115B of AI revenue in fiscal 2027.","Fell about 10% on 5 Nov and about 5% on 13 Nov with the wider AI sell-off; no company-specific warning was found.","Only 6% under its 200-day average and RSI 53: it has fallen less than the other two."]}
+  facts:["AI semiconductor revenue was $16.7B, up 221% on the year. Management said it has supply secured for about $115B of AI revenue in fiscal 2027.","Fell about 10% on 5 Nov and about 5% on 13 Nov with the wider AI sell-off; no company-specific warning was found.","Only 6% under its 200-day average and RSI 53: it has fallen less than the other two."]},
+ WLD:{what:"The token of World (formerly Worldcoin), a network that verifies people by iris scan and pays them in WLD. The token has no claim on revenue and new supply arrives every day.",
+  facts:["About 3.3 billion of the 10 billion maximum supply was in circulation in mid-2026. From 24 July 2026 the daily unlock fell from about 5.1 million to about 2.9 million WLD (<a href=\"https://crypto.news/worldcoin-eases-off-the-gas-as-wld-unlock-rate-drops-43/\">crypto.news</a>).","The most volatile name on the list (about 120% a year) and the furthest under its high. About 38% of the supply is circulating.","It has moved less with Bitcoin than the other coins over the last two years, which cuts both ways: it has also fallen on its own."]},
+ TAO:{what:"The token of Bittensor, a network of 'subnets' that are paid in TAO for AI services such as inference and compute. Supply is capped at 21 million, with Bitcoin-style halvings.",
+  facts:["The first halving of new issuance has taken place; reports date it to December 2025 (<a href=\"https://www.dlnews.com/articles/defi/bittensor-bucks-rout-amid-institutional-adoption-first-halving/\">DL News</a>).","Since February 2025 each subnet has its own token priced against TAO, so part of the demand for TAO depends on speculation in subnet tokens.","Listed products exist (a Grayscale trust in the US, an ETP in Stockholm). No US spot ETF was found.","Binance candles start in April 2024, so there is no record from an earlier bear market."]},
+ HYPE:{what:"The token of Hyperliquid, the largest on-chain perpetual-futures exchange, which runs on its own chain. Almost all trading fees go to a fund that buys HYPE in the market.",
+  facts:["DefiLlama shows about $91M of fees in the last 30 days, about $70M of it kept as revenue, the most kept by any protocol on this list. Only about a quarter of the supply is circulating, so the fully diluted value is about four times the market value.","The buyback fund had spent $1.36B and held more than 48 million HYPE by 13 Oct 2026 (<a href=\"https://crypto.news/hyperliquid-hype-token-unlock-820m-misleading/\">crypto.news</a>).","Core contributors' tokens unlock every month: 9.92 million HYPE, about $748M on paper, were scheduled for 6 Nov 2026. Whether the buybacks absorb the unlocks is disputed (<a href=\"https://thedefiant.io/news/defi/hype-holders-brace-for-impact-ahead-of-looming-token-unlocks\">The Defiant</a>).","Prices here start in May 2025, all of it one rising stretch: the least-tested name on the list."]},
+ ONDO:{what:"The governance token of Ondo Finance, which issues tokenized US Treasuries and stocks. The products pay their yield to the product holders; none of it goes to the ONDO token.",
+  facts:["DefiLlama counts about $7.9M of fees in 30 days, which is yield paid to holders of the tokenized products. Revenue kept by the protocol is shown as zero. About half the supply is circulating.","The next large unlock is listed for 17 Jan 2027: about 1.71 billion ONDO, roughly $750M at October prices (<a href=\"https://defillama.com/unlocks/ondo-finance\">DefiLlama</a>).","Prices here start in January 2024, so there is no record from an earlier bear market."]},
+ LINK:{what:"The token of Chainlink, the main supplier of price feeds and cross-chain messaging (CCIP) to DeFi and to bank tokenization pilots. Most of the supply is already circulating.",
+  facts:["DefiLlama shows about $4.4M of fees in 30 days and $62M in a year, small next to the market value.","A reserve that converts part of the network's revenue into LINK has run since August 2025.","Reports describe more than $4B of assets moving to CCIP from a rival bridge after a breach, and US-listed LINK products with over $150M of net inflows by mid-September; neither date could be confirmed.","The longest record on the list: Binance candles from January 2019, covering two earlier bear markets."]},
+ QNT:{what:"The token of Quant, a UK firm that sells Overledger, software connecting bank ledgers and blockchains. Licences are paid in QNT, and the supply is small and fixed (about 14.6 million).",
+  facts:["Its customers are banks and payment networks, so there is no on-chain revenue to check: DefiLlama has no fee data for it.","2026 coverage centres on Overledger Fusion and UK tokenized-deposit work. No dated November 2026 news was found.","Up about 150% in 90 days and 40% above its 200-day average at the plan date: the buy levels start from a high point of its recent range, not from a dip."]},
 };
 
 /* ── formatting ── */
@@ -376,7 +388,7 @@ let rz;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>
 
 /* ── header ── */
 const btc=A.BTC, coins=PICKS.filter(k=>!A[k].stock), stocks=PICKS.filter(k=>A[k].stock);
-$('#asof').textContent=`Prices at the close of ${dt(btc.asof)} · $10,000 · a 6 to 12 month plan · ten names, up to four to hold · three buy tranches each`;
+$('#asof').textContent=`Prices at the close of ${dt(btc.asof)} · a 6 to 12 month plan · ${PICKS.length} names · three buy tranches each`;
 const rng=(arr)=>{const v=arr.filter(x=>x!=null);return [Math.min(...v),Math.max(...v)]};
 const cyc=D.cycle, cur=cyc[2], dayNow=cur.days, ddNow=cur.series[cur.series.length-1][1];
 const fg=D.fng, st=fg.stats;
@@ -385,14 +397,14 @@ const fg=D.fng, st=fg.stats;
   const big4=['SOL','NEAR','AVAX','UNI'];
   const med=big4.map(k=>`${pc(A[k].end12_med_reg)} (${k})`).join(', ');
   const t2=rng(big4.map(k=>A[k].up['1.00'].reg)), e2=rng(big4.map(k=>A[k].up['1.00'].end_reg));
-  const l3=rng(coins.map(k=>A[k].liq['3'].r6)), l2=rng(coins.map(k=>A[k].liq['2'].r6));
+  const old=coins.filter(k=>!thin(A[k])&&A[k].n12_reg>=400);const l3=rng(old.map(k=>A[k].liq['3'].r6)), l2=rng(old.map(k=>A[k].liq['2'].r6));
   const items=[
-   `<b>Bitcoin closed at $${px(btc.px)}, ${Math.round(-btc.dd_ath*100)}% under its October 2025 top and below its 200-day average.</b> Every coin on this list moves with it (weekly correlation ${c0.toFixed(2)} to ${c1.toFixed(2)}), so three coins behave more like one position than three.`,
+   `<b>Bitcoin closed at $${px(btc.px)}, ${Math.round(-btc.dd_ath*100)}% under its October 2025 top and below its 200-day average.</b> Every coin on this list moves with it (weekly correlation ${c0.toFixed(2)} to ${c1.toFixed(2)}), so several coins behave more like one position than several.`,
    `<b>This is day ${dayNow} since the top.</b> The last two cycles made their lows on days ${cyc[0].bottom_day} and ${cyc[1].bottom_day}, at ${pc(cyc[0].bottom_dd)} and ${pc(cyc[1].bottom_dd)}. This cycle's low so far came on day ${cur.bottom_day} at ${pc(cur.bottom_dd)}. By the calendar a low is due or already in; by depth this fall is far shallower than the last two. Two past cycles is a very small sample either way.`,
    `<b>Fear &amp; Greed reads ${fg.today} today (extreme fear).</b> On its own that has not been a buy signal. Twelve months after extreme-fear days Bitcoin's median result was ${pc(st.med_low)} and it was higher ${Math.round(st.up_low*100)}% of the time, which is the same as any other day (${pc(st.med_all)}, ${Math.round(st.up_all*100)}%).`,
    `<b>Buying these coins while Bitcoin was under its 200-day average, then holding 12 months, usually lost money:</b> median ${med}. A double was touched in ${Math.round(t2[0]*100)}–${Math.round(t2[1]*100)}% of those windows but was still there at month 12 in only ${Math.round(e2[0]*100)}–${Math.round(e2[1]*100)}%. Resting sell orders are what turned a touch into money.`,
    `<b>A target of +100% to +200% on the whole $10,000 needs every pick to roughly double or triple from its average cost.</b> Nothing in this data supports "easily 200–500%". The volatility that gives a coin a real chance of doubling gives it the same chance of halving.`,
-   `<b>Isolated futures do not fit a dip-buying ladder.</b> A 3× long on any of the seven coins was liquidated within six months in ${Math.round(l3[0]*100)}–${Math.round(l3[1]*100)}% of past bear-market windows, and a 2× long in ${Math.round(l2[0]*100)}–${Math.round(l2[1]*100)}%.`,
+   `<b>Isolated futures do not fit a dip-buying ladder.</b> A 3× long on any of the coins with a full bear market in their history was liquidated within six months in ${Math.round(l3[0]*100)}–${Math.round(l3[1]*100)}% of past bear-market windows, and a 2× long in ${Math.round(l2[0]*100)}–${Math.round(l2[1]*100)}%.`,
    `<b>The three stocks are inside an AI sell-off:</b> Nvidia ${pc(A.NVDA.dd_ath)}, Broadcom ${pc(A.AVGO.dd_ath)} and SanDisk ${pc(A.SNDK.dd_ath)} from their highs, with Nvidia's results due on 17 Nov. They barely move with the coins (correlation 0.1 to 0.3), which is the one real source of diversification on this list.`];
   $('#readlist').innerHTML=items.map(x=>`<li>${x}</li>`).join('');
 })();
@@ -427,10 +439,10 @@ const fg=D.fng, st=fg.stats;
      (mk?'<td class="mu">—</td><td class="mu">—</td><td class="mu">—</td>':`<td>${t?'<span class="mu">too new</span>':pcs(a.end12_med_reg)}</td><td>${t?'<span class="mu">too new</span>':fr(u.reg)}</td><td>${t?'<span class="mu">too new</span>':fr(u.end_reg)}</td>`)+'</tr>'};
   PICKS.forEach(k=>h+=row(k));['BTC','QQQ'].forEach(k=>{if(A[k])h+=row(k,true)});
   $('#t-cmp').innerHTML=h;
-  $('#n-cmp').innerHTML=`Similar markets: coins, ${A.SOL.n12_reg} days when Bitcoin was under its 200-day average (Sui and Arbitrum have only ${A.SUI.n12_reg}, one stretch of 2025, so read theirs as thin); Nvidia, ${A.NVDA.n12_reg} days 25%+ under its high; Broadcom, ${A.AVGO.n12_reg}. SanDisk listed in February 2025 and has no usable history. RSI under 30 is the usual "oversold" line.`;
+  $('#n-cmp').innerHTML=`Similar markets: coins, ${A.SOL.n12_reg} days when Bitcoin was under its 200-day average (Sui and Arbitrum have only ${A.SUI.n12_reg}, one stretch of 2025, so read theirs as thin); Nvidia, ${A.NVDA.n12_reg} days 25%+ under its high; Broadcom, ${A.AVGO.n12_reg}. ${PICKS.filter(k=>thin(A[k])).map(k=>A[k].name).join(', ')} have under three years of prices, so their history columns read “too new”; Worldcoin's ${A.WLD?A.WLD.n12_reg:0} days are one stretch too. RSI under 30 is the usual "oversold" line.`;
   let f='<tr><th>Coin</th><th>Rank</th><th>Market value</th><th>Fully diluted</th><th>Supply circulating</th><th>Value locked (a year ago)</th><th>Stablecoins</th><th>DEX volume, 30 days</th><th>App fees, 30 days</th></tr>';
   coins.forEach(k=>{const x=A[k].fund||{};const c=x.circ&&x.total?Math.round(x.circ/x.total*100)+'%':'—';
-    f+=`<tr><td class="tk">${k}</td><td>${x.rank||'—'}</td><td>${big(x.mcap)}</td><td>${big(x.fdv)}</td><td>${c}</td><td>${big(x.tvl)}${x.tvl_1y?` <span class="mu">(${big(x.tvl_1y)})</span>`:''}</td><td>${big(x.stables)}</td><td>${big(x.dex30)}</td><td>${big(k==='UNI'?x.fees30:x.appfees30)}</td></tr>`});
+    f+=`<tr><td class="tk">${k}</td><td>${x.rank||'—'}</td><td>${big(x.mcap)}</td><td>${big(x.fdv)}</td><td>${c}</td><td>${big(x.tvl)}${x.tvl_1y?` <span class="mu">(${big(x.tvl_1y)})</span>`:''}</td><td>${big(x.stables)}</td><td>${big(x.dex30)}</td><td>${big((k==='UNI'||x.appfees30==null)?x.fees30:x.appfees30)}</td></tr>`});
   $('#t-fund').innerHTML=f;
   let s='<tr><th>Stock</th><th class="l">Quarter</th><th>Revenue</th><th>On the year</th><th>EPS (non-GAAP)</th><th>Price ÷ annualized EPS</th><th class="l">Next report</th></tr>';
   stocks.forEach(k=>{const n=NOTES[k];s+=`<tr><td class="tk">${k}</td><td class="l wrap" style="min-width:150px">${n.q}</td><td>${n.rev}</td><td>${n.yoy}</td><td>${n.epsTxt}</td><td>${(A[k].px/(n.eps*4)).toFixed(1)}×</td><td class="l">${n.next}</td></tr>`});
@@ -441,6 +453,9 @@ const fg=D.fng, st=fg.stats;
   let c='<tr><th></th>'+ord.map(k=>`<th>${k}</th>`).join('')+'</tr>';
   ord.forEach(a=>{c+=`<tr><td class="tk">${a}</td>`+ord.map(b=>{const v=cr.m[cr.order.indexOf(a)][cr.order.indexOf(b)];return a===b?'<td class="mu">·</td>':`<td style="background:color-mix(in srgb, var(--s1) ${Math.round(Math.max(0,v)*38)}%, transparent)">${v.toFixed(2)}</td>`}).join('')+'</tr>'});
   $('#t-corr').innerHTML=c;
+  const pv=(xs,ys)=>{const v=[];xs.forEach(a=>ys.forEach(b=>{if(a!==b)v.push(cr.m[cr.order.indexOf(a)][cr.order.indexOf(b)])}));return v};const pr=(xs,ys)=>rng(pv(xs,ys));
+  const cs=coins.filter(k=>cr.order.includes(k)),ss=stocks.filter(k=>cr.order.includes(k)),[a0,a1]=pr(cs,cs),[b0,b1]=pr(cs,ss);
+  $('#n-corr').innerHTML=`Coin against coin runs from ${a0.toFixed(2)} to ${a1.toFixed(2)}, and ${Math.round(pv(cs,cs).filter(v=>v>=0.5).length/pv(cs,cs).length*100)}% of the pairs are 0.5 or higher: coins that move together behave much like one position. Coin against stock runs from ${b0.toFixed(2)} to ${b1.toFixed(2)}. The stocks are tied to each other and to the Nasdaq instead.`;
 })();
 
 /* ── scorecard: the ten ranked on each test; the reader ticks what matters ── */
@@ -502,7 +517,7 @@ const fg=D.fng, st=fg.stats;
       <div class="tw"><table>${rung}</table></div>
       <h4>What the upside levels would take</h4>
       <div class="tw"><table>${sell}</table></div>
-      <p class="note">Landmarks from today's price: ${lm.join(' · ')}.${t?' SanDisk has under two years of history, all of it one boom, so only the volatility column is shown.':''}${(!a.stock&&a.n12_reg<400)?` History in similar markets rests on ${a.n12_reg} days from a single stretch, so treat it as thin.`:''}</p>
+      <p class="note">Landmarks from today's price: ${lm.join(' · ')}.${t?` ${a.name} has ${a.years} years of prices, too short to count past markets, so only the volatility column is shown.`:''}${(!a.stock&&a.n12_reg<400)?` History in similar markets rests on ${a.n12_reg} days from a single stretch, so treat it as thin.`:''}</p>
     </div>`;
     host.appendChild(d);
     let done=false;

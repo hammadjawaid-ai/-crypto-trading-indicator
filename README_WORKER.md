@@ -428,3 +428,28 @@ strong buy hold as per our plans".
     sized like the first buy, and the page flags a level the market touched that has no recorded fill yet.
     Without the admin link the page shows the mechanical plan view only.
   - Guard: `.longterm_test.py` (82).
+- **Sixteen names and the combined calculator (2026-11-15, user: "also add thse to long term investment and deploy" ·
+  "total will be option A at 10000 dollars option B at 12000" · "a combine ROI as well and calculation under one
+  table … with their marking of numbers for buying and selling … a more advance one calculator").**
+  - Names: WLD, TAO, HYPE, ONDO, LINK, QNT join the ten. `freeze_plan.py` now ADDS names the plan does not hold
+    (each with its own `asof` / `start` / `date_label`, here the 14 Nov close) and never touches names already in
+    it; `--reanchor` is the only way to re-freeze everything. The page walks each name from its own start.
+    The build reads Binance's perpetual candles for HYPE and ONDO (`PERP_HISTORY`), which go back further than
+    spot; `BUILD_VER = 3`. Names with under three years of prices show "too new" in the history columns.
+  - Positions: `longterm.position(fills)` nets the recorded fills of a name into money in, units, average price
+    and sells; a holding sold out completely moves its result to `realized` and counts toward the money to share
+    out. `longterm.actual_state` is gone: money decides, not the number of orders. `real_state(row, pos, alloc)`
+    counts the money in against the tranches from the top, so a part-covered tranche keeps only what is still
+    to place at its level. A line may be a single order or a whole position at its average price; the form can
+    replace everything recorded so far.
+  - Names not held: with real fills in view they are priced `fresh_state` = as if started at the price now
+    ("if bought now"); without the admin link every name follows the plan from its plan date, as before.
+  - Money: `TOTAL_OPTIONS` (A $10,000 / B $12,000) or any amount; `split_total` shares it equally, levelling up
+    (a name already holding more than an equal share keeps what it has), or takes amounts set by hand.
+    Up to `MAX_PICKS = 10` names.
+  - The page: one calculator table (`_calc_table`: planned, in so far, worth now, the buys still to make with
+    their prices and dollars, average if all fill, the stop and its result, each sell level with what the name
+    is then worth), a combined-result grid on the three paths (`_roi_grid`), option A against option B
+    (equal split only), every order with money and units (`_orders`), and the chart / next steps / returns
+    for one name at a time.
+  - Guard: `.longterm_test.py` (102).

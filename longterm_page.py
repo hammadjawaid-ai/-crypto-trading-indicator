@@ -2,9 +2,11 @@
 long term investment as headline" · "it should be updated as the market unfolds" · "have the portfolio and
 colors to buy strong buy hold as per our plans" · "we are buying in 3 trenches not 4" · "can hold upto 4
 instead of 3" · "show when its the time to buy the dip on the charts next buy zone … if the price hold above
-when to buy on that level as well … do the calculations and show the returns and when to sell").
+when to buy on that level as well … do the calculations and show the returns and when to sell" ·
+2026-11-15: six names added, "total will be option A at 10000 dollars option B at 12000", "a combine ROI as
+well and calculation under one table … with their marking of numbers for buying and selling").
 
-Light by design: ten daily-candle requests for the names plus one for BTC, cached five minutes, and nothing
+Light by design: one daily-candle request per name plus one for BTC, cached five minutes, and nothing
 from the scanner. app.py calls render() before its shared header and market loads, then stops.
 The logic is in longterm.py; the plan levels are frozen in longterm_data/plan.json.
 """
@@ -99,17 +101,20 @@ def _d(ts) -> str:
 def _pct(v, digits=0) -> str:
     if v is None:
         return "—"
-    return f"{'+' if v > 0 else '−' if v < 0 else ''}{abs(v) * 100:.{digits}f}%"
+    v = round(v * 100, digits) + 0.0               # a rounded zero carries no sign
+    return f"{'+' if v > 0 else '−' if v < 0 else ''}{abs(v):.{digits}f}%"
 
 
 def _pct_html(v, digits=0) -> str:
     if v is None:
         return "—"
-    col = "#34c26b" if v > 0 else "#ff6b6b" if v < 0 else "inherit"
+    z = round(v * 100, digits)
+    col = "#34c26b" if z > 0 else "#ff6b6b" if z < 0 else "inherit"
     return f"<span style='color:{col}'>{_pct(v, digits)}</span>"
 
 
 def _usd(v) -> str:
+    v = round(v)
     return f"{'−' if v < 0 else ''}${abs(v):,.0f}"
 
 
@@ -175,9 +180,10 @@ def _chart(r: dict, bars: list, state: dict, marks: list, price: float, alloc: f
     labels = []
     for k, rg in enumerate(rungs):
         did = state["filled"][k]
-        amt = f" · {_usd(w[k] * alloc)}" if (alloc and not did) else ""
+        money = f" · {_usd(w[k] * alloc)}" if alloc else ""
+        tail = (f" · buy now at {lt.fmt(price)}{money}" if state.get("fresh") else " · covered by what is in" if state.get("actual") else " · bought") if did else money
         fig.add_hline(y=rg, line=dict(color=C_BUY, width=1.3, dash="dash"))
-        labels.append((rg, f"Buy {k + 1} · {lt.fmt(rg)}{' · bought' if did else amt}"))
+        labels.append((rg, f"Buy {k + 1} · {lt.fmt(rg)}{tail}"))
     fig.add_hline(y=stop, line=dict(color=C_STOP, width=1.3, dash="dash"))
     labels.append((stop, f"Stop · {lt.fmt(stop)}"))
     for j, tp in enumerate(tps):
@@ -217,6 +223,11 @@ def _next_steps(r: dict, state: dict, marks: list, price: float, alloc: float | 
     open_k = [k for k, f in enumerate(state["filled"]) if not f and w[k] > 0]
     amt = lambda k: (f" ({_usd(w[k] * alloc)})" if alloc else "")
     out = []
+    if state.get("fresh"):                         # not held yet: the opening buy is at the price now
+        now_k = [k for k, f in enumerate(state["filled"]) if f]
+        out.append(f"<b>To start this name:</b> buy {' and '.join(str(k + 1) for k in now_k)} at the price now, about <b>{lt.fmt(price)}</b>"
+                   + (f" ({_usd(sum(w[k] for k in now_k) * alloc)})" if alloc else "")
+                   + ("." if len(now_k) == 1 else ": price is already at or under the lower level, so that money goes in now too."))
     if open_k:
         k = open_k[0]
         if price <= rungs[k]:
@@ -234,7 +245,11 @@ def _next_steps(r: dict, state: dict, marks: list, price: float, alloc: float | 
         else:
             out.append("<b>If price goes up instead:</b> there is no average or recent high left above the price to hold above; a new 90-day closing high is the trigger.")
     else:
-        out.append("<b>Buying is finished:</b> all three tranches are in. If price goes up from here the plan has nothing left to add; an add at the levels on the chart would be new money.")
+        if state.get("actual"):
+            out.append("<b>Nothing left to buy for the amount planned" + (f" ({_usd(alloc)})" if alloc else "") + ":</b> what is already in covers it. "
+                       "To keep money for the lower buy levels of this name, give it a larger amount (set your own amount for each name, or choose fewer names).")
+        else:
+            out.append("<b>Buying is finished:</b> all three tranches are in. If price goes up from here the plan has nothing left to add; an add at the levels on the chart would be new money.")
     sells = [(j, tp) for j, tp in enumerate(tps) if not state["sold"][j]]
     if sells and state["units"] > 0:
         out.append("<b>When to sell:</b> " + ", then ".join(f"{'a third' if j < 2 else 'the rest'} at <b>{lt.fmt(tp)}</b> ({_pct(tp / price - 1)})" for j, tp in sells) + ".")
@@ -256,6 +271,130 @@ def _returns(r: dict, state: dict, price: float, alloc: float, marks: list) -> s
                    ("If price goes up first and the adds trigger", ""), ("If every buy fills on a dip first", "")], rows)
 
 
+def _build(by_name: dict, live: dict, pos: dict, picks, targets: dict, w, addup: bool, fresh_mode: bool) -> list:
+    """One entry per picked name: its state, the dollars planned for it and its outcomes. A name really held
+    comes from the recorded fills; one not held is priced as if started at the price now (when real fills
+    are in view) or follows the plan from its plan date as if every order was resting."""
+    out = []
+    for tk in picks:
+        r, L = by_name[tk], live[tk]
+        price, alloc = L["price"], float(targets.get(tk) or 0.0)
+        x = {"tk": tk, "r": r, "L": L, "ok": False, "alloc": alloc, "p": price}
+        if price is not None and alloc > 0:
+            if tk in pos:
+                stt, alloc = lt.real_state(r, pos[tk], alloc, w)
+                tag = "mine"
+            elif fresh_mode:
+                stt, tag = lt.fresh_state(r, price, w), "if bought now"
+            else:
+                stt, tag = lt.walk(r, L["since"], w, L["events"], addup), "plan"
+            if stt:
+                x.update(ok=True, stt=stt, alloc=alloc, tag=tag, oc=lt.outcomes(r, stt, L["marks"]))
+        out.append(x)
+    return out
+
+
+def _worth(rows: list, spare: float, fn) -> float:
+    """Portfolio worth under one outcome: every name's worth plus the money not assigned to a name."""
+    return spare + sum(fn(x) * x["alloc"] for x in rows if x["ok"])
+
+
+def _two(top: str, sub: str) -> str:
+    return f"{top}<br><span class='mu' style='font-size:.78rem'>{sub}</span>"
+
+
+def _calc_table(rows: list, path: str, total: float, spare: float, realized: dict) -> str:
+    """The calculator: one row per name with what is in, what is still to buy and where, the stop, and what
+    each sell level is worth; the last row adds the portfolio up against the total."""
+    body = []
+    t_in = t_place = 0.0
+    for x in rows:
+        r, tk = x["r"], x["tk"]
+        if not x["ok"]:
+            body.append(f"<tr><td><b>{tk}</b></td><td colspan='10' class='l mu'>{'price feed unavailable' if x['p'] is None else 'no money assigned'}</td></tr>")
+            continue
+        stt, alloc, price, oc = x["stt"], x["alloc"], x["p"], x["oc"]
+        fresh = bool(stt.get("fresh"))
+        units, in_usd = stt["units"] * alloc, stt["spent"] * alloc
+        val = lt.value(stt, price) * alloc
+        buys = lt.to_place(r, stt, price)
+        place = sum(b["share"] for b in buys) * alloc
+        t_place += place
+        if not fresh:
+            t_in += in_usd
+        sig = lt.signal(r, None if x["tag"] == "mine" else stt, price, x["L"]["fresh"])
+        c_in = "<span class='mu'>not held</span>" if fresh else _two(_usd(in_usd), f"{units:,.4g} units at {lt.fmt(stt['avg_cost'])}")
+        c_now = "<span class='mu'>—</span>" if fresh else _two(_usd(units * price), f"{_usd(val - alloc)} {_pct_html((val - alloc) / in_usd if in_usd else 0, 1)}")
+        c_buy = "<br>".join(f"Buy {b['k'] + 1} {'now ' if b['now'] else ''}at {lt.fmt(b['price'])}: <b>{_usd(b['share'] * alloc)}</b>" for b in buys) \
+            or ("<span class='mu'>stop reached</span>" if stt.get("stopped") else "<span class='mu'>all in</span>")
+        stop_v = oc["stop_full"] * alloc
+        sells = "".join(
+            f"<td>{_two(lt.fmt(tp) + ' <span class=mu>' + _pct(tp / price - 1) + '</span>', _usd(oc[path][j] * alloc) + ' ' + _pct_html(oc[path][j] - 1))}</td>"
+            for j, tp in enumerate(r["tps"]))
+        body.append(
+            f"<tr><td>{_two('<b>' + tk + '</b> ' + html.escape(r['name']), x['tag'])}</td><td class='l'>{_chip(sig)}</td>"
+            f"<td>{_two(_usd(alloc), f'{alloc / total * 100:.0f}% of the total' if total else '')}</td><td>{c_in}</td><td>{c_now}</td>"
+            f"<td class='l'>{c_buy}</td><td>{lt.fmt(lt.avg_if_filled(r, stt))}</td>"
+            f"<td>{_two(lt.fmt(r['stop']) + ' <span class=mu>' + _pct(r['stop'] / price - 1) + '</span>', _usd(stop_v - alloc) + ' ' + _pct_html(oc['stop_full'] - 1))}</td>{sells}</tr>")
+    for tk, v in realized.items():
+        body.append(f"<tr><td>{_two('<b>' + tk + '</b>', 'sold out')}</td><td colspan='3' class='l mu'>finished holding, result counted in the total</td>"
+                    f"<td>{_usd(v)}</td><td colspan='6'></td></tr>")
+    if abs(spare) >= 1:
+        body.append(f"<tr><td colspan='2' class='l mu'>{'Not assigned to a name' if spare > 0 else 'Assigned beyond the total'}</td><td>{_usd(abs(spare))}</td><td colspan='8'></td></tr>")
+    ok = [x for x in rows if x["ok"]]
+    if ok and total:
+        now_w = _worth(ok, spare, lambda x: lt.value(x["stt"], x["p"]))
+        stop_w = _worth(ok, spare, lambda x: x["oc"]["stop_full"])
+        sells = "".join(f"<td>{_two(_usd(v), _usd(v - total) + ' ' + _pct_html(v / total - 1))}</td>"
+                        for v in (_worth(ok, spare, lambda x, j=j: x["oc"][path][j]) for j in range(3)))
+        body.append(f"<tr class='tot'><td>Whole portfolio</td><td></td><td>{_usd(total)}</td><td>{_usd(t_in)}</td>"
+                    f"<td>{_two(_usd(now_w), _usd(now_w - total) + ' ' + _pct_html(now_w / total - 1, 1))}</td>"
+                    f"<td class='l'>Still to place: {_usd(t_place)}</td><td></td>"
+                    f"<td>{_two('every stop', _usd(stop_w - total) + ' ' + _pct_html(stop_w / total - 1))}</td>{sells}</tr>")
+    return _table([("Name", ""), ("Plan signal", "l"), ("Planned", ""), ("In so far", ""), ("Worth now · result", ""), ("Buys still to make", "l"),
+                   ("Average price if all fill", ""), ("Stop · result if hit after every buy", ""), ("Sell 1 (a third) · worth then", ""),
+                   ("Sell 2 (a third) · worth then", ""), ("Sell 3 (the rest) · worth then", "")], body)
+
+
+def _roi_grid(rows: list, total: float, spare: float) -> str:
+    """Combined result of the whole portfolio at each stage, on the three paths, against the total."""
+    ok = [x for x in rows if x["ok"]]
+    cell = lambda v: _gain(v, total)
+    now_w = _worth(ok, spare, lambda x: lt.value(x["stt"], x["p"]))
+    body = [f"<tr><td class='l'>Today: everything at the prices now</td><td>{cell(now_w)}</td><td class='mu'>—</td><td class='mu'>—</td></tr>",
+            f"<tr><td class='l'>Every stop is hit</td><td>{cell(_worth(ok, spare, lambda x: x['oc']['stop_now']))}</td><td class='mu'>—</td>"
+            f"<td>{cell(_worth(ok, spare, lambda x: x['oc']['stop_full']))}</td></tr>"]
+    for j, nm in enumerate(("Sell 1 is reached on every name (1.5× its plan price)", "Sell 2 is reached on every name (2×)", "Sell 3 is reached on every name (3×): everything sold")):
+        body.append(f"<tr><td class='l'>{nm}</td>" + "".join(f"<td>{cell(_worth(ok, spare, lambda x, j=j, k=k: x['oc'][k][j]))}</td>" for k in lt.PATHS) + "</tr>")
+    return _table([("If", "l")] + [(v, "") for v in lt.PATHS.values()], body)
+
+
+def _orders(rows: list, path: str) -> str:
+    """Every order with its numbers: money and units for each buy, units and proceeds for each sell."""
+    body = []
+    for x in rows:
+        if not x["ok"]:
+            continue
+        r, tk, stt, alloc, price, oc = x["r"], x["tk"], x["stt"], x["alloc"], x["p"], x["oc"]
+        nm = f"<td><b>{tk}</b></td>"
+        if not stt.get("fresh") and stt["spent"] > 0:
+            body.append(f"<tr>{nm}<td class='l'>Bought so far</td><td>{lt.fmt(stt['avg_cost'])}</td><td>{_pct(stt['avg_cost'] / price - 1) if stt['avg_cost'] else '—'}</td>"
+                        f"<td>{_usd(stt['spent'] * alloc)}</td><td>{stt['spent'] * alloc / stt['avg_cost']:,.4g}</td><td class='l'>{'recorded buys, average price' if x['tag'] == 'mine' else 'the plan’s buys so far, as if resting'}</td></tr>")
+        for b in lt.to_place(r, stt, price):
+            usd = b["share"] * alloc
+            body.append(f"<tr>{nm}<td class='l'>Buy {b['k'] + 1}</td><td>{lt.fmt(b['price'])}</td><td>{_pct(b['price'] / price - 1)}</td><td>{_usd(usd)}</td>"
+                        f"<td>{usd / b['price']:,.4g}</td><td class='l'>{'at the price now' if b['now'] else 'waiting for the dip'}</td></tr>")
+        for j, tp in enumerate(r["tps"]):
+            u = oc["sells"][path][j] * alloc
+            stat = "sold" if stt["sold"][j] else "waiting"
+            body.append(f"<tr>{nm}<td class='l'>Sell {j + 1} ({'a third' if j < 2 else 'the rest'})</td><td>{lt.fmt(tp)}</td><td>{_pct(tp / price - 1)}</td>"
+                        f"<td>{_usd(u * tp) if u else '—'}</td><td>{f'{u:,.4g}' if u else '—'}</td><td class='l'>{stat}</td></tr>")
+        us = (oc["units_full"] if path == "full" else stt["units"]) * alloc
+        body.append(f"<tr>{nm}<td class='l'>Stop-loss (sell everything)</td><td>{lt.fmt(r['stop'])}</td><td>{_pct(r['stop'] / price - 1)}</td>"
+                    f"<td>{_usd(us * r['stop'])}</td><td>{us:,.4g}</td><td class='l'>{'reached' if stt['stopped'] else 'waiting'}</td></tr>")
+    return _table([("Name", ""), ("Order", "l"), ("Price", ""), ("From the price now", ""), ("Money", ""), ("Units", ""), ("Status", "l")], body)
+
+
 def render(load_fear_greed=None, admin: bool = False) -> None:
     """Draw the whole section. load_fear_greed: the app's cached Fear & Greed loader (optional).
     admin: the page was opened with the site's admin link; only then are real fills shown and editable."""
@@ -265,15 +404,21 @@ def render(load_fear_greed=None, admin: bool = False) -> None:
         st.error(f"The long-term plan file could not be read: {exc}")
         return
     now = time.time()
-    start = float(plan["start"])
     names = plan["names"]
     tks = [r["tk"] for r in names]
+    by_name = {r["tk"]: r for r in names}
     pdl = html.escape(plan.get("plan_date_label", ""))
+    wbl = html.escape(plan.get("workbook_label") or plan.get("plan_date_label", ""))
+    later = {}
+    for r in names:
+        if r.get("date_label"):
+            later.setdefault(r["date_label"], []).append(r["tk"])
+    later_txt = "".join(f" {', '.join(v)} joined later and are fixed at the close of {html.escape(k)}." for k, v in later.items())
     st.markdown(_TABLE_CSS, unsafe_allow_html=True)
     st.markdown(
         "<div style='font-size:1.9rem;font-weight:800;letter-spacing:-.02em;line-height:1.15'>📈 Long Term Investment</div>"
-        f"<div style='opacity:.7;font-size:.9rem;margin:2px 0 10px'>Ten names, one plan each: three buy tranches, a stop and three sell "
-        f"levels, fixed at the close of {pdl}. Prices and signals refresh every five minutes.</div>", unsafe_allow_html=True)
+        f"<div style='opacity:.7;font-size:.9rem;margin:2px 0 10px'>{len(names)} names, one plan each: three buy tranches, a stop and three sell "
+        f"levels, fixed at the close of {pdl}.{later_txt} Prices and signals refresh every five minutes.</div>", unsafe_allow_html=True)
     st.info("This page tracks a plan; it does not give advice. A signal says which zone of the plan the price is in "
             "(for example, under the last buy). It is not a forecast, and the choice of names and amounts is yours.", icon="ℹ️")
 
@@ -301,6 +446,9 @@ def render(load_fear_greed=None, admin: bool = False) -> None:
     for f in fills:
         if f["tk"] in tks:
             by_tk.setdefault(f["tk"], []).append(f)
+    pos_all = {tk: lt.position(v) for tk, v in by_tk.items()}
+    pos = {tk: q for tk, q in pos_all.items() if q and not q["closed"]}                             # held now
+    realized = {tk: q["realized"] for tk, q in pos_all.items() if q and abs(q["realized"]) >= 0.005}   # finished holdings
 
     # ── every name: live price, history, triggers ──
     saved = lt.load_picks()
@@ -308,19 +456,18 @@ def render(load_fear_greed=None, admin: bool = False) -> None:
     weights0 = next(iter(lt.RUNG_PRESETS.values()))
     live = {}
     for r in names:
+        start = float(r.get("start") or plan["start"])
         full = _daily(r["sym"], 500)
         if not full:
-            live[r["tk"]] = {"price": None, "act": None}
+            live[r["tk"]] = {"price": None}
             continue
         hist = _history(r, full)
         since = [b for b in full if b[0] >= start]
         price = full[-1][3]
         events = lt.addup_events(hist, start)
         fresh = next((e for e in events if hist and e["ts"] == hist[-1][0]), None)
-        mech = lt.walk(r, since, weights0, events, addup0)
-        act = lt.actual_state(r, by_tk[r["tk"]]) if r["tk"] in by_tk else (None, 0.0)
         live[r["tk"]] = {"price": price, "since": since, "events": events, "fresh": fresh, "marks": lt.landmarks(hist, price),
-                         "chart": hist + [full[-1]], "mech": mech, "act": act if act[0] else None, "state": act[0] or mech}
+                         "chart": hist + [full[-1]], "mech": lt.walk(r, since, weights0, events, addup0)}
 
     st.markdown("#### The plan board")
     rows = []
@@ -330,164 +477,138 @@ def render(load_fear_greed=None, admin: bool = False) -> None:
         if p is None:
             rows.append(f"<tr><td><b>{r['tk']}</b> <span class='mu'>{html.escape(r['name'])}</span></td><td colspan='8' class='l mu'>price feed unavailable</td></tr>")
             continue
-        stt = L["state"]
-        sig = lt.signal(r, stt, p, L["fresh"])
+        stt = L["mech"]
+        mine = r["tk"] in pos
+        sig = lt.signal(r, None if mine else stt, p, L["fresh"])
         nb, na = lt.next_levels(r, stt, p, L["marks"])
         reached = sum(1 for x in stt["filled"] if x)
         tp_hit = sum(1 for x in stt["sold"] if x)
-        prog = (f"{reached} of {len(r['rungs'])} bought · mine" if L["act"] else f"{reached} of {len(r['rungs'])} buys") + (f" · {tp_hit} sold" if tp_hit else "")
+        prog = f"mine · {_usd(pos[r['tk']]['in'])} in" if mine else (f"{reached} of {len(r['rungs'])} buys" + (f" · {tp_hit} sold" if tp_hit else ""))
+        extra = (" · tokenized, 24h" if r.get("stock") else "") + (f" · plan from {html.escape(r['date_label'].rsplit(' ', 1)[0])}" if r.get("date_label") else "")
         rows.append(
-            f"<tr><td><b>{r['tk']}</b> <span class='mu'>{html.escape(r['name'])}{' · tokenized, 24h' if r.get('stock') else ''}</span></td>"
+            f"<tr><td><b>{r['tk']}</b> <span class='mu'>{html.escape(r['name'])}{extra}</span></td>"
             f"<td>{lt.fmt(p)}</td><td>{_pct_html(p / r['px0'] - 1, 1)}</td><td class='l'>{_chip(sig)}</td>"
             f"<td class='l w'>{html.escape(sig['detail'])}</td>"
             f"<td>{lt.fmt(nb[1])} <span class='mu'>{nb[0]} · {_pct(nb[1] / p - 1)}</span></td>"
             f"<td>{(lt.fmt(na[1]) + ' <span class=mu>' + html.escape(na[0]) + ' · ' + _pct(na[1] / p - 1) + '</span>') if na else '—'}</td>"
             f"<td>{prog}</td><td>{lt.fmt(r['stop'])}</td></tr>")
-    st.markdown(_table([("Name", ""), ("Price now", ""), ("Since the plan date", ""), ("Plan signal", "l"), ("Where price sits", "l"),
+    st.markdown(_table([("Name", ""), ("Price now", ""), ("Since its plan date", ""), ("Plan signal", "l"), ("Where price sits", "l"),
                         ("Next buy zone below", ""), ("Next level above", ""), ("Orders reached", ""), ("Stop", "")], rows), unsafe_allow_html=True)
     leg = " &nbsp; ".join(f"{_chip({'label': lt.SIGNALS[k][0], 'bg': lt.SIGNALS[k][1], 'fg': lt.SIGNALS[k][2]})} "
                           f"<span style='opacity:.75;font-size:.8rem'>{lt.SIGNALS[k][3]}</span>" for k in lt.SIGNAL_ORDER)
     st.markdown(f"<div style='margin:8px 0 2px;line-height:2.1'>{leg}</div>", unsafe_allow_html=True)
-    st.caption("An order counts as reached when a daily candle since the plan date touched its price. Stock prices here are the "
+    st.caption("An order counts as reached when a daily candle since the name's plan date touched its price. Stock prices here are the "
                "tokenized tickers, which trade around the clock and can sit slightly off the US close.")
 
-    # ── my portfolio ──
-    st.markdown("#### My portfolio")
-    mine = [t for t in tks if t in by_tk]
-    default = (mine + [t for t in (saved.get("picks") or []) if t in tks and t not in mine])[:lt.MAX_PICKS]
-    a1, a2, a3 = st.columns([3, 1.2, 2])
-    picks = a1.multiselect("My names (up to four)", tks, default=default, max_selections=lt.MAX_PICKS, key="lt_picks",
-                           format_func=lambda t: f"{t} · {next(r['name'] for r in names if r['tk'] == t)}")
-    total = a2.number_input("Total ($), for names without real buys", min_value=0.0, value=float(saved.get("total") or 10000.0), step=500.0, key="lt_total")
+    # ── my portfolio: the calculator ──
+    st.markdown("#### My portfolio: the calculator")
+    label = lambda t: f"{t} · {by_name[t]['name']}"
+    held = [t for t in tks if t in pos]
+    default = (held + [t for t in (saved.get("picks") or []) if t in tks and t not in held])[:lt.MAX_PICKS]
+    a1, a2, a3 = st.columns([3.2, 1.5, 1.9])
+    picks = a1.multiselect(f"Names (up to {lt.MAX_PICKS})", tks, default=default, max_selections=lt.MAX_PICKS, key="lt_picks", format_func=label)
+    opts = list(lt.TOTAL_OPTIONS) + ["Other amount"]
+    total0 = float(saved.get("total") or 10000.0)
+    opt = a2.radio("Total to invest", opts, key="lt_opt",
+                   index=next((i for i, k in enumerate(lt.TOTAL_OPTIONS) if abs(lt.TOTAL_OPTIONS[k] - total0) < 0.5), len(opts) - 1))
+    total = lt.TOTAL_OPTIONS[opt] if opt in lt.TOTAL_OPTIONS else a2.number_input("Amount ($)", min_value=0.0, value=total0, step=500.0, key="lt_total")
     presets = list(lt.RUNG_PRESETS)
     preset = a3.selectbox("Money per tranche", presets, index=presets.index(saved.get("preset")) if saved.get("preset") in presets else 0, key="lt_preset")
+    w = lt.RUNG_PRESETS[preset]
     addup = st.toggle("If price goes up instead of dipping, add the lowest unfilled tranche once it holds above a landmark", value=addup0, key="lt_addup")
     st.caption("Holds above = two daily closes in a row over the 50-day or 200-day average, or a first close over the highest close of the last 90 days. "
-               "In the past this did not help for the coins: six months after a first close back over the 200-day average their median result was −17%, "
-               "against −10% for any ordinary day. For Nvidia, Broadcom and Marvell it was somewhat better, on only 12 cases.")
-    if (list(picks), float(total), preset, bool(addup)) != (list(saved.get("picks") or []), float(saved.get("total") or 10000.0),
-                                                              saved.get("preset") or presets[0], addup0):
-        lt.save_picks(picks, total, preset, addup)
-    if show_real and mine:
-        st.caption("Names marked “mine” are tracked from the buys and sells you recorded, at your real prices and amounts. "
-                   "Each tranche still to come is sized like your first buy of that name.")
+               "In the past this did not help for the coins: six months after a first close back over the 200-day average their median result was −12%, "
+               "against −8% for any ordinary day. For Nvidia, Broadcom and Marvell it was somewhat better, on only 12 cases.")
+    ins = {t: pos[t]["in"] for t in picks if t in pos}
+    banked = sum(realized.values())
+    avail = float(total) + banked                  # finished holdings add their result to (or take it from) the money to share out
+    equal = lt.split_total(avail, picks, ins)
+    custom = None
+    if picks and st.toggle("Set my own amount for each name (off: the total is shared equally, names already holding more keep what they have)",
+                           value=bool(saved.get("custom")), key="lt_custom_on"):
+        sc, cols, custom = saved.get("custom") or {}, st.columns(4), {}
+        for i, t in enumerate(picks):
+            custom[t] = cols[i % 4].number_input(f"{t} ($)", min_value=0.0, value=float(sc.get(t, round(equal[t]))), step=100.0, key=f"lt_amt_{t}")
+    targets = lt.split_total(avail, picks, ins, custom)
+    if (list(picks), float(total), preset, bool(addup), custom or {}) != (list(saved.get("picks") or []), float(saved.get("total") or 10000.0),
+                                                                           saved.get("preset") or presets[0], addup0, saved.get("custom") or {}):
+        lt.save_picks(picks, total, preset, addup, custom)
+    fresh_mode = bool(pos)
+    if show_real and pos:
+        st.caption("Names marked “mine” come from the buys and sells you recorded, at your real prices and amounts. A name marked “if bought now” "
+                   "is not held: it is priced as if its first tranche were bought at the price now.")
     elif not show_real:
         st.caption("Real buys and sells are private: they are shown and recorded only when this page is opened with the admin link. "
-                   "Without it the portfolio below follows the plan as if every order was resting at its price.")
+                   "Without it the calculator follows the plan from each name's plan date, as if every order was resting at its price.")
     if not picks:
-        st.caption("Choose up to four names and this shows, for your amount, the chart with the next buy zone, the adds if price goes up, "
-                   "what each sell level returns, and what has been bought and sold so far.")
-        see = st.selectbox("Or look at the chart and levels of one name", ["—"] + tks, key="lt_see",
-                           format_func=lambda t: t if t == "—" else f"{t} · {next(r['name'] for r in names if r['tk'] == t)}")
+        st.caption(f"Choose up to {lt.MAX_PICKS} names and this shows, in one table, what is in, what is still to buy and where, the stop, "
+                   "what each sell level is worth, and the combined result of the whole portfolio.")
+        see = st.selectbox("Or look at the chart and levels of one name", ["—"] + tks, key="lt_see", format_func=lambda t: t if t == "—" else label(t))
         if see != "—" and live[see]["price"] is not None:
-            r, L = next(x for x in names if x["tk"] == see), live[see]
+            r, L = by_name[see], live[see]
             stt = lt.walk(r, L["since"], weights0, L["events"], addup)
             st.plotly_chart(_chart(r, L["chart"], stt, L["marks"], L["price"], None), use_container_width=True, key=f"lt_ch_{see}")
             st.markdown(_next_steps(r, stt, L["marks"], L["price"], None), unsafe_allow_html=True)
     else:
-        w = lt.RUNG_PRESETS[preset]
-        alloc_h = float(total) / len(picks)
-        prow, orows, blocks = [], [], []
-        t_alloc = t_work = t_val = t_tp_now = t_tp_up = t_tp_full = t_stop_full = 0.0
-        for tk in picks:
-            r = next(x for x in names if x["tk"] == tk)
-            L = live[tk]
-            p = L["price"]
-            real = bool(L.get("act"))
-            if p is None:
-                prow.append(f"<tr><td><b>{tk}</b></td><td colspan='8' class='l mu'>price feed unavailable</td></tr>")
-                continue
-            if real:
-                stt, alloc = L["act"]
-            else:
-                stt, alloc = lt.walk(r, L["since"], w, L["events"], addup), alloc_h
-            mech = L["mech"]
-            sig = lt.signal(r, stt, p, L["fresh"])
-            oc = lt.outcomes(r, stt, L["marks"])
-            val = lt.value(stt, p) * alloc
-            t_alloc += alloc
-            t_work += stt["spent"] * alloc
-            t_val += val
-            t_tp_now += oc["now"][-1] * alloc
-            t_tp_up += oc["up"][-1] * alloc
-            t_tp_full += oc["full"][-1] * alloc
-            t_stop_full += oc["stop_full"] * alloc
-            blocks.append((r, L, stt, sig, alloc))
-            spent_d = stt["spent"] * alloc
-            cost_v = stt["units"] * alloc * (stt["avg_cost"] or 0)
-            held_v = stt["units"] * alloc * p
-            prow.append(f"<tr><td><b>{tk}</b> <span class='mu'>{html.escape(r['name'])}{' · mine' if real else ' · plan only'}</span></td><td class='l'>{_chip(sig)}</td>"
-                        f"<td>{_usd(alloc)}</td><td>{_usd(spent_d)}</td><td>{stt['units'] * alloc:,.4g}</td>"
-                        f"<td>{lt.fmt(stt['avg_cost'])}</td><td>{lt.fmt(p)}</td><td>{_usd(held_v)}</td>"
-                        f"<td>{_usd(val - alloc)} {_pct_html((held_v / cost_v - 1) if cost_v else 0, 1)}</td></tr>")
-            for k, rg in enumerate(r["rungs"]):
-                amt = stt["weights"][k] * alloc
-                if amt <= 0:
+        calc = _build(by_name, live, pos, picks, targets, w, addup, fresh_mode)
+        ok = [x for x in calc if x["ok"]]
+        spare = avail - sum(x["alloc"] for x in ok)
+        path = st.radio("Work out the sell levels", list(lt.PATHS), format_func=lt.PATHS.get, horizontal=True, key="lt_path")
+        st.markdown(_calc_table(calc, path, float(total), spare, realized), unsafe_allow_html=True)
+        st.caption("Each sell cell shows the sell price, how far it is from the price now, and what the name is then worth with its result on the money "
+                   "planned for it; money not yet spent counts at face value. The last row adds the names up against the total. Fees are left out.")
+        if ok and total:
+            st.markdown("##### Combined result of the whole portfolio")
+            st.markdown(_roi_grid(calc, float(total), spare), unsafe_allow_html=True)
+            st.caption("Each line assumes every name reaches that level, which coins that move together often do and names that do not move together "
+                       "often do not. These are sums of the plan's own levels, not forecasts.")
+            if custom is None:
+                cmp_rows = {}
+                for lab, tv in lt.TOTAL_OPTIONS.items():
+                    cx = [x for x in _build(by_name, live, pos, picks, lt.split_total(tv + banked, picks, ins), w, addup, fresh_mode) if x["ok"]]
+                    sp = tv + banked - sum(x["alloc"] for x in cx)
+                    cmp_rows[lab] = (tv, sum(sum(b["share"] for b in lt.to_place(x["r"], x["stt"], x["p"])) * x["alloc"] for x in cx),
+                                     _worth(cx, sp, lambda x: x["oc"]["stop_full"]), _worth(cx, sp, lambda x: x["oc"]["now"][-1]),
+                                     _worth(cx, sp, lambda x: x["oc"]["full"][-1]))
+                labs = list(cmp_rows)
+                st.markdown("##### Option A against Option B, same names, shared equally")
+                st.markdown(_table([("", "l")] + [(k, "") for k in labs], [
+                    "<tr><td class='l'>Money still to place</td>" + "".join(f"<td>{_usd(cmp_rows[k][1])}</td>" for k in labs) + "</tr>",
+                    "<tr><td class='l'>Every remaining buy fills, then every stop is hit</td>" + "".join(f"<td>{_gain(cmp_rows[k][2], cmp_rows[k][0])}</td>" for k in labs) + "</tr>",
+                    "<tr><td class='l'>Every sell level is reached with what is held now</td>" + "".join(f"<td>{_gain(cmp_rows[k][3], cmp_rows[k][0])}</td>" for k in labs) + "</tr>",
+                    "<tr><td class='l'>Every remaining buy fills on a dip, then every sell level is reached</td>" + "".join(f"<td>{_gain(cmp_rows[k][4], cmp_rows[k][0])}</td>" for k in labs) + "</tr>"]),
+                    unsafe_allow_html=True)
+        with st.expander("Every order with its numbers: money and units for each buy, units and proceeds for each sell"):
+            st.markdown(_orders(calc, path), unsafe_allow_html=True)
+            st.caption(f"Sells and the stop are worked out on the path chosen above: {lt.PATHS[path].lower()}.")
+        if ok:
+            see = st.radio("Chart and next steps for", [x["tk"] for x in ok] + ["All"], horizontal=True, key="lt_detail",
+                           index=len(ok) if len(ok) <= 3 else 0)
+            for x in ok:
+                if see not in ("All", x["tk"]):
                     continue
-                if stt["filled"][k]:
-                    if real:
-                        stat = f"bought {_d(stt['fill_ts'][k])} at {lt.fmt(stt['fill_px'][k])}"
-                    elif k == 0:
-                        stat = "bought at the plan date"
-                    else:
-                        add = next((x for x in stt["adds"] if x["k"] == k), None)
-                        stat = (f"bought {_d(add['ts'])} at {lt.fmt(add['price'])}: {add['label']}" if add else f"bought, reached {_d(stt['fill_ts'][k])}")
-                elif real and mech["filled"][k]:
-                    stat = f"price touched this level on {_d(mech['fill_ts'][k])}: record the buy if your order filled"
-                else:
-                    stat = "waiting"
-                orows.append(f"<tr><td><b>{tk}</b></td><td class='l'>Buy {k + 1}</td><td>{lt.fmt(rg)}</td><td>{_pct(rg / p - 1)}</td>"
-                             f"<td>{_usd(amt)}</td><td class='l'>{stat}</td></tr>")
-            for j, tp in enumerate(r["tps"]):
-                if stt["sold"][j]:
-                    stat = "sold" + (f", {_d(stt['sold_ts'][j])}" if stt["sold_ts"][j] else "")
-                elif real and mech["sold"][j]:
-                    stat = f"price touched this level on {_d(mech['sold_ts'][j])}: record the sale if your order filled"
-                else:
-                    stat = "waiting"
-                orows.append(f"<tr><td><b>{tk}</b></td><td class='l'>Sell {j + 1} ({'a third' if j < 2 else 'the rest'})</td>"
-                             f"<td>{lt.fmt(tp)}</td><td>{_pct(tp / p - 1)}</td><td>—</td><td class='l'>{stat}</td></tr>")
-            stop_stat = ("hit " + _d(stt["stop_ts"])) if stt["stopped"] else (f"price touched the stop on {_d(mech['stop_ts'])}" if (real and mech["stopped"]) else "waiting")
-            orows.append(f"<tr><td><b>{tk}</b></td><td class='l'>Stop-loss (sell everything)</td><td>{lt.fmt(r['stop'])}</td>"
-                         f"<td>{_pct(r['stop'] / p - 1)}</td><td>—</td><td class='l'>{stop_stat}</td></tr>")
-        if t_alloc:
-            prow.append(f"<tr class='tot'><td>Total</td><td></td><td>{_usd(t_alloc)}</td><td>{_usd(t_work)}</td><td></td><td></td><td></td>"
-                        f"<td></td><td>{_usd(t_val - t_alloc)} {_pct_html((t_val - t_alloc) / t_work if t_work else 0, 1)}</td></tr>")
-        st.markdown(_table([("Name", ""), ("Plan signal", "l"), ("Planned for this name", ""), ("Put in so far", ""), ("Units held", ""), ("Average buy price", ""),
-                            ("Price now", ""), ("Holding worth now", ""), ("Result so far", "")], prow), unsafe_allow_html=True)
-        st.caption("Planned for this name = what is in plus the tranches still to come. Result so far is on the money actually put in.")
-        if t_alloc:
-            st.markdown("##### What the whole portfolio would be worth")
-            st.markdown(_table([("If", "l"), ("Portfolio, against the planned total", "")], [
-                f"<tr><td class='l'>every sell level is reached from here, with what is held now</td><td>{_gain(t_tp_now, t_alloc)}</td></tr>",
-                f"<tr><td class='l'>price goes up first: the adds trigger at their levels, then every sell level is reached</td><td>{_gain(t_tp_up, t_alloc)}</td></tr>",
-                f"<tr><td class='l'>every remaining buy fills on a dip first, then every sell level is reached</td><td>{_gain(t_tp_full, t_alloc)}</td></tr>",
-                f"<tr><td class='l'>every remaining buy fills, then every stop is hit</td><td>{_gain(t_stop_full, t_alloc)}</td></tr>"]), unsafe_allow_html=True)
-        for r, L, stt, sig, alloc in blocks:
-            st.markdown(f"##### {r['tk']} · {html.escape(r['name'])} &nbsp; {_chip(sig)}", unsafe_allow_html=True)
-            st.plotly_chart(_chart(r, L["chart"], stt, L["marks"], L["price"], alloc), use_container_width=True, key=f"lt_ch_{r['tk']}")
-            st.caption("Light green band: the buy zone between buy 1 and the last buy. Dark green band: under the last buy, down to the stop. "
-                       "Blue dashed lines are the sell levels. Amber dotted lines are the adds if price goes up: each needs two daily closes above it, "
-                       "and shows the money it would put in. Log scale.")
-            st.markdown(_next_steps(r, stt, L["marks"], L["price"], alloc), unsafe_allow_html=True)
-            st.markdown(_returns(r, stt, L["price"], alloc, L["marks"]), unsafe_allow_html=True)
-        with st.expander("Every order in the plan, and where it stands"):
-            st.markdown(_table([("Name", ""), ("Order", "l"), ("Price", ""), ("From the price now", ""), ("Amount", ""), ("Status", "l")], orows),
-                        unsafe_allow_html=True)
-        st.caption("Names marked “plan only” follow the plan mechanically from the plan date, as if every order was resting at its price. "
-                   "Dollar figures leave out fees.")
+                r, L, stt, alloc = x["r"], x["L"], x["stt"], x["alloc"]
+                sig = lt.signal(r, None if x["tag"] == "mine" else stt, L["price"], L["fresh"])
+                st.markdown(f"##### {r['tk']} · {html.escape(r['name'])} &nbsp; {_chip(sig)} <span style='opacity:.6;font-size:.8rem'>{x['tag']}</span>", unsafe_allow_html=True)
+                st.plotly_chart(_chart(r, L["chart"], stt, L["marks"], L["price"], alloc), use_container_width=True, key=f"lt_ch_{r['tk']}")
+                st.caption("Light green band: the buy zone between buy 1 and the last buy. Dark green band: under the last buy, down to the stop. "
+                           "Blue dashed lines are the sell levels. Amber dotted lines are the adds if price goes up: each needs two daily closes above it, "
+                           "and shows the money it would put in. Log scale.")
+                st.markdown(_next_steps(r, stt, L["marks"], L["price"], alloc), unsafe_allow_html=True)
+                st.markdown(_returns(r, stt, L["price"], alloc, L["marks"]), unsafe_allow_html=True)
 
     # ── record real buys and sells (admin link only) ──
     if admin:
         with st.expander("Record a buy or a sell I actually made" + (f" · {len(fills)} recorded" if fills else "")):
-            st.caption("One per line: NAME buy|sell PRICE USDT UNITS, for example “SOL buy 75.98 1000 13.147”. Units are optional. "
-                       "These are saved on this server's private disk only.")
+            st.caption("One per line: NAME buy|sell PRICE USDT UNITS, for example “SOL buy 70.00 1400 20”. Units are optional. A line can be one "
+                       "order or a whole position at its average price. These are saved on this server's private disk only.")
             with st.form("lt_fill_form", clear_on_submit=True):
                 txt = st.text_area("Fills to add", height=110, key="lt_fill_text")
+                wipe = st.checkbox("Replace everything recorded so far with these lines", value=False, key="lt_fill_wipe")
                 ok_btn = st.form_submit_button("Save")
             if ok_btn:
                 good, bad = lt.parse_fills(txt, tks, time.time())
-                if good and lt.save_fills(fills + good):
+                if good and lt.save_fills(([] if wipe else fills) + good):
                     st.success(f"Saved {len(good)} fill(s).")
                     st.rerun()
                 if bad:
@@ -513,13 +634,13 @@ def render(load_fear_greed=None, admin: bool = False) -> None:
                    f"last rebuilt {datetime.fromtimestamp(float(wb_st['last_ok']), timezone.utc):%d %b %H:%M} UTC with prices to the close of "
                    f"{html.escape(str(wb_st.get('asof_label') or ''))}. Its buy levels restart from that close, so they differ from the fixed plan above.")
     else:
-        st.caption(f"Charts, odds, fundamentals, the plan builder and the method, as a snapshot from {pdl}; its levels match the board above. "
-                   "The automatic daily rebuild replaces it after its first run.")
+        st.caption(f"Charts, odds, fundamentals, the plan builder and the method, as a snapshot from the close of {wbl}. Its buy levels start "
+                   "from that close, so they differ from the fixed plan above. The automatic daily rebuild replaces it after its first run.")
     if wb_st.get("error"):
         st.caption(f"The latest rebuild attempt did not finish ({html.escape(str(wb_st['error'])[:140])}); the copy shown is the last good one.")
     b1, b2 = st.columns([1, 3])
     try:
-        b1.download_button(f"⬇ Download the PDF ({pdl} snapshot)", _workbook_pdf(), file_name="Long-term-plan-workbook.pdf", mime="application/pdf", key="lt_pdf")
+        b1.download_button(f"⬇ Download the PDF ({wbl} snapshot)", _workbook_pdf(), file_name="Long-term-plan-workbook.pdf", mime="application/pdf", key="lt_pdf")
     except Exception:
         b1.caption("PDF not available")
     if b2.toggle("Show the full workbook here", value=False, key="lt_show_wb") and wb_html:

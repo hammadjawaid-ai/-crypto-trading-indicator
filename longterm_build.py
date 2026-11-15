@@ -1,7 +1,7 @@
 """📈 Long Term Investment — the research workbook's data build (user 2026-11-14: "yes add the daily
 automatic rebuild on the render").
 
-compute() gathers daily history for the ten names + BTC + Marvell / QQQ / SOXX + Fear & Greed and derives
+compute() gathers daily history for the sixteen names + BTC + Marvell / QQQ / SOXX + Fear & Greed and derives
 every measure the workbook shows: dip map, ladder rungs by one volatility rule, upside map, isolated-leverage
 liquidation odds, first-touch history, add-up levels, the BTC cycle clock, extreme-fear episodes,
 correlations, the chip-stock comparison and on-chain fundamentals.
@@ -35,14 +35,20 @@ TOKENIZED = {"SNDK": "SNDKBUSDT", "NVDA": "NVDABUSDT", "AVGO": "AVGOBUSDT", "MRV
 S = requests.Session()
 S.headers.update({"User-Agent": "Mozilla/5.0 (research script)"})
 N = NormalDist()
-CRYPTO = {"INJ": "INJUSDT", "SOL": "SOLUSDT", "NEAR": "NEARUSDT", "SUI": "SUIUSDT", "AVAX": "AVAXUSDT", "UNI": "UNIUSDT", "ARB": "ARBUSDT", "BTC": "BTCUSDT"}
+CRYPTO = {"INJ": "INJUSDT", "SOL": "SOLUSDT", "NEAR": "NEARUSDT", "SUI": "SUIUSDT", "AVAX": "AVAXUSDT", "UNI": "UNIUSDT", "ARB": "ARBUSDT",
+          "WLD": "WLDUSDT", "TAO": "TAOUSDT", "HYPE": "HYPEUSDT", "ONDO": "ONDOUSDT", "LINK": "LINKUSDT", "QNT": "QNTUSDT",   # added 2026-11-15
+          "BTC": "BTCUSDT"}
+PERP_HISTORY = {"HYPEUSDT", "ONDOUSDT"}   # the perpetual feed goes back further than spot for these (May 2025 / Jan 2024)
 STOCKS = {"SNDK": "SNDK", "NVDA": "NVDA", "AVGO": "AVGO", "MRVL": "MRVL", "QQQ": "QQQ", "SOXX": "SOXX"}
 NAMES = {"INJ": "Injective", "SOL": "Solana", "NEAR": "NEAR Protocol", "SUI": "Sui", "AVAX": "Avalanche", "UNI": "Uniswap", "ARB": "Arbitrum",
+         "WLD": "Worldcoin", "TAO": "Bittensor", "HYPE": "Hyperliquid", "ONDO": "Ondo", "LINK": "Chainlink", "QNT": "Quant",
          "SNDK": "SanDisk", "NVDA": "Nvidia", "AVGO": "Broadcom", "MRVL": "Marvell", "BTC": "Bitcoin", "QQQ": "Nasdaq 100 (QQQ)", "SOXX": "Semiconductors (SOXX)"}
-PICKS = ["INJ", "SOL", "NEAR", "SNDK", "NVDA", "AVGO", "SUI", "AVAX", "UNI", "ARB"]
-CG = {"INJ": "injective-protocol", "SOL": "solana", "NEAR": "near", "SUI": "sui", "AVAX": "avalanche-2", "UNI": "uniswap", "ARB": "arbitrum", "BTC": "bitcoin"}
-LLAMA_CHAIN = {"INJ": "Injective", "SOL": "Solana", "NEAR": "Near", "SUI": "Sui", "AVAX": "Avalanche", "ARB": "Arbitrum"}
-LLAMA_FEES = {"INJ": "injective", "SOL": "solana", "NEAR": "near", "SUI": "sui", "AVAX": "avalanche", "ARB": "arbitrum", "UNI": "uniswap"}
+PICKS = ["INJ", "SOL", "NEAR", "SNDK", "NVDA", "AVGO", "SUI", "AVAX", "UNI", "ARB", "WLD", "TAO", "HYPE", "ONDO", "LINK", "QNT"]
+CG = {"INJ": "injective-protocol", "SOL": "solana", "NEAR": "near", "SUI": "sui", "AVAX": "avalanche-2", "UNI": "uniswap", "ARB": "arbitrum", "BTC": "bitcoin",
+      "WLD": "worldcoin-wld", "TAO": "bittensor", "HYPE": "hyperliquid", "ONDO": "ondo-finance", "LINK": "chainlink", "QNT": "quant-network"}
+LLAMA_CHAIN = {"INJ": "Injective", "SOL": "Solana", "NEAR": "Near", "SUI": "Sui", "AVAX": "Avalanche", "ARB": "Arbitrum", "HYPE": "Hyperliquid L1"}
+LLAMA_FEES = {"INJ": "injective", "SOL": "solana", "NEAR": "near", "SUI": "sui", "AVAX": "avalanche", "ARB": "arbitrum", "UNI": "uniswap",
+              "HYPE": "hyperliquid", "LINK": "chainlink", "ONDO": "ondo-finance"}
 RUNG_P = [2 / 3, 1 / 3]                # three tranches (user 2026-11-14): today, then the dips reached in about two in three and one in three six-month windows
 DIPS = [0.10, 0.15, 0.20, 0.25, 0.30, 0.40, 0.50, 0.60, 0.70]
 UPS = [0.25, 0.50, 1.00, 2.00, 4.00]
@@ -72,17 +78,18 @@ def cached(name, fn, max_age=6 * 3600):
 
 def _bn_get(path, params):
     """Binance through the app's own client (mirrors + rate-limit handling) when it is importable."""
+    fut = path.startswith("/fapi/")
     try:
         import binance_client
     except Exception:
-        return S.get("https://api.binance.com" + path, params=params, timeout=25).json()
-    return binance_client._get(path, params)
+        return S.get(("https://fapi.binance.com" if fut else "https://api.binance.com") + path, params=params, timeout=25).json()
+    return binance_client._get(path, params, bases=binance_client.FUTURES_BASES) if fut else binance_client._get(path, params)
 
 
 def binance_daily(sym):
     rows, start = [], 1501545600000          # 1 Aug 2017
     while True:
-        k = _bn_get("/api/v3/klines", {"symbol": sym, "interval": "1d", "limit": 1000, "startTime": start})
+        k = _bn_get("/fapi/v1/klines" if sym in PERP_HISTORY else "/api/v3/klines", {"symbol": sym, "interval": "1d", "limit": 1000, "startTime": start})
         if not isinstance(k, list) or not k:
             break
         rows += [[int(x[0]) // 1000, float(x[1]), float(x[2]), float(x[3]), float(x[4])] for x in k]
@@ -378,7 +385,7 @@ def compute(raw_dir, log=print):
         return res
 
 
-    out["addup_ev"] = {"coins": pool_events(["INJ", "SOL", "NEAR", "SUI", "AVAX", "UNI", "ARB"]), "stocks": pool_events(["NVDA", "AVGO", "MRVL"])}
+    out["addup_ev"] = {"coins": pool_events([t for t in PICKS if t in CRYPTO]), "stocks": pool_events(["NVDA", "AVGO", "MRVL"])}
 
 
     # ── Nvidia / Broadcom / Marvell: which held up better ──
@@ -562,7 +569,7 @@ def render_html(out, template_text):
 
 # ───────────────────────── the server's daily rebuild ─────────────────────────
 ENABLED = os.environ.get("LONGTERM_REBUILD", "1") != "0"      # set LONGTERM_REBUILD=0 in the environment to switch it off
-BUILD_VER = 2                    # bump when the workbook's shape changes: the server rebuilds at once, the page ignores older copies
+BUILD_VER = 3                    # bump when the workbook's shape changes: the server rebuilds at once, the page ignores older copies
 AFTER_CLOSE_S = 20 * 60          # build once the 00:00 UTC daily close is 20 minutes old
 RETRY_S = 2 * 3600               # after a failed try, wait this long before the next
 WARMUP_S = 15 * 60               # never during the first minutes after a start (the scanner's first pass)
