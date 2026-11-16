@@ -502,3 +502,22 @@ User: "for every telegram streams we have show me the wn rates so I can see or m
 - Telegram commands were not used on purpose: `channel_desk.py` already long-polls the same bot's updates, and
   a second reader of the same bot would take its messages.
 - Guard: `.tg_switches_test.py`. Local preview: `.tg_bells_preview.py` (launch entry `bells-preview`).
+
+## 🏦 Tokenized inventory: about 30 names (2026-11-17)
+
+User: "add more tokenized stock to our inventory, we had 19 but we are now pushing to somewhere around 30" ·
+"i am talking about futures stocks … we limited to 19 first i think we should do more".
+
+- `config.BSTOCK_MIN_QV` 2,000,000 → 750,000 (24h turnover of the spot token) and `BSTOCK_MAX_N` 0 → 30 (the 30
+  largest above the floor). Five tickers joined `TOKENIZED_STOCKS` (CBRSB, INTWB, IRENB, MUUB, AGPUB: same
+  exchange permission set as NVDAB); GIGGLEUSDT left it (a crypto token; its 35 old desk rows stay under tok:*).
+  On 16 Nov the universe read 100 coins + 30 tokenized names = 130 symbols.
+- Load: the 13 Nov restart loop appeared at 119 symbols on this instance. If it returns: `BSTOCK_MAX_N = 20`.
+- **Stock futures exist on Binance and the scanner does not read them yet.** USDT-M futures list 237
+  `TRADIFI_PERPETUAL` contracts (199 US equities and ETFs, Korean / Hong Kong / China equities, commodities, a few
+  pre-IPO names), named without the B: NVDAB (spot token) ↔ NVDAUSDT (perpetual). `binance_client.futures_symbols()`
+  keeps `contractType == "PERPETUAL"` only, so `has_perp()` is False for all of them. The scanner reads the spot
+  token; a trade on the same stock can be taken long or short on its perpetual. Reading the perpetuals directly
+  (ranking by futures turnover, names with no spot token such as SK Hynix KR, Samsung, gold, oil) needs the
+  futures host to be reachable from the server first: the 16 Nov long-term rebuild could not reach it.
+- Guard: `.bstock_restore_test.py` (57).

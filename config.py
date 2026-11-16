@@ -142,14 +142,20 @@ BSTOCK_VALIDATED = True
 # listing never crowds a coin out and an illiquid one is not scanned. False = the crypto-only
 # universe of 2026-08-17 again.
 BSTOCK_IN_UNIVERSE = True
-BSTOCK_MIN_QV = 2_000_000.0
+# 🏦 2026-11-17 (user: "add more tokenized stock to our inventory, we had 19 but we are now pushing to
+# somewhere around 30"): the floor comes down from $2,000,000 to $750,000 of 24h turnover and the
+# count is capped at the 30 largest (BSTOCK_MAX_N below). On 16 Nov that floor passed 33 names of
+# the set; at $2M it passed 20. Thin names have thin books: read their fills with more caution.
+BSTOCK_MIN_QV = 750_000.0
 # 🏦 2026-11-13 LOAD TRIM (the service was restarting in a health-check loop on the Standard
 # instance once the scan grew from 100 to 119 symbols; user chose the trim over a bigger plan):
 # only the BSTOCK_MAX_N largest tokenized names by 24h volume ride with the coins. Raise it
 # only with more CPU / RAM behind the service. 0 or None = no cap.
 # 2026-11-13 later: back to no cap on his word ("its working fine ... switch it back to 19 stocks
 # instead of top ones"). If the 502 restart loop returns, set this to 6 again: one line.
-BSTOCK_MAX_N = 0
+# 2026-11-17: 30 on his word (about 130 symbols a scan). The restart loop of 13 Nov appeared at 119
+# symbols on this instance; if it returns, set this back to 20: one line.
+BSTOCK_MAX_N = 30
 # 🏦 the restore moment — 10 Nov 2026 00:00 PKT (09 Nov 19:00 UTC). The tokenized desk record
 # "since the restore" (the page's 🏦 TOKENIZED DESK and the 🏦 line on tokenized bells) counts
 # trades OPENED from here: the forward proof he asked to keep separately.
@@ -288,7 +294,10 @@ EXCLUDE_SUBSTRINGS = ("UP", "DOWN", "BULL", "BEAR")
 # whenever scan breadth changes.
 TOKENIZED_STOCKS = {"CRCLBUSDT", "SPCXBUSDT", "SOXLBUSDT", "SNDKBUSDT",
                     "SNXXBUSDT", "EWYBUSDT", "MUBUSDT", "SOXSUSDT",
-                    "SOXLUSDT", "GIGGLEUSDT", "SKHYBUSDT", "KORUBUSDT",
+                    "SOXLUSDT", "SKHYBUSDT", "KORUBUSDT",
+                    # GIGGLEUSDT left the set 2026-11-17: it is a crypto token (it does not carry the
+                    # exchange's tokenized permission set, every other name here does). Its 35 old
+                    # desk rows stay under tok:* as recorded.
                     "SPYBUSDT", "AXTIBUSDT", "AAOIBUSDT", "NBISBUSDT",
                     "GOOGLBUSDT", "NVDABUSDT", "FLNCBUSDT", "MSTRBUSDT",
                     "QQQBUSDT", "INTCBUSDT", "DRAMBUSDT", "ROBOBUSDT",
@@ -301,7 +310,10 @@ TOKENIZED_STOCKS = {"CRCLBUSDT", "SPCXBUSDT", "SOXLBUSDT", "SNDKBUSDT",
                     # because the set is exact names — now tagged like the rest
                     "TQQQBUSDT", "SOXSBUSDT", "MRVLBUSDT", "LITEBUSDT", "BEBUSDT",
                     "MRNABUSDT", "CRWVBUSDT", "COHRBUSDT", "BMNRBUSDT", "AVGOBUSDT",
-                    "SMCIBUSDT", "BABABUSDT", "TSMBUSDT"}
+                    "SMCIBUSDT", "BABABUSDT", "TSMBUSDT",
+                    # added 2026-11-17 (same tokenized permission set as NVDAB on the exchange,
+                    # each above $750k of 24h turnover that day)
+                    "CBRSBUSDT", "INTWBUSDT", "IRENBUSDT", "MUUBUSDT", "AGPUBUSDT"}
 EXCLUDE_BASES = ("USDC", "FDUSD", "TUSD", "BUSD", "DAI", "USDP", "EUR", "GBP",
                  "USD1", "USDE", "USDD", "AEUR", "XUSD", "EURI", "RLUSD",
                  "USDG", "GUSD", "PYUSD",
