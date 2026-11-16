@@ -564,3 +564,16 @@ priority".
   stop or TP1 in full) elite conviction is 54% / +0.11R (63) since 10 Nov and 30% / −0.07R (43) before; its target
   sits about 1.4R away. It is the parent fire of the confirmed entry, the GO and the star and fires first, and the
   demo holds one seat per name, so it will often be the seat taken on a move. Guard: `.demo_gen22_test.py`.
+
+- **GEN 22.1 (2026-11-17; user: "yes let confirmed entry, go and star replace the conviction seat remove elite
+  convcition from it").** `demo_account.REPLACE_SRC = {"elite_conv"}`, `REPLACE_BY = {"elite_confirm",
+  "go_revived", "elite_star"}`: in `try_open`, a candidate from a REPLACE_BY stream on a name whose seat is held by
+  a REPLACE_SRC stream runs every opening check first (zone, stop, heat and collateral with the old seat left out),
+  then the conviction seat is closed at the live price (reason "replaced by <stream>", returned in the rotated
+  list) and the newcomer opens. A strong trigger does not replace; no other seat gives way. No reset.
+- **🔔 Telegram Bells, 2026-11-17 later (user: "the comparsion of crypto vs tokenzied stocks for telegram
+  notificaitons as per streams and also add the streams to the list which … we set for demo").** The five demo
+  streams are on the list (🎮), every card shows crypto against stocks for all history and the last 14 days
+  (`records()` adds `tok_recent`), and a bell without a switch says what the code does with it today
+  (`tg_switches.FIXED`: the gated star and the revival ring; the plain star fire, the confirmed entry, the strong
+  trigger and the conviction fire are silent on the phone).

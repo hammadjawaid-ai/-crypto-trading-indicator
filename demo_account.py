@@ -133,6 +133,14 @@ STATE_FILE = os.environ.get("DEMO_STATE") or \
 # one seat per name, so it will often be the seat taken on a move. Revert: GEN 21 is at cdd45c3.
 GEN = 22
 START_BAL = 5000.0
+# 🔁 GEN 22.1 (user 2026-11-17: "yes let confirmed entry, go and star replace the conviction seat remove
+# elite convcition from it"): elite conviction is the first fire on a move and the demo holds one seat
+# per name, so its seat was blocking the later entries. Now a seat held by a REPLACE_SRC stream is
+# closed at the live price when a REPLACE_BY stream offers a seat on the same name, and the newcomer
+# takes it, but only once the newcomer has passed every opening check (zone, stop, heat, collateral).
+# A strong trigger does not replace. No reset: the $5,000 book carries on. Revert: REPLACE_SRC = set().
+REPLACE_SRC: set = {"elite_conv"}
+REPLACE_BY: set = {"elite_confirm", "go_revived", "elite_star"}
 STOCKS_ONLY = True            # GEN 21: only stock names with a Binance stock perpetual take a seat
 REENTRY_ON = False            # GEN 20: a TP1 bank is final; no momentum re-entry is queued
 # 🎮 GEN 16 (user 2026-09-14: "Demo Trading Start Again now. We will
@@ -945,8 +953,13 @@ def try_open(state: dict, cands: list, live_fn, active=None,
             continue            # two-key sort (top, rank) — a low
                                 # top-stream rank must not gate the
                                 # cards sorted after it
+        _swap = None
         if c["symbol"] in held:
-            continue
+            if c["src"] in REPLACE_BY:      # 🔁 GEN 22.1: a conviction seat on this name gives way
+                _swap = next((_p for _p in state["open"] if _p["symbol"] == c["symbol"]
+                              and _p.get("src") in REPLACE_SRC), None)
+            if _swap is None:
+                continue
         if not time_gate_ok(c["src"], c["side"], _t):
             continue            # ⏰ GEN 16.5: 🔴 21-05 PKT, long seat closed
         _ck = clock_ok(c["src"], c["side"], _t)   # 🕐 GEN 18: the star's clock
@@ -958,8 +971,8 @@ def try_open(state: dict, cands: list, live_fn, active=None,
         _res = SPARE_RESERVE.get(c["src"])
         if _res is not None and len(state["open"]) >= _slot_cap - _res:
             continue            # 🪑 spare-only stream: seats kept free
-        if len(state["open"]) >= _slot_cap and not _rotate():
-            continue            # board full, nothing rotatable
+        if _swap is None and len(state["open"]) >= _slot_cap and not _rotate():
+            continue            # board full, nothing rotatable (a swap adds no seat)
         _cap = MAX_PER_SRC.get(c["src"])
         if _cap is not None and src_n.get(c["src"], 0) >= _cap:
             if not _rotate({c["src"]}) or \
@@ -1033,6 +1046,8 @@ def try_open(state: dict, cands: list, live_fn, active=None,
         _heat = 0.0
         _m_used = 0.0
         for _op in state["open"]:
+            if _op is _swap:
+                continue        # 🔁 the seat being replaced frees its risk and its margin
             try:
                 _d = ((float(_op["entry"]) - float(_op["stop"]))
                       if _op.get("side") == "LONG"
@@ -1049,6 +1064,15 @@ def try_open(state: dict, cands: list, live_fn, active=None,
         if (_heat + risk_usd) / _bal > HEAT_CAP:
             continue            # portfolio already carrying its heat
         fee_in = notional * FEE
+        if _swap is not None:   # 🔁 every check passed: the conviction seat closes at the live price
+            _rs = _close_qty(state, _swap, _swap["qty"], live,
+                             f"replaced by {c['src']} — the later entry on the same name takes "
+                             f"the seat")
+            state["open"].remove(_swap)
+            state["closed"].append(_rs)
+            held.discard(_swap["symbol"])
+            src_n[_swap.get("src")] = max(0, src_n.get(_swap.get("src"), 0) - 1)
+            rotated.append(_rs)
         pos = {"symbol": c["symbol"], "base": c["base"],
                "side": c["side"], "entry": live, "stop": c["stop"],
                "tp1": c["tp1"], "tp2": c["tp2"],

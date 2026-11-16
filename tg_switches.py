@@ -18,8 +18,14 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 FILE = ".tg_switches.json"
 # (flag in agent_worker or None when the bell has no switch, label, desk tier or None, note)
+# 🎮 = a stream the stock-only demo trades (user 2026-11-17: "add the streams to the list which I mentioned
+# above that we set for demo as well so we finalize the notifications accordingly").
 REGISTRY = [
     (None, "⭐ ELITE STAR, gated", "elite_star:gated", "rings when the star passes its four-rule read"),
+    (None, "🎮 ⭐ ELITE STAR, every fire", "elite_star", "demo stream; the phone rings only for the gated ones above"),
+    (None, "🎮 💎✅ ELITE CONFIRMED ENTRY", "elite_confirm", "demo stream"),
+    (None, "🎮 💥 STRONG TRIGGER", "trig_strong", "demo stream"),
+    (None, "🎮 💎 ELITE CONVICTION", "elite_conv", "demo stream"),
     ("TG_STAR_PRIME", "⭐🥇 STAR × PRIME", "star_prime", ""),
     ("TG_STAR_TRIG", "⭐💥 STAR × STRONG TRIGGER", "star_trig", ""),
     ("TG_STAR_TAKENOW", "⭐✅🔥 STAR × TAKE NOW HOT", "star_takenow", ""),
@@ -28,7 +34,7 @@ REGISTRY = [
     ("TG_PRIME_TRIG", "💥🥇 PRIME × STRONG TRIGGER", "prime_trig", ""),
     ("TG_CONV_PRIME", "💎🥇 ELITE × PRIME", "conv_prime", ""),
     ("TG_LEG2_PRIME", "🔥🥇 SECOND LEG × PRIME", "leg2_prime", ""),
-    (None, "💎⚡ CONVICTION REVIVAL · ⭐⚡ GO REVIVED", "go_revived", "entered at the GO; the star's GO is a thread reply"),
+    (None, "🎮 💎⚡ CONVICTION REVIVAL · ⭐⚡ GO REVIVED", "go_revived", "demo stream; entered at the GO; the star's GO is a thread reply"),
     ("TG_GO_LIVE", "💎⚡ GO LIVE", "go_live", ""),
     ("TG_TRIGKR_PRIME", "💥🔮🥇 TRIGGER × KRONOS × PRIME", "trigkr_prime", ""),
     ("TG_ARRIVAL_T1", "⚡🔥 ARRIVAL T1", None, ""),
@@ -36,6 +42,9 @@ REGISTRY = [
     ("TG_FREEZE", "❄️ FREEZE reply", None, "a thread reply, not an entry"),
 ]
 FLAGS = [r[0] for r in REGISTRY if r[0]]
+# bells with no switch: what the code does with them today (True rings, False silent on the phone)
+FIXED = {"elite_star:gated": True, "go_revived": True, "elite_star": False, "elite_confirm": False,
+         "trig_strong": False, "elite_conv": False}
 
 
 def _state_dir() -> str:
@@ -104,7 +113,8 @@ def status() -> list:
     rows = []
     for flag, label, tier, note in REGISTRY:
         on = None if flag is None else ov.get(flag, dflt.get(flag))
-        rows.append({"flag": flag, "label": label, "tier": tier, "note": note, "on": on, "set_here": flag in ov})
+        rows.append({"flag": flag, "label": label, "tier": tier, "note": note, "on": on, "set_here": flag in ov,
+                     "fixed": FIXED.get(tier) if flag is None else None})
     return rows
 
 
@@ -114,9 +124,10 @@ def _cell(rs) -> dict:
 
 
 def records(con, now: float | None = None, days: float = 14.0) -> dict:
-    """{tier key: {"all", "recent", "tok"}} from the desk ledger (clean closes; a win is pnl_r > 0). "recent" is
-    the last `days` by close time, "tok" the tokenized seats of the same stream. The gated star is the star tier
-    cut to the fires the bell's own gate passed (the stamp on the star's signal row, within 30 minutes)."""
+    """{tier key: {"all", "recent", "tok", "tok_recent"}} from the desk ledger (clean closes; a win is pnl_r > 0).
+    "recent" is the last `days` by close time; "tok" / "tok_recent" are the tokenized seats of the same stream.
+    The gated star is the star tier cut to the fires the bell's own gate passed (the stamp on the star's signal
+    row, within 30 minutes)."""
     now = time.time() if now is None else float(now)
     cut = now - days * 86400.0
     out = {}
@@ -129,8 +140,9 @@ def records(con, now: float | None = None, days: float = 14.0) -> dict:
         by.setdefault(tier, []).append((closed_at, r))
     for t in tiers:
         a = by.get(t, [])
+        k = by.get("tok:" + t, [])
         out[t] = {"all": _cell([r for _, r in a]), "recent": _cell([r for c, r in a if (c or 0) >= cut]),
-                  "tok": _cell([r for _, r in by.get("tok:" + t, [])])}
+                  "tok": _cell([r for _, r in k]), "tok_recent": _cell([r for c, r in k if (c or 0) >= cut])}
     sig = {}
     for ts, sym, side in con.execute(
             "SELECT ts, symbol, side FROM signals WHERE stream='elite_star' AND (extra LIKE '%\"gate\": \"pass\"%' "
@@ -144,7 +156,7 @@ def records(con, now: float | None = None, days: float = 14.0) -> dict:
         i = bisect.bisect_left(L, o)
         if any(abs(x - o) <= 1800 for x in L[max(0, i - 1):i + 1]):
             cells[tier].append((c, r))
-    g = cells["elite_star"]
+    g, gk = cells["elite_star"], cells["tok:elite_star"]
     out["elite_star:gated"] = {"all": _cell([r for _, r in g]), "recent": _cell([r for c, r in g if (c or 0) >= cut]),
-                               "tok": _cell([r for _, r in cells["tok:elite_star"]])}
+                               "tok": _cell([r for _, r in gk]), "tok_recent": _cell([r for c, r in gk if (c or 0) >= cut])}
     return out

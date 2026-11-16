@@ -9984,7 +9984,8 @@ if active_section == "🎮 Demo Trading":
         "<b>The roster, in order:</b> 1. 💎✅ ELITE CONFIRMED ENTRY · 2. ⚡ GO REVIVED · 3. ⭐ ELITE STAR, every fire · "
         "4. 💥 STRONG TRIGGER · 5. 💎 ELITE CONVICTION — every seat the desk opens for these on a stock name. "
         "All 10x, one full seat each ($250 margin, $2,500 position). Exit: the stop, or TP1 with everything banked, or the near-TP bank (85% of the way to TP1, "
-        "then fading back to 60% while in profit). No trail, no ladder, no re-entry. Fresh $5,000 book since 17 Nov · "
+        "then fading back to 60% while in profit). No trail, no ladder, no re-entry. A conviction seat gives way to the confirmed entry, the GO or the star when "
+        "one arrives on the same name. Fresh $5,000 book since 17 Nov · "
         f"day {_days:.1f}.</span></div>",
         unsafe_allow_html=True)
     with st.expander("roster history (GEN 17 → 21)", expanded=False):   # 2026-11-07: moved out of the header
