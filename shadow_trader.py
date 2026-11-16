@@ -77,6 +77,11 @@ def mirror_signal(p: dict) -> dict:
     return q
 
 
+DEMO_FEED: list = []          # 🎮 GEN 21: desk seats on stock names, offered to the demo (newest last)
+DEMO_FEED_TIERS: set = {"elite_confirm", "go_revived", "elite_star", "trig_strong"}
+DEMO_FEED_TTL_S = 2700        # a seat is offered for 45 minutes (the worker goes round in 17–20)
+
+
 def open_from_signal(tier: str, p: dict, live_px: float | None) -> bool:
     """Open a shadow trade from a brain signal. One open per (tier, symbol).
     Entry = live price NOW (forward, not the plan's idealised entry)."""
@@ -124,6 +129,17 @@ def open_from_signal(tier: str, p: dict, live_px: float | None) -> bool:
         _ht = None
     store.shadow_open(tier, sym, side, entry, stop, tp1, tp2,
                       conf=_cf, heat=_ht)
+    # 🎮 GEN 21 demo feed (user 2026-11-17: stock names only, four streams): a seat the desk opens on a
+    # tokenized name under one of the watched tiers is offered to the demo with the same plan. The desk
+    # itself is untouched; the worker reads this list when it fills the demo's seats.
+    try:
+        if tier.startswith("tok:") and tier[4:] in DEMO_FEED_TIERS:
+            DEMO_FEED.append({"symbol": sym, "base": p.get("base") or sym.replace("USDT", ""), "side": side,
+                              "entry": entry, "stop": stop, "tp1": tp1, "tp2": tp2 or None, "conf": _cf, "heat": _ht,
+                              "score": float(p.get("score") or 85), "burst": 0.0, "src": tier[4:], "fired_at": time.time()})
+            del DEMO_FEED[:-60]
+    except Exception:
+        pass
     return True
 
 

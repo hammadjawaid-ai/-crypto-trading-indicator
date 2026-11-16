@@ -6420,11 +6420,10 @@ def cycle() -> None:
         # GEN 8 form boosts: each pool's own live desk ledger (duo
         # form = the duo85 tier; young tiers just read ~0 = neutral).
         _dz_form = {}
-        for _dt, _sh in (("elite_star", "elite_star"),         # GEN 20: his five
-                         ("star_prime", "star_prime"),
-                         ("apex_v2_gated", "apex_v2_gated"),
-                         ("prime_trig", "prime_trig"),
-                         ("star_apexv2", "star_apexv2")):
+        for _dt, _sh in (("elite_confirm", "tok:elite_confirm"),   # GEN 21: his four, on stock names
+                         ("go_revived", "tok:go_revived"),
+                         ("elite_star", "tok:elite_star"),
+                         ("trig_strong", "tok:trig_strong")):
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_sh)["net_r"]
             except Exception:
@@ -7081,47 +7080,16 @@ def cycle() -> None:
         # 🎮 GEN 17 POOLS (user 2026-10-14): exactly the three, in his order.
         _DEMO_GO[:] = [d for d in _DEMO_GO
                        if _now - d["fired_at"] <= DEMO_FIRE_TTL_S]
-        # 🎮 GEN 20 POOLS (user 2026-11-17): gated ⭐ star at any hour, ⭐🥇 star × prime, 🏆💎 APEX V2
-        # gated, 💥🥇 prime × strong trigger, ⭐🏆² star × APEX V2 — nothing else. (GEN 19 had
-        # star × strong trigger and the conviction revival where rungs 3 and 4 now sit.)
-        _dz_pools = {
-            # 1. ⭐ ELITE STAR — the star fire that PASSED the phone's four-rule
-            # read (heat >= 25 · BTC day <= +1.5% · not 01–05 PKT · stop <= 7%);
-            # the ≥69% cell book, heat and BTC-day sizing are read in
-            # demo_account.star_seat (full / half / double, or no seat)
-            "elite_star": ([dict(d) for d in _DEMO_STARS
-                            if d.get("seat") and d.get("entry")
-                            and d.get("stop") and d.get("tp1")]
-                           + [d for d in _dz_reo
-                              if d["src"] == "elite_star"]),
-            # 2. ⭐🥇 STAR × PRIME: the star's plan, seated at the second fire
-            "star_prime": ([dict(d) for d in _DEMO_SP
-                            if _now - d["fired_at"] <= DEMO_FIRE_TTL_S
-                            and d.get("entry") and d.get("stop")
-                            and d.get("tp1")]
-                           + [d for d in _dz_reo
-                              if d["src"] == "star_prime"]),
-            # 3. 🏆💎 APEX V2 GATED: the fire that passed its own gate
-            "apex_v2_gated": ([dict(d) for d in _DEMO_V2G
-                               if _now - d["fired_at"] <= DEMO_FIRE_TTL_S
-                               and d.get("entry") and d.get("stop")
-                               and d.get("tp1")]
-                              + [d for d in _dz_reo
-                                 if d["src"] == "apex_v2_gated"]),
-            # 4. 💥🥇 PRIME × STRONG TRIGGER: the PRIME plan, every band
-            "prime_trig": ([dict(d) for d in _DEMO_PT
-                            if _now - d["fired_at"] <= DEMO_FIRE_TTL_S
-                            and d.get("entry") and d.get("stop")
-                            and d.get("tp1")]
-                           + [d for d in _dz_reo
-                              if d["src"] == "prime_trig"]),
-            # 5. ⭐🏆² STAR × APEX V2: the star's plan, at the second fire
-            "star_apexv2": ([dict(d) for d in _DEMO_SV2
-                             if _now - d["fired_at"] <= DEMO_FIRE_TTL_S
-                             and d.get("entry") and d.get("stop")
-                             and d.get("tp1")]
-                            + [d for d in _dz_reo
-                               if d["src"] == "star_apexv2"])}
+        # 🎮 GEN 21 POOLS (user 2026-11-17): stock names only, four streams — every seat the desk
+        # opened under tok:elite_confirm / tok:go_revived / tok:elite_star / tok:trig_strong
+        # (shadow_trader.DEMO_FEED), with the desk's own plan. (GEN 20 fed elite_star from the
+        # gated star list, star_prime, apex_v2_gated, prime_trig and star_apexv2 here.)
+        _dz_feed = [d for d in shadow_trader.DEMO_FEED
+                    if _now - d["fired_at"] <= shadow_trader.DEMO_FEED_TTL_S
+                    and d.get("entry") and d.get("stop") and d.get("tp1")]
+        _dz_pools = {_s21: ([dict(d) for d in _dz_feed if d["src"] == _s21]
+                            + [d for d in _dz_reo if d["src"] == _s21])
+                     for _s21 in ("elite_confirm", "go_revived", "elite_star", "trig_strong")}
         # 🔄 GEN 7 rotation input: every (coin, side) with a LIVE
         # signal this cycle — positions outside this set are the
         # rotation candidates ("a losing trade stands only while
@@ -7184,9 +7152,9 @@ def cycle() -> None:
                      "score": float(_rp8.get("score") or 80),
                      "src": (_rec8.get("src")
                              if _rec8.get("src") in
-                             ("elite_star", "star_prime", "apex_v2_gated",
-                              "prime_trig", "star_apexv2")
-                             else "elite_star"),   # GEN 20 (dormant: REENTRY_ON is off)
+                             ("elite_confirm", "go_revived", "elite_star",
+                              "trig_strong")
+                             else "elite_star"),   # GEN 21 (dormant: REENTRY_ON is off)
                      "chain": int(_rp8.get("chain") or 0) + 1,
                      "fired_at": _now})
                 print(f"[gen8] 🔁 momentum re-entry queued "

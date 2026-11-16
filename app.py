@@ -9978,17 +9978,20 @@ if active_section == "🎮 Demo Trading":
         "<span style='font-size:1.5rem;font-weight:900;background:"
         "linear-gradient(90deg,#40c4ff,#b388ff);-webkit-background-"
         "clip:text;-webkit-text-fill-color:transparent;background-"
-        "clip:text'>🎮 DEMO $2,000 — GEN 20 · GATED STARS, ANY HOUR"
+        "clip:text'>🎮 DEMO $2,000 — GEN 21 · STOCKS ONLY"
         "</span><br><span style='color:#e6e9f0;font-size:0.84rem'>"
-        "<b>The roster, in order:</b> 1. ⭐ ELITE STAR gated, every hour, both sides, tokenized names included · "
-        "⭐🥇 STAR × PRIME · 3. 🏆💎 APEX V2 gated · 4. 💥🥇 PRIME × STRONG TRIGGER · 5. ⭐🏆² STAR × APEX V2 — "
-        "pairs seat at the second fire. All 10x, one full seat each ($100 margin). Exit: the stop, or TP1 with "
-        "everything banked, or the near-TP bank (85% of the way to TP1, then fading back to 60% while in profit). "
-        "No trail, no ladder, no half at +0.3R, no stop to entry, no re-entry. Fresh $2,000 book since 17 Nov · "
+        "<b>Stock names only</b> (tokenized, each with a Binance stock perpetual); no coin takes a seat. "
+        "<b>The roster, in order:</b> 1. 💎✅ ELITE CONFIRMED ENTRY · 2. ⚡ GO REVIVED · 3. ⭐ ELITE STAR, every fire · "
+        "4. 💥 STRONG TRIGGER — every seat the desk opens for these on a stock name. All 10x, one full seat each "
+        "($100 margin). Exit: the stop, or TP1 with everything banked, or the near-TP bank (85% of the way to TP1, "
+        "then fading back to 60% while in profit). No trail, no ladder, no re-entry. Fresh $2,000 book since 17 Nov · "
         f"day {_days:.1f}.</span></div>",
         unsafe_allow_html=True)
-    with st.expander("roster history (GEN 17 → 20)", expanded=False):   # 2026-11-07: moved out of the header
+    with st.expander("roster history (GEN 17 → 21)", expanded=False):   # 2026-11-07: moved out of the header
         st.caption(
+            "GEN 21 (17 Nov, a few hours after GEN 20): stock names only, four streams (elite confirmed entry, GO "
+            "revived, elite star, strong trigger), fed from the desk's own seats; GEN 20's gated star, star × prime, "
+            "APEX V2 gated, prime × strong trigger and star × APEX V2 on every symbol left the money. "
             "GEN 20 (17 Nov): the GEN 19 seats closed at the live price, ledger archived ($2,000 → about $1,764 "
             "in ten days: star × prime 0 won of 10, −$372; plain star seats +$119). The window book and its "
             "half / double seats went, star × strong trigger and the conviction revival left the money, APEX V2 "

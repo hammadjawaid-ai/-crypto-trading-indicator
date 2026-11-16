@@ -108,8 +108,25 @@ STATE_FILE = os.environ.get("DEMO_STATE") or \
 # GEN 19 (desk 13% / −0.66R on 15 since 7 Nov, demo 0 won of 10, −$372); gated stars 52% / +0.04R (23)
 # since 7 Nov, longs 33%, shorts 73%; APEX V2 gated 43% / −0.15R (14); prime × strong trigger 70% /
 # +0.36R (10). His call, his system. Revert: git has GEN 19 at dcb1015.
-GEN = 20
+# 🎮 GEN 21 (user 2026-11-17, a few hours after GEN 20: "demo trading we will reset and we will only take
+# stock future trades ONLY no other than that. the streams will be as follows. 1. ELITE CONFIRMED ENTRY
+# 2. GO REVIVED 3. ELITE STARS 4. STRONG TRIGGERS with full leverage of 10x and bank at tp1").
+# STOCKS ONLY (STOCKS_ONLY): a candidate seats only when its symbol is a tokenized stock with a Binance
+# stock perpetual (config.BSTOCK_PERP); no coin takes a seat. THE FEED is the desk itself: every seat the
+# desk opens under tok:elite_confirm / tok:go_revived / tok:elite_star / tok:trig_strong is offered to the
+# demo with the same plan (shadow_trader.DEMO_FEED), so the demo and the page's tokenized records count
+# the same trades. Every elite star, gated or not (on stock names the gate had muted the winners: 11
+# muted 82% / +0.59R against 4 passed, thin). One full seat each, 10x. Exit as GEN 20: the stop, TP1 with
+# 100% banked, or the near-TP bank; no ladder, no trail, no re-entry.
+# MEASURED WARNING GIVEN TO HIM AT WIRE TIME (stock names, 15-minute candles, the stop or TP1 in full):
+# elite confirmed 74% / +0.23R (35) since 10 Nov but 40% / −0.25R (15) before; GO revived 89% / +0.30R
+# (27) but 50% / −0.26R (16) before; elite star 80% / +0.39R (15) but 45% / −0.22R (11) before; strong
+# trigger 73% / +0.01R (33) and 74% / +0.13R (35) before. One good week; the desk sees price only once
+# a worker cycle (17–20 minutes), so stops traded through between cycles are not booked.
+# Revert: GEN 20 is at 945907c.
+GEN = 21
 START_BAL = 2000.0
+STOCKS_ONLY = True            # GEN 21: only stock names with a Binance stock perpetual take a seat
 REENTRY_ON = False            # GEN 20: a TP1 bank is final; no momentum re-entry is queued
 # 🎮 GEN 16 (user 2026-09-14: "Demo Trading Start Again now. We will
 # have only this and no limit on slots can be 20 at a time depending
@@ -200,7 +217,7 @@ NEAR_TP_FADE = 0.60          # how far it has given back
 # +0.050R, PRIME +0.127R vs +0.100R): back on for all four.
 # 🪜 GEN 19: the fade bank is OFF — the ≥69% cells were measured on the desk ladder, so the
 # book exits the same way (LADDER_SRC below). Revert: put the streams back in this set.
-NEAR_TP_SRC: set = {"elite_star", "star_prime", "apex_v2_gated", "prime_trig", "star_apexv2"}   # GEN 20: the 85% fade bank is back for every lane
+NEAR_TP_SRC: set = {"elite_confirm", "go_revived", "elite_star", "trig_strong"}   # GEN 20 / 21: the 85% fade bank for every lane
 # 🪜 THE DESK LADDER (shadow_trader's exit law, now the demo's for every GEN 19 lane): stop
 # → entry at +1R · stop → TP1 when TP1 prints · after TP1 the stop trails the peak by 1.2R ·
 # TP2 closes · 48h cuts at the live price. Nothing banks at TP1 — a winner runs to TP2 or
@@ -316,7 +333,8 @@ ELITE_FAMILY_CAP = 0
 # NEVER rotated, and at most this many rotations happen per cycle.
 ROTATE_MAX = 0   # GEN 9 user order: rotation REMOVED
 SMART_EXIT_SKIP: set = {"elite_star", "star_prime", "star_trig", "conv_revival", "star_apexv2",
-                        "apex_v2_gated", "prime_trig"}   # GEN 19 / 20: no kronos exit anywhere
+                        "apex_v2_gated", "prime_trig", "elite_confirm", "go_revived",
+                        "trig_strong"}   # GEN 19 / 20 / 21: no kronos exit anywhere
 # GEN 12: kronos smart-exit off for all. Exits: SL-or-TP1-bank-100%
 # everywhere EXCEPT ⭐ elite_star's near-TP bank (own block) and
 # 💎🔮 elite_kr's RIDE (half-bank TP1 + BE + trail, in the TP1
@@ -422,13 +440,12 @@ MIN_RANK = 85.0  # GEN 9: anyone can take any place
 # strong triggers at priority", then Star × Prime and the conviction revival; GO
 # REVIVED, ARRIVAL T1 and EARLY LANE leave the money (bells, tiers, boards go on).
 # 🎮 GEN 19 — THE FIVE, GATED (user 2026-11-07), in his order. CLASS_W is the roster.
-# 🎮 GEN 20 — HIS FIVE (user 2026-11-17), in his order. (GEN 19's five: elite_star on its book
-# cells, star_prime, star_trig, conv_revival, star_apexv2.)
-CLASS_W = {"elite_star": 105,     # 1. ⭐ ELITE STAR gated (the bell's four-rule read), any hour
-           "star_prime": 104,     # 1b. ⭐🥇 STAR × PRIME — seated at the second fire
-           "apex_v2_gated": 103,  # 3. 🏆💎 APEX V2 gated (BTC ±1.5% · stop 2–4% · not 17–21 PKT)
-           "prime_trig": 102,     # 4. 💥🥇 PRIME × STRONG TRIGGER
-           "star_apexv2": 101}    # 5. ⭐🏆² STAR × APEX V2 — second fire ("lets try … together")
+# 🎮 GEN 21 — HIS FOUR ON STOCK NAMES (user 2026-11-17), in his order; the keys are the desk tiers.
+# (GEN 20, for a few hours: elite_star gated, star_prime, apex_v2_gated, prime_trig, star_apexv2.)
+CLASS_W = {"elite_confirm": 105,  # 1. 💎✅ ELITE CONFIRMED ENTRY
+           "go_revived": 104,     # 2. ⚡ GO REVIVED (star and conviction revivals, entered at the GO)
+           "elite_star": 103,     # 3. ⭐ ELITE STAR, every fire
+           "trig_strong": 102}    # 4. 💥 STRONG TRIGGER
 # 🪑 SPARE-SEAT RULE: a listed stream may open only while at least
 # this many seats stay free after it, so the priority three always
 # find room — rotation is off (ROTATE_MAX = 0) and a seat once taken
@@ -617,8 +634,7 @@ def seat_size(c: dict, now=None):
     """GEN 20 -> (mult, word, detail) for a ranked candidate; mult None = no seat."""
     src = c.get("src")
     if src in CLASS_W:            # GEN 20: every roster lane takes one full seat, at any hour
-        return 1.0, "full", ("gated star, any hour" if src == "elite_star"
-                             else "pair, at the second fire" if src in PAIR_SEAT else "full seat")
+        return 1.0, "full", "pair, at the second fire" if src in PAIR_SEAT else "full seat"
     return None, None, "not on the roster"
 
 
@@ -679,7 +695,8 @@ def lev_for(src: str, conf=None, burst=None) -> float:
     ONE source of truth — the 💸 live executor calls this too.
     (The GEN 15 star 6x/8x-by-burst ladder is in git at 2a56c58.)"""
     return {"elite_star": 10.0, "star_prime": 10.0, "star_trig": 10.0, "conv_revival": 10.0,
-            "star_apexv2": 10.0, "apex_v2_gated": 10.0, "prime_trig": 10.0}.get(src, LEV_GEN13)   # GEN 19 / 20: flat 10x
+            "star_apexv2": 10.0, "apex_v2_gated": 10.0, "prime_trig": 10.0, "elite_confirm": 10.0,
+            "go_revived": 10.0, "trig_strong": 10.0}.get(src, LEV_GEN13)   # GEN 19 / 20 / 21: flat 10x
 
 
 def load() -> dict:
@@ -736,6 +753,9 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
             # money until their cohort validation flips the flag.
             if sym in getattr(config, "TOKENIZED_STOCKS", ()) \
                     and not getattr(config, "BSTOCK_VALIDATED", False):
+                continue
+            # 🎮 GEN 21: stock names only, and only those with a Binance stock perpetual
+            if STOCKS_ONLY and sym not in (getattr(config, "BSTOCK_PERP", None) or {}):
                 continue
             # 🎯 GEN 10 conf-band seat gate (user 2026-09-07): each
             # stream trades ONLY in its measured-green band(s). A

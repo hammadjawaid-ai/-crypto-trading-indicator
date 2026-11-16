@@ -531,3 +531,28 @@ User: "add more tokenized stock to our inventory, we had 19 but we are now pushi
   `BSTOCK_NO_PERP` (QNTB, STXB, USDEB, BBB) are classed as tokenized and never scanned. Ranking is by the spot
   token's turnover because that is the feed the server can read. If the restart loop returns: `BSTOCK_MAX_N = 20`.
   Guard: `.bstock_restore_test.py` (59).
+
+## 🎮 DEMO GEN 21: stocks only (2026-11-17)
+
+User: "demo trading we will reset and we will only take stock future trades ONLY no other than that. the streams
+will be as follows. 1. ELITE CONFIRMED ENTRY 2. GO REVIVED 3. ELITE STARS 4. STRONG TRIGGERS with full leverage of
+10x and bank at tp1" and "server reads B tokens make it a priority nvdab and nvda is both same so treat B stocks as
+priority".
+
+- **Stocks only:** `demo_account.STOCKS_ONLY = True`. `rank_candidates` drops any symbol that is not in
+  `config.BSTOCK_PERP` (a tokenized stock with a Binance stock perpetual). No coin takes a seat.
+- **Roster (`CLASS_W`, his order, keys = desk tiers):** `elite_confirm` > `go_revived` > `elite_star` >
+  `trig_strong`. Every elite star, gated or not.
+- **Feed:** `shadow_trader.open_from_signal` appends to `shadow_trader.DEMO_FEED` whenever the desk opens a seat
+  under `tok:<one of the four>`; the worker's GEN 21 pools read that list (offers live 45 minutes). The demo
+  therefore trades the same seats the page's tokenized records count, with the same plan. The older feeds
+  (`_DEMO_STARS`, `_DEMO_SP`, `_DEMO_V2G`, `_DEMO_PT`, `_DEMO_SV2`, `_DEMO_GO`) are still filled and unused.
+- **Exit and size:** as GEN 20: one full seat ($100 margin) at 10x; the stop, TP1 with 100% banked, or the near-TP
+  bank; no ladder, no trail, no re-entry. Recent form is read from the `tok:` tiers.
+- **Money:** `GEN = 21`, fresh $2,000; GEN 20 (a few hours old) is closed at the live price and archived.
+- **Measured at wire time (stock names, 15-minute candles, stop or TP1 in full):** elite confirmed 74% / +0.23R
+  (35) since 10 Nov, 40% / −0.25R (15) before; GO revived 89% / +0.30R (27), 50% / −0.26R (16) before; elite star
+  80% / +0.39R (15), 45% / −0.22R (11) before; strong trigger 73% / +0.01R (33), 74% / +0.13R (35) before.
+  Streams not on the roster with a longer positive record on stock names: top conviction 68% / +0.20R (50),
+  surge 62% / +0.18R (91), best zone 59% / +0.12R (104), take-now hot 58% / +0.12R (106), nearly all before 10 Nov.
+- Guard: `.demo_gen21_test.py`. Revert: GEN 20 is at 945907c.
