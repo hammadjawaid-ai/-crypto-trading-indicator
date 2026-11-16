@@ -94,8 +94,23 @@ STATE_FILE = os.environ.get("DEMO_STATE") or \
 # add measured ≈ −0.06R in the meta-label lab; the whole seat is taken at the fire).
 # EXIT = the desk ladder (LADDER_SRC): BE at +1R → TP1 lock → 1.2R trail → 48h cut — the
 # cells above were measured with exactly this, so the book can be held to them.
-GEN = 19
+# 🎮 GEN 20 (user 2026-11-17: "demo trade make it back · 1. Elite Stars no timings restriction just
+# gated ones and elite x prime being the primary trades you can add tokenized as well · 2. TP 1 bank
+# full or 85% bank full, no trails · 3. APEX V2 Gated add to the list · 4. STRONG TRIGGER X PRIME ADD
+# TO THE LIST · reset the money again"; and "Lets try elite star and apex v2 together").
+# ROSTER (CLASS_W): ⭐ gated star, every hour and both sides, one full seat (the GEN 19 window book
+# and its half / double sizes are gone) · ⭐🥇 star × prime · 🏆💎 APEX V2 gated · 💥🥇 prime ×
+# strong trigger · ⭐🏆² star × APEX V2. Tokenized names seat like any other (BSTOCK_VALIDATED).
+# EXIT: the stop, or TP1 with 100% banked, or the near-TP bank (printed 85% of the way to TP1, then
+# faded back to 60% while still in profit: everything banked there). No ladder, no trail, no half at
+# +0.3R, no stop to entry, no time cut, no momentum re-entry after a TP1 (REENTRY_ON).
+# MEASURED WARNING GIVEN TO HIM AT WIRE TIME (ledger to 16 Nov): star × prime was the worst seat of
+# GEN 19 (desk 13% / −0.66R on 15 since 7 Nov, demo 0 won of 10, −$372); gated stars 52% / +0.04R (23)
+# since 7 Nov, longs 33%, shorts 73%; APEX V2 gated 43% / −0.15R (14); prime × strong trigger 70% /
+# +0.36R (10). His call, his system. Revert: git has GEN 19 at dcb1015.
+GEN = 20
 START_BAL = 2000.0
+REENTRY_ON = False            # GEN 20: a TP1 bank is final; no momentum re-entry is queued
 # 🎮 GEN 16 (user 2026-09-14: "Demo Trading Start Again now. We will
 # have only this and no limit on slots can be 20 at a time depending
 # on the signals with leverage of 10x of our total account 2000
@@ -185,12 +200,12 @@ NEAR_TP_FADE = 0.60          # how far it has given back
 # +0.050R, PRIME +0.127R vs +0.100R): back on for all four.
 # 🪜 GEN 19: the fade bank is OFF — the ≥69% cells were measured on the desk ladder, so the
 # book exits the same way (LADDER_SRC below). Revert: put the streams back in this set.
-NEAR_TP_SRC: set = set()
+NEAR_TP_SRC: set = {"elite_star", "star_prime", "apex_v2_gated", "prime_trig", "star_apexv2"}   # GEN 20: the 85% fade bank is back for every lane
 # 🪜 THE DESK LADDER (shadow_trader's exit law, now the demo's for every GEN 19 lane): stop
 # → entry at +1R · stop → TP1 when TP1 prints · after TP1 the stop trails the peak by 1.2R ·
 # TP2 closes · 48h cuts at the live price. Nothing banks at TP1 — a winner runs to TP2 or
 # trails out above TP1 (reason "TP1 lock").
-LADDER_SRC: set = {"elite_star", "star_prime", "star_trig", "conv_revival", "star_apexv2"}
+LADDER_SRC: set = set()       # GEN 20: no ladder, no trail (GEN 19 had every lane here)
 TRAIL_R = 1.2                 # post-TP1 trail distance in initial-risk units (desk law)
 # 🎯 GEN 19.2 ACCURACY EXIT (user 2026-11-13: "yes switch gated star to the 88% exit and
 # deploy"): a ⭐ star seat banks HALF at +0.3R (a resting limit at entry + 0.3 x the initial
@@ -200,7 +215,7 @@ TRAIL_R = 1.2                 # post-TP1 trail distance in initial-risk units (d
 # +0.20 / +0.12R) against the plain ladder's 66% / +0.32R: accuracy bought with profit, and a
 # loss is still a full 1R. Stars only; the pairs and the revival keep the plain ladder.
 # Revert: SCALE_OUT_SRC = set().
-SCALE_OUT_SRC: set = {"elite_star"}
+SCALE_OUT_SRC: set = set()    # GEN 20: nothing is banked before TP1 (GEN 19.2 had elite_star here)
 SCALE_OUT_R = 0.3
 LADDER_HOLD_H = 48.0          # the desk's time-stop
 # 📐 rr re-checked at the LIVE entry for streams whose edge IS an rr
@@ -300,8 +315,8 @@ ELITE_FAMILY_CAP = 0
 # positives banked first, then negatives cut. Healthy signals are
 # NEVER rotated, and at most this many rotations happen per cycle.
 ROTATE_MAX = 0   # GEN 9 user order: rotation REMOVED
-SMART_EXIT_SKIP: set = {"elite_star", "star_prime", "star_trig",
-                        "conv_revival", "star_apexv2"}   # GEN 19: no kronos exit anywhere
+SMART_EXIT_SKIP: set = {"elite_star", "star_prime", "star_trig", "conv_revival", "star_apexv2",
+                        "apex_v2_gated", "prime_trig"}   # GEN 19 / 20: no kronos exit anywhere
 # GEN 12: kronos smart-exit off for all. Exits: SL-or-TP1-bank-100%
 # everywhere EXCEPT ⭐ elite_star's near-TP bank (own block) and
 # 💎🔮 elite_kr's RIDE (half-bank TP1 + BE + trail, in the TP1
@@ -407,19 +422,13 @@ MIN_RANK = 85.0  # GEN 9: anyone can take any place
 # strong triggers at priority", then Star × Prime and the conviction revival; GO
 # REVIVED, ARRIVAL T1 and EARLY LANE leave the money (bells, tiers, boards go on).
 # 🎮 GEN 19 — THE FIVE, GATED (user 2026-11-07), in his order. CLASS_W is the roster.
-CLASS_W = {"elite_star": 105,     # 1. ⭐ ELITE STAR gated (four-rule read) on its book cells
-                                  #    — STAR_BOOK: longs 05–09 · 09–13 · 17–21, 21–01 half
-                                  #    (19.1, his add); shorts 05–09 ·
-                                  #    13–17 (half) · 17–21 (double on a BTC-down day) ·
-                                  #    21–01 (half); shorts outside heat 40–79 half
-           "star_prime": 104,     # 2. ⭐🥇 STAR × PRIME — seated at the second fire
-                                  #    (62% / +0.29R entered, 92)
-           "star_trig": 103,      # 3. ⭐💥 STAR × STRONG TRIGGER — second fire
-                                  #    (71% / +0.18R entered, 77, both halves)
-           "conv_revival": 102,   # 4. 💎 CONVICTION REVIVAL — LATE only, half (entered at
-                                  #    the GO: LATE 58% / +0.06R (50), FAST 46% / −0.14R (63))
-           "star_apexv2": 101}    # 5. ⭐🏆² STAR × APEX V2 — second fire
-                                  #    (83% / +0.75R entered, 12 — thin)
+# 🎮 GEN 20 — HIS FIVE (user 2026-11-17), in his order. (GEN 19's five: elite_star on its book
+# cells, star_prime, star_trig, conv_revival, star_apexv2.)
+CLASS_W = {"elite_star": 105,     # 1. ⭐ ELITE STAR gated (the bell's four-rule read), any hour
+           "star_prime": 104,     # 1b. ⭐🥇 STAR × PRIME — seated at the second fire
+           "apex_v2_gated": 103,  # 3. 🏆💎 APEX V2 gated (BTC ±1.5% · stop 2–4% · not 17–21 PKT)
+           "prime_trig": 102,     # 4. 💥🥇 PRIME × STRONG TRIGGER
+           "star_apexv2": 101}    # 5. ⭐🏆² STAR × APEX V2 — second fire ("lets try … together")
 # 🪑 SPARE-SEAT RULE: a listed stream may open only while at least
 # this many seats stay free after it, so the priority three always
 # find room — rotation is off (ROTATE_MAX = 0) and a seat once taken
@@ -605,18 +614,11 @@ def star_seat(side, now=None, heat=None, btc_day=None):
 
 
 def seat_size(c: dict, now=None):
-    """GEN 19 -> (mult, word, detail) for a ranked candidate; mult None = no seat."""
+    """GEN 20 -> (mult, word, detail) for a ranked candidate; mult None = no seat."""
     src = c.get("src")
-    if src == "elite_star":
-        return star_seat(c.get("side"), now, c.get("heat"), c.get("btc_day"))
-    if src == "conv_revival":
-        g = str(c.get("go_tier") or "").upper()
-        m = CONV_REV_SIZE.get(g)
-        if m is None:
-            return None, None, f"revival {g or '?'} — not in the book (LATE only)"
-        return m, SIZE_WORD.get(m, f"x{m:g}"), f"revival {g} {SIZE_WORD.get(m, '')}"
-    if src in PAIR_SEAT:
-        return 1.0, "full", "pair, at the second fire"
+    if src in CLASS_W:            # GEN 20: every roster lane takes one full seat, at any hour
+        return 1.0, "full", ("gated star, any hour" if src == "elite_star"
+                             else "pair, at the second fire" if src in PAIR_SEAT else "full seat")
     return None, None, "not on the roster"
 
 
@@ -676,8 +678,8 @@ def lev_for(src: str, conf=None, burst=None) -> float:
     3.25%, so that guard bites only on the genuinely wild plans.
     ONE source of truth — the 💸 live executor calls this too.
     (The GEN 15 star 6x/8x-by-burst ladder is in git at 2a56c58.)"""
-    return {"elite_star": 10.0, "star_prime": 10.0, "star_trig": 10.0,
-            "conv_revival": 10.0, "star_apexv2": 10.0}.get(src, LEV_GEN13)   # GEN 19: flat 10x
+    return {"elite_star": 10.0, "star_prime": 10.0, "star_trig": 10.0, "conv_revival": 10.0,
+            "star_apexv2": 10.0, "apex_v2_gated": 10.0, "prime_trig": 10.0}.get(src, LEV_GEN13)   # GEN 19 / 20: flat 10x
 
 
 def load() -> dict:
@@ -1137,7 +1139,7 @@ def cutover_fresh_book(live_fn) -> list:
 
 
 cutover_gen18 = cutover_fresh_book        # the GEN 18 name, kept for callers
-CUTOVER_DATE = "2026-11-07"
+CUTOVER_DATE = "2026-11-17"
 
 
 def _add_on(state: dict, p: dict, live: float, why: str, now: float):
@@ -1428,20 +1430,22 @@ def manage(state: dict, live_fn, kr_get=None, addon_fn=None) -> list:
             # is still live next cycle with a fresh in-zone plan,
             # try_open re-enters it as a NEW trade.
             rec = _close_qty(state, p, p["qty"], p["tp1"],
-                             "TP1 — banked 100% (GEN 9); reopens if "
-                             "the momentum still holds")
+                             ("TP1 — banked 100% (GEN 9); reopens if "
+                              "the momentum still holds") if REENTRY_ON
+                             else "TP1 — banked 100%")
             # GEN 8 re-entry payload (user: "if the momentum is still
             # there open the trade again") — the worker checks the 1h
             # burst and re-opens with the same plan geometry anchored
             # at the live price. Chain-capped at 2 re-entries.
-            rec["replan"] = {
-                "stop_d": float(p.get("risk0")
-                                or abs(p["entry"] - p["stop"])),
-                "tp1_d": abs(p["tp1"] - p["entry"]),
-                "tp2_d": (abs(p["tp2"] - p["entry"])
-                          if p.get("tp2") else None),
-                "score": p.get("score"),
-                "chain": int(p.get("chain") or 0)}
+            if REENTRY_ON:
+                rec["replan"] = {
+                    "stop_d": float(p.get("risk0")
+                                    or abs(p["entry"] - p["stop"])),
+                    "tp1_d": abs(p["tp1"] - p["entry"]),
+                    "tp2_d": (abs(p["tp2"] - p["entry"])
+                              if p.get("tp2") else None),
+                    "score": p.get("score"),
+                    "chain": int(p.get("chain") or 0)}
             state["closed"].append(rec)
             events.append(("close", rec))
             continue

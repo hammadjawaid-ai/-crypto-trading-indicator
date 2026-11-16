@@ -459,3 +459,26 @@ strong buy hold as per our plans".
     candles; the build (`binance_daily`) does the same, so a blocked perpetual feed can no longer fail the
     daily rebuild.
   - Guard: `.longterm_test.py` (106).
+
+## 🎮 DEMO GEN 20 (2026-11-17)
+
+User, after the 16 Nov ledger read: "demo trade make it back · 1. Elite Stars no timings restriction just gated
+ones and elite x prime being the primary trades you can add tokenized as well · 2. TP 1 bank full or 85% bank
+full, no trails · 3. APEX V2 Gated add to the list · 4. STRONG TRIGGER X PRIME ADD TO THE LIST · reset the money
+again" and "Lets try elite star and apex v2 together".
+
+- **Roster (`demo_account.CLASS_W`, in order):** ⭐ gated star at any hour, both sides, one full seat (the GEN 19
+  window book, its half / double seats and the shorts' heat and BTC-day rules are no longer read) · ⭐🥇 star ×
+  prime · 🏆💎 APEX V2 gated (new feed `_DEMO_V2G`, filled where the gated tier is recorded) · 💥🥇 prime ×
+  strong trigger (the `_DEMO_PT` feed, back on the roster) · ⭐🏆² star × APEX V2. Star × strong trigger and the
+  conviction revival leave the money; their bells and desk tiers go on. Tokenized names seat like any other.
+- **Exit:** the plan stop, or TP1 with 100% banked, or the near-TP bank (`NEAR_TP_SRC` = the roster: printed 85%
+  of the way to TP1, then faded to 60% while in profit). `LADDER_SRC` and `SCALE_OUT_SRC` are empty: no ladder,
+  no trail, no half at +0.3R, no stop to entry, no time cut. `REENTRY_ON = False`: a TP1 bank queues no momentum
+  re-entry.
+- **Money:** `GEN = 20`, fresh $2,000; `cutover_fresh_book` closes the GEN 19 seats at the live price into their
+  own ledger and archives it (`.demo_account.json.gen19_<date>.json`). GEN 19 ended near $1,764.
+- **Measured warning given at wire time (ledger to 16 Nov):** star × prime was GEN 19's worst seat (desk 13% /
+  −0.66R on 15, demo 0 won of 10, −$372); gated stars since 7 Nov 52% / +0.04R (23), longs 33%, shorts 73%;
+  APEX V2 gated 43% / −0.15R (14); prime × strong trigger 70% / +0.36R (10).
+- Guard: `.demo_gen20_test.py`. Revert: GEN 19 is at dcb1015.

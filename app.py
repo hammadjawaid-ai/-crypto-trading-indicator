@@ -9967,20 +9967,21 @@ if active_section == "🎮 Demo Trading":
         "<span style='font-size:1.5rem;font-weight:900;background:"
         "linear-gradient(90deg,#40c4ff,#b388ff);-webkit-background-"
         "clip:text;-webkit-text-fill-color:transparent;background-"
-        "clip:text'>🎮 DEMO $2,000 — GEN 19 · THE FIVE, GATED"
+        "clip:text'>🎮 DEMO $2,000 — GEN 20 · GATED STARS, ANY HOUR"
         "</span><br><span style='color:#e6e9f0;font-size:0.84rem'>"
-        "<b>THE FIVE, in order:</b> 1. ⭐ ELITE STAR gated, on its book cells — longs 05–09 · 09–13 · 17–21 full, "
-        "21–01 half (19.1, 8 Nov); "
-        "shorts 05–09 full · 13–17 half · 17–21 full (double on a BTC-down day, half on an up day) · 21–01 half; "
-        "shorts outside heat 40–79 half · 2. ⭐🥇 STAR × PRIME · 3. ⭐💥 STAR × STRONG TRIGGER · "
-        "4. 💎 CONVICTION REVIVAL LATE only, half · 5. ⭐🏆² STAR × APEX V2 — pairs seat at the second fire. "
-        "All 10x; full seat $100 margin, half $50, double $200; exit = the desk ladder (BE at +1R → TP1 lock → "
-        "1.2R trail → 48h), no TP1 bank, no add-on. ⭐ star seats since 13 Nov (19.2): half off at +0.3R, stop to "
-        "entry on the rest, then the ladder (88% / +0.16R measured on 225 gated stars vs the ladder's 66% / +0.32R). Fresh $2,000 book since 7 Nov · "
+        "<b>The roster, in order:</b> 1. ⭐ ELITE STAR gated, every hour, both sides, tokenized names included · "
+        "⭐🥇 STAR × PRIME · 3. 🏆💎 APEX V2 gated · 4. 💥🥇 PRIME × STRONG TRIGGER · 5. ⭐🏆² STAR × APEX V2 — "
+        "pairs seat at the second fire. All 10x, one full seat each ($100 margin). Exit: the stop, or TP1 with "
+        "everything banked, or the near-TP bank (85% of the way to TP1, then fading back to 60% while in profit). "
+        "No trail, no ladder, no half at +0.3R, no stop to entry, no re-entry. Fresh $2,000 book since 17 Nov · "
         f"day {_days:.1f}.</span></div>",
         unsafe_allow_html=True)
-    with st.expander("roster history (GEN 17 → 19)", expanded=False):   # 2026-11-07: moved out of the header
+    with st.expander("roster history (GEN 17 → 20)", expanded=False):   # 2026-11-07: moved out of the header
         st.caption(
+            "GEN 20 (17 Nov): the GEN 19 seats closed at the live price, ledger archived ($2,000 → about $1,764 "
+            "in ten days: star × prime 0 won of 10, −$372; plain star seats +$119). The window book and its "
+            "half / double seats went, star × strong trigger and the conviction revival left the money, APEX V2 "
+            "gated and PRIME × STRONG TRIGGER joined, and the exit became TP1 banked in full. "
             "GEN 19 (7 Nov): the GEN 18 seats closed at the live price, ledger archived; the gated ⭐ star kept "
             "only its ≥69% side × window cells (clean desk 9 Sep → 4 Nov: the book 74% / +0.48R over 120, both "
             "halves), STRONG TRIGGER and PRIME × STRONG TRIGGER left the money, STAR × STRONG TRIGGER and STAR × "

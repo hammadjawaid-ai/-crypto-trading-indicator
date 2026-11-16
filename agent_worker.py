@@ -818,6 +818,7 @@ _DEMO_SP: list = []
 _DEMO_PT: list = []     # 💥🥇 GEN 18.2 seat feed (user 2026-10-24) — off the GEN 19 roster, feed kept
 _DEMO_ST: list = []     # ⭐💥 GEN 19 seat feed: STAR × STRONG TRIGGER at the second fire
 _DEMO_SV2: list = []    # ⭐🏆² GEN 19 seat feed: STAR × APEX V2 at the second fire
+_DEMO_V2G: list = []    # 🏆💎 GEN 20 seat feed (user 2026-11-17: "APEX V2 Gated add to the list")
 _DEMO_PB: list = []     # 🔶💥 GEN 16.5 pressed-first breaks, LONGS ONLY
 # 🗞 NEWS RADAR runs off the main loop (its RSS pass takes ~16-18s);
 # news_radar holds its own lock, this just avoids piling up threads.
@@ -2865,6 +2866,11 @@ def cycle() -> None:
                 try:
                     store.record_signal("apex_v2_gated", _sig2)
                     shadow_trader.open_from_signal("apex_v2_gated", _sig2, _px2)
+                    # 🎮 GEN 20 seat feed: the gated fire's own plan, flat 10x
+                    _DEMO_V2G.append(dict(_sig2, src="apex_v2_gated",
+                                          score=float(_sig2.get("score") or 90),
+                                          burst=0.0, fired_at=time.time()))
+                    del _DEMO_V2G[:-12]
                 except Exception as _g2_exc:
                     print("  apexv2 gated tier error:", _g2_exc, flush=True)
                 _gb2 = "off"
@@ -6405,10 +6411,10 @@ def cycle() -> None:
         # GEN 8 form boosts: each pool's own live desk ledger (duo
         # form = the duo85 tier; young tiers just read ~0 = neutral).
         _dz_form = {}
-        for _dt, _sh in (("elite_star", "elite_star"),         # GEN 19: the five
+        for _dt, _sh in (("elite_star", "elite_star"),         # GEN 20: his five
                          ("star_prime", "star_prime"),
-                         ("star_trig", "star_trig"),
-                         ("conv_revival", "go_revived"),
+                         ("apex_v2_gated", "apex_v2_gated"),
+                         ("prime_trig", "prime_trig"),
                          ("star_apexv2", "star_apexv2")):
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_sh)["net_r"]
@@ -7066,7 +7072,9 @@ def cycle() -> None:
         # 🎮 GEN 17 POOLS (user 2026-10-14): exactly the three, in his order.
         _DEMO_GO[:] = [d for d in _DEMO_GO
                        if _now - d["fired_at"] <= DEMO_FIRE_TTL_S]
-        # 🎮 GEN 19 POOLS (user 2026-11-07): THE FIVE, GATED — nothing else.
+        # 🎮 GEN 20 POOLS (user 2026-11-17): gated ⭐ star at any hour, ⭐🥇 star × prime, 🏆💎 APEX V2
+        # gated, 💥🥇 prime × strong trigger, ⭐🏆² star × APEX V2 — nothing else. (GEN 19 had
+        # star × strong trigger and the conviction revival where rungs 3 and 4 now sit.)
         _dz_pools = {
             # 1. ⭐ ELITE STAR — the star fire that PASSED the phone's four-rule
             # read (heat >= 25 · BTC day <= +1.5% · not 01–05 PKT · stop <= 7%);
@@ -7084,22 +7092,20 @@ def cycle() -> None:
                             and d.get("tp1")]
                            + [d for d in _dz_reo
                               if d["src"] == "star_prime"]),
-            # 3. ⭐💥 STAR × STRONG TRIGGER: the star's plan, at the second fire
-            "star_trig": ([dict(d) for d in _DEMO_ST
-                           if _now - d["fired_at"] <= DEMO_FIRE_TTL_S
-                           and d.get("entry") and d.get("stop")
-                           and d.get("tp1")]
-                          + [d for d in _dz_reo
-                             if d["src"] == "star_trig"]),
-            # 4. 💎 CONVICTION REVIVAL — entry at the GO price with the fire's
-            # plan, only when the bell's rule held (fed above); LATE only, half
-            # (demo_account.seat_size)
-            "conv_revival": ([dict(d) for d in _DEMO_GO
-                              if d.get("src") == "conv_revival"
-                              and d.get("entry") and d.get("stop")
-                              and d.get("tp1")]
-                             + [d for d in _dz_reo
-                                if d["src"] == "conv_revival"]),
+            # 3. 🏆💎 APEX V2 GATED: the fire that passed its own gate
+            "apex_v2_gated": ([dict(d) for d in _DEMO_V2G
+                               if _now - d["fired_at"] <= DEMO_FIRE_TTL_S
+                               and d.get("entry") and d.get("stop")
+                               and d.get("tp1")]
+                              + [d for d in _dz_reo
+                                 if d["src"] == "apex_v2_gated"]),
+            # 4. 💥🥇 PRIME × STRONG TRIGGER: the PRIME plan, every band
+            "prime_trig": ([dict(d) for d in _DEMO_PT
+                            if _now - d["fired_at"] <= DEMO_FIRE_TTL_S
+                            and d.get("entry") and d.get("stop")
+                            and d.get("tp1")]
+                           + [d for d in _dz_reo
+                              if d["src"] == "prime_trig"]),
             # 5. ⭐🏆² STAR × APEX V2: the star's plan, at the second fire
             "star_apexv2": ([dict(d) for d in _DEMO_SV2
                              if _now - d["fired_at"] <= DEMO_FIRE_TTL_S
@@ -7131,7 +7137,7 @@ def cycle() -> None:
                 return _v
             except Exception:
                 return None
-        _dz_events = demo_account.manage(_dz, _live, _dz_kr)   # GEN 19: no ⭐➕ add-on
+        _dz_events = demo_account.manage(_dz, _live, _dz_kr)   # GEN 19 / 20: no ⭐➕ add-on
         # 🔁 GEN 8 MOMENTUM RE-ENTRY (user 2026-09-05: "let it ride
         # to tp1 and close it. if the momentum is still there open
         # the trade again"): every TP1 bank gets a 1h-burst check —
@@ -7169,9 +7175,9 @@ def cycle() -> None:
                      "score": float(_rp8.get("score") or 80),
                      "src": (_rec8.get("src")
                              if _rec8.get("src") in
-                             ("elite_star", "star_prime", "star_trig",
-                              "conv_revival", "star_apexv2")
-                             else "elite_star"),   # GEN 19
+                             ("elite_star", "star_prime", "apex_v2_gated",
+                              "prime_trig", "star_apexv2")
+                             else "elite_star"),   # GEN 20 (dormant: REENTRY_ON is off)
                      "chain": int(_rp8.get("chain") or 0) + 1,
                      "fired_at": _now})
                 print(f"[gen8] 🔁 momentum re-entry queued "
