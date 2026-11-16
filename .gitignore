@@ -60,3 +60,6 @@ research_meta/kl_channel/
 longterm_data/_live/
 # 📈 real long-term buys and sells: private, never committed (this repository is public)
 .longterm_fills.json
+
+# 🔔 phone-side bell switches (state, never committed)
+.tg_switches.json

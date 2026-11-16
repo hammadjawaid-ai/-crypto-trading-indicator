@@ -9550,6 +9550,9 @@ SECTIONS = [
     # 📈 2026-11-14 (user: "deploy this as separate section … on the left
     # long term investment as headline"): the long-term plan tracker.
     "📈 Long Term Investment",
+    # 🔔 2026-11-17 (user: "for every telegram streams we have show me the wn rates so I can
+    # see or mute from my mobile phone"): every bell with its record, and its switch.
+    "🔔 Telegram Bells",
     "💎 Best Trade Zone",
     "🔍 Market Scanner", "🔮 Forecast", "🚀 Breakout Radar",
     "🤖 Ask the Oracle", "🪙 Coin Analysis", "📰 News & Sentiment",
@@ -9733,6 +9736,14 @@ if _mig_token and _qp.get("admin") == _mig_token:
 if active_section == "📈 Long Term Investment":
     import longterm_page as _lt_page
     _lt_page.render(load_fear_greed, admin=bool(_mig_token and _qp.get("admin") == _mig_token))
+    st.stop()
+
+# 🔔 TELEGRAM BELLS (user 2026-11-17): every stream that can ring the phone with its desk record, and,
+# with the admin link, a switch per bell (tg_switches.py; the worker applies a flip at its next cycle).
+# Drawn here, before the shared header and every scanner call, then the script stops.
+if active_section == "🔔 Telegram Bells":
+    import tg_bells_page as _tgb_page
+    _tgb_page.render(admin=bool(_mig_token and _qp.get("admin") == _mig_token))
     st.stop()
 
 # default 100 (user 2026-08-09: "make it 100 match") — the page's

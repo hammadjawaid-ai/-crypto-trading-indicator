@@ -482,3 +482,23 @@ again" and "Lets try elite star and apex v2 together".
   −0.66R on 15, demo 0 won of 10, −$372); gated stars since 7 Nov 52% / +0.04R (23), longs 33%, shorts 73%;
   APEX V2 gated 43% / −0.15R (14); prime × strong trigger 70% / +0.36R (10).
 - Guard: `.demo_gen20_test.py`. Revert: GEN 19 is at dcb1015.
+
+## 🔔 TELEGRAM BELLS section (2026-11-17)
+
+User: "for every telegram streams we have show me the wn rates so I can see or mute from my mobile phone".
+
+- **Page:** `🔔 Telegram Bells` on the left menu (`tg_bells_page.py`), drawn before the shared header and the
+  scanner loads, then the script stops. One card per bell: all-history and last-14-day record (win rate, average
+  R, closed trades) and the tokenized seats of the same stream apart. The gated ⭐ star is the star tier cut to
+  the fires the bell's own gate passed (the `gate` stamp on the star's signal row).
+- **Switches:** with the admin link each bell that has an on/off flag in `agent_worker.py` gets a toggle
+  (`tg_switches.REGISTRY`: STAR × PRIME, STAR × STRONG TRIGGER, STAR × TAKE NOW HOT, STAR × APEX V2, APEX V2
+  GATED, PRIME × STRONG TRIGGER, ELITE × PRIME, SECOND LEG × PRIME, GO LIVE, TRIGGER × KRONOS × PRIME, ARRIVAL
+  T1, the 90% ping, the FREEZE reply). A flip is written to `<STATE_DIR>/.tg_switches.json`; `cycle()` calls
+  `tg_switches.apply()` first thing and sets the worker's own flag, so the bell code is untouched and a muted
+  bell behaves exactly as when its flag is False in the code. Delete the file to return to the code's settings.
+- **No switch yet:** the gated ⭐ star bell and the conviction revival / GO REVIVED bells (their send sites carry
+  thread bookkeeping; a switch there needs its own change).
+- Telegram commands were not used on purpose: `channel_desk.py` already long-polls the same bot's updates, and
+  a second reader of the same bot would take its messages.
+- Guard: `.tg_switches_test.py`. Local preview: `.tg_bells_preview.py` (launch entry `bells-preview`).

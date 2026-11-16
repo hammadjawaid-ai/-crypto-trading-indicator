@@ -2704,6 +2704,15 @@ def cycle() -> None:
     # due (20 minutes after the 00:00 UTC close, never in the first 15 minutes after a start) it
     # builds in its own thread and writes to <STATE_DIR>/longterm. It reads public price data only,
     # touches no bell, tier, seat or plan level, and LONGTERM_REBUILD=0 switches it off.
+    # 🔔 phone-side bell switches (user 2026-11-17): a flip made on the Telegram Bells page sets the
+    # worker's own TG_* flag here, at the start of the cycle; nothing else about a bell changes.
+    try:
+        import tg_switches
+        _tgsw = tg_switches.apply(sys.modules[__name__])
+        if _tgsw:
+            print("🔔 bell switches applied:", _tgsw, flush=True)
+    except Exception as _tgsw_exc:
+        print("bell switch hook error:", _tgsw_exc, flush=True)
     try:
         import longterm_build
         longterm_build.maybe_rebuild()
