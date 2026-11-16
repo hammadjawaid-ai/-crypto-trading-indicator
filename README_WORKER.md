@@ -521,3 +521,13 @@ User: "add more tokenized stock to our inventory, we had 19 but we are now pushi
   (ranking by futures turnover, names with no spot token such as SK Hynix KR, Samsung, gold, oil) needs the
   futures host to be reachable from the server first: the 16 Nov long-term rebuild could not reach it.
 - Guard: `.bstock_restore_test.py` (57).
+
+- **40 stocks, all with a Binance stock perpetual (2026-11-17 later; user: "we have to have 40 stocks option for
+  future preps … tokenized stock with b or no b it should be on binance future preps").** `config.BSTOCK_PERP` maps
+  every tokenized spot ticker that has a `TRADIFI_PERPETUAL` on USDT-M futures to it (100 of 104 on 16 Nov; token
+  NVDABUSDT → perpetual NVDAUSDT). `BSTOCK_PERP_ONLY = True` lets only those ride (`get_top_symbols`),
+  `BSTOCK_MIN_QV = 500_000`, `BSTOCK_MAX_N = 40`: 100 coins + 40 stocks = 140 symbols. `TOKENIZED_STOCKS` now
+  holds all 104 tokenized tickers (plus the old names), so none can enter the coin universe by volume;
+  `BSTOCK_NO_PERP` (QNTB, STXB, USDEB, BBB) are classed as tokenized and never scanned. Ranking is by the spot
+  token's turnover because that is the feed the server can read. If the restart loop returns: `BSTOCK_MAX_N = 20`.
+  Guard: `.bstock_restore_test.py` (59).

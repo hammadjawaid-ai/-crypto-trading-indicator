@@ -164,6 +164,10 @@ def get_top_symbols(n: int = config.TOP_N) -> pd.DataFrame:
         if getattr(config, "BSTOCK_IN_UNIVERSE", False):
             _qv = float(getattr(config, "BSTOCK_MIN_QV", 0.0) or 0.0)
             toks = full[_is_tok & (full["quoteVolume"] >= _qv)]
+            # 🏦 2026-11-17: only names with a Binance stock perpetual ride (config.BSTOCK_PERP)
+            _pm = getattr(config, "BSTOCK_PERP", None) or {}
+            if getattr(config, "BSTOCK_PERP_ONLY", False) and _pm:
+                toks = toks[toks["symbol"].isin(set(_pm))]
             _cap = int(getattr(config, "BSTOCK_MAX_N", 0) or 0)   # 2026-11-13 load trim: the largest N only
             if _cap > 0:
                 toks = toks.head(_cap)

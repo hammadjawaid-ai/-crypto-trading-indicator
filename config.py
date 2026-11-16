@@ -146,7 +146,10 @@ BSTOCK_IN_UNIVERSE = True
 # somewhere around 30"): the floor comes down from $2,000,000 to $750,000 of 24h turnover and the
 # count is capped at the 30 largest (BSTOCK_MAX_N below). On 16 Nov that floor passed 33 names of
 # the set; at $2M it passed 20. Thin names have thin books: read their fills with more caution.
-BSTOCK_MIN_QV = 750_000.0
+# 2026-11-17 later (user: "we have to have 40 stocks option for future preps"): $500,000 and the 40 largest
+# (BSTOCK_MAX_N), counted among the names that have a Binance stock perpetual (BSTOCK_PERP below). On 16 Nov
+# 42 such names passed $500k of spot turnover; 33 passed $750k.
+BSTOCK_MIN_QV = 500_000.0
 # 🏦 2026-11-13 LOAD TRIM (the service was restarting in a health-check loop on the Standard
 # instance once the scan grew from 100 to 119 symbols; user chose the trim over a bigger plan):
 # only the BSTOCK_MAX_N largest tokenized names by 24h volume ride with the coins. Raise it
@@ -155,7 +158,7 @@ BSTOCK_MIN_QV = 750_000.0
 # instead of top ones"). If the 502 restart loop returns, set this to 6 again: one line.
 # 2026-11-17: 30 on his word (about 130 symbols a scan). The restart loop of 13 Nov appeared at 119
 # symbols on this instance; if it returns, set this back to 20: one line.
-BSTOCK_MAX_N = 30
+BSTOCK_MAX_N = 40   # 30 for an hour on 17 Nov, then 40 on his word (about 140 symbols a scan)
 # 🏦 the restore moment — 10 Nov 2026 00:00 PKT (09 Nov 19:00 UTC). The tokenized desk record
 # "since the restore" (the page's 🏦 TOKENIZED DESK and the 🏦 line on tokenized bells) counts
 # trades OPENED from here: the forward proof he asked to keep separately.
@@ -314,6 +317,45 @@ TOKENIZED_STOCKS = {"CRCLBUSDT", "SPCXBUSDT", "SOXLBUSDT", "SNDKBUSDT",
                     # added 2026-11-17 (same tokenized permission set as NVDAB on the exchange,
                     # each above $750k of 24h turnover that day)
                     "CBRSBUSDT", "INTWBUSDT", "IRENBUSDT", "MUUBUSDT", "AGPUBUSDT"}
+
+# 🏦 STOCK PERPETUALS (user 2026-11-17: "we have to have 40 stocks option for future preps … tokenized stock
+# with b or no b it should be on binance future preps"). Binance lists a stock twice: the spot token with the
+# trailing B (NVDABUSDT) and the USDT-M futures contract without it (NVDAUSDT, contractType TRADIFI_PERPETUAL).
+# This is every tokenized spot ticker that has such a perpetual, token -> perpetual, read from the exchange on
+# 16 Nov 2026 (100 of 104; ordered by futures turnover that day). The scanner reads the SPOT TOKEN, because the
+# futures host is not reachable from the server; the perpetual is where the same stock trades long and short.
+# BSTOCK_PERP_ONLY = True: only a name in this map rides in the universe. Re-read the exchange to refresh it.
+BSTOCK_PERP_ONLY = True
+BSTOCK_PERP = {
+    "SOXLBUSDT": "SOXLUSDT", "SPCXBUSDT": "SPCXUSDT", "SNDKBUSDT": "SNDKUSDT", "NVDABUSDT": "NVDAUSDT",
+    "SOXSBUSDT": "SOXSUSDT", "MUBUSDT": "MUUSDT", "KORUBUSDT": "KORUUSDT", "SKHYBUSDT": "SKHYUSDT",
+    "SNXXBUSDT": "SNXXUSDT", "QQQBUSDT": "QQQUSDT", "MSTRBUSDT": "MSTRUSDT", "GOOGLBUSDT": "GOOGLUSDT",
+    "TQQQBUSDT": "TQQQUSDT", "SPYBUSDT": "SPYUSDT", "INTCBUSDT": "INTCUSDT", "AMDBUSDT": "AMDUSDT",
+    "MUUBUSDT": "MUUUSDT", "NBISBUSDT": "NBISUSDT", "EWYBUSDT": "EWYUSDT", "CRCLBUSDT": "CRCLUSDT",
+    "DRAMBUSDT": "DRAMUSDT", "TSLABUSDT": "TSLAUSDT", "MRVLBUSDT": "MRVLUSDT", "AAPLBUSDT": "AAPLUSDT",
+    "SQQQBUSDT": "SQQQUSDT", "METABUSDT": "METAUSDT", "COINBUSDT": "COINUSDT", "INTWBUSDT": "INTWUSDT",
+    "CRWVBUSDT": "CRWVUSDT", "LITEBUSDT": "LITEUSDT", "BEBUSDT": "BEUSDT", "CBRSBUSDT": "CBRSUSDT",
+    "HOODBUSDT": "HOODUSDT", "MVLLBUSDT": "MVLLUSDT", "AVGOBUSDT": "AVGOUSDT", "MSFTBUSDT": "MSFTUSDT",
+    "RKLBBUSDT": "RKLBUSDT", "AXTIBUSDT": "AXTIUSDT", "BMNRBUSDT": "BMNRUSDT", "AMZNBUSDT": "AMZNUSDT",
+    "TSMBUSDT": "TSMUSDT", "UVXYBUSDT": "UVXYUSDT", "PLTRBUSDT": "PLTRUSDT", "AAOIBUSDT": "AAOIUSDT",
+    "QCOMBUSDT": "QCOMUSDT", "ORCLBUSDT": "ORCLUSDT", "IRENBUSDT": "IRENUSDT", "SKDDBUSDT": "SKDDUSDT",
+    "ARMBUSDT": "ARMUSDT", "COHRBUSDT": "COHRUSDT", "SKUUBUSDT": "SKUUUSDT", "BABABUSDT": "BABAUSDT",
+    "DELLBUSDT": "DELLUSDT", "WDCBUSDT": "WDCUSDT", "MRNABUSDT": "MRNAUSDT", "GLWBUSDT": "GLWUSDT",
+    "ALABBUSDT": "ALABUSDT", "APPBUSDT": "APPUSDT", "AMATBUSDT": "AMATUSDT", "ASTSBUSDT": "ASTSUSDT",
+    "CRDOBUSDT": "CRDOUSDT", "KSTRBUSDT": "KSTRUSDT", "FLNCBUSDT": "FLNCUSDT", "USARBUSDT": "USARUSDT",
+    "LLYBUSDT": "LLYUSDT", "SMCIBUSDT": "SMCIUSDT", "SHAZBUSDT": "SHAZUSDT", "NFLXBUSDT": "NFLXUSDT",
+    "CRWDBUSDT": "CRWDUSDT", "ASMLBUSDT": "ASMLUSDT", "SMHBUSDT": "SMHUSDT", "DJTBUSDT": "DJTUSDT",
+    "NOKBUSDT": "NOKUSDT", "CYPHBUSDT": "CYPHUSDT", "IBMBUSDT": "IBMUSDT", "PENGBUSDT": "PENGUSDT",
+    "FWDIBUSDT": "FWDIUSDT", "HIMSBUSDT": "HIMSUSDT", "AGPUBUSDT": "AGPUUSDT", "HPEBUSDT": "HPEUSDT",
+    "BOTBUSDT": "BOTUSDT", "ADBEBUSDT": "ADBEUSDT", "GEVBUSDT": "GEVUSDT", "BSPBUSDT": "BSPUSDT",
+    "BRKBBUSDT": "BRKBUSDT", "GMEBUSDT": "GMEUSDT", "PDDBUSDT": "PDDUSDT", "GPROBUSDT": "GPROUSDT",
+    "ZMBUSDT": "ZMUSDT", "SECZBUSDT": "SECZUSDT", "TMFBUSDT": "TMFUSDT", "JPMBUSDT": "JPMUSDT",
+    "RDDTBUSDT": "RDDTUSDT", "CRMBUSDT": "CRMUSDT", "AMCBUSDT": "AMCUSDT", "WENBUSDT": "WENUSDT",
+    "MDBBUSDT": "MDBUSDT", "VSTBUSDT": "VSTUSDT", "GSBUSDT": "GSUSDT", "PYPLBUSDT": "PYPLUSDT",
+}
+# tokenized tickers with no perpetual on 16 Nov 2026: classed as tokenized (never as coins), never scanned
+BSTOCK_NO_PERP = {"BBBUSDT", "QNTBUSDT", "STXBUSDT", "USDEBUSDT"}
+TOKENIZED_STOCKS = set(TOKENIZED_STOCKS) | set(BSTOCK_PERP) | BSTOCK_NO_PERP
 EXCLUDE_BASES = ("USDC", "FDUSD", "TUSD", "BUSD", "DAI", "USDP", "EUR", "GBP",
                  "USD1", "USDE", "USDD", "AEUR", "XUSD", "EURI", "RLUSD",
                  "USDG", "GUSD", "PYUSD",
