@@ -32,7 +32,7 @@ def check(name, cond, detail=""):
 
 print("1. switches")
 check("phone ON (BSTOCK_BUZZ)", config.BSTOCK_BUZZ is True)
-check("universe ON (BSTOCK_IN_UNIVERSE) with a volume floor", config.BSTOCK_IN_UNIVERSE is True and config.BSTOCK_MIN_QV >= 1_000_000)
+check("universe ON (BSTOCK_IN_UNIVERSE) with a volume floor ($500k since 2026-11-17)", config.BSTOCK_IN_UNIVERSE is True and config.BSTOCK_MIN_QV == 500_000.0)
 check("money gate OPEN on his word (BSTOCK_VALIDATED) — demo / GEN 19 seats", config.BSTOCK_VALIDATED is True)
 print("2. the set")
 for s in ("TQQQBUSDT", "MRVLBUSDT", "CRWVBUSDT", "TSMBUSDT", "SNDKBUSDT", "NVDABUSDT"):
@@ -46,7 +46,8 @@ feed = [
     {"symbol": "SNDKBUSDT", "lastPrice": "1", "priceChangePercent": "0", "quoteVolume": str(5_000_000.0), "highPrice": "1", "lowPrice": "1"},
     {"symbol": "SOLUSDT", "lastPrice": "1", "priceChangePercent": "0", "quoteVolume": "700", "highPrice": "1", "lowPrice": "1"},
     {"symbol": "ARBUSDT", "lastPrice": "1", "priceChangePercent": "0", "quoteVolume": "600", "highPrice": "1", "lowPrice": "1"},
-    {"symbol": "COINBUSDT", "lastPrice": "1", "priceChangePercent": "0", "quoteVolume": str(500_000.0), "highPrice": "1", "lowPrice": "1"},
+    {"symbol": "COINBUSDT", "lastPrice": "1", "priceChangePercent": "0", "quoteVolume": str(400_000.0), "highPrice": "1", "lowPrice": "1"},
+    {"symbol": "STXBUSDT", "lastPrice": "1", "priceChangePercent": "0", "quoteVolume": str(9_000_000.0), "highPrice": "1", "lowPrice": "1"},
     {"symbol": "TQQQBUSDT", "lastPrice": "1", "priceChangePercent": "0", "quoteVolume": str(3_000_000.0), "highPrice": "1", "lowPrice": "1"},
     {"symbol": "USDCUSDT", "lastPrice": "1", "priceChangePercent": "0", "quoteVolume": "99999", "highPrice": "1", "lowPrice": "1"},
     {"symbol": "BTCUPUSDT", "lastPrice": "1", "priceChangePercent": "0", "quoteVolume": "99999", "highPrice": "1", "lowPrice": "1"},
@@ -60,7 +61,14 @@ check("the illiquid tokenized name is left out; ARB (crypto, rank 5) is not pull
 check("stables / leveraged / non-USDT dropped as before", not ({"USDCUSDT", "BTCUPUSDT", "ETHBTC"} & set(u)))
 u4 = bc.get_top_symbols(4)["symbol"].tolist()
 check("n=4 → ARB joins the crypto block, tokenized still appended", u4[:4] == ["BTCUSDT", "ETHUSDT", "SOLUSDT", "ARBUSDT"] and len(u4) == 6, u4)
-check("no cap by default: every tokenized name above the floor rides along (the cap is the load-trim switch)", config.BSTOCK_MAX_N == 0)
+check("the 40 largest tokenized names above the floor ride along (2026-11-17: 40 on his word)", config.BSTOCK_MAX_N == 40)
+check("only names with a Binance stock perpetual ride: a liquid tokenized ticker without one is left out, and never counted as a coin",
+      config.BSTOCK_PERP_ONLY is True and "STXBUSDT" not in u and "STXBUSDT" not in u4 and "STXBUSDT" in config.TOKENIZED_STOCKS and "STXBUSDT" not in config.BSTOCK_PERP)
+check("the map is token -> perpetual: the same ticker without the B, every token in the tokenized set",
+      len(config.BSTOCK_PERP) >= 100 and all(k.endswith("BUSDT") and v == k[:-5] + "USDT" for k, v in config.BSTOCK_PERP.items())
+      and set(config.BSTOCK_PERP) <= set(config.TOKENIZED_STOCKS) and config.BSTOCK_PERP["NVDABUSDT"] == "NVDAUSDT")
+check("the five tickers added on 17 Nov are in the set and the mislisted crypto token is out",
+      {"CBRSBUSDT", "INTWBUSDT", "IRENBUSDT", "MUUBUSDT", "AGPUBUSDT"} <= set(config.TOKENIZED_STOCKS) and "GIGGLEUSDT" not in config.TOKENIZED_STOCKS)
 config.BSTOCK_MAX_N = 1
 u1 = bc.get_top_symbols(3)["symbol"].tolist()
 check("cap 1 -> only the biggest tokenized name rides along", u1 == ["BTCUSDT", "ETHUSDT", "SOLUSDT", "SNDKBUSDT"], u1)
@@ -83,7 +91,10 @@ config.BSTOCK_VALIDATED = False
 check("demo: with the gate closed again it would take no seat (the revert works)",
       da.rank_candidates({"elite_star": [cand]}, {}) == [])
 config.BSTOCK_VALIDATED = True
-check("demo: a crypto star still ranks", len(da.rank_candidates({"elite_star": [dict(cand, symbol="SOLUSDT", base="SOL")]}, {})) == 1)
+check("demo GEN 21 is stocks only: a crypto star takes no seat", da.STOCKS_ONLY is True and da.rank_candidates({"elite_star": [dict(cand, symbol="SOLUSDT", base="SOL")]}, {}) == [])
+da.STOCKS_ONLY = False
+check("demo: with the stocks-only switch off a crypto star ranks again", len(da.rank_candidates({"elite_star": [dict(cand, symbol="SOLUSDT", base="SOL")]}, {})) == 1)
+da.STOCKS_ONLY = True
 print("5. the tokenized desk record, on its own (2026-11-10: 'have these for tokenized desk records separately')")
 import time as _t                 # noqa: E402
 import worker_store as store     # noqa: E402
