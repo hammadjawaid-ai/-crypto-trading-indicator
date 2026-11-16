@@ -141,6 +141,22 @@ START_BAL = 5000.0
 # A strong trigger does not replace. No reset: the $5,000 book carries on. Revert: REPLACE_SRC = set().
 REPLACE_SRC: set = {"elite_conv"}
 REPLACE_BY: set = {"elite_confirm", "go_revived", "elite_star"}
+# ➕ GEN 22.2 (user 2026-11-17: "remove conviction" · "have the elite confirmed run, if go revived is added to
+# the same elite confirmed we add more margin to it, like more money, even if its elite star … 10x leverage
+# but we add more margins if elite star fires or go revived fires"). Elite conviction is off the roster
+# (a conviction seat still open simply runs out, or gives way as above). STREAM ADD: when a stream in
+# ADD_BY offers a seat on a name the demo already holds through a DIFFERENT stream in ADD_BASE, on the
+# same side, ADD_SEATS more seats of margin go onto that position at the live price, same 10x, entry
+# averaged, the stop and TP1 of the first seat kept. Once per stream, so at most two adds a position.
+# Refused when price is through the stop or at TP1, when free collateral is short, when the heat cap
+# would be crossed or the averaged stop would pass the 8% guard (_add_on). A strong trigger neither adds
+# nor receives. Measured caveat told to him: a later entry on the same move is a worse price (the
+# meta-label lab read an add at the hour at about −0.06R on crypto); one stop then costs up to three seats.
+# Revert: ADD_BY = set().
+ADD_BASE: set = {"elite_confirm", "go_revived", "elite_star"}
+ADD_BY: set = {"elite_confirm", "go_revived", "elite_star"}
+ADD_SEATS = 1.0
+STREAM_ADDS: list = []        # the adds made by the last try_open call (for the worker's log)
 STOCKS_ONLY = True            # GEN 21: only stock names with a Binance stock perpetual take a seat
 REENTRY_ON = False            # GEN 20: a TP1 bank is final; no momentum re-entry is queued
 # 🎮 GEN 16 (user 2026-09-14: "Demo Trading Start Again now. We will
@@ -460,8 +476,7 @@ MIN_RANK = 85.0  # GEN 9: anyone can take any place
 CLASS_W = {"elite_confirm": 105,  # 1. 💎✅ ELITE CONFIRMED ENTRY
            "go_revived": 104,     # 2. ⚡ GO REVIVED (star and conviction revivals, entered at the GO)
            "elite_star": 103,     # 3. ⭐ ELITE STAR, every fire
-           "trig_strong": 102,    # 4. 💥 STRONG TRIGGER
-           "elite_conv": 101}     # 5. 💎 ELITE CONVICTION (GEN 22)
+           "trig_strong": 102}    # 4. 💥 STRONG TRIGGER   (elite_conv was rung 5 for an hour on 17 Nov: removed, 22.2)
 # 🪑 SPARE-SEAT RULE: a listed stream may open only while at least
 # this many seats stay free after it, so the priority three always
 # find room — rotation is off (ROTATE_MAX = 0) and a seat once taken
@@ -884,6 +899,7 @@ def try_open(state: dict, cands: list, live_fn, active=None,
     positive, cut if negative. Healthy signals are never rotated;
     at most ROTATE_MAX rotations per cycle.
     Returns (opened, rotated)."""
+    del STREAM_ADDS[:]
     opened, rotated = [], []
     # 🚧 GEN 11 DAILY RAILS (user 2026-09-10: "cap of 500 dollars
     # daily maximum earn and 150 dollars maximum per day lost — no
@@ -959,6 +975,22 @@ def try_open(state: dict, cands: list, live_fn, active=None,
                 _swap = next((_p for _p in state["open"] if _p["symbol"] == c["symbol"]
                               and _p.get("src") in REPLACE_SRC), None)
             if _swap is None:
+                # ➕ GEN 22.2: a second / third elite-family stream on a held name adds margin
+                if c["src"] in ADD_BY:
+                    _bp = next((_p for _p in state["open"] if _p["symbol"] == c["symbol"]), None)
+                    if (_bp is not None and _bp.get("src") in ADD_BASE and _bp.get("side") == c["side"]
+                            and c["src"] != _bp.get("src")
+                            and c["src"] not in (_bp.get("add_srcs") or [])):
+                        _bp.setdefault("add_srcs", []).append(c["src"])      # one try per stream
+                        try:
+                            _lv = float(live_fn(c["symbol"]) or 0)
+                        except Exception:
+                            _lv = 0.0
+                        _lg = _bp["side"] == "LONG"
+                        if _lv > 0 and ((_lv < _bp["tp1"]) if _lg else (_lv > _bp["tp1"])):
+                            _ar = _stream_add(state, _bp, _lv, f"{c['src']} fired on the same name", _t)
+                            if _ar:
+                                STREAM_ADDS.append(_ar)
                 continue
         if not time_gate_ok(c["src"], c["side"], _t):
             continue            # ⏰ GEN 16.5: 🔴 21-05 PKT, long seat closed
@@ -1246,6 +1278,17 @@ def _add_on(state: dict, p: dict, live: float, why: str, now: float):
             "margin": margin_add, "notional": notional_add, "why": why,
             "entry_avg": new_entry, "notional_total": p["notional"],
             "margin_total": p["margin"]}
+
+
+def _stream_add(state: dict, p: dict, live: float, why: str, now: float):
+    """➕ GEN 22.2: ADD_SEATS seats of margin onto an open position (the GEN 18 add-on engine with its own size)."""
+    global ADDON_MARGIN_X
+    _keep = ADDON_MARGIN_X
+    ADDON_MARGIN_X = ADD_SEATS
+    try:
+        return _add_on(state, p, live, why, now)
+    finally:
+        ADDON_MARGIN_X = _keep
 
 
 def manage(state: dict, live_fn, kr_get=None, addon_fn=None) -> list:

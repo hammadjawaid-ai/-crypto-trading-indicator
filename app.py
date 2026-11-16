@@ -9982,16 +9982,17 @@ if active_section == "🎮 Demo Trading":
         "</span><br><span style='color:#e6e9f0;font-size:0.84rem'>"
         "<b>Stock names only</b> (tokenized, each with a Binance stock perpetual); no coin takes a seat. "
         "<b>The roster, in order:</b> 1. 💎✅ ELITE CONFIRMED ENTRY · 2. ⚡ GO REVIVED · 3. ⭐ ELITE STAR, every fire · "
-        "4. 💥 STRONG TRIGGER · 5. 💎 ELITE CONVICTION — every seat the desk opens for these on a stock name. "
-        "All 10x, one full seat each ($250 margin, $2,500 position). Exit: the stop, or TP1 with everything banked, or the near-TP bank (85% of the way to TP1, "
-        "then fading back to 60% while in profit). No trail, no ladder, no re-entry. A conviction seat gives way to the confirmed entry, the GO or the star when "
-        "one arrives on the same name. Fresh $5,000 book since 17 Nov · "
+        "4. 💥 STRONG TRIGGER — every seat the desk opens for these on a stock name. "
+        "All 10x, one full seat each ($250 margin, $2,500 position). When a second or third of the first three "
+        "fires on a name already held, on the same side, one more seat of margin is added at the live price "
+        "(entry averaged, stop and TP1 kept). Exit: the stop, or TP1 with everything banked, or the near-TP bank (85% of the way to TP1, "
+        "then fading back to 60% while in profit). No trail, no ladder, no re-entry. Fresh $5,000 book since 17 Nov · "
         f"day {_days:.1f}.</span></div>",
         unsafe_allow_html=True)
     with st.expander("roster history (GEN 17 → 21)", expanded=False):   # 2026-11-07: moved out of the header
         st.caption(
-            "GEN 22 (17 Nov, minutes after GEN 21): elite conviction joined as the fifth stream and the book became "
-            "$5,000. GEN 21 (17 Nov, a few hours after GEN 20): stock names only, four streams (elite confirmed entry, GO "
+            "GEN 22 (17 Nov, minutes after GEN 21): the book became $5,000; elite conviction was the fifth stream for an "
+            "hour and left again (22.2), and a second or third elite-family fire on a held name now adds a seat of margin. GEN 21 (17 Nov, a few hours after GEN 20): stock names only, four streams (elite confirmed entry, GO "
             "revived, elite star, strong trigger), fed from the desk's own seats; GEN 20's gated star, star × prime, "
             "APEX V2 gated, prime × strong trigger and star × APEX V2 on every symbol left the money. "
             "GEN 20 (17 Nov): the GEN 19 seats closed at the live price, ledger archived ($2,000 → about $1,764 "

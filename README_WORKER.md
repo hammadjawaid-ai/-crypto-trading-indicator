@@ -577,3 +577,13 @@ priority".
   (`records()` adds `tok_recent`), and a bell without a switch says what the code does with it today
   (`tg_switches.FIXED`: the gated star and the revival ring; the plain star fire, the confirmed entry, the strong
   trigger and the conviction fire are silent on the phone).
+
+- **GEN 22.2 (2026-11-17; user: "remove conviction" · "have the elite confirmed run, if go revived is added to the
+  same elite confirmed we add more margin to it … even if its elite star … 10x leverage but we add more margins if
+  elite star fires or go revived fires").** Elite conviction is off the roster again (`CLASS_W`, the desk feed,
+  the pools); a conviction seat still open runs out or gives way as in 22.1. **Stream add:** in `try_open`, a
+  candidate from `ADD_BY` on a name already held through a different `ADD_BASE` stream, same side, adds
+  `ADD_SEATS = 1.0` seat of margin at the live price through the GEN 18 add-on engine (`_stream_add` →
+  `_add_on`: entry averaged, stop and TP1 kept, refused on short collateral, the heat cap, price through the stop
+  or the 8% guard), once per stream (`add_srcs` on the position), never at or past TP1. A strong trigger neither
+  adds nor receives. The adds of the last call are in `demo_account.STREAM_ADDS`; the worker logs them. No reset.

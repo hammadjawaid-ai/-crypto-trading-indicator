@@ -78,7 +78,7 @@ def mirror_signal(p: dict) -> dict:
 
 
 DEMO_FEED: list = []          # 🎮 GEN 21: desk seats on stock names, offered to the demo (newest last)
-DEMO_FEED_TIERS: set = {"elite_confirm", "go_revived", "elite_star", "trig_strong", "elite_conv"}   # elite_conv: GEN 22
+DEMO_FEED_TIERS: set = {"elite_confirm", "go_revived", "elite_star", "trig_strong"}   # elite_conv was here for an hour (GEN 22), removed 22.2
 DEMO_FEED_TTL_S = 2700        # a seat is offered for 45 minutes (the worker goes round in 17–20)
 
 

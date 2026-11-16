@@ -25,7 +25,7 @@ REGISTRY = [
     (None, "🎮 ⭐ ELITE STAR, every fire", "elite_star", "demo stream; the phone rings only for the gated ones above"),
     (None, "🎮 💎✅ ELITE CONFIRMED ENTRY", "elite_confirm", "demo stream"),
     (None, "🎮 💥 STRONG TRIGGER", "trig_strong", "demo stream"),
-    (None, "🎮 💎 ELITE CONVICTION", "elite_conv", "demo stream"),
+    (None, "💎 ELITE CONVICTION", "elite_conv", "left the demo on 17 Nov"),
     ("TG_STAR_PRIME", "⭐🥇 STAR × PRIME", "star_prime", ""),
     ("TG_STAR_TRIG", "⭐💥 STAR × STRONG TRIGGER", "star_trig", ""),
     ("TG_STAR_TAKENOW", "⭐✅🔥 STAR × TAKE NOW HOT", "star_takenow", ""),

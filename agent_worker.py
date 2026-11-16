@@ -6423,8 +6423,7 @@ def cycle() -> None:
         for _dt, _sh in (("elite_confirm", "tok:elite_confirm"),   # GEN 21: his four, on stock names
                          ("go_revived", "tok:go_revived"),
                          ("elite_star", "tok:elite_star"),
-                         ("trig_strong", "tok:trig_strong"),
-                         ("elite_conv", "tok:elite_conv")):        # GEN 22
+                         ("trig_strong", "tok:trig_strong")):
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_sh)["net_r"]
             except Exception:
@@ -7090,8 +7089,7 @@ def cycle() -> None:
                     and d.get("entry") and d.get("stop") and d.get("tp1")]
         _dz_pools = {_s21: ([dict(d) for d in _dz_feed if d["src"] == _s21]
                             + [d for d in _dz_reo if d["src"] == _s21])
-                     for _s21 in ("elite_confirm", "go_revived", "elite_star", "trig_strong",
-                                  "elite_conv")}   # elite_conv: GEN 22
+                     for _s21 in ("elite_confirm", "go_revived", "elite_star", "trig_strong")}
         # 🔄 GEN 7 rotation input: every (coin, side) with a LIVE
         # signal this cycle — positions outside this set are the
         # rotation candidates ("a losing trade stands only while
@@ -7165,8 +7163,13 @@ def cycle() -> None:
             except Exception as _re8_exc:
                 print("  gen8 reopen error:", _re8_exc, flush=True)
         _dz_ranked = demo_account.rank_candidates(_dz_pools, _dz_form)
+        # ➕ GEN 22.2: stream adds made inside try_open below are logged after it
         _dz_opened, _dz_rot = demo_account.try_open(
             _dz, _dz_ranked, _live, active=_dz_active)
+        for _sa22 in list(demo_account.STREAM_ADDS):
+            print(f"[demo] ➕ margin added {_sa22.get('base')} {_sa22.get('side')}: "
+                  f"${_sa22.get('margin'):,.0f} at {_sa22.get('px')} ({_sa22.get('why')}); "
+                  f"position ${_sa22.get('notional_total'):,.0f}", flush=True)
         demo_account.save(_dz)
         # 💸 GEN 10 LIVE (user 2026-09-07: "move from demo trading to
         # my real money with the same gen 10 demo", $1,500, full
