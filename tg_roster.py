@@ -36,10 +36,11 @@ LABEL = {"elite_star": "⭐ ELITE STAR", "elite_agrade": "💎🏆 A-GRADE", "el
          "star_takenow": "⭐✅🔥 STAR × TAKE NOW HOT", "confirm_star": "💎✅⭐ CONFIRMED after a GATED STAR",
          "apex_v2_short": "🏆🔻 APEX V2 SHORT", "conv_revival": "💎⚡ CONVICTION REVIVAL",
          "kr_premium": "⚡🔮 KR-STRONG PREMIUM"}
-# 🏦 TP1 HIT ping: only for bells that rang, and of those only these (user 2026-11-17: "apex v2 gated or conviction
-# revival or go live or elite x (any steam) can be optional we can leave that"). Add a key to bring its ping back.
+# 🏦 TP1 HIT ping: only for bells that rang, and for every bell on the roster (user 2026-11-17, after the first
+# build left three out: "add tp1 ones to the ones that rings so add it"). The log holds rung bells only, so a muted
+# bell can never ping. Remove a key to silence its ping.
 TP1_PING = frozenset({"elite_star", "elite_agrade", "elite_confirm", "leg2_prime", "prime_trig", "confirm_star",
-                      "kr_premium"})
+                      "kr_premium", "apex_v2_short", "conv_revival", "star_takenow"})
 # the desk tier whose stock seats a bell's stock line reads
 STOCK_TIER = {"elite_star": "elite_star", "elite_confirm": "elite_confirm", "conv_revival": "go_revived",
               "star_go": "star_go_chase"}

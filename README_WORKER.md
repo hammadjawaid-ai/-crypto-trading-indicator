@@ -618,9 +618,11 @@ the telegram crypto side".
   second leg usually arrives after the star.
 - **Rang-bell log:** every entry bell that actually rings writes one row to the signals stream `tg_bell`
   (`_tg_rang`; the `tier` column carries the bell's key). The 🏦 TP1 HIT ping watches that log cut to
-  `tg_roster.TP1_PING` (stars, A-grade, confirmed entry, the two PRIME pairs, KR premium; not APEX V2, the
-  revival or star × take-now, which he called optional), with a 48h bridge from the old streams for bells rung
-  before `ROSTER_TS`. The 🚦 gatekeeper's burst read counts the same log (`tg_cells.BELL_STREAMS = ("tg_bell",)`).
+  `tg_roster.TP1_PING`, which is every bell on the roster (the first build left APEX V2 shorts, the stock revival
+  and star × take-now out; he the same night: "add tp1 ones to the ones that rings so add it"), with a 48h bridge
+  from the old streams for bells rung before `ROSTER_TS`. ⚡🔮 KR-STRONG PREMIUM was muted the same night on his
+  word ("Mute KR STRONG", `TG_KR_PREMIUM = False`). The 💎✅⭐ bell stays off on his word ("Elite confirmed with
+  star not the other way round"): the confirmed entry first and then the gated star is the star's bell with its mark. The 🚦 gatekeeper's burst read counts the same log (`tg_cells.BELL_STREAMS = ("tg_bell",)`).
 - **Switches:** every flag above is on the 🔔 Telegram Bells page, ordered stocks, coins, off the roster. A
   switches file written before this roster is ignored (`tg_switches.ROSTER_TAG`).
 - **Evidence standard:** every record on these cards is a slice of the ledger to 16 Nov (desk booking, about

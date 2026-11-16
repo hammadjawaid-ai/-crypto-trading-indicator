@@ -33,7 +33,7 @@ REGISTRY = [
     ("TG_PRIME_TRIG", "🪙 💥🥇 PRIME × STRONG TRIGGER · coins", "prime_trig", ""),
     ("TG_STAR_TAKENOW", "🪙 ⭐✅🔥 STAR × TAKE NOW HOT · coins", "star_takenow", ""),
     ("TG_APEX_V2_SHORT", "🪙 🏆🔻 APEX V2 SHORTS · coins", "apex_v2:short", "every APEX V2 short fire, the gate's read on one line; longs do not ring"),
-    ("TG_KR_PREMIUM", "⚡🔮 KR-STRONG PREMIUM", None, "not on the 17 Nov list; left ringing as it was"),
+    ("TG_KR_PREMIUM", "⚡🔮 KR-STRONG PREMIUM", None, "muted on 17 Nov on his word"),
     ("TG_CONFIRM_STAR", "🪙 💎✅⭐ CONFIRMED ENTRY after a GATED STAR · coins", None,
      "built, off: 48% / −0.21R (33) with the star first. The order that paid (confirmed entry, then the gated star: 65% / +0.43R, 55) is a mark on the star's card"),
     ("TG_STAR_PRIME", "⭐🥇 STAR × PRIME", "star_prime", "off the roster since 17 Nov"),

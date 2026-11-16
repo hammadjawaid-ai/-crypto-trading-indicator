@@ -174,8 +174,11 @@ check("the gatekeeper counts rung bells only", tc.BELL_STREAMS == (tr.BELL,) and
       and ws.bell_burst("SHORT", nowg - 7200, tc.BELL_STREAMS, "B1USDT") == 1 and ws.bell_burst("LONG", nowg - 7200, tc.BELL_STREAMS, "ZZZUSDT") == 0)
 got = [r for r in ws.recent_by_stream(tr.BELL, 10)]
 check("the log reads back with the key in tier", len(got) == 2 and {r["tier"] for r in got} == {"leg2_prime"})
-check("TP1 ping set: stars, A-grade, confirmed entry, the two PRIME pairs, KR premium; not APEX V2, not the revival, not star × take-now",
-      tr.TP1_PING == {"elite_star", "elite_agrade", "elite_confirm", "leg2_prime", "prime_trig", "confirm_star", "kr_premium"})
+check("TP1 ping set: every bell on the roster (user 2026-11-17: 'add tp1 ones to the ones that rings')",
+      tr.TP1_PING == {"elite_star", "elite_agrade", "elite_confirm", "leg2_prime", "prime_trig", "confirm_star", "kr_premium",
+                      "apex_v2_short", "conv_revival", "star_takenow"}
+      and tr.ping_stamp("apex_v2_short", COIN, "SHORT", T0).startswith("\n🕐 ") and tr.ping_stamp("star_takenow", COIN, "LONG", T0).startswith("\n🕐 ")
+      and tr.ping_stamp("conv_revival", STOCK, "LONG", T0).startswith("\n🏦 "))
 check("ping stamp: a coin prints the old coin cell, a stock its stock line", tr.ping_stamp("elite_star", COIN, "LONG", T0) == tc.stamp_src("elite_star", "LONG", T0)
       and tr.ping_stamp("elite_confirm", STOCK, "LONG", T0).startswith("\n🏦 🕐 ") and tr.ping_stamp("elite_agrade", COIN, "LONG", T0) == "")
 
@@ -183,7 +186,7 @@ print("8. the switches")
 d = ts.code_defaults()
 check("every switch is a module-level True / False in the worker", set(d) == set(ts.FLAGS) and len(ts.FLAGS) == len(set(ts.FLAGS)), sorted(set(ts.FLAGS) - set(d)))
 want = {"TG_CONFIRM_STOCK": True, "TG_STAR_STOCK": True, "TG_CONV_REVIVAL": True, "TG_AGRADE": True, "TG_LEG2_PRIME": True, "TG_PRIME_TRIG": True,
-        "TG_STAR_TAKENOW": True, "TG_APEX_V2_SHORT": True, "TG_KR_PREMIUM": True, "TG_CONFIRM_STAR": False, "TG_STAR_PRIME": False, "TG_STAR_TRIG": False,
+        "TG_STAR_TAKENOW": True, "TG_APEX_V2_SHORT": True, "TG_KR_PREMIUM": False, "TG_CONFIRM_STAR": False, "TG_STAR_PRIME": False, "TG_STAR_TRIG": False,
         "TG_STAR_APEXV2": False, "TG_CONV_PRIME": False, "TG_APEX_V2_GATED": False, "TG_GO_LIVE": False, "TG_TRIGKR_PRIME": False, "TG_ARRIVAL_T1": False,
         "TG_NEAR90": False, "TG_FREEZE": False}
 check("the roster's defaults", d == want, {k: (d.get(k), v) for k, v in want.items() if d.get(k) != v})

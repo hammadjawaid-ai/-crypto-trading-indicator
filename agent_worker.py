@@ -2497,7 +2497,7 @@ TG_CONV_REVIVAL = True     # 💎⚡ conviction revival bell; stocks only (tg_ro
 TG_AGRADE = True           # 💎🏆 A-GRADE bell for a non-star A-grade fire; coins only (user 2026-11-17: "deploy A grade as well to the telegram crypto side").
 TG_APEX_V2_SHORT = True    # 🏆🔻 APEX V2 SHORTS bell: every APEX V2 short fire on a coin, the gate's read on one line.
 TG_CONFIRM_STAR = False    # 💎✅⭐ confirmed entry after a gated star (≤6h), coins. OFF: see the note above.
-TG_KR_PREMIUM = True       # ⚡🔮 KR-STRONG PREMIUM bell: unchanged (on since 2026-10-19); only the switch is new.
+TG_KR_PREMIUM = False      # ⚡🔮 KR-STRONG PREMIUM bell MUTED 2026-11-17 (user: "Mute KR STRONG"); it rang from 2026-10-19. Records and the kr_premium_bell stamp go on. True = ring again.
 STAR_LEG2_REC = "stars with one in the 6h before 69% / +0.37R (16, thin) vs 54% / +0.10R (556) without"
 STAR_CONFIRM_REC = "gated stars with one in the 6h before 65% / +0.43R (55) vs 57% / +0.07R (51) without"
 ROSTER_TS = 1794872916    # the roster cut-over (17 Nov 2026): 🏦 TP1 pings for bells rung before it bridge from the old streams for 48h
