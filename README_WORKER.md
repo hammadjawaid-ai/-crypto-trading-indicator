@@ -556,3 +556,11 @@ priority".
   Streams not on the roster with a longer positive record on stock names: top conviction 68% / +0.20R (50),
   surge 62% / +0.18R (91), best zone 59% / +0.12R (104), take-now hot 58% / +0.12R (106), nearly all before 10 Nov.
 - Guard: `.demo_gen21_test.py`. Revert: GEN 20 is at 945907c.
+
+- **GEN 22 (2026-11-17, minutes after GEN 21; user: "lets add elite conviction to the demo trading as well and have
+  an account of 5000 dollars instead of 2000").** `GEN = 22`, `START_BAL = 5000.0` (a full seat is $250 of margin,
+  $2,500 at 10x; the day-loss rail is a share of equity and scales by itself). `elite_conv` joins `CLASS_W` as the
+  fifth stream, `shadow_trader.DEMO_FEED_TIERS`, the worker's pools and the form map. On stock names (candles,
+  stop or TP1 in full) elite conviction is 54% / +0.11R (63) since 10 Nov and 30% / −0.07R (43) before; its target
+  sits about 1.4R away. It is the parent fire of the confirmed entry, the GO and the star and fires first, and the
+  demo holds one seat per name, so it will often be the seat taken on a move. Guard: `.demo_gen22_test.py`.

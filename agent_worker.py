@@ -6423,7 +6423,8 @@ def cycle() -> None:
         for _dt, _sh in (("elite_confirm", "tok:elite_confirm"),   # GEN 21: his four, on stock names
                          ("go_revived", "tok:go_revived"),
                          ("elite_star", "tok:elite_star"),
-                         ("trig_strong", "tok:trig_strong")):
+                         ("trig_strong", "tok:trig_strong"),
+                         ("elite_conv", "tok:elite_conv")):        # GEN 22
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_sh)["net_r"]
             except Exception:
@@ -7089,7 +7090,8 @@ def cycle() -> None:
                     and d.get("entry") and d.get("stop") and d.get("tp1")]
         _dz_pools = {_s21: ([dict(d) for d in _dz_feed if d["src"] == _s21]
                             + [d for d in _dz_reo if d["src"] == _s21])
-                     for _s21 in ("elite_confirm", "go_revived", "elite_star", "trig_strong")}
+                     for _s21 in ("elite_confirm", "go_revived", "elite_star", "trig_strong",
+                                  "elite_conv")}   # elite_conv: GEN 22
         # 🔄 GEN 7 rotation input: every (coin, side) with a LIVE
         # signal this cycle — positions outside this set are the
         # rotation candidates ("a losing trade stands only while
@@ -7153,8 +7155,8 @@ def cycle() -> None:
                      "src": (_rec8.get("src")
                              if _rec8.get("src") in
                              ("elite_confirm", "go_revived", "elite_star",
-                              "trig_strong")
-                             else "elite_star"),   # GEN 21 (dormant: REENTRY_ON is off)
+                              "trig_strong", "elite_conv")
+                             else "elite_star"),   # GEN 22 (dormant: REENTRY_ON is off)
                      "chain": int(_rp8.get("chain") or 0) + 1,
                      "fired_at": _now})
                 print(f"[gen8] 🔁 momentum re-entry queued "

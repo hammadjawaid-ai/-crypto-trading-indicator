@@ -124,8 +124,15 @@ STATE_FILE = os.environ.get("DEMO_STATE") or \
 # trigger 73% / +0.01R (33) and 74% / +0.13R (35) before. One good week; the desk sees price only once
 # a worker cycle (17–20 minutes), so stops traded through between cycles are not booked.
 # Revert: GEN 20 is at 945907c.
-GEN = 21
-START_BAL = 2000.0
+# 🎮 GEN 22 (user 2026-11-17, minutes after GEN 21: "lets add elite conviction to the demo trading as well
+# and have an account of 5000 dollars instead of 2000"): GEN 21 unchanged plus 💎 ELITE CONVICTION as the
+# fifth stream, on a fresh $5,000 book. A full seat is now $250 of margin ($2,500 at 10x). Measured on
+# stock names, candles, stop or TP1 in full: elite conviction 54% / +0.11R (63) since 10 Nov, 30% / −0.07R
+# (43) before; its target sits about 1.4R away, so it wins less often than the other four by design.
+# It is the PARENT fire of the confirmed entry, the GO and the star: it fires first, and the demo holds
+# one seat per name, so it will often be the seat taken on a move. Revert: GEN 21 is at cdd45c3.
+GEN = 22
+START_BAL = 5000.0
 STOCKS_ONLY = True            # GEN 21: only stock names with a Binance stock perpetual take a seat
 REENTRY_ON = False            # GEN 20: a TP1 bank is final; no momentum re-entry is queued
 # 🎮 GEN 16 (user 2026-09-14: "Demo Trading Start Again now. We will
@@ -217,7 +224,7 @@ NEAR_TP_FADE = 0.60          # how far it has given back
 # +0.050R, PRIME +0.127R vs +0.100R): back on for all four.
 # 🪜 GEN 19: the fade bank is OFF — the ≥69% cells were measured on the desk ladder, so the
 # book exits the same way (LADDER_SRC below). Revert: put the streams back in this set.
-NEAR_TP_SRC: set = {"elite_confirm", "go_revived", "elite_star", "trig_strong"}   # GEN 20 / 21: the 85% fade bank for every lane
+NEAR_TP_SRC: set = {"elite_confirm", "go_revived", "elite_star", "trig_strong", "elite_conv"}   # GEN 20–22: the 85% fade bank for every lane
 # 🪜 THE DESK LADDER (shadow_trader's exit law, now the demo's for every GEN 19 lane): stop
 # → entry at +1R · stop → TP1 when TP1 prints · after TP1 the stop trails the peak by 1.2R ·
 # TP2 closes · 48h cuts at the live price. Nothing banks at TP1 — a winner runs to TP2 or
@@ -334,7 +341,7 @@ ELITE_FAMILY_CAP = 0
 ROTATE_MAX = 0   # GEN 9 user order: rotation REMOVED
 SMART_EXIT_SKIP: set = {"elite_star", "star_prime", "star_trig", "conv_revival", "star_apexv2",
                         "apex_v2_gated", "prime_trig", "elite_confirm", "go_revived",
-                        "trig_strong"}   # GEN 19 / 20 / 21: no kronos exit anywhere
+                        "trig_strong", "elite_conv"}   # GEN 19–22: no kronos exit anywhere
 # GEN 12: kronos smart-exit off for all. Exits: SL-or-TP1-bank-100%
 # everywhere EXCEPT ⭐ elite_star's near-TP bank (own block) and
 # 💎🔮 elite_kr's RIDE (half-bank TP1 + BE + trail, in the TP1
@@ -445,7 +452,8 @@ MIN_RANK = 85.0  # GEN 9: anyone can take any place
 CLASS_W = {"elite_confirm": 105,  # 1. 💎✅ ELITE CONFIRMED ENTRY
            "go_revived": 104,     # 2. ⚡ GO REVIVED (star and conviction revivals, entered at the GO)
            "elite_star": 103,     # 3. ⭐ ELITE STAR, every fire
-           "trig_strong": 102}    # 4. 💥 STRONG TRIGGER
+           "trig_strong": 102,    # 4. 💥 STRONG TRIGGER
+           "elite_conv": 101}     # 5. 💎 ELITE CONVICTION (GEN 22)
 # 🪑 SPARE-SEAT RULE: a listed stream may open only while at least
 # this many seats stay free after it, so the priority three always
 # find room — rotation is off (ROTATE_MAX = 0) and a seat once taken
@@ -696,7 +704,7 @@ def lev_for(src: str, conf=None, burst=None) -> float:
     (The GEN 15 star 6x/8x-by-burst ladder is in git at 2a56c58.)"""
     return {"elite_star": 10.0, "star_prime": 10.0, "star_trig": 10.0, "conv_revival": 10.0,
             "star_apexv2": 10.0, "apex_v2_gated": 10.0, "prime_trig": 10.0, "elite_confirm": 10.0,
-            "go_revived": 10.0, "trig_strong": 10.0}.get(src, LEV_GEN13)   # GEN 19 / 20 / 21: flat 10x
+            "go_revived": 10.0, "trig_strong": 10.0, "elite_conv": 10.0}.get(src, LEV_GEN13)   # GEN 19–22: flat 10x
 
 
 def load() -> dict:
@@ -1132,7 +1140,7 @@ def cutover_fresh_book(live_fn) -> list:
             if live <= 0:
                 continue
             rec = _close_qty(old, p, p["qty"], live,
-                             f"GEN {GEN} cut-over — closed at live, fresh $2,000 "
+                             f"GEN {GEN} cut-over — closed at live, fresh ${START_BAL:,.0f} "
                              f"book from here (user {CUTOVER_DATE})")
             old.setdefault("closed", []).append(rec)
             old["open"].remove(p)
