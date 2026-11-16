@@ -92,7 +92,7 @@ for need, lab in (('tg_cells.stamp("elite_star", _pmx.get("side"), time.time())'
                   ('l6 = (tg_cells.stamp("prime_trig", None, now)', "💥🥇 stamp"),
                   ('+ tg_cells.stamp("apex_v2", sd, now)', "🏆💎 APEX V2 GATED stamp"),
                   ('_st = (tg_cells.stamp("apex_v2", ew.get("side"), float(ew.get("fired_at") or time.time()))', "⏱🏆 APEX V2 verdict stamp"),
-                  ('+ tg_cells.stamp_src(_rg_src, _rg_side, _rg_ts)', "🏦 TP1 ping stamp"),
+                  ('+ tg_roster.ping_stamp(_rg_src, _rg_sym, _rg_side, _rg_ts)', "🏦 TP1 ping stamp (the bell's own cell: stock line or coin cell, roster 2026-11-17)"),
                   ("import tg_cells", "import")):
     check(f"worker: {lab}", need in W)
 check("worker: the old star clock line is gone from the card", "clock_cells.star_line_short(" not in W)
@@ -115,7 +115,7 @@ check("worker: the read refreshes every cycle and rides the five fire bells",
 print("7. 🚦 the gatekeeper line (2026-11-13)")
 import worker_store as _wst      # noqa: E402
 nowg = __import__("time").time()
-check("the switch is on; ten bell streams counted for bursts", tc.GATEKEEPER is True and len(tc.BELL_STREAMS) == 10)
+check("the switch is on; bursts count the rang-bell log (roster 2026-11-17)", tc.GATEKEEPER is True and tc.BELL_STREAMS == ("tg_bell",))
 g0 = tc.gate("elite_star", "LONG", nowg, "AAAUSDT")
 check("no market read -> ⚪, proven stream, first bell, FULL", g0["size"] == "full" and "⚪ no market read" in g0["line"] and "✅ proven stream" in g0["line"] and "🟢 first long bell in 2h" in g0["line"], g0)
 tc.set_btc_regime(dn, nowg)
@@ -127,7 +127,8 @@ g3 = tc.gate("conv_revival", "LONG", nowg, "AAAUSDT")
 check("against the market + a hold-read stream -> SMALL", g3["size"] == "small" and g3["warn"] == 2, g3)
 check("side-specific trust: ELITE × PRIME longs 🔴, shorts ✅", "🔴 pair longs 32%" in tc.gate("conv_prime", "LONG", nowg)["line"] and "✅ pair shorts 74%" in tc.gate("conv_prime", "SHORT", nowg)["line"])
 for sy in ("B1USDT", "B2USDT", "B3USDT"):
-    _wst.record_signal("star_prime", {"symbol": sy, "side": "SHORT"}, ts=nowg - 600)
+    _wst.record_signal("tg_bell", {"symbol": sy, "side": "SHORT", "tier": "leg2_prime"}, ts=nowg - 600)
+_wst.record_signal("star_prime", {"symbol": "B7USDT", "side": "SHORT"}, ts=nowg - 600)      # a record of a silent bell: never counted
 _wst.record_signal("elite_star", {"symbol": "B4USDT", "side": "SHORT", "gate": "muted"}, ts=nowg - 600)
 check("burst counts other coins on this side; a muted star does not count", _wst.bell_burst("SHORT", nowg - 7200, tc.BELL_STREAMS, "ZZZUSDT") == 3
       and _wst.bell_burst("SHORT", nowg - 7200, tc.BELL_STREAMS, "B1USDT") == 2 and _wst.bell_burst("LONG", nowg - 7200, tc.BELL_STREAMS, "ZZZUSDT") == 0)

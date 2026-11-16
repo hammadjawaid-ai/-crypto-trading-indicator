@@ -63,9 +63,9 @@ check("next line kept", m0.split("\n")[-1].startswith("next:") or "next:" in m0)
 check("plan line kept", "entry `1`" in m0 and "SL `0.95`" in m0 and "TP1 `1.06`" in m0)
 print("4. worker wiring")
 w = open(os.path.join(ROOT, "agent_worker.py"), encoding="utf-8").read()
-check("13–17 ungated exception OFF", re.search(r"^STAR_UNGATED_1317 = False", w, re.M) is not None)
+check("13–17 ungated window ON again for coins (user 2026-11-17)", re.search(r"^STAR_UNGATED_1317 = True\b", w, re.M) is not None)
 check("partner read feeds star_fire", "store.streams_between(" in w and "partners=_partners9, size_down=_sizedown9" in w)
-gate_blk = w[w.index("_gate9 = _star_gate(_pmx, time.time(),"):w.index("_w1317 = (_star9 and STAR_UNGATED_1317")]
+gate_blk = w[w.index("_gate9 = _star_gate(_pmx, time.time(),"):w.index("_w1317 = (_star9 and not _stk9 and STAR_UNGATED_1317")]
 check("GO-timing line left the fire card", "go_timing_line" not in gate_blk)
 check("a star's revival is a thread reply under its own bell, never standalone",
       'if _ew.get("oneh") == "DEAD" and _ew.get("star"):' in w and '"sent-thread (revived)"' in w)

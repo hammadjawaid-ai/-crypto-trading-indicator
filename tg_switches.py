@@ -20,31 +20,38 @@ FILE = ".tg_switches.json"
 # (flag in agent_worker or None when the bell has no switch, label, desk tier or None, note)
 # 🎮 = a stream the stock-only demo trades (user 2026-11-17: "add the streams to the list which I mentioned
 # above that we set for demo as well so we finalize the notifications accordingly").
+# 📱 2026-11-17, the phone roster by asset class (user: "measure stocks tokenzied stock seperately and crypto
+# seperatly"): the list is ordered stocks, then coins, then what is off the roster. 🏦 = rings on tokenized stocks
+# only, 🪙 = on coins only. A flip made before this roster is dropped (ROSTER_TAG below), so the page starts from it.
 REGISTRY = [
-    (None, "⭐ ELITE STAR, gated", "elite_star:gated", "rings when the star passes its four-rule read"),
-    (None, "🎮 ⭐ ELITE STAR, every fire", "elite_star", "demo stream; the phone rings only for the gated ones above"),
-    (None, "🎮 💎✅ ELITE CONFIRMED ENTRY", "elite_confirm", "demo stream"),
-    (None, "🎮 💥 STRONG TRIGGER", "trig_strong", "demo stream"),
-    (None, "💎 ELITE CONVICTION", "elite_conv", "left the demo on 17 Nov"),
-    ("TG_STAR_PRIME", "⭐🥇 STAR × PRIME", "star_prime", ""),
-    ("TG_STAR_TRIG", "⭐💥 STAR × STRONG TRIGGER", "star_trig", ""),
-    ("TG_STAR_TAKENOW", "⭐✅🔥 STAR × TAKE NOW HOT", "star_takenow", ""),
-    ("TG_STAR_APEXV2", "⭐🏆² STAR × APEX V2", "star_apexv2", ""),
-    ("TG_APEX_V2_GATED", "🏆💎 APEX V2 GATED", "apex_v2_gated", ""),
-    ("TG_PRIME_TRIG", "💥🥇 PRIME × STRONG TRIGGER", "prime_trig", ""),
-    ("TG_CONV_PRIME", "💎🥇 ELITE × PRIME", "conv_prime", ""),
-    ("TG_LEG2_PRIME", "🔥🥇 SECOND LEG × PRIME", "leg2_prime", ""),
-    (None, "🎮 💎⚡ CONVICTION REVIVAL · ⭐⚡ GO REVIVED", "go_revived", "demo stream; entered at the GO; the star's GO is a thread reply"),
+    ("TG_CONFIRM_STOCK", "🏦 💎✅ ELITE CONFIRMED ENTRY · stocks", "elite_confirm", "🎮 demo stream · a stock card with stock numbers only"),
+    ("TG_STAR_STOCK", "🏦 ⭐ ELITE STAR, every fire · stocks", "elite_star", "🎮 demo stream · no gate on stocks; the 1H verdict and GO fast / late reply in its thread"),
+    ("TG_CONV_REVIVAL", "🏦 💎⚡ CONVICTION REVIVAL · stocks", "go_revived", "🎮 demo stream (GO revived) · entered at the GO"),
+    (None, "🪙 ⭐ ELITE STAR, gated · coins", "elite_star:gated", "rings when the star passes its four-rule read, and every star 13–17 PKT with a caution line; replies in its thread"),
+    ("TG_AGRADE", "🪙 💎🏆 ELITE A-GRADE · coins", "elite_agrade", ""),
+    ("TG_LEG2_PRIME", "🪙 🔥🥇 SECOND LEG × PRIME · coins", "leg2_prime", ""),
+    ("TG_PRIME_TRIG", "🪙 💥🥇 PRIME × STRONG TRIGGER · coins", "prime_trig", ""),
+    ("TG_STAR_TAKENOW", "🪙 ⭐✅🔥 STAR × TAKE NOW HOT · coins", "star_takenow", ""),
+    ("TG_APEX_V2_SHORT", "🪙 🏆🔻 APEX V2 SHORTS · coins", "apex_v2:short", "every APEX V2 short fire, the gate's read on one line; longs do not ring"),
+    ("TG_KR_PREMIUM", "⚡🔮 KR-STRONG PREMIUM", None, "not on the 17 Nov list; left ringing as it was"),
+    ("TG_CONFIRM_STAR", "🪙 💎✅⭐ CONFIRMED ENTRY after a GATED STAR · coins", None,
+     "built, off: 48% / −0.21R (33) with the star first. The order that paid (confirmed entry, then the gated star: 65% / +0.43R, 55) is a mark on the star's card"),
+    ("TG_STAR_PRIME", "⭐🥇 STAR × PRIME", "star_prime", "off the roster since 17 Nov"),
+    ("TG_STAR_TRIG", "⭐💥 STAR × STRONG TRIGGER", "star_trig", "off the roster since 17 Nov"),
+    ("TG_STAR_APEXV2", "⭐🏆² STAR × APEX V2", "star_apexv2", "off the roster since 17 Nov"),
+    ("TG_CONV_PRIME", "💎🥇 ELITE × PRIME", "conv_prime", "off the roster since 17 Nov"),
+    ("TG_APEX_V2_GATED", "🏆💎 APEX V2 GATED", "apex_v2_gated", "off since 17 Nov: APEX V2 SHORTS took its place"),
     ("TG_GO_LIVE", "💎⚡ GO LIVE", "go_live", ""),
     ("TG_TRIGKR_PRIME", "💥🔮🥇 TRIGGER × KRONOS × PRIME", "trigkr_prime", ""),
     ("TG_ARRIVAL_T1", "⚡🔥 ARRIVAL T1", None, ""),
     ("TG_NEAR90", "🎯 90% of the way to TP1 ping", None, "a progress ping, not an entry"),
     ("TG_FREEZE", "❄️ FREEZE reply", None, "a thread reply, not an entry"),
+    (None, "🎮 💥 STRONG TRIGGER", "trig_strong", "demo stream; it has no bell"),
 ]
 FLAGS = [r[0] for r in REGISTRY if r[0]]
 # bells with no switch: what the code does with them today (True rings, False silent on the phone)
-FIXED = {"elite_star:gated": True, "go_revived": True, "elite_star": False, "elite_confirm": False,
-         "trig_strong": False, "elite_conv": False}
+FIXED = {"elite_star:gated": True, "trig_strong": False}
+ROSTER_TAG = "2026-11-17"      # a switches file written under another roster is ignored: the page starts from this one
 
 
 def _state_dir() -> str:
@@ -61,7 +68,9 @@ def overrides() -> dict:
     try:
         with open(os.path.join(_state_dir(), FILE), encoding="utf-8") as f:
             d = json.load(f)
-        return {k: bool(v) for k, v in d.items() if k in FLAGS} if isinstance(d, dict) else {}
+        if not isinstance(d, dict) or d.get("_roster") != ROSTER_TAG:
+            return {}
+        return {k: bool(v) for k, v in d.items() if k in FLAGS}
     except Exception:
         return {}
 
@@ -73,6 +82,7 @@ def set_switch(flag: str, on: bool) -> bool:
     try:
         d = overrides()
         d[flag] = bool(on)
+        d["_roster"] = ROSTER_TAG
         path = os.path.join(_state_dir(), FILE)
         with open(path + ".tmp", "w", encoding="utf-8") as f:
             json.dump(d, f)
@@ -159,4 +169,13 @@ def records(con, now: float | None = None, days: float = 14.0) -> dict:
     g, gk = cells["elite_star"], cells["tok:elite_star"]
     out["elite_star:gated"] = {"all": _cell([r for _, r in g]), "recent": _cell([r for c, r in g if (c or 0) >= cut]),
                                "tok": _cell([r for _, r in gk]), "tok_recent": _cell([r for c, r in gk if (c or 0) >= cut])}
+    # 🏆🔻 APEX V2 SHORTS = the APEX V2 tier cut to its short seats (the bell rings on shorts only)
+    sh = {"apex_v2": [], "tok:apex_v2": []}
+    for tier, c, r in con.execute(
+            "SELECT tier, closed_at, pnl_r FROM shadow_trades WHERE status='CLOSED' AND pnl_r IS NOT NULL "
+            "AND tier IN ('apex_v2','tok:apex_v2') AND upper(side)='SHORT'"):
+        sh[tier].append((c, r))
+    a, k = sh["apex_v2"], sh["tok:apex_v2"]
+    out["apex_v2:short"] = {"all": _cell([r for _, r in a]), "recent": _cell([r for c, r in a if (c or 0) >= cut]),
+                            "tok": _cell([r for _, r in k]), "tok_recent": _cell([r for c, r in k if (c or 0) >= cut])}
     return out

@@ -109,11 +109,27 @@ TABLES = {
     "conv_revival": (CONV_REVIVAL, "💎 revival entered at the GO", "go"),
     "star_revival": (STAR_REVIVAL, "⭐ revival entered at the GO", None),
 }
+PERIOD: dict = {}      # stream -> its own measured period when it is not MEASURED (roster 2026-11-17)
 # worker source keys → (table, keyed by side?) for pings that only know the stream name
 SRC_TABLE = {"elite_star": "elite_star", "star_prime": "star_prime", "star_trig": "star_trig",
              "star_takenow": "star_takenow", "star_apexv2": "star_apexv2", "conv_prime": "conv_prime",
              "leg2_prime": "leg2_prime", "prime_trig": "prime_trig", "apex_v2": "apex_v2",
              "apex_v2_gated": "apex_v2"}
+# 📱 roster 2026-11-17: the window cells of the two new coin cards (tg_roster.py), read on the 16 Nov ledger
+# (desk booking, in-sample). APEX V2 shorts = every APEX V2 short seat; the confirmed entry after a gated star =
+# confirmed-entry seats with a gate-passed star on the coin + side from 6h before to the confirm.
+APEX_V2_SHORT = {
+    ("SHORT", "05–09"): (47, 0.09, 19), ("SHORT", "09–13"): (100, 1.09, 3), ("SHORT", "13–17"): (75, 0.41, 4),
+    ("SHORT", "17–21"): (74, 0.58, 27), ("SHORT", "21–01"): (36, -0.40, 14), ("SHORT", "01–05"): (71, 0.50, 17),
+}
+CONFIRM_STAR = {
+    (None, "05–09"): (67, -0.02, 6), (None, "09–13"): (50, 0.04, 4), (None, "13–17"): (50, -0.20, 2),
+    (None, "17–21"): (41, -0.33, 17), (None, "21–01"): (50, -0.20, 4),
+}
+TABLES["apex_v2_short"] = (APEX_V2_SHORT, "🏆🔻 APEX V2 shorts, every fire", "side")
+TABLES["confirm_star"] = (CONFIRM_STAR, "💎✅⭐ confirmed entry after a gated star", None)
+PERIOD.update({"apex_v2_short": "23 Sep → 16 Nov", "confirm_star": "14 Oct → 13 Nov"})
+SRC_TABLE.update({"apex_v2_short": "apex_v2_short", "confirm_star": "confirm_star"})
 
 
 def window_of(ts: float) -> str:
@@ -162,15 +178,16 @@ def stamp(stream: str, key, ts: float) -> str:
     if tab is None:
         return f"🕐 🟡 {win} — no record"
     table, label, kind = tab
+    period = PERIOD.get(stream, MEASURED)     # a table measured on another period names it (2026-11-17)
     k = _key(stream, key)
     who = ({"LONG": "longs", "SHORT": "shorts"}.get(k, "") if kind == "side"
            else (k or "") if kind == "go" else "both sides")
     c = table.get((k, win))
     if c is None:
-        return f"🕐 🟡 {win} {who} — no record · {label} · {MEASURED}".replace("  ", " ")
+        return f"🕐 🟡 {win} {who} — no record · {label} · {period}".replace("  ", " ")
     w, r, n = c
     thin = ", thin" if n < THIN_N else ""
-    return f"🕐 {light(w)} {win} {who} {w:.0f}% / {r:+.2f}R ({n}{thin}) · {label} · {MEASURED}".replace("  ", " ")
+    return f"🕐 {light(w)} {win} {who} {w:.0f}% / {r:+.2f}R ({n}{thin}) · {label} · {period}".replace("  ", " ")
 
 
 def stamp_src(src: str, side, ts: float) -> str:
@@ -314,8 +331,11 @@ def market_note(side, now: float | None = None) -> str:
 GATEKEEPER = True
 GATE_BURST_S = 2 * 3600.0
 GATE_BURST_N = 3
-BELL_STREAMS = ("elite_star", "star_prime", "star_trig", "star_takenow", "star_apexv2",
-                "conv_prime", "leg2_prime", "trigkr_prime", "prime_trig", "apex_v2_gated")
+# 📱 roster 2026-11-17: the burst read counts the bells the phone actually heard (the tg_bell log the worker writes
+# when an entry bell rings), no longer every record of a stream that could ring: several of those streams are off
+# the phone now and would be counted as bells. Before: ("elite_star", "star_prime", "star_trig", "star_takenow",
+# "star_apexv2", "conv_prime", "leg2_prime", "trigkr_prime", "prime_trig", "apex_v2_gated").
+BELL_STREAMS = ("tg_bell",)
 # stream -> (light, text) or {side: (light, text)}; records = clean desk, the audit + the 12 Nov ledger
 GATE_TRUST = {
     "elite_star": ("✅", "proven stream"),
@@ -330,6 +350,8 @@ GATE_TRUST = {
     "conv_revival": ("🔴", "entered at the GO ≈ 0R: a hold read"),
     "go_revived": ("🔴", "entered at the GO ≈ 0R: a hold read"),
     "apex_v2_gated": {"SHORT": ("✅", "APEX V2 shorts 62% / +0.29R (79)"), "LONG": ("🔴", "APEX V2 longs 41% / −0.03R (124)")},
+    "apex_v2_short": ("✅", "APEX V2 shorts 62% / +0.30R (84)"),                    # roster 2026-11-17
+    "confirm_star": ("🔴", "confirmed after a gated star 48% / −0.21R (33)"),      # roster 2026-11-17
 }
 GATE_SIZE = ("full", "half", "small")
 

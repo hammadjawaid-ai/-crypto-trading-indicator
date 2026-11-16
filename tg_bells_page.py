@@ -33,8 +33,9 @@ def _rec(c: dict | None) -> str:
 
 def render(admin: bool = False) -> None:
     st.markdown("<div style='font-size:1.7rem;font-weight:800;letter-spacing:-.02em'>🔔 Telegram Bells</div>"
-                "<div style='opacity:.7;font-size:.88rem;margin:2px 0 10px'>Every stream that can ring the phone, and the streams the demo trades "
-                "(🎮), each with its record on crypto and on tokenized stocks. Win rate · average result per trade in R · closed trades.</div>",
+                "<div style='opacity:.7;font-size:.88rem;margin:2px 0 10px'>The phone roster since 17 Nov: bells marked 🏦 ring on tokenized stocks "
+                "only, bells marked 🪙 on coins only, then what is off the roster. 🎮 = a stream the demo trades. Each with its record on coins and on "
+                "stocks. Win rate · average result per trade in R · closed trades.</div>",
                 unsafe_allow_html=True)
     st.caption("A win is a trade that closed above zero. The desk's R runs about 0.11 to 0.16R generous (10 Nov audit), so read "
                "+0.1R as roughly break-even. Small counts are noise: under about 30 trades a win rate says little.")

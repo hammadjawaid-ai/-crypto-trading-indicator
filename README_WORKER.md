@@ -587,3 +587,42 @@ priority".
   `_add_on`: entry averaged, stop and TP1 kept, refused on short collateral, the heat cap, price through the stop
   or the 8% guard), once per stream (`add_srcs` on the position), never at or past TP1. A strong trigger neither
   adds nor receives. The adds of the last call are in `demo_account.STREAM_ADDS`; the worker logs them. No reset.
+
+## 📱 PHONE ROSTER BY ASSET CLASS (2026-11-17) — `tg_roster.py`
+
+User: "New Stream should be introduced for tokenized stocks … For Crypto …" · "measure stocks tokenzied stock
+seperately and crypto seperatly and their information card on the buzz should have the information related to it
+only" · "for tp1 hit only have on for the streams that are active on telegram" · "also deploy A grade as well to
+the telegram crypto side".
+
+- **Stocks ring:** 💎✅ confirmed entry (`TG_CONFIRM_STOCK`) · ⭐ every star, no gate (`TG_STAR_STOCK`), with its
+  1H verdict and GO fast / late as replies in its thread · 💎⚡ conviction revival (`TG_CONV_REVIVAL`).
+- **Coins ring:** ⭐ gated star, and every star 13–17 PKT with the caution line (`STAR_UNGATED_1317 = True` again)
+  · 💎🏆 A-grade (`TG_AGRADE`) · 🔥🥇 second leg × PRIME · 💥🥇 PRIME × strong trigger · ⭐✅🔥 star × take-now hot
+  · 🏆🔻 APEX V2 SHORTS (`TG_APEX_V2_SHORT`, every APEX V2 short fire, the three-rule gate's read on one line, the
+  market side in the header, a thread anchor for the 1H verdict). ⚡🔮 KR-STRONG PREMIUM was not on his list and
+  is left ringing; it has a switch now (`TG_KR_PREMIUM`).
+- **Off the roster** (flags False, records and desk tiers go on): ⭐🥇 ⭐💥 ⭐🏆² 💎🥇 pairs, 🏆💎 APEX V2 gated, the
+  conviction revival on coins.
+- **Built, switched off:** 💎✅⭐ confirmed entry after a gated star (`TG_CONFIRM_STAR`). Measured the way the bell
+  can know it (star first, then the confirm) it ran 48% / −0.21R (33). The order that paid, a confirmed entry
+  first and then the gated star, 65% / +0.43R (55) against 57% / +0.07R (51), is a mark on the star's own card.
+- **Class rule:** `tg_roster.CRYPTO_ONLY` / `STOCK_ONLY`, checked by `class_ok(key, symbol)` at each send site. A
+  key in neither set rings on both classes when its switch is on.
+- **Stock cards** print stock numbers only: `stock_line(tier, side, now)` reads the clean closes under
+  `tok:<tier>` (this PKT window with the 🟢 / 🟡 / 🔴 light, this side, all; cached 30 min) and `us_session()`
+  adds the US market state. Cards: `stock_star_card`, `stock_confirm_card`, `stock_verdict`, `stock_go_card`,
+  `stock_revival_card`. No coin card text was changed; a coin star's card gains two marks under its header when
+  they apply: 🔥 second leg already on the coin and 💎✅ confirmed entry already on the coin (6h look-back,
+  `_star_marks`). The second-leg mark is rare: 16 of 572 stars had one before the fire (69% / +0.37R); the
+  second leg usually arrives after the star.
+- **Rang-bell log:** every entry bell that actually rings writes one row to the signals stream `tg_bell`
+  (`_tg_rang`; the `tier` column carries the bell's key). The 🏦 TP1 HIT ping watches that log cut to
+  `tg_roster.TP1_PING` (stars, A-grade, confirmed entry, the two PRIME pairs, KR premium; not APEX V2, the
+  revival or star × take-now, which he called optional), with a 48h bridge from the old streams for bells rung
+  before `ROSTER_TS`. The 🚦 gatekeeper's burst read counts the same log (`tg_cells.BELL_STREAMS = ("tg_bell",)`).
+- **Switches:** every flag above is on the 🔔 Telegram Bells page, ordered stocks, coins, off the roster. A
+  switches file written before this roster is ignored (`tg_switches.ROSTER_TAG`).
+- **Evidence standard:** every record on these cards is a slice of the ledger to 16 Nov (desk booking, about
+  0.11–0.18R generous). Nothing here is forward-tested yet.
+- **Guard:** `.tg_roster_test.py` (68 checks). **Revert:** set a flag False, or remove a key from the class sets.

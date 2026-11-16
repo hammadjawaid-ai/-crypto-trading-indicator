@@ -38,8 +38,8 @@ A = open(os.path.join(ROOT, "app.py"), encoding="utf-8").read()
 now = time.time()
 
 print("1. switches and pair kinds (source)")
-for name, val in (("TG_GO_LIVE", "False"), ("TG_NEAR90", "False"), ("TG_STAR_TRIG", "True"),
-                  ("TG_STAR_TAKENOW", "True"), ("TG_STAR_APEXV2", "True"), ("STAR_UNGATED_1317", "False")):
+for name, val in (("TG_GO_LIVE", "False"), ("TG_NEAR90", "False"), ("TG_STAR_TRIG", "False"),      # roster 2026-11-17: ⭐💥 and ⭐🏆² off,
+                  ("TG_STAR_TAKENOW", "True"), ("TG_STAR_APEXV2", "False"), ("STAR_UNGATED_1317", "True")):   # the 13–17 window on again
     check(f"{name} = {val}", re.search(rf"^{name} = {val}\b", W, re.M) is not None)
 check("PAIR_KINDS has the three star pairs",
       all(f'"{k}": dict(tier="{t}"' in W for k, t in (("startrig", "star_trig"), ("startn", "star_takenow"), ("starv2", "star_apexv2"))))

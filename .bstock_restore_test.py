@@ -139,7 +139,8 @@ g = rs.go_text(ewt, 0.4, 1800, 1.02, _t.time())
 check("GO reply on a tokenized star: the five lines + the 🏦 line", len(g.split(chr(10))) == 6 and g.split(chr(10))[-1].startswith("🏦 tokenized stock"), g)
 vc = rs.verdict_text(dict(ewt, symbol="SOLUSDT", base="SOL"), 0.3, _t.time())
 check("the same replies on a coin are unchanged (no 🏦)", "🏦" not in vc and "🏦" not in rs.go_text(dict(ewt, symbol="SOLUSDT"), 0.4, 1800, 1.02, _t.time()))
-check("worker: the 🏦 note rides the star card, revival, pairs, 💥🥇, APEX V2 + verdict, TP1 ping", W.count("tg_cells.tok_note(") >= 7, W.count("tg_cells.tok_note("))
+check("worker: the 🏦 note rides the star card, revival, pairs, 💥🥇, APEX V2 + verdict; the TP1 ping's stock line is tg_roster.ping_stamp (2026-11-17)",
+      W.count("tg_cells.tok_note(") >= 6 and "tg_roster.ping_stamp(_rg_src, _rg_sym, _rg_side, _rg_ts)" in W, W.count("tg_cells.tok_note("))
 A = open(os.path.join(ROOT, "app.py"), encoding="utf-8").read()
 check("page: the 🏦 TOKENIZED DESK block under the Decision Desk, cached",
       "🏦 TOKENIZED DESK — tokenized stocks, their own record" in A and "def _tokenized_desk_cached(" in A and "_tokenized_desk_cached(int(time.time() // 600))" in A)

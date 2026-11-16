@@ -29,6 +29,7 @@ import shock_watch
 import buzz_clock
 import clock_cells
 import tg_cells        # 🕐 2026-11-08: the one window-stamp rule for every bell
+import tg_roster       # 📱 2026-11-17: the phone roster by asset class (class rule, stock cards, rang-bell log)
 import bank_zone
 import support_resistance
 import rung_stats
@@ -407,7 +408,7 @@ STAR_BTC_MAX = 1.5
 # 68% / +0.25R (25) — too thin to flip the rules, so the window rings as a
 # whole with a caution line and the record stamps 1317-pass / 1317-muted
 # for the forward split. Phone only: the demo seat still follows the read.
-STAR_UNGATED_1317 = False   # 2026-11-07 (user: "sort elite star fires and notifications"): one gate in every window — gated 13–17 stars 50% / −0.15R (22) vs muted 65% / +0.25R (37), both thin and contradictory; decide the window at 60 fires, not with two kinds of bell. Revert: True.
+STAR_UNGATED_1317 = True    # ON again 2026-11-17 (user: "Elite Stars Gated and ungated for only 13-17 pkt as we had previously"), coins only, with the caution line. Was False from 2026-11-07 (user: "sort elite star fires and notifications"): one gate in every window — gated 13–17 stars 50% / −0.15R (22) vs muted 65% / +0.25R (37), both thin and contradictory; decide the window at 60 fires, not with two kinds of bell. Revert: True.
 GATE_BTC_MIN = -1.5
 STAR_GATE_REC = ("gated set 71% / +0.45R (146) vs rejected 48% / -0.05R (205) · "
                  "desk 09 Sep → 14 Oct")
@@ -2436,8 +2437,8 @@ def _fmt_fresh(p) -> str:
 # I will switch off"). Study .prime_x_elite.py on the 09-28 desk copy, overlap =
 # a 🥇 PRIME signal 2h before → 30 min after the elite fire, outcome = the elite
 # trade's desk result. ONE regime (September) — the forward ledgers judge it.
-TG_STAR_PRIME = True   # ⭐🥇 bell. False = silent; desk tier star_prime continues.
-TG_CONV_PRIME = True   # 💎🥇 bell. False = silent; desk tier conv_prime continues.
+TG_STAR_PRIME = False  # ⭐🥇 bell OFF 2026-11-17 (the phone roster by asset class). False = silent; desk tier star_prime continues.
+TG_CONV_PRIME = False  # 💎🥇 bell OFF 2026-11-17 (the phone roster by asset class). False = silent; desk tier conv_prime continues.
 # user 2026-10-11 ("deploy only prime with Trig x KR and Second leg with
 # Prime"): .prime_pairs_all.py — the strongest win-rate pair and the
 # biggest-lift pair on the board. No band rule: every band rings and records,
@@ -2453,7 +2454,7 @@ TG_LEG2_PRIME = True     # 🔥🥇 bell. False = silent; tier leg2_prime contin
 # +0.35R (64); LIVE at the hour 83% / +0.69R (60). The bell stays OFF until 30
 # forward trades confirm; the PRIME read is stamped on every record, never gates.
 TG_ARRIVAL_T1 = False    # ⚡🔥 ARRIVAL T1 bell MUTED 2026-11-01 (user: "mute t1 from the telegram notifications"; desk 5 Oct → 25 Oct 53% / −0.15R (64), last 14 days 43% / −0.34R); tiers arr_long / arr_hot / trig_hot, the demo feed and the T1 board continue. True = ring again.
-TG_APEX_V2_GATED = True  # 🏆💎 APEX V2 GATED bell ON 2026-11-01 (user); the ungated APEX V2 bell stays muted. False = silent, tiers continue.
+TG_APEX_V2_GATED = False  # 🏆💎 APEX V2 GATED bell OFF 2026-11-17 (the 🏆🔻 APEX V2 SHORTS bell took its place on the phone); was ON 2026-11-01 (user); the ungated APEX V2 bell stays muted. False = silent, tiers continue.
 APEX_V2_GATE_REC = ("gated 61% / +0.33R (129) vs rest 50% / −0.04R (657) on the APEX core "
                     "10 Sep → 24 Oct · the V2 stream itself 69% / +0.58R (29) · from the fire price")
 APEX_V2_LIVE_REC = ("gated + LIVE at the hour 85% / +1.01R (48) held · TP1 usually inside 2h while "
@@ -2476,10 +2477,60 @@ PRIME_READ_REC = ("gated 63% / +0.27R (230) vs rejected 43% / +0.02R (359) · "
 TG_APEX_ONE = False      # 🏆²👑 bell OFF — records only (no send path exists).
 # ⭐🤝 STAR PAIR bells (user 2026-11-07: "elite stars and strong trigger / take now hot / apex v2 …
 # separate cards"): each its own standalone card + records-only desk tier seated at the second fire.
-TG_STAR_TRIG = True      # ⭐💥 STAR × STRONG TRIGGER — 71% / +0.18R entered (77), +0.33R held, both halves, 9 Sep → 4 Nov
+TG_STAR_TRIG = False     # OFF 2026-11-17 (the phone roster by asset class) · ⭐💥 STAR × STRONG TRIGGER — 71% / +0.18R entered (77), +0.33R held, both halves, 9 Sep → 4 Nov
 TG_STAR_TAKENOW = True   # ⭐✅🔥 STAR × TAKE NOW HOT — 65% / +0.39R entered (31), Sep only, stream restarted 6 Nov — thin
-TG_STAR_APEXV2 = True    # ⭐🏆² STAR × APEX V2 — 83% / +0.75R entered (12), both halves — thin
+TG_STAR_APEXV2 = False   # OFF 2026-11-17 (the phone roster by asset class) · ⭐🏆² STAR × APEX V2 — 83% / +0.75R entered (12), both halves — thin
 TG_NEAR90 = False        # 🎯 90%-of-TP1 printed ping MUTED 2026-11-07 (user); the 🏦 TP1 HIT ping stays.
+# 📱 THE PHONE ROSTER BY ASSET CLASS (user 2026-11-17; tg_roster.py holds the class rule and the new cards).
+#   STOCKS: 💎✅ confirmed entry · ⭐ every star, no gate (its 1H verdict and GO fast / late reply in its thread) ·
+#           💎⚡ conviction revival.
+#   COINS:  🔥🥇 second leg × PRIME · ⭐ gated star, and every star 13–17 PKT (STAR_UNGATED_1317), with its replies ·
+#           💎🏆 A-grade · 💥🥇 PRIME × strong trigger · ⭐✅🔥 star × take-now hot · 🏆🔻 APEX V2 shorts ·
+#           💎✅⭐ confirmed entry after a gated star: built, OFF. Measured the way the bell can know it (the star
+#           first, then the confirm) it ran 48% / −0.21R (33); the order that paid, a confirmed entry first and then
+#           the gated star, 65% / +0.43R (55), is a mark on the star's own card.
+# Off the roster (records and desk tiers go on): the ⭐🥇 ⭐💥 ⭐🏆² 💎🥇 pairs, 🏆💎 APEX V2 gated, the conviction
+# revival on coins. Every flag below is a switch on the 🔔 Telegram Bells page.
+TG_STAR_STOCK = True       # 🏦 ⭐ a star on a tokenized stock rings on every fire, no gate. False = stocks follow the gate like coins.
+TG_CONFIRM_STOCK = True    # 🏦 💎✅ ELITE CONFIRMED ENTRY bell on tokenized stocks (the coin bell stays muted, as since 2026-09-03).
+TG_CONV_REVIVAL = True     # 💎⚡ conviction revival bell; stocks only (tg_roster.STOCK_ONLY).
+TG_AGRADE = True           # 💎🏆 A-GRADE bell for a non-star A-grade fire; coins only (user 2026-11-17: "deploy A grade as well to the telegram crypto side").
+TG_APEX_V2_SHORT = True    # 🏆🔻 APEX V2 SHORTS bell: every APEX V2 short fire on a coin, the gate's read on one line.
+TG_CONFIRM_STAR = False    # 💎✅⭐ confirmed entry after a gated star (≤6h), coins. OFF: see the note above.
+TG_KR_PREMIUM = True       # ⚡🔮 KR-STRONG PREMIUM bell: unchanged (on since 2026-10-19); only the switch is new.
+STAR_LEG2_REC = "stars with one in the 6h before 69% / +0.37R (16, thin) vs 54% / +0.10R (556) without"
+STAR_CONFIRM_REC = "gated stars with one in the 6h before 65% / +0.43R (55) vs 57% / +0.07R (51) without"
+ROSTER_TS = 1794872916    # the roster cut-over (17 Nov 2026): 🏦 TP1 pings for bells rung before it bridge from the old streams for 48h
+
+
+def _tg_rang(key, sig):
+    """📱 One row in the rang-bell log (signals stream tg_roster.BELL) for an entry bell the phone actually heard.
+    The 🏦 TP1 HIT ping and the 🚦 gatekeeper's burst read follow this log. Never raises."""
+    try:
+        store.record_signal(tg_roster.BELL, tg_roster.bell_row(key, sig))
+    except Exception as _rang_exc:
+        print("  tg_bell record error:", _rang_exc, flush=True)
+
+
+def _star_marks(p, stock=False):
+    """⭐ What is already on the coin when the star fires (user 2026-11-17: "second leg already on the coin … yes add
+    this that is important"): a 🔥 second leg and / or a 💎✅ confirmed entry on the same coin + side in the 6 hours
+    before. A mark, never a gate. The records are coin-measured, so a stock card prints the mark without them."""
+    out = []
+    try:
+        sym, sd, now = p.get("symbol"), (p.get("side") or "").upper(), time.time()
+        what = "stock" if stock else "coin"
+        t = store.last_between("second_leg", sym, sd, now - 6 * 3600, now + 60)
+        if t:
+            out.append(f"🔥 *SECOND LEG already on the {what}* ({rung_stats.pkt_hm(t)} PKT)"
+                       + ("" if stock else f" · {STAR_LEG2_REC}"))
+        t = store.last_between("elite_confirm", sym, sd, now - 6 * 3600, now + 60)
+        if t:
+            out.append(f"💎✅ *CONFIRMED ENTRY already on the {what}* ({rung_stats.pkt_hm(t)} PKT)"
+                       + ("" if stock else f" · {STAR_CONFIRM_REC}"))
+    except Exception:
+        pass
+    return "\n".join(out)
 STAR_PAIR_KINDS = ("startrig", "startn", "starv2")
 STAR_PAIR_FRESH = 2.5 * 3600    # a star record stays pairable this long (the trigger / APEX V2 arrive ~47 min after it)
 STAR_PAIR_BEFORE = 2 * 3600     # partner fired up to 2h before the star …
@@ -2871,6 +2922,30 @@ def cycle() -> None:
                 pass
             shadow_trader.open_from_signal("apex_v2", _sig2, _px2)
             _ego_add(dict(_sig2), fam="apexv2")
+            # 🏆🔻 APEX V2 SHORTS bell (user 2026-11-17: "Yes that will be great"): every APEX V2 short fire
+            # on a coin, gated or not, with the gate's read on one line and the market side in the header.
+            # Longs do not ring. A thread anchor: the 1H verdict replies under it.
+            _srang2 = False
+            if (TG_APEX_V2_SHORT and _sd2 == "SHORT" and tg_roster.class_ok("apex_v2_short", _sym2)
+                    and not _bstock_quiet(_sym2)):
+                try:
+                    _oks2, _ms2, _ids2 = tg.send_thread(
+                        tg_roster.apex_v2_short_card(_sig2, _px2, _grd2, _gok2, time.time())
+                        + _kr_note(_sig2))
+                    n_alerts += 1 if _oks2 else 0
+                    _srang2 = bool(_oks2)
+                    if _oks2:
+                        _tg_rang("apex_v2_short", _sig2)
+                        for _ewb2 in _EGO_WATCH:
+                            if (_ewb2["symbol"] == _sym2 and _ewb2["side"] == _sd2
+                                    and _ewb2.get("fam") == "apexv2"):
+                                _ewb2["buzzed"] = True
+                                _ewb2["gated"] = bool(_gok2)
+                                _ewb2["tg_ids"] = _ids2
+                    print(f"  [apexv2-short] {_sig2['base']} gate={'pass' if _gok2 else 'muted'} "
+                          f"bell={'sent' if _oks2 else 'failed: ' + str(_ms2)}", flush=True)
+                except Exception as _sb_exc:
+                    print("  apexv2 short bell error:", _sb_exc, flush=True)
             if _gok2:
                 try:
                     store.record_signal("apex_v2_gated", _sig2)
@@ -2883,7 +2958,7 @@ def cycle() -> None:
                 except Exception as _g2_exc:
                     print("  apexv2 gated tier error:", _g2_exc, flush=True)
                 _gb2 = "off"
-                if TG_APEX_V2_GATED and not _bstock_quiet(_sym2):
+                if TG_APEX_V2_GATED and not _srang2 and not _bstock_quiet(_sym2):   # never two bells for one fire
                     try:
                         _okg, _mg2, _idg2 = tg.send_thread(
                             _fmt_apex_v2_gated(_sig2, _px2, _grd2, time.time())
@@ -3273,6 +3348,7 @@ def cycle() -> None:
                     _ids9 = None
                     _gate9 = (True, "")
                     _w1317 = False      # 🕐 set in the star send branch below
+                    _stk9 = tg_roster.is_stock(_pmx.get("symbol"))   # 🏦 roster 2026-11-17
                     if TG_RULES and (_star9 or _ag9):
                         # 🧵 TG RULES (user 2026-10-05): the rung-1 bells
                         # are thread anchors — the ⏱ verdict / ⭐⚡ GO /
@@ -3318,6 +3394,14 @@ def cycle() -> None:
                                         _seat9, _cf9, _plan_rr(_pmx),
                                         head=rung_stats.agrade_head(
                                             _pmx, time.time())) + _msg9
+                                if _stk9:
+                                    # 🏦 roster 2026-11-17: a star on a tokenized stock is its own card with
+                                    # stock numbers only (the coin card built above is not sent for it)
+                                    _skc9 = tg_roster.stock_star_card(
+                                        _pmx, _cf9, time.time(), partners=_partners9,
+                                        marks=_star_marks(_pmx, True), bank=_bank9)
+                                    _krs9 = (_kr_note(_pmx) or "").strip()
+                                    _msg9 = _skc9 + (("\n" + _krs9) if _krs9 else "")
                             except Exception as _rs_exc:
                                 print("  star fire format error:",
                                       _rs_exc, flush=True)
@@ -3328,18 +3412,29 @@ def cycle() -> None:
                             try:
                                 _gate9 = _star_gate(_pmx, time.time(),
                                                     _btc_day_pct())
-                                _msg9 = _msg9.replace(
-                                    "\n", "\n" + str(_gate9[1]).split(" — ")[0] + "\n"
-                                    + tg_cells.stamp("elite_star", _pmx.get("side"), time.time())
-                                    + tg_cells.tok_note(_pmx.get("symbol"), "elite_star")   # 🏦 2026-11-10
-                                    + tg_cells.gate_note("elite_star", _pmx.get("side"),
-                                                         symbol=_pmx.get("symbol"))   # 🚦 2026-11-13 gatekeeper
-                                    + "\n", 1)   # 2026-11-08: the read's ticks + the 🕐 window stamp (68 / 60 lights)
+                                if not _stk9:   # 🏦 a stock card keeps to stock numbers; the read is still stamped on its record
+                                    _mk9 = _star_marks(_pmx, False)   # 🔥 / 💎✅ already on the coin (2026-11-17)
+                                    _msg9 = _msg9.replace(
+                                        "\n", "\n" + ((_mk9 + "\n") if _mk9 else "")
+                                        + str(_gate9[1]).split(" — ")[0] + "\n"
+                                        + tg_cells.stamp("elite_star", _pmx.get("side"), time.time())
+                                        + tg_cells.tok_note(_pmx.get("symbol"), "elite_star")   # 🏦 2026-11-10
+                                        + tg_cells.gate_note("elite_star", _pmx.get("side"),
+                                                             symbol=_pmx.get("symbol"))   # 🚦 2026-11-13 gatekeeper
+                                        + "\n", 1)   # 2026-11-08: the read's ticks + the 🕐 window stamp (68 / 60 lights)
                             except Exception as _gt_exc:
                                 _gate9 = (True, f"read: error {_gt_exc}")
-                        _w1317 = (_star9 and STAR_UNGATED_1317
+                        _w1317 = (_star9 and not _stk9 and STAR_UNGATED_1317
                                   and clock_cells.window_of(time.time()) == "13–17")
-                        if _star9 and TG_GATES and not _gate9[0] and not _w1317:
+                        # 📱 roster 2026-11-17: a stock star rings on every fire (TG_STAR_STOCK); a non-star
+                        # A-grade fire rings on coins only and has its own switch (TG_AGRADE)
+                        _free9 = bool(_star9 and _stk9 and TG_STAR_STOCK)
+                        if not _star9 and not (TG_AGRADE and tg_roster.class_ok(
+                                "elite_agrade", _pmx.get("symbol"))):
+                            ok, _m9, _ids9 = False, "roster: A-grade off or not a coin", None
+                            print(f"  [roster] 💎🏆 {_pmx.get('symbol')} {_pmx.get('side')} "
+                                  f"A-grade bell not sent ({_m9})", flush=True)
+                        elif _star9 and TG_GATES and not _gate9[0] and not _w1317 and not _free9:
                             ok, _m9, _ids9 = False, "gated", None
                             print(f"  [gate] ⭐ {_pmx.get('symbol')} "
                                   f"{_pmx.get('side')} muted: {_gate9[1]}",
@@ -3357,6 +3452,8 @@ def cycle() -> None:
                                        "13–17 PKT is ungated (unmuted star)")
                                     + "\n", 1)
                             ok, _m9, _ids9 = tg.send_thread(_msg9)
+                            if ok:
+                                _tg_rang("elite_star" if _star9 else "elite_agrade", _pmx)
                         if _star9:
                             # ⭐ remember the fire read for the revived bell
                             # (user 2026-10-18); rides the watch entry.
@@ -4243,6 +4340,30 @@ def cycle() -> None:
                 # Records + desk tier keep accruing untouched.
                 # Revert: _mute_ecf -> tg.send.
                 _mute_ecf = (lambda _m: (False, "muted"))
+                # 📱 roster 2026-11-17: the confirmed entry rings on a tokenized stock (its own stock card,
+                # TG_CONFIRM_STOCK); on a coin only after a GATED star on the same coin + side in the last
+                # 6h and only while TG_CONFIRM_STAR is on (off: 48% / −0.21R over 33). The old coin bell
+                # below stays muted exactly as before.
+                _rc_ec = None
+                try:
+                    if tg_roster.is_stock(_w9["symbol"]):
+                        if TG_CONFIRM_STOCK:
+                            _rc_ec = ("elite_confirm", tg_roster.stock_confirm_card(
+                                _w9, _cl9, _now, _cf0))
+                    elif TG_CONFIRM_STAR:
+                        _gs_ec = tg_roster.gated_star_ts(store, _w9["symbol"], _w9["side"], _now)
+                        if _gs_ec:
+                            _rc_ec = ("confirm_star", tg_roster.confirm_star_card(
+                                _w9, _cl9, _now, _gs_ec, _cf0))
+                    if _rc_ec and _rc_ec[1]:
+                        _ok_rc, _m_rc = tg.send(_rc_ec[1])
+                        if _ok_rc:
+                            _tg_rang(_rc_ec[0], _sig9)
+                        n_alerts += 1 if _ok_rc else 0
+                        print(f"  [roster] {_rc_ec[0]} {_w9['symbol']} {_w9['side']} "
+                              f"sent={_ok_rc} {_m_rc}", flush=True)
+                except Exception as _rc_exc:
+                    print("  roster confirm bell error:", _rc_exc, flush=True)
                 ok, _ = _mute_ecf(
                     f"💎✅ *ELITE CONFIRMED ENTRY* — {_w9['base']} "
                     f"{_w9['side']} (elite {_w9.get('tier')} "
@@ -4822,13 +4943,15 @@ def cycle() -> None:
                          else f"⚠️ BTC {_kp_btc:+.2f}% today" if _kp_btc is not None else "🟡 BTC today ?"),
                         (f"✅ score {_kp_scf:g}" if (_kp_scf is not None and _kp_scf < 90)
                          else f"⚠️ score {_kp_scf:g}" if _kp_scf is not None else "🟡 score ?")])
-                    ok, _ = tg.send(   # 2026-11-07 concise card
+                    ok, _ = (tg.send if TG_KR_PREMIUM else _MUTE_R9)(   # 2026-11-07 concise card · switch 2026-11-17
                         f"⚡🔮 *KR-STRONG PREMIUM — {_sp2.get('base')} LONG · TAKE · "
                         f"{rung_stats.pkt_hm(time.time())} PKT*\n"
                         f"entry `{_kp_e:g}` · SL `{_kp_s:g}` · TP1 `{_kp_t:g}`{_kp_t2} · "
                         f"TP1 {_kp_rr:.2f}R away · kronos {_sp2.get('kr_dir')} {_kp_x:+.1f}%\n"
                         f"{_kp_bits} · cell 58% / +0.41R (114) · both ✅ 65% / +0.56R (71) · bank at TP1")
                     n_alerts += 1 if ok else 0
+                    if ok:
+                        _tg_rang("kr_premium", dict(_sp2, side="LONG"))
                     # records-only stamp of the bell that rang, so the
                     # 🏦 TP1 watch can see it (user 2026-10-12); the
                     # premium bell itself is unchanged.
@@ -4976,6 +5099,7 @@ def cycle() -> None:
                     _bell_pp = ("off" if not _on_pp else
                                 "band-out" if (_bands_pp is not None
                                                and _band_pp not in _bands_pp) else
+                                "class-out" if not tg_roster.class_ok(_tier_pp, _sym_pp) else   # 📱 roster 2026-11-17
                                 "quiet" if _bstock_quiet(_sym_pp) else "due")
                     if _bell_pp == "due":
                         ok, _m_pp = tg.send(
@@ -4985,6 +5109,8 @@ def cycle() -> None:
                             + _kr_note(_sig_pp))
                         n_alerts += 1 if ok else 0
                         _bell_pp = "sent" if ok else f"failed: {_m_pp}"
+                        if ok:
+                            _tg_rang(_tier_pp, _sig_pp)
                     print(f"  [prime-pair] {_kind} {_sym_pp} {_sd_pp} "
                           f"band={_band_pp} bell={_bell_pp}", flush=True)
                 except Exception as _pp1:
@@ -5063,13 +5189,16 @@ def cycle() -> None:
                 # 💥🥇 bell (user 2026-10-24: "on our telegram notifications we have
                 # this buzzed as well"); the switch above silences it.
                 _bell_pt = "off"
-                if TG_PRIME_TRIG and not _bstock_quiet(_sym_pt):
+                if (TG_PRIME_TRIG and tg_roster.class_ok("prime_trig", _sym_pt)   # 📱 coins only (roster 2026-11-17)
+                        and not _bstock_quiet(_sym_pt)):
                     try:
                         ok, _m_pt = tg.send(_fmt_prime_trig(
                             _sig_pt, float(_px_pt or _sig_pt["entry"]), _now_pt)
                             + _kr_note(_sig_pt))
                         n_alerts += 1 if ok else 0
                         _bell_pt = "sent" if ok else f"failed: {_m_pt}"
+                        if ok:
+                            _tg_rang("prime_trig", _sig_pt)
                     except Exception as _pb_exc:
                         _bell_pt = f"error: {_pb_exc}"
                 print(f"  [prime-trig] {_sym_pt} {_sd_pt} band={_sig_pt['band']} "
@@ -6657,8 +6786,10 @@ def cycle() -> None:
                                     and _ew.get("fam", "elite") == "elite"):
                                 try:
                                     _okv, _mv, _ = tg.send_thread(
-                                        rung_stats.verdict_text(
-                                            _ew, _prg, _ew_now),
+                                        (tg_roster.stock_verdict(_ew, _prg, _ew_now)   # 🏦 roster 2026-11-17
+                                         if tg_roster.is_stock(_ew.get("symbol")) else
+                                         rung_stats.verdict_text(
+                                             _ew, _prg, _ew_now)),
                                         reply_to=_ew.get("tg_ids"))
                                     print(f"  [thread] verdict {_ew['base']} "
                                           f"{_ew['side']} {_ew['oneh']} "
@@ -6751,7 +6882,12 @@ def cycle() -> None:
                                     _go9 = rung_stats.go_text(
                                         _ew, _prg, _age, _ew_px,
                                         _ew_now, bank=_bank_go)
-                                    if _ew.get("oneh") == "LIVE" and _ew.get("star"):
+                                    # 🏦 roster 2026-11-17: a stock star's GO reply is its own stock card
+                                    _stk_go = bool(_ew.get("star")) and tg_roster.is_stock(_ew.get("symbol"))
+                                    if _stk_go:
+                                        _go9 = tg_roster.stock_go_card(
+                                            _ew, _prg, _age, _ew_px, _ew_now) or _go9
+                                    if _ew.get("oneh") == "LIVE" and _ew.get("star") and not _stk_go:
                                         # 🕐 ELITE GO clock line (user
                                         # 2026-10-17), by the fire's window.
                                         _go9 = _go9.replace(
@@ -6759,7 +6895,7 @@ def cycle() -> None:
                                                 _ew["side"],
                                                 float(_ew.get("fired_at") or _ew_now))
                                             + "\n", 1)
-                                    if _ew.get("star"):
+                                    if _ew.get("star") and not _stk_go:
                                         # 🕐 GO FAST / LATE timing read by the GO's own
                                         # window, with the entry call (user 2026-11-04).
                                         try:
@@ -6781,6 +6917,23 @@ def cycle() -> None:
                                                       else f"failed: {_m9x}")
                                         else:
                                             _bell9 = "off: star revival of an un-rung fire (board + ledger only)"
+                                    elif (_ew.get("oneh") == "DEAD" and not (
+                                            TG_CONV_REVIVAL and tg_roster.class_ok(
+                                                "conv_revival", _ew.get("symbol")))):
+                                        # 📱 roster 2026-11-17: the conviction revival rings on stocks only
+                                        # (user: "Conviction GO revived on stocks Yes add it!!"); the coin bell
+                                        # below is intact and returns by taking "conv_revival" out of
+                                        # tg_roster.STOCK_ONLY.
+                                        _bell9 = "off: conviction revival rings on stocks only (roster 2026-11-17)"
+                                    elif _ew.get("oneh") == "DEAD" and tg_roster.is_stock(_ew.get("symbol")):
+                                        # 🏦 its own stock card for every revival: the desk tier tok:go_revived
+                                        # records every one, and the coin gates below were fit on coins
+                                        _ok9, _m9x = tg.send(tg_roster.stock_revival_card(
+                                            _ew, _prg, _age, _ew_px, _ew_now))
+                                        _bell9 = ("sent-standalone-stock" if _ok9
+                                                  else f"failed: {_m9x}")
+                                        if _ok9:
+                                            _tg_rang("conv_revival", dict(_ew, entry=_ew_px))
                                     elif _ew.get("oneh") == "DEAD":
                                         # 💎 CONVICTION REVIVAL — its own bell (user 2026-11-07: "we will keep it")
                                         # for EVERY elite-family fire,
@@ -8228,10 +8381,27 @@ def cycle() -> None:
     # let-it-ride. 🏦 TP1 bank buzz rides the same watch.
     try:
         _rg_watch = []
-        for _rg_stream in TP1_STREAMS:      # the phone roster, nothing muted
+        # 📱 roster 2026-11-17 (user: "for tp1 hit only have on for the streams that are active on telegram no
+        # other ones"): the watch is the rang-bell log (tg_roster.BELL: one row per entry bell the phone heard),
+        # cut to tg_roster.TP1_PING. For the 48h after the cut-over, bells rung before it bridge from their old
+        # streams (stars by their gate stamp). Before: every record of every TP1_STREAMS key.
+        try:
+            _rg_watch += [(r, str(r.get("tier") or ""))
+                          for r in store.recent_by_stream(tg_roster.BELL, 150)
+                          if str(r.get("tier") or "") in tg_roster.TP1_PING]
+        except Exception:
+            pass
+        for _rg_stream in ("elite_star", "elite_agrade", "leg2_prime", "prime_trig", "kr_premium_bell"):
             try:
-                _rg_watch += [(r, _rg_stream) for r in
-                              store.recent_by_stream(_rg_stream, 8)]
+                for _rgr in store.recent_by_stream(_rg_stream, 8):
+                    if float(_rgr.get("ts") or 0) >= ROSTER_TS:
+                        continue
+                    if _rg_stream == "elite_star" and not any(
+                            _g in str(_rgr.get("extra") or "")
+                            for _g in ('"gate": "pass"', '"gate": "1317-pass"')):
+                        continue
+                    _rg_watch.append((_rgr, "kr_premium" if _rg_stream == "kr_premium_bell"
+                                      else _rg_stream))
             except Exception:
                 pass
         _rg_now = time.time()
@@ -8310,15 +8480,14 @@ def cycle() -> None:
                     _rg_b2 = _rg.get("base") or \
                         _rg_sym.replace("USDT", "")
                     _rg_from = " · ".join(
-                        f"{TP1_STREAMS.get(_s, _s)} fired "
+                        f"{tg_roster.LABEL.get(_s) or TP1_STREAMS.get(_s, _s)} fired "
                         f"{rung_stats.pkt_hm(_t)} PKT"
                         for _t, _s in sorted(
                             _rg_by.get((_rg_sym, _rg_side), [])))
                     ok, _ = tg.send(   # 2026-11-07 concise ping
                         f"🏦 *{_rg_b2} {_rg_side} · TP1 HIT `{_rg_tp1:g}` · BANK 100%*\n"
-                        f"from {_rg_from or TP1_STREAMS.get(_rg_src, _rg_src)} · fire `{_rg_ent:g}` · SL `{_rg_stp:g}`"
-                        + tg_cells.stamp_src(_rg_src, _rg_side, _rg_ts)   # 🕐 2026-11-08: the fire's window cell
-                        + tg_cells.tok_note(_rg_sym, _rg_src))   # 🏦 2026-11-10
+                        f"from {_rg_from or tg_roster.LABEL.get(_rg_src) or TP1_STREAMS.get(_rg_src, _rg_src)} · fire `{_rg_ent:g}` · SL `{_rg_stp:g}`"
+                        + tg_roster.ping_stamp(_rg_src, _rg_sym, _rg_side, _rg_ts))   # 🕐 the bell's own cell: the stock line for a stock, the coin cell for a coin (2026-11-17; a coin prints what it printed before)
                     n_alerts += 1 if ok else 0
                 continue
             if _rg_stopped:
