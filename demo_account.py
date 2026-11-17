@@ -190,8 +190,18 @@ REENTRY_ON = False            # GEN 20: a TP1 bank is final; no momentum re-entr
 # booking, in-sample, thin): 01–05 confirmed entry 86% / +0.81R (7), GO revived 64% / +0.06R (11), star 50% /
 # −0.04R (6), strong trigger 43% / −0.37R (14); 21–01 strong trigger 70% / +0.33R (10); 17–21 87% / +0.37R (15);
 # 13–17 all four 67% / +0.21R (9); 05–09 strong trigger 54% / −0.11R (13), still at 10x.
+# 🕐 GEN 22.6 (user 2026-11-17, with the stop rule's deploy: "also on demo trading apply 15m rule to it as well and
+# also have conviction revival stream for demo tradings on for the timings of 01-05, 05-09 and 9-13 with full
+# leverage and add ons"). The conviction revival IS the demo's GO REVIVED stream (desk tier tok:go_revived). It
+# already seated 05–09 and 09–13 at 10x with stream adds; it now opens seats 01–05 too, at 10x, and in 01–05 a
+# confirmed entry on a held revival seat adds a seat of margin (the reverse pair was already there). 13–17 is left
+# as he set it in 22.5 (all four at 7x). The demo's stops are the 15m rule's: the desk feed carries the rule's
+# stop (shadow_trader.DEMO_RULE_MAX keeps the plan's when the rule's is too wide for the 10x guard).
+# MEASURED, told to him (16 Nov ledger, stock seats, candles, 15m rule): revival 01–05 82% / +0.19R (11),
+# 05–09 100% / +0.34R (7), 09–13 87% / +0.23R (15); thin, in-sample.
 NO_ENTRY_WINDOWS: set = {"17-21", "21-01", "01-05"}
-NO_ENTRY_EXEMPT: set = {("trig_strong", "17-21"), ("trig_strong", "21-01"), ("elite_confirm", "01-05")}
+NO_ENTRY_EXEMPT: set = {("trig_strong", "17-21"), ("trig_strong", "21-01"), ("elite_confirm", "01-05"),
+                        ("go_revived", "01-05")}
 # 🕐 GEN 22.4 (user 2026-11-17: "priority on demos should be 05-09 , 9-13 signals and 01-05 with full leverage and
 # add ons · 13-17 we can trade but few good ones only with 5x leverage only · strong trigger full leverage even
 # for 17-21 · rest stays as it is"). The clock book of the demo, by the PKT window of the open:
@@ -218,7 +228,7 @@ NO_ENTRY_EXEMPT: set = {("trig_strong", "17-21"), ("trig_strong", "21-01"), ("el
 WINDOW_LEV: dict = {"13-17": 7.0}
 WINDOW_MAX_NEW: dict = {"13-17": 2}
 ADD_WINDOWS: set = {"05-09", "09-13"}
-ADD_PAIRS: set = {("01-05", "go_revived", "elite_confirm")}
+ADD_PAIRS: set = {("01-05", "go_revived", "elite_confirm"), ("01-05", "elite_confirm", "go_revived")}   # 22.6: both ways
 # 🎮 GEN 16 (user 2026-09-14: "Demo Trading Start Again now. We will
 # have only this and no limit on slots can be 20 at a time depending
 # on the signals with leverage of 10x of our total account 2000

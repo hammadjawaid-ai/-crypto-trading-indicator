@@ -671,3 +671,44 @@ the telegram crypto side".
 - **Evidence standard:** every record on these cards is a slice of the ledger to 16 Nov (desk booking, about
   0.11–0.18R generous). Nothing here is forward-tested yet.
 - **Guard:** `.tg_roster_test.py` (68 checks). **Revert:** set a flag False, or remove a key from the class sets.
+
+## 🛡 THE STOP RULE (2026-11-17) — `stop_rule.py`
+
+User, after an MVLL star he took by hand was stopped by a one-minute wick (low 8.58 against a stop of about 8.60)
+and then ran to TP1: "sligh liquidation wick can hit stop but if its going our direction of tp we are out of the
+trade on real money so we need to fix it" · "for everything paper trading and things we are doing we are changing
+the rule of stops to 4h rule not the ones we have today this goes to all paper trading and to our telegram
+notificaion streams · for stocks on telegram notificaitons and for paper trading page in our systems we add the
+rule of 15m rule stops" · "we will have this information of updated win rates for every buzz".
+
+- **The rule** (`stop_rule.rule_stop`): a quarter of the timeframe's ATR14 beyond the nearest swing (pivot, two
+  candles each side) at or past the signal's own stop. Coins read the last 30 closed 4h candles, tokenized stocks
+  the last 96 closed 15m candles (`SPEC`). No such swing: the look-back's extreme when it is past the plan stop,
+  else the plan stop itself. Never tighter than the plan stop, never further than 8% from entry (`CAP`).
+- **Where it acts.** `shadow_trader.open_from_signal`: every desk seat opens on the rule's stop (the mirrored
+  `conviction_v2_rev` tier and any `mirror_of` plan keep their own). `paper_bot.open_position`: the Paper Trader
+  page's own positions (`STOP_RULE`; the size is cut from the risk, so it shrinks). The six roster entry bells:
+  `agent_worker._rule_card` -> `tg_roster.rule_card` carries the rule's stop INSIDE the card's own entry / SL / TP
+  line (user, on seeing the first build: "stops please dont add line instead carry it within the tp sls and entry
+  we have"): the `SL` token is the rule's stop and the (+x.xR) beside TP1 / TP2 is re-cut on it; no stop line is
+  added. One replay line follows the card (the candle replay of that bell on that stop; stocks also by PKT
+  window). The 1H verdict and GO replies follow the bell's stop (`tg_roster.rule_reply`, in memory for 36h: a
+  restart between a bell and its reply leaves the plan stop on the reply).
+- **What still reads the plan stop.** Every gate and signal, the real-money executor, the bank zone and the
+  star card's half-off level.
+- **The demo (GEN 22.6, user at the deploy: "also on demo trading apply 15m rule to it as well and also have
+  conviction revival stream for demo tradings on for the timings of 01-05, 05-09 and 9-13 with full leverage and
+  add ons").** The desk's demo feed carries the rule's stop (the plan's when the rule's is 7.8% or more from
+  entry, `shadow_trader.DEMO_RULE_MAX`: the demo refuses stops of 8% at 10x). GO REVIVED, which is the conviction
+  revival, now also opens seats 01–05 at 10x (`demo_account.NO_ENTRY_EXEMPT`), and in 01–05 a confirmed entry and
+  a GO revived add margin to each other's seat (`ADD_PAIRS`). 13–17 stays all four streams at 7x.
+- **Records.** Desk R is measured on the seat's stop: from `RULE_TS` a TP1 books a smaller R and a stop the same
+  −1R, so records across that date are not comparable. Every seat whose stop moved writes one row in the signals
+  stream `stop_rule` (plan stop and rule stop); every rung bell's `tg_bell` row carries `rule_stop`.
+- **Measured** (7,082 closed desk trades to 16 Nov on 15m candles, wicks counted, fees in, stop or TP1 in full,
+  in-sample, R per 1R risked): six coin bells 62% / +0.15R on the plan stop → 76% / +0.18R on the 4h rule (a
+  stop-out costs about 1.5x); three stock bells 68% / +0.10R → 70% / +0.09R on the 15m rule (71% / +0.01R on the
+  4h rule). The desk's own ladder (stop to entry at +1R, trail 1.2R) was NOT replayed on the new stops.
+- **Fetch.** Candles are fetched only where `stop_rule.LIVE` is set (the worker sets it at import) or a caller
+  passes `live=True` (the paper bot); one fetch per symbol per ten minutes. No candles, an error: the plan stop.
+- **Off:** `stop_rule.RULE_ON = False`. Guard: `.tg_roster_test.py` (rule, card, reply, desk, 91 checks).

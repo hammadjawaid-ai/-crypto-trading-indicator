@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 import time
 
+import stop_rule            # 🛡 2026-11-17: the stop a seat is opened on (coins 4h rule, stocks 15m rule)
 import worker_store as store
 
 TAKER_FEE = 0.00055          # per side (Bybit futures taker)
@@ -80,6 +81,7 @@ def mirror_signal(p: dict) -> dict:
 DEMO_FEED: list = []          # 🎮 GEN 21: desk seats on stock names, offered to the demo (newest last)
 DEMO_FEED_TIERS: set = {"elite_confirm", "go_revived", "elite_star", "trig_strong"}   # elite_conv was here for an hour (GEN 22), removed 22.2
 DEMO_FEED_TTL_S = 2700        # a seat is offered for 45 minutes (the worker goes round in 17–20)
+DEMO_RULE_MAX = 0.078         # 🛡 the demo takes the stop rule's stop only while it sits under 7.8% from entry
 
 
 def open_from_signal(tier: str, p: dict, live_px: float | None) -> bool:
@@ -127,6 +129,30 @@ def open_from_signal(tier: str, p: dict, live_px: float | None) -> bool:
         _ht = float(_ht) if _ht is not None else None
     except (TypeError, ValueError):
         _ht = None
+    # 🛡 THE STOP RULE (user 2026-11-17: "for everything paper trading … we are changing the rule of stops to 4h
+    # rule not the ones we have today … for stocks … the rule of 15m rule stops"): the seat is opened on the
+    # rule's stop (stop_rule.py: a quarter ATR beyond the nearest 4h swing past the plan stop for a coin, the
+    # 15m swing for a tokenized stock; never tighter than the plan, never past 8%). The plan's own stop is
+    # written to the "stop_rule" stream with the stop taken, so both can be replayed forward; the demo feed
+    # below carries the rule's stop too (see DEMO_RULE_MAX). The mirrored conviction tier keeps its own plan. On any miss
+    # (no candles, an error) the plan stop stays. R on the desk is measured on the seat's stop, so from
+    # stop_rule.RULE_TS a win books a smaller R than before: records across that date are not comparable.
+    plan_stop = stop
+    try:
+        if not p.get("mirror_of") and store.base_tier(tier) not in stop_rule.EXEMPT_TIERS:
+            _rs = stop_rule.for_signal(sym, side, entry, stop)
+            if _rs and abs(float(_rs["stop"]) - stop) > 1e-12 \
+                    and ((_rs["stop"] < stop) if side == "LONG" else (_rs["stop"] > stop)):
+                stop = float(_rs["stop"])
+                try:
+                    store.record_signal("stop_rule", {"symbol": sym, "base": p.get("base") or sym.replace("USDT", ""),
+                                                      "side": side, "tier": tier, "entry": entry, "stop": stop,
+                                                      "tp1": tp1, "tp2": tp2 or None, "plan_stop": plan_stop,
+                                                      "rule": _rs.get("rule"), "capped": bool(_rs.get("capped"))})
+                except Exception:
+                    pass
+    except Exception:
+        stop = plan_stop
     store.shadow_open(tier, sym, side, entry, stop, tp1, tp2,
                       conf=_cf, heat=_ht)
     # 🎮 GEN 21 demo feed (user 2026-11-17: stock names only, four streams): a seat the desk opens on a
@@ -135,7 +161,11 @@ def open_from_signal(tier: str, p: dict, live_px: float | None) -> bool:
     try:
         if tier.startswith("tok:") and tier[4:] in DEMO_FEED_TIERS:
             DEMO_FEED.append({"symbol": sym, "base": p.get("base") or sym.replace("USDT", ""), "side": side,
-                              "entry": entry, "stop": stop, "tp1": tp1, "tp2": tp2 or None, "conf": _cf, "heat": _ht,
+                              # 🛡 the demo trades the 15m rule's stop too (user 2026-11-17: "also on demo trading apply
+                              # 15m rule to it as well"), unless that stop is too wide for the demo's 10x guard
+                              # (try_open refuses a stop 8% or more away): then it keeps the plan's
+                              "entry": entry, "stop": (stop if abs(entry - stop) / entry < DEMO_RULE_MAX else plan_stop),
+                              "plan_stop": plan_stop, "tp1": tp1, "tp2": tp2 or None, "conf": _cf, "heat": _ht,
                               "score": float(p.get("score") or 85), "burst": 0.0, "src": tier[4:], "fired_at": time.time()})
             del DEMO_FEED[:-60]
     except Exception:

@@ -9987,16 +9987,19 @@ if active_section == "🎮 Demo Trading":
         "fires on a name already held, on the same side, one more seat of margin is added at the live price "
         "(entry averaged, stop and TP1 kept). <b>The clock book (PKT):</b> 05:00–13:00 every stream at 10x, with that "
         "added margin · 13:00–17:00 every stream at 7x ($250 margin, $1,750 position), at most two new seats, no added "
-        "margin · 17:00–01:00 only a strong trigger opens a seat, at 10x · 01:00–05:00 only a confirmed entry opens a "
-        "seat, at 10x, and margin is added to it when GO revived fires on the same name. A seat already open keeps "
-        "its stop and TP1 through every window. "
+        "margin · 17:00–01:00 only a strong trigger opens a seat, at 10x · 01:00–05:00 only a confirmed entry or a "
+        "GO revived (the conviction revival) opens a seat, at 10x, and margin is added when the other of the two fires "
+        "on the same name. A seat already open keeps its stop and TP1 through every window. <b>Stops are the 15m "
+        "rule's</b> since 17 Nov (a little beyond the nearest 15m swing past the signal's stop). "
         "Exit: the stop, or TP1 with everything banked, or the near-TP bank (85% of the way to TP1, "
         "then fading back to 60% while in profit). No trail, no ladder, no re-entry. Fresh $5,000 book since 17 Nov · "
         f"day {_days:.1f}.</span></div>",
         unsafe_allow_html=True)
     with st.expander("roster history (GEN 17 → 21)", expanded=False):   # 2026-11-07: moved out of the header
         st.caption(
-            "GEN 22.5 (17 Nov): the clock book as it stands in the header: 13–17 became 7x, 21–01 opened again for the "
+            "GEN 22.6 (17 Nov): the demo's stops became the 15m rule's, and GO revived (the conviction revival) opens "
+            "seats 01–05 as well, at 10x with add-ons (its stock seats there on the 15m rule: 82% / +0.19R on 11). "
+            "GEN 22.5 (17 Nov): the clock book as it stood then: 13–17 became 7x, 21–01 opened again for the "
             "strong trigger alone, and 01–05 was cut to the confirmed entry alone (stock seats there: confirmed entry 86% / "
             "+0.81R on 7, GO revived 64% / +0.06R on 11, star 50% / −0.04R on 6, strong trigger 43% / −0.37R on 14); "
             "stream adds 05–13 only. "
@@ -11093,6 +11096,11 @@ if active_section == "🧭 Decision Mode":
 # ===========================================================================
 if active_section == "🧪 Paper Trader":
     st.subheader("🧪 Paper Trading Bot")
+    st.caption(
+        "🛡 **Stop rule since 17 Nov:** every paper position and every desk seat opens on the rule's stop, not the "
+        "signal's own. Coins: a little beyond the nearest 4h swing past the signal's stop. Tokenized stocks: the same "
+        "on 15m candles. Never tighter than the signal's stop, never past 8% from entry; a wider stop means a smaller "
+        "position for the same risk. Records after 17 Nov are on these stops and are not comparable with earlier ones.")
     st.caption(
         "Open trades on any coin from the left panel, or let the bot "
         "auto-trade from high-confidence alerts. The bot manages stops "

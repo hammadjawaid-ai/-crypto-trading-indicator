@@ -30,6 +30,8 @@ import buzz_clock
 import clock_cells
 import tg_cells        # 🕐 2026-11-08: the one window-stamp rule for every bell
 import tg_roster       # 📱 2026-11-17: the phone roster by asset class (class rule, stock cards, rang-bell log)
+import stop_rule       # 🛡 2026-11-17: the stop rule (coins 4h, stocks 15m) for desk seats and entry bells
+stop_rule.LIVE = True  # the worker is the one process that may fetch the rule's candles
 import bank_zone
 import support_resistance
 import rung_stats
@@ -2503,6 +2505,19 @@ STAR_CONFIRM_REC = "gated stars with one in the 6h before 65% / +0.43R (55) vs 5
 ROSTER_TS = 1794872916    # the roster cut-over (17 Nov 2026): 🏦 TP1 pings for bells rung before it bridge from the old streams for 48h
 
 
+def _rule_card(text, sig, key=None):
+    """🛡 the entry bell's text with its SL swapped to the stop rule's (coins 4h, stocks 15m) and the 🛡 line added
+    (tg_roster.rule_card on stop_rule.for_signal). The signal and its gate keep the plan stop. On any miss the
+    text comes back unchanged. User 2026-11-17: "we are changing the rule of stops to 4h rule not the ones we have
+    today … to our telegram notificaion streams"."""
+    try:
+        _rs_c = stop_rule.for_signal(sig.get("symbol"), sig.get("side"), sig.get("entry"), sig.get("stop"))
+        return tg_roster.rule_card(text, sig, _rs_c, key, time.time())
+    except Exception as _rc_exc:
+        print("  stop rule card error:", _rc_exc, flush=True)
+        return text
+
+
 def _tg_rang(key, sig):
     """📱 One row in the rang-bell log (signals stream tg_roster.BELL) for an entry bell the phone actually heard.
     The 🏦 TP1 HIT ping and the 🚦 gatekeeper's burst read follow this log. Never raises."""
@@ -2929,9 +2944,9 @@ def cycle() -> None:
             if (TG_APEX_V2_SHORT and _sd2 == "SHORT" and tg_roster.class_ok("apex_v2_short", _sym2)
                     and not _bstock_quiet(_sym2)):
                 try:
-                    _oks2, _ms2, _ids2 = tg.send_thread(
+                    _oks2, _ms2, _ids2 = tg.send_thread(_rule_card(
                         tg_roster.apex_v2_short_card(_sig2, _px2, _grd2, _gok2, time.time())
-                        + _kr_note(_sig2))
+                        + _kr_note(_sig2), _sig2, "apex_v2_short"))
                     n_alerts += 1 if _oks2 else 0
                     _srang2 = bool(_oks2)
                     if _oks2:
@@ -3451,6 +3466,7 @@ def cycle() -> None:
                                        " · read FAILED — ringing ONLY because "
                                        "13–17 PKT is ungated (unmuted star)")
                                     + "\n", 1)
+                            _msg9 = _rule_card(_msg9, _pmx, "elite_star" if _star9 else "elite_agrade")   # 🛡 the stop rule
                             ok, _m9, _ids9 = tg.send_thread(_msg9)
                             if ok:
                                 _tg_rang("elite_star" if _star9 else "elite_agrade", _pmx)
@@ -4356,7 +4372,7 @@ def cycle() -> None:
                             _rc_ec = ("confirm_star", tg_roster.confirm_star_card(
                                 _w9, _cl9, _now, _gs_ec, _cf0))
                     if _rc_ec and _rc_ec[1]:
-                        _ok_rc, _m_rc = tg.send(_rc_ec[1])
+                        _ok_rc, _m_rc = tg.send(_rule_card(_rc_ec[1], dict(_w9, entry=_cl9), _rc_ec[0]))
                         if _ok_rc:
                             _tg_rang(_rc_ec[0], _sig9)
                         n_alerts += 1 if _ok_rc else 0
@@ -5102,11 +5118,11 @@ def cycle() -> None:
                                 "class-out" if not tg_roster.class_ok(_tier_pp, _sym_pp) else   # 📱 roster 2026-11-17
                                 "quiet" if _bstock_quiet(_sym_pp) else "due")
                     if _bell_pp == "due":
-                        ok, _m_pp = tg.send(
+                        ok, _m_pp = tg.send(_rule_card(
                             _fmt_pair_card(
                                 _kind, _sig_pp,
                                 float(_px_pp or _sig_pp["entry"]), _now_pp, _pts_pp)
-                            + _kr_note(_sig_pp))
+                            + _kr_note(_sig_pp), _sig_pp, _tier_pp))
                         n_alerts += 1 if ok else 0
                         _bell_pp = "sent" if ok else f"failed: {_m_pp}"
                         if ok:
@@ -5192,9 +5208,9 @@ def cycle() -> None:
                 if (TG_PRIME_TRIG and tg_roster.class_ok("prime_trig", _sym_pt)   # 📱 coins only (roster 2026-11-17)
                         and not _bstock_quiet(_sym_pt)):
                     try:
-                        ok, _m_pt = tg.send(_fmt_prime_trig(
+                        ok, _m_pt = tg.send(_rule_card(_fmt_prime_trig(
                             _sig_pt, float(_px_pt or _sig_pt["entry"]), _now_pt)
-                            + _kr_note(_sig_pt))
+                            + _kr_note(_sig_pt), _sig_pt, "prime_trig"))
                         n_alerts += 1 if ok else 0
                         _bell_pt = "sent" if ok else f"failed: {_m_pt}"
                         if ok:
@@ -6785,11 +6801,11 @@ def cycle() -> None:
                             if (_ew.get("buzzed")
                                     and _ew.get("fam", "elite") == "elite"):
                                 try:
-                                    _okv, _mv, _ = tg.send_thread(
+                                    _okv, _mv, _ = tg.send_thread(tg_roster.rule_reply(
                                         (tg_roster.stock_verdict(_ew, _prg, _ew_now)   # 🏦 roster 2026-11-17
                                          if tg_roster.is_stock(_ew.get("symbol")) else
                                          rung_stats.verdict_text(
-                                             _ew, _prg, _ew_now)),
+                                             _ew, _prg, _ew_now)), _ew.get("symbol"), _ew.get("side")),
                                         reply_to=_ew.get("tg_ids"))
                                     print(f"  [thread] verdict {_ew['base']} "
                                           f"{_ew['side']} {_ew['oneh']} "
@@ -6887,6 +6903,7 @@ def cycle() -> None:
                                     if _stk_go:
                                         _go9 = tg_roster.stock_go_card(
                                             _ew, _prg, _age, _ew_px, _ew_now) or _go9
+                                    _go9 = tg_roster.rule_reply(_go9, _ew.get("symbol"), _ew.get("side"))   # 🛡 the bell's stop
                                     if _ew.get("oneh") == "LIVE" and _ew.get("star") and not _stk_go:
                                         # 🕐 ELITE GO clock line (user
                                         # 2026-10-17), by the fire's window.
@@ -6928,8 +6945,9 @@ def cycle() -> None:
                                     elif _ew.get("oneh") == "DEAD" and tg_roster.is_stock(_ew.get("symbol")):
                                         # 🏦 its own stock card for every revival: the desk tier tok:go_revived
                                         # records every one, and the coin gates below were fit on coins
-                                        _ok9, _m9x = tg.send(tg_roster.stock_revival_card(
-                                            _ew, _prg, _age, _ew_px, _ew_now))
+                                        _ok9, _m9x = tg.send(_rule_card(tg_roster.stock_revival_card(
+                                            _ew, _prg, _age, _ew_px, _ew_now),
+                                            dict(_ew, entry=_ew_px), "conv_revival"))
                                         _bell9 = ("sent-standalone-stock" if _ok9
                                                   else f"failed: {_m9x}")
                                         if _ok9:

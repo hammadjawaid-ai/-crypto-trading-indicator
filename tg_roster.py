@@ -334,11 +334,110 @@ def gated_star_ts(store, symbol, side, now: float, hours: float = 6.0):
 
 
 # ───────── the rang-bell log and the TP1 ping's stamp ─────────
+# ───────── 🛡 the stop rule on entry bells (stop_rule.py) ─────────
+# User 2026-11-17: "we are changing the rule of stops to 4h rule not the ones we have today this goes to all paper
+# trading and to our telegram notificaion streams … for stocks on telegram notificaitons … we add the rule of 15m
+# rule stops" · "we will have this information of updated win rates for every buzz or signals notificaition on
+# telegram so we know what is what" · "stops please dont add line instead carry it within the tp sls and entry we
+# have". On an entry bell the SL in the card's own entry · SL · TP line IS the rule's stop (coins the 4h rule,
+# stocks the 15m rule), and the (+x.xR) figures that line prints for TP1 / TP2 are re-cut on it. No stop line is
+# added. One 🧪 line follows the card: the candle replay of this bell on this stop (by PKT window on stocks).
+# Nothing else on the card is re-worded: a level a card derives from the plan's risk (the star's half-off level,
+# the bank zone) stays where it was measured. The gate and the signal keep the plan stop (stop_rule: applied
+# where a trade is printed, never where it is judged).
+# The replay cells: closed desk trades to 16 Nov on 15m candles, wicks counted, fees in, stop or TP1 in full,
+# R per 1R risked, in-sample. (key, None) = the bell; (key, window) = the bell in that PKT window (stocks).
+RULE_REPLAY_PERIOD = "to 16 Nov"
+RULE_REPLAY = {
+    ("elite_star", None): (71, 0.17, 106), ("elite_agrade", None): (67, 0.16, 9), ("leg2_prime", None): (82, 0.07, 22),
+    ("prime_trig", None): (78, 0.15, 32), ("star_takenow", None): (67, 0.05, 3), ("apex_v2_short", None): (81, 0.23, 84),
+}
+RULE_REPLAY_STOCK = {
+    ("elite_confirm", None): (66, 0.08, 50),
+    ("elite_confirm", "01–05"): (86, 0.60, 7), ("elite_confirm", "05–09"): (82, 0.47, 11), ("elite_confirm", "09–13"): (100, 0.42, 4),
+    ("elite_confirm", "17–21"): (57, -0.18, 21), ("elite_confirm", "21–01"): (29, -0.49, 7),
+    ("elite_star", None): (65, 0.10, 26),
+    ("elite_star", "01–05"): (50, -0.08, 6), ("elite_star", "05–09"): (100, 0.66, 5), ("elite_star", "09–13"): (100, 0.67, 3),
+    ("elite_star", "17–21"): (43, -0.32, 7), ("elite_star", "21–01"): (60, 0.00, 5),
+    ("conv_revival", None): (77, 0.10, 43),
+    ("conv_revival", "01–05"): (82, 0.19, 11), ("conv_revival", "05–09"): (100, 0.34, 7), ("conv_revival", "09–13"): (87, 0.23, 15),
+    ("conv_revival", "13–17"): (50, -0.32, 2), ("conv_revival", "17–21"): (33, -0.53, 6), ("conv_revival", "21–01"): (50, 0.20, 2),
+}
+RULE_TTL = 36 * 3600.0
+_RULE_LAST: dict = {}     # (symbol, side) -> (plan stop, rule stop, rule name, ts): the swap made on the last bell
+
+
+def _cellr(c) -> str:
+    return f"{c[0]:.0f}% / {c[1]:+.2f}R ({c[2]}" + (", thin)" if c[2] < 20 else ")")
+
+
+def rule_replay_line(key, symbol, side, now: float) -> str:
+    """'🧪 …' the candle replay of this bell on the rule's stop ('' when the bell has no cell)."""
+    try:
+        if is_stock(symbol):
+            c = RULE_REPLAY_STOCK.get((str(key), None))
+            if not c:
+                return ""
+            win = tg_cells.window_of(now)
+            w = RULE_REPLAY_STOCK.get((str(key), win))
+            return (f"🧪 replay on this stop ({RULE_REPLAY_PERIOD}, candles): {_cellr(c)}"
+                    + (f" · {win} PKT {_cellr(w)}" if w else f" · {win} PKT no trades yet"))
+        c = RULE_REPLAY.get((str(key), None))
+        return f"🧪 replay on this stop ({RULE_REPLAY_PERIOD}, candles): {_cellr(c)}" if c else ""
+    except Exception:
+        return ""
+
+
+def rule_card(text: str, sig: dict, rs, key=None, now=None) -> str:
+    """The entry bell's text with the rule's stop carried in its own entry · SL · TP line, and the 🧪 replay line.
+    rs = the dict of stop_rule.for_signal. None (no candles, rule off) leaves the card exactly as it is."""
+    try:
+        now = time.time() if now is None else float(now)
+        side = str(sig.get("side") or "").upper()
+        e, plan = float(sig.get("entry") or 0), float(sig.get("stop") or 0)
+        if not rs or e <= 0 or plan <= 0:
+            return text
+        new = float(rs["stop"])
+        d, d0 = abs(e - new), abs(e - plan)
+        if d > d0 * 1.001 and f"SL `{plan:g}`" in text:
+            text = text.replace(f"SL `{plan:g}`", f"SL `{new:g}`")
+            for k in ("tp1", "tp2"):                      # the (+x.xR) a plan line prints beside TP1 / TP2
+                try:
+                    t = float(sig.get(k) or 0)
+                    if t > 0:
+                        text = text.replace(f"`{t:g}` (+{abs(t - e) / d0:.1f}R)", f"`{t:g}` (+{abs(t - e) / d:.1f}R)")
+                except Exception:
+                    pass
+            _RULE_LAST[(str(sig.get("symbol")), side)] = (plan, new, str(rs["rule"]), now)
+        rp = rule_replay_line(key, sig.get("symbol"), side, now) if key else ""
+        return text + (("\n" + rp) if rp else "")
+    except Exception:
+        return text
+
+
+def rule_reply(text: str, symbol, side) -> str:
+    """A thread reply's text with the plan's SL swapped for the stop the bell printed (within RULE_TTL, in memory)."""
+    try:
+        hit = _RULE_LAST.get((str(symbol), str(side or "").upper()))
+        if not hit or time.time() - float(hit[3]) > RULE_TTL:
+            return text
+        return text.replace(f"SL `{float(hit[0]):g}`", f"SL `{float(hit[1]):g}`")
+    except Exception:
+        return text
+
+
 def bell_row(key: str, sig: dict) -> dict:
     """The row written to the BELL stream when an entry bell rang."""
-    return {"symbol": sig.get("symbol"), "base": _base(sig), "side": str(sig.get("side") or "").upper(),
-            "tier": str(key), "entry": sig.get("entry"), "stop": sig.get("stop"), "tp1": sig.get("tp1"),
-            "tp2": sig.get("tp2")}
+    row = {"symbol": sig.get("symbol"), "base": _base(sig), "side": str(sig.get("side") or "").upper(),
+           "tier": str(key), "entry": sig.get("entry"), "stop": sig.get("stop"), "tp1": sig.get("tp1"),
+           "tp2": sig.get("tp2")}
+    try:
+        w = _RULE_LAST.get((str(sig.get("symbol")), row["side"]))
+        if w and time.time() - float(w[3]) < 900:
+            row["rule_stop"], row["rule"] = w[1], w[2]      # 🛡 the stop this bell printed, for the forward replay
+    except Exception:
+        pass
+    return row
 
 
 def ping_stamp(key, symbol, side, ts: float) -> str:

@@ -234,6 +234,120 @@ check("the gatekeeper line count on the old cards is unchanged", W.count("tg_cel
 m = re.search(r"^ROSTER_TS = (\d+)\b", W, re.M)
 check("the cut-over stamp is a real epoch on 16–17 Nov 2026 UTC", bool(m) and calendar.timegm((2026, 11, 16, 0, 0, 0)) < int(m.group(1)) < calendar.timegm((2026, 11, 18, 0, 0, 0)))
 
+# 🛡 THE STOP RULE (2026-11-17): coins the 4h rule, stocks the 15m rule; the bell's SL is swapped and one line added
+import stop_rule as sr          # noqa: E402
+check("the rule's fetch is off outside the worker; coins read 4h, tokenized stocks 15m", sr.LIVE is False and sr.RULE_ON is True
+      and sr.rule_of("SOLUSDT") == "4h" and sr.rule_of(sorted(config.TOKENIZED_STOCKS)[0]) == "15m" and sr.SPEC["coin"][2] == 30 and sr.SPEC["stock"][2] == 96)
+flat = [(101.0, 99.0, 100.0)] * 30                                   # candles as (high, low, close); ATR 2 → buffer 0.5
+bars = list(flat)
+bars[10] = (101.0, 94.0, 100.0)                                      # a swing low at 94, under the plan stop 96
+got = sr.rule_stop("LONG", 100.0, 96.0, bars)
+atr14 = sum(max(bars[i][0] - bars[i][1], abs(bars[i][0] - bars[i - 1][2]), abs(bars[i][1] - bars[i - 1][2])) for i in range(16, 30)) / 14
+check("rule stop, long: a quarter ATR under the nearest swing low at or under the plan stop", bool(got) and abs(got[0] - (94.0 - 0.25 * atr14)) < 1e-9
+      and got[1] == 94.0 and got[2] is False, got)
+bars2 = list(flat)
+bars2[10] = (101.0, 97.5, 100.0)                                     # a swing low ABOVE the plan stop is not the mark
+bars2[20] = (101.0, 80.0, 100.0)                                     # a far one: past the 8% limit
+got2 = sr.rule_stop("LONG", 100.0, 96.0, bars2)
+check("rule stop: never further than 8% from the entry", bool(got2) and abs(got2[0] - 92.0) < 1e-9 and got2[2] is True and got2[1] == 80.0, got2)
+got3 = sr.rule_stop("LONG", 100.0, 96.0, flat)
+check("rule stop: no swing under the plan stop → a quarter ATR under the plan stop itself", bool(got3) and got3[1] == 96.0 and abs(got3[0] - 95.5) < 1e-9, got3)
+sbars = list(flat)
+sbars[12] = (106.0, 99.0, 100.0)
+got4 = sr.rule_stop("SHORT", 100.0, 104.0, sbars)
+check("rule stop, short: a quarter ATR over the nearest swing high at or over the plan stop", bool(got4) and got4[1] == 106.0 and got4[0] > 106.0 and got4[2] is False, got4)
+check("rule stop: too few candles, a stop on the wrong side or a zero price give nothing",
+      sr.rule_stop("LONG", 100.0, 96.0, flat[:10]) is None and sr.rule_stop("LONG", 100.0, 104.0, flat) is None and sr.rule_stop("LONG", 0, 96.0, flat) is None)
+check("for_signal: nothing without candles while the fetch is off; the dict when bars are given",
+      sr.for_signal("SOLUSDT", "LONG", 100.0, 96.0) is None and sr.for_signal("SOLUSDT", "LONG", 100.0, 96.0, bars=bars)["rule"] == "4h"
+      and abs(sr.for_signal("SOLUSDT", "LONG", 100.0, 96.0, bars=bars)["stop"] - got[0]) < 1e-9)
+import pandas as pd          # noqa: E402
+NOW_W = 1794900000.0
+idx = pd.to_datetime([NOW_W - 4 * 3600 * (30 - i) - 3600 for i in range(31)], unit="s")          # the last candle is still forming
+kl = pd.DataFrame({"high": [b[0] for b in bars] + [150.0], "low": [b[1] for b in bars] + [50.0], "close": [b[2] for b in bars] + [100.0]}, index=idx)
+check("closed_bars drops the forming candle", len(sr.closed_bars(kl, NOW_W, 14400)) == 30 and sr.closed_bars(kl, NOW_W, 14400)[-1] == bars[-1])
+_calls = []
+sr.LIVE, sr.FETCH = True, (lambda sym, iv, limit=0: (_calls.append((sym, iv, limit)) or kl))
+sr._MEMO.clear()
+a1 = sr.for_signal("SOLUSDT", "LONG", 100.0, 96.0, now=NOW_W)
+a2 = sr.for_signal("SOLUSDT", "LONG", 100.0, 96.0, now=NOW_W + 60)
+check("for_signal fetches the rule's timeframe once and keeps it for ten minutes", bool(a1) and abs(a1["stop"] - got[0]) < 1e-9 and a2 == a1 and _calls == [("SOLUSDT", "4h", 45)], _calls)
+sr.LIVE, sr.FETCH = False, None
+sr._MEMO.clear()
+tr._RULE_LAST.clear()
+sig_c = {"symbol": "SOLUSDT", "base": "SOL", "side": "LONG", "entry": 100.0, "stop": 96.0, "tp1": 106.0}
+card = "⭐ *ELITE STAR — SOL LONG*\nentry `100` · SL `96` · TP1 `106` (+1.5R)\nrecord line"
+out = tr.rule_card(card, sig_c, a1, "elite_star", NOW_W)
+REPLAY_C = "🧪 replay on this stop (to 16 Nov, candles): 71% / +0.17R (106)"
+check("rule card, coin: the rule's stop is carried in the card's own SL, TP1's R is re-cut on it, and no stop line is added",
+      out == "⭐ *ELITE STAR — SOL LONG*\nentry `100` · SL `93.5` · TP1 `106` (+0.9R)\nrecord line\n" + REPLAY_C and "🛡" not in out, out)
+check("rule card, coin: exactly one line is added, the candle replay of the bell on this stop", out.count("\n") == card.count("\n") + 1 and out.endswith(REPLAY_C), out)
+tr.rule_card(card, sig_c, a1, "elite_star", __import__("time").time())      # the row is read within 15 minutes of the bell
+row = tr.bell_row("elite_star", sig_c)
+check("the bell's row keeps the plan stop and carries the stop it printed", row["stop"] == 96.0 and abs(row.get("rule_stop", 0) - 93.5) < 1e-9 and row.get("rule") == "4h"
+      and "rule_stop" not in tr.bell_row("elite_star", dict(sig_c, symbol="ETHUSDT")), row)
+check("a thread reply under that bell prints the bell's stop", tr.rule_reply("fire `100` · SL `96` · TP1 `106`", "SOLUSDT", "LONG") == "fire `100` · SL `93.5` · TP1 `106`"
+      and tr.rule_reply("fire `100` · SL `96` · TP1 `106`", "ETHUSDT", "LONG") == "fire `100` · SL `96` · TP1 `106`")
+STK = sorted(config.TOKENIZED_STOCKS)[0]
+rs_s = sr.for_signal(STK, "LONG", 100.0, 96.0, bars=[(100.4, 99.6, 100.0)] * 96)
+T7 = float(calendar.timegm((2026, 11, 18, 2, 30, 0)))                # 07:30 PKT → the 05–09 window
+out_s = tr.rule_card("💎✅ *ELITE CONFIRMED ENTRY · STOCK*\nenter `100` · SL `96` · TP1 `106` (+1.5R)", {"symbol": STK, "side": "LONG", "entry": 100.0, "stop": 96.0, "tp1": 106.0},
+                     rs_s, "elite_confirm", T7)
+check("rule card, stock: the 15m rule's stop in the SL, TP1's R re-cut, and the replay with this PKT window's cell",
+      bool(rs_s) and rs_s["rule"] == "15m" and abs(rs_s["stop"] - 95.8) < 1e-9
+      and out_s == "💎✅ *ELITE CONFIRMED ENTRY · STOCK*\nenter `100` · SL `95.8` · TP1 `106` (+1.4R)\n"
+      "🧪 replay on this stop (to 16 Nov, candles): 66% / +0.08R (50) · 05–09 PKT 82% / +0.47R (11, thin)", out_s)
+check("rule card: no rule result leaves the card untouched; a rule that keeps the plan's stop changes nothing but the replay line",
+      tr.rule_card(card, sig_c, None, "elite_star", NOW_W) == card
+      and tr.rule_card(card, sig_c, {"stop": 96.0, "plan": 96.0, "rule": "4h", "mark": 96.0, "capped": False}, "elite_star", NOW_W) == card + "\n" + REPLAY_C)
+check("rule card: a card with no SL token is left alone (and a bell with no replay cell gets no line)",
+      tr.rule_card("a card with no SL token", sig_c, a1, None, NOW_W) == "a card with no SL token"
+      and tr.rule_card(card, sig_c, a1, "kr_premium", NOW_W) == card.replace("SL `96`", "SL `93.5`").replace("(+1.5R)", "(+0.9R)"))
+check("worker: the rule's fetch is turned on, the six entry bells are swapped, the two reply sites follow", "stop_rule.LIVE = True" in W and W.count("_rule_card(") == 7
+      and "def _rule_card(text, sig, key=None):" in W and W.count("tg_roster.rule_reply(") == 2 and "_wick_line" not in W
+      and '_rule_card(_msg9, _pmx, "elite_star" if _star9 else "elite_agrade")' in W and "_rule_card(_rc_ec[1], dict(_w9, entry=_cl9), _rc_ec[0])" in W
+      and '+ _kr_note(_sig2), _sig2, "apex_v2_short"))' in W and "+ _kr_note(_sig_pp), _sig_pp, _tier_pp))" in W and '+ _kr_note(_sig_pt), _sig_pt, "prime_trig"))' in W
+      and 'dict(_ew, entry=_ew_px), "conv_revival"))' in W, W.count("_rule_card("))
+# the desk: a seat opens on the rule's stop; the demo feed and the stop_rule stream keep the plan's
+import shadow_trader as sh      # noqa: E402
+_opened, _recs = [], []
+_keep_store = sh.store
+sh.store = types.SimpleNamespace(MIN_RISK_FRAC=0.003, desk_tier=lambda tier, sym: ("tok:" + tier) if sym == STK else tier, base_tier=lambda t: t[4:] if t.startswith("tok:") else t,
+                                 shadow_has_open=lambda tier, sym: False, shadow_open=lambda *a, **k: _opened.append(a), record_signal=lambda stream, p, ts=None: _recs.append((stream, p)))
+del sh.DEMO_FEED[:]
+_tn = __import__("time").time()
+kl_live = pd.DataFrame({"high": list(kl["high"]), "low": list(kl["low"]), "close": list(kl["close"])},
+                       index=pd.to_datetime([_tn - 4 * 3600 * (30 - i) - 3600 for i in range(31)], unit="s"))
+sr.LIVE, sr.FETCH = True, (lambda sym, iv, limit=0: kl_live if iv == "4h" else None)
+sr._MEMO.clear()
+ok_d = sh.open_from_signal("elite_star", {"symbol": "SOLUSDT", "side": "LONG", "stop": 96.0, "tp1": 106.0, "tp2": 110.0}, 100.0)
+check("desk: a coin seat opens on the 4h rule's stop and logs the plan's stop beside it", ok_d and len(_opened) == 1 and abs(_opened[0][4] - got[0]) < 1e-9
+      and len(_recs) == 1 and _recs[0][0] == "stop_rule" and _recs[0][1]["plan_stop"] == 96.0 and abs(_recs[0][1]["stop"] - got[0]) < 1e-9 and _recs[0][1]["rule"] == "4h", (_opened, _recs))
+ok_m = sh.open_from_signal("conviction_v2_rev", {"symbol": "SOLUSDT", "side": "LONG", "stop": 96.0, "tp1": 106.0, "mirror_of": "conviction_v2"}, 100.0)
+check("desk: the mirrored conviction tier keeps its own stop", ok_m and len(_opened) == 2 and _opened[1][4] == 96.0 and len(_recs) == 1, _opened[-1])
+sr.FETCH = (lambda sym, iv, limit=0: None)
+sr._MEMO.clear()
+ok_n = sh.open_from_signal("elite_confirm", {"symbol": STK, "side": "LONG", "stop": 96.0, "tp1": 106.0}, 100.0)
+check("desk: with no candles the plan stop stays, and the demo feed always carries the plan stop", ok_n and _opened[2][4] == 96.0 and len(sh.DEMO_FEED) == 1 and sh.DEMO_FEED[0]["stop"] == 96.0, (_opened[-1], sh.DEMO_FEED))
+sr.FETCH = (lambda sym, iv, limit=0: pd.DataFrame({"high": [100.4] * 97, "low": [99.6] * 97, "close": [100.0] * 97},
+                                                   index=pd.to_datetime([_tn - 900 * (96 - i) - 300 for i in range(97)], unit="s")) if iv == "15m" else None)
+sr._MEMO.clear()
+del sh.DEMO_FEED[:]
+ok_s = sh.open_from_signal("elite_star", {"symbol": STK, "side": "LONG", "stop": 96.0, "tp1": 106.0}, 100.0)
+check("desk: a stock seat opens on the 15m rule's stop and the demo is offered that stop too", ok_s and abs(_opened[3][4] - 95.8) < 1e-9 and _opened[3][0] == "tok:elite_star"
+      and len(sh.DEMO_FEED) == 1 and abs(sh.DEMO_FEED[0]["stop"] - 95.8) < 1e-9 and sh.DEMO_FEED[0]["plan_stop"] == 96.0 and _recs[-1][1]["rule"] == "15m", (_opened[-1], sh.DEMO_FEED))
+del sh.DEMO_FEED[:]
+ok_w = sh.open_from_signal("go_revived", {"symbol": STK, "side": "LONG", "stop": 92.3, "tp1": 106.0}, 100.0)      # plan 7.7% away → the rule's is 7.9%
+check("desk: a rule stop too wide for the demo's 10x guard leaves the demo on the plan stop", ok_w and sh.DEMO_RULE_MAX == 0.078 and abs(_opened[4][4] - 92.1) < 1e-9
+      and len(sh.DEMO_FEED) == 1 and sh.DEMO_FEED[0]["stop"] == 92.3, (_opened[-1], sh.DEMO_FEED))
+sr.RULE_ON = False
+sr._MEMO.clear()
+ok_o = sh.open_from_signal("elite_star", {"symbol": "ETHUSDT", "side": "LONG", "stop": 96.0, "tp1": 106.0}, 100.0)
+check("stop_rule.RULE_ON = False puts every seat back on the plan stop", ok_o and _opened[5][4] == 96.0, _opened[-1])
+sr.RULE_ON, sr.LIVE, sr.FETCH = True, False, None
+sr._MEMO.clear()
+sh.store = _keep_store
+
 print(f"\n{PASS} passed, {len(FAIL)} failed")
 for f in FAIL:
     print("FAIL:", f)

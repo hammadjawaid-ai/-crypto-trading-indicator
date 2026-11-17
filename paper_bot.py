@@ -57,6 +57,9 @@ WEEKLY_RESET_DAYS = 90
 BREAK_EVEN_R = 1.0
 PARTIAL_TAKE_R = 1.5
 PARTIAL_FRACTION = 0.5
+# 🛡 2026-11-17: positions open on the stop rule's stop (coins 4h, stocks 15m), see open_position. False = the
+# alert's own stop, as before.
+STOP_RULE = True
 
 
 def load_state(path: Path) -> dict:
@@ -309,6 +312,24 @@ def open_position(state: dict, alert: dict,
         return None
     if side == "SHORT" and float(stop) <= entry:
         return None
+    # 🛡 THE STOP RULE (user 2026-11-17: "for everything paper trading … we are changing the rule of stops to 4h
+    # rule … for stocks … for paper trading page in our systems we add the rule of 15m rule stops"): the
+    # position is opened on the rule's stop (stop_rule.py: coins the 4h rule, tokenized stocks the 15m rule;
+    # never tighter than the alert's stop, never past 8%). The size below is cut from the risk, so a wider
+    # stop means a smaller position for the same money at risk. The alert's own stop is kept on the position
+    # (plan_stop). On any miss the alert's stop stays. Off: STOP_RULE = False.
+    plan_stop = float(stop)
+    _rule_used = None
+    if STOP_RULE:
+        try:
+            import stop_rule as _sr
+            _rs = _sr.for_signal(sym, side, entry, plan_stop, live=True)
+            if _rs and ((_rs["stop"] < plan_stop) if side == "LONG" else (_rs["stop"] > plan_stop)):
+                stop = float(_rs["stop"])
+                _rule_used = _rs.get("rule")
+        except Exception:
+            stop = plan_stop
+            _rule_used = None
     # Effective notional cap: user setting × optional strength factor the
     # caller passes via the alert (e.g. 0.4-1.0 scaled by combined score).
     # If neither is set we fall back to no cap (pure fixed-fractional).
@@ -352,6 +373,8 @@ def open_position(state: dict, alert: dict,
         # the position dict, so the tag survives into history for
         # per-board open/closed views.
         "source": str(alert.get("_unified_source") or ""),
+        "plan_stop": plan_stop,              # 🛡 the alert's own stop; "stop" is the stop rule's when stop_rule is set
+        "stop_rule": _rule_used,
     }
     state["open"].append(pos)
     return pos
