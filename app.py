@@ -9986,13 +9986,18 @@ if active_section == "🎮 Demo Trading":
         "All 10x, one full seat each ($250 margin, $2,500 position). When a second or third of the first three "
         "fires on a name already held, on the same side, one more seat of margin is added at the live price "
         "(entry averaged, stop and TP1 kept). <b>No new seat and no added margin between 17:00 and 01:00 PKT</b>; "
-        "only a strong trigger may seat 17:00–21:00. A seat already open keeps its stop and TP1 through those hours. "
+        "only a strong trigger may seat 17:00–21:00, at 10x. A seat already open keeps its stop and TP1 through those hours. "
+        "<b>13:00–17:00 PKT opens at 5x</b> ($250 margin, $1,250 position), at most two new seats in the window, no added "
+        "margin. Margin is added only 05:00–13:00 and 01:00–05:00 PKT. "
         "Exit: the stop, or TP1 with everything banked, or the near-TP bank (85% of the way to TP1, "
         "then fading back to 60% while in profit). No trail, no ladder, no re-entry. Fresh $5,000 book since 17 Nov · "
         f"day {_days:.1f}.</span></div>",
         unsafe_allow_html=True)
     with st.expander("roster history (GEN 17 → 21)", expanded=False):   # 2026-11-07: moved out of the header
         st.caption(
+            "GEN 22.4 (17 Nov): 05–09, 09–13 and 01–05 PKT are the priority windows (10x, stream adds); 13–17 opens at 5x, "
+            "two new seats a window, no add (stock seats there 67% / +0.21R on 9 against 78% / +0.39R on 36 and 90% / "
+            "+0.34R on 31 in the two morning windows; 01–05 read 58% / +0.03R on 38). "
             "GEN 22.3 (17 Nov): no entries 17–21 and 21–01 PKT (stock seats of the four streams read 57% / −0.01R on 49 "
             "and 50% / +0.10R on 24 there against 74% / +0.24R on 114 in the other windows, desk booking to 16 Nov); the "
             "strong trigger, which read 87% / +0.37R on 15 in 17–21, still seats in that window only. "

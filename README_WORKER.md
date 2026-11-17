@@ -601,6 +601,18 @@ priority".
   +0.10R (24), the rest 74% / +0.24R (114); the strong trigger alone read 87% / +0.37R (15) and 70% / +0.33R (10)
   in the two windows. Guard: `.demo_gen22_test.py`. Revert: `NO_ENTRY_WINDOWS = set()`. No reset.
 
+- **GEN 22.4 (2026-11-17; user: "priority on demos should be 05-09 , 9-13 signals and 01-05 with full leverage and
+  add ons · 13-17 we can trade but few good ones only with 5x leverage only · strong trigger full leverage even
+  for 17-21 · rest stays as it is").** The demo's clock book, by the PKT window of the open: 05–09 · 09–13 · 01–05
+  every stream at 10x with stream adds (`ADD_WINDOWS`); 13–17 every stream at 5x (`WINDOW_LEV = {"13-17": 5.0}`,
+  applied in `try_open` after `lev_for`, which the real-money executor reads and which stays 10x), at most
+  `WINDOW_MAX_NEW = {"13-17": 2}` new seats in the window (`window_new_seats` counts open and closed seats opened
+  since `window_start`), best-ranked first, no stream add; 17–21 the strong trigger only at 10x; 21–01 nothing.
+  "Few good ones" is built as the cap: nine closed stock seats in 13–17 cannot support a quality bar. Measured
+  (16 Nov ledger, stock seats, desk booking, in-sample): 05–09 78% / +0.39R (36), 09–13 90% / +0.34R (31), 13–17
+  67% / +0.21R (9), 01–05 58% / +0.03R (38; confirmed entry 86% / +0.81R on 7, strong trigger 43% / −0.37R on
+  14). Revert: `WINDOW_LEV = {}`, `WINDOW_MAX_NEW = {}`, `ADD_WINDOWS = set()`. No reset.
+
 ## 📱 PHONE ROSTER BY ASSET CLASS (2026-11-17) — `tg_roster.py`
 
 User: "New Stream should be introduced for tokenized stocks … For Crypto …" · "measure stocks tokenzied stock

@@ -178,6 +178,24 @@ REENTRY_ON = False            # GEN 20: a TP1 bank is final; no momentum re-entr
 # Revert: NO_ENTRY_WINDOWS = set().
 NO_ENTRY_WINDOWS: set = {"17-21", "21-01"}
 NO_ENTRY_EXEMPT: set = {("trig_strong", "17-21")}
+# 🕐 GEN 22.4 (user 2026-11-17: "priority on demos should be 05-09 , 9-13 signals and 01-05 with full leverage and
+# add ons · 13-17 we can trade but few good ones only with 5x leverage only · strong trigger full leverage even
+# for 17-21 · rest stays as it is"). The clock book of the demo, by the PKT window of the open:
+#   05–09 · 09–13 · 01–05   every stream, 10x, stream adds on (ADD_WINDOWS)
+#   13–17                   every stream at 5x (WINDOW_LEV: the same $250 of margin carries half the position),
+#                           at most WINDOW_MAX_NEW new seats in the window, best-ranked first, no stream add
+#   17–21                   the strong trigger only, 10x (NO_ENTRY_EXEMPT above); it neither adds nor receives
+#   21–01                   nothing opens
+# "few good ones" is built as the cap: nine closed stock seats in 13–17 on the 16 Nov ledger (seven of them strong
+# triggers) cannot support a quality bar, so the seats go to the first WINDOW_MAX_NEW the rank order offers.
+# MEASURED, told to him (16 Nov ledger, stock seats, desk booking, in-sample): 05–09 78% / +0.39R (36), 09–13
+# 90% / +0.34R (31), 13–17 67% / +0.21R (9), 01–05 58% / +0.03R (38). The 01–05 window is carried by the
+# confirmed entry (86% / +0.81R, 7); the strong trigger there read 43% / −0.37R (14) and the star 50% / −0.04R (6).
+# The leverage cut lives here in try_open, never in lev_for (the real-money executor reads lev_for).
+# Revert: WINDOW_LEV = {}, WINDOW_MAX_NEW = {}, ADD_WINDOWS = set().
+WINDOW_LEV: dict = {"13-17": 5.0}
+WINDOW_MAX_NEW: dict = {"13-17": 2}
+ADD_WINDOWS: set = {"05-09", "09-13", "01-05"}
 # 🎮 GEN 16 (user 2026-09-14: "Demo Trading Start Again now. We will
 # have only this and no limit on slots can be 20 at a time depending
 # on the signals with leverage of 10x of our total account 2000
@@ -588,6 +606,23 @@ def time_gate_ok(src, side, now=None) -> bool:
     return pkt_window4(now) not in closed
 
 
+def window_start(now=None) -> float:
+    """Epoch start of the 4h PKT window the clock is in (the windows begin at 01, 05, 09, 13, 17 and 21 PKT)."""
+    t = float(_clock() if now is None else now)
+    loc = t + PKT_OFFSET_S
+    day0 = loc - loc % 86400
+    h = (loc - day0) / 3600.0
+    s = day0 + (21 if (h >= 21 or h < 1) else int((h - 1) // 4) * 4 + 1) * 3600
+    return (s - 86400 if h < 1 else s) - PKT_OFFSET_S
+
+
+def window_new_seats(state: dict, now=None) -> int:
+    """🕐 GEN 22.4: the seats the demo has opened since the current PKT window began (open or already closed)."""
+    ws = window_start(now)
+    return len({(q.get("symbol"), q.get("opened_at")) for q in (state.get("open") or []) + (state.get("closed") or [])
+                if float(q.get("opened_at") or 0) >= ws})
+
+
 def entry_window_ok(src, now=None, fired_at=None) -> bool:
     """🕐 GEN 22.3: False when the PKT clock, or the fire the seat comes from, is in a window that is shut for
     this stream (NO_ENTRY_WINDOWS less the (stream, window) pairs in NO_ENTRY_EXEMPT)."""
@@ -968,6 +1003,9 @@ def try_open(state: dict, cands: list, live_fn, active=None,
     src_n: dict = {}
     for p in state["open"]:
         src_n[p.get("src")] = src_n.get(p.get("src"), 0) + 1
+    _win = pkt_window4(_t)                      # 🕐 GEN 22.4: the window's leverage, its seat cap, its adds
+    _wmax = WINDOW_MAX_NEW.get(_win)
+    _wnew = window_new_seats(state, _t) if _wmax is not None else 0
 
     def _rotate(scope=None):
         if active is None or len(rotated) >= ROTATE_MAX:
@@ -1028,7 +1066,8 @@ def try_open(state: dict, cands: list, live_fn, active=None,
                               and _p.get("src") in REPLACE_SRC), None)
             if _swap is None:
                 # ➕ GEN 22.2: a second / third elite-family stream on a held name adds margin
-                if c["src"] in ADD_BY:
+                # 🕐 GEN 22.4: only while the clock is in a priority window (05–09, 09–13, 01–05)
+                if c["src"] in ADD_BY and (not ADD_WINDOWS or _win in ADD_WINDOWS):
                     _bp = next((_p for _p in state["open"] if _p["symbol"] == c["symbol"]), None)
                     if (_bp is not None and _bp.get("src") in ADD_BASE and _bp.get("side") == c["side"]
                             and c["src"] != _bp.get("src")
@@ -1044,6 +1083,8 @@ def try_open(state: dict, cands: list, live_fn, active=None,
                             if _ar:
                                 STREAM_ADDS.append(_ar)
                 continue
+        if _wmax is not None and _wnew >= _wmax:
+            continue            # 🕐 GEN 22.4: 13–17 PKT takes a few seats only
         if not time_gate_ok(c["src"], c["side"], _t):
             continue            # ⏰ GEN 16.5: 🔴 21-05 PKT, long seat closed
         _ck = clock_ok(c["src"], c["side"], _t)   # 🕐 GEN 18: the star's clock
@@ -1122,6 +1163,7 @@ def try_open(state: dict, cands: list, live_fn, active=None,
         # what stops a wide-stopped seat from quietly betting the
         # account: HEAT_CAP on total open risk, and free collateral.
         lev = lev_for(c["src"], c.get("conf"), c.get("burst"))
+        lev = min(lev, float(WINDOW_LEV.get(_win, lev)))      # 🕐 GEN 22.4: 13–17 PKT opens at 5x
         # real-account physics: the stop must sit well inside the
         # slot's margin — a stop past ~liquidation is not a trade.
         if stop_pct >= 0.8 / lev:
@@ -1178,6 +1220,7 @@ def try_open(state: dict, cands: list, live_fn, active=None,
         held.add(c["symbol"])
         src_n[c["src"]] = src_n.get(c["src"], 0) + 1
         opened.append(pos)
+        _wnew += 1
     return opened, rotated
 
 
