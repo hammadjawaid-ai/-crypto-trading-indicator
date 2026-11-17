@@ -7335,8 +7335,24 @@ def cycle() -> None:
                 print("  gen8 reopen error:", _re8_exc, flush=True)
         _dz_ranked = demo_account.rank_candidates(_dz_pools, _dz_form)
         # ➕ GEN 22.2: stream adds made inside try_open below are logged after it
+        # 🕐 GEN 22.7 (user 2026-11-17: "for 13-17 all four streams we choose the one with highest win rates in it
+        # those get the seat"): in a WINDOW_PICK window the demo is handed each stream's win rate over its closed
+        # stock seats opened in that PKT window, so the window's seats go to the best one first
+        _dz_wrank = None
+        try:
+            _dz_win = demo_account.pkt_window4(_now)
+            if _dz_win in demo_account.WINDOW_PICK:
+                _dz_wrank = {}
+                for _s227 in ("elite_confirm", "go_revived", "elite_star", "trig_strong"):
+                    _r227 = [_x[2] for _x in tg_roster._stock_rows(_s227, _now)
+                             if demo_account.pkt_window4(_x[1]) == _dz_win]
+                    if len(_r227) >= demo_account.WINDOW_PICK_MIN:
+                        _dz_wrank[_s227] = sum(1 for _v in _r227 if _v > 0) / len(_r227)
+        except Exception as _wr_exc:
+            _dz_wrank = None
+            print("  demo window rank error:", _wr_exc, flush=True)
         _dz_opened, _dz_rot = demo_account.try_open(
-            _dz, _dz_ranked, _live, active=_dz_active)
+            _dz, _dz_ranked, _live, active=_dz_active, window_rank=_dz_wrank)
         for _sa22 in list(demo_account.STREAM_ADDS):
             print(f"[demo] ➕ margin added {_sa22.get('base')} {_sa22.get('side')}: "
                   f"${_sa22.get('margin'):,.0f} at {_sa22.get('px')} ({_sa22.get('why')}); "

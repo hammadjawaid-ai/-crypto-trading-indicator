@@ -9986,8 +9986,9 @@ if active_section == "🎮 Demo Trading":
         "All 10x, one full seat each ($250 margin, $2,500 position). When a second or third of the first three "
         "fires on a name already held, on the same side, one more seat of margin is added at the live price "
         "(entry averaged, stop and TP1 kept). <b>The clock book (PKT):</b> 05:00–13:00 every stream at 10x, with that "
-        "added margin · 13:00–17:00 every stream at 7x ($250 margin, $1,750 position), at most two new seats, no added "
-        "margin · 17:00–01:00 only a strong trigger opens a seat, at 10x · 01:00–05:00 only a confirmed entry or a "
+        "added margin · 13:00–17:00 every stream at 7x ($250 margin, $1,750 position), at most two new seats, taken "
+        "first by the stream with the best win rate in that window, no added margin · 17:00–21:00 no new seat · "
+        "21:00–01:00 only a strong trigger opens a seat, at 10x · 01:00–05:00 only a confirmed entry or a "
         "GO revived (the conviction revival) opens a seat, at 10x, and margin is added when the other of the two fires "
         "on the same name. A seat already open keeps its stop and TP1 through every window. <b>Stops are the 15m "
         "rule's</b> since 17 Nov (a little beyond the nearest 15m swing past the signal's stop). "
@@ -9997,6 +9998,9 @@ if active_section == "🎮 Demo Trading":
         unsafe_allow_html=True)
     with st.expander("roster history (GEN 17 → 21)", expanded=False):   # 2026-11-07: moved out of the header
         st.caption(
+            "GEN 22.7 (17 Nov): 17–21 opens nothing (the strong trigger's 87% / +0.37R there was the desk's booking; on "
+            "candles the same 15 trades are 67% / −0.13R), 21–01 stays the strong trigger's, and the two 13–17 seats go "
+            "first to the stream with the best win rate in that window. "
             "GEN 22.6 (17 Nov): the demo's stops became the 15m rule's, and GO revived (the conviction revival) opens "
             "seats 01–05 as well, at 10x with add-ons (its stock seats there on the 15m rule: 82% / +0.19R on 11). "
             "GEN 22.5 (17 Nov): the clock book as it stood then: 13–17 became 7x, 21–01 opened again for the "

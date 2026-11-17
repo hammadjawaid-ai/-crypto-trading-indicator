@@ -712,3 +712,11 @@ rule of 15m rule stops" · "we will have this information of updated win rates f
 - **Fetch.** Candles are fetched only where `stop_rule.LIVE` is set (the worker sets it at import) or a caller
   passes `live=True` (the paper bot); one fetch per symbol per ten minutes. No candles, an error: the plan stop.
 - **Off:** `stop_rule.RULE_ON = False`. Guard: `.tg_roster_test.py` (rule, card, reply, desk, 91 checks).
+
+- **Demo GEN 22.7 (2026-11-17; user: "shut strong trigger 17-21 on demo and add 21-01 and deploy and for 13-17 all
+  four streams we choose the one with highest win rates in it those get the seat").** `NO_ENTRY_EXEMPT` loses
+  `("trig_strong", "17-21")`: 17–21 opens nothing (the cell it was opened on was desk booking, 87% / +0.37R on 15;
+  the same trades on candles are 67% / −0.13R); 21–01 stays the strong trigger's at 10x. `WINDOW_PICK = {"13-17"}`:
+  the worker passes `try_open(window_rank=…)` each stream's win rate over its closed stock seats opened in that PKT
+  window (`tg_roster._stock_rows`, at least `WINDOW_PICK_MIN = 3` closes), and the window's two seats go to the
+  best-ranked stream first; a card counts by the best-ranked stream on it; unranked streams keep the roster order.

@@ -199,9 +199,18 @@ REENTRY_ON = False            # GEN 20: a TP1 bank is final; no momentum re-entr
 # stop (shadow_trader.DEMO_RULE_MAX keeps the plan's when the rule's is too wide for the 10x guard).
 # MEASURED, told to him (16 Nov ledger, stock seats, candles, 15m rule): revival 01–05 82% / +0.19R (11),
 # 05–09 100% / +0.34R (7), 09–13 87% / +0.23R (15); thin, in-sample.
+# 🕐 GEN 22.7 (user 2026-11-17, after the candle table: "shut strong trigger 17-21 on demo and add 21-01 and deploy
+# and for 13-17 all four streams we choose the one with highest win rates in it those get the seat").
+# 17–21 now opens NOTHING: the strong trigger's exception there rested on the desk's own booking (87% / +0.37R on
+# 15); the same 15 trades on candles are 67% / −0.13R. 21–01 stays the strong trigger's (candles 90% / +0.31R on
+# 10). 13–17: the window's two seats go first to the stream with the best win rate IN THAT WINDOW (WINDOW_PICK):
+# the worker hands try_open the live win rate of each stream's closed stock seats opened 13–17 PKT (a stream
+# needs WINDOW_PICK_MIN closes to be ranked; unranked streams follow in the roster's order). On the 16 Nov ledger
+# that is the strong trigger (71% on 7); the revival has 2 closes there, the confirmed entry and the star none.
 NO_ENTRY_WINDOWS: set = {"17-21", "21-01", "01-05"}
-NO_ENTRY_EXEMPT: set = {("trig_strong", "17-21"), ("trig_strong", "21-01"), ("elite_confirm", "01-05"),
-                        ("go_revived", "01-05")}
+NO_ENTRY_EXEMPT: set = {("trig_strong", "21-01"), ("elite_confirm", "01-05"), ("go_revived", "01-05")}
+WINDOW_PICK: set = {"13-17"}
+WINDOW_PICK_MIN = 3
 # 🕐 GEN 22.4 (user 2026-11-17: "priority on demos should be 05-09 , 9-13 signals and 01-05 with full leverage and
 # add ons · 13-17 we can trade but few good ones only with 5x leverage only · strong trigger full leverage even
 # for 17-21 · rest stays as it is"). The clock book of the demo, by the PKT window of the open:
@@ -1011,7 +1020,7 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
 
 
 def try_open(state: dict, cands: list, live_fn, active=None,
-             now=None):
+             now=None, window_rank=None):
     """Fill free slots with the best in-zone candidates. Real-account
     rules: seat caps, one per coin, margin sized off the CURRENT
     balance, entry fee paid immediately.
@@ -1054,6 +1063,14 @@ def try_open(state: dict, cands: list, live_fn, active=None,
     _win = pkt_window4(_t)                      # 🕐 GEN 22.4: the window's leverage, its seat cap, its adds
     _wmax = WINDOW_MAX_NEW.get(_win)
     _wnew = window_new_seats(state, _t) if _wmax is not None else 0
+    if _win in WINDOW_PICK and window_rank:
+        # 🕐 GEN 22.7: in this window the seats go first to the stream with the best win rate here
+        # (window_rank = {stream: win rate}); a card counts by the best-ranked stream on it; the sort is
+        # stable, so unranked streams keep the roster's order behind the ranked ones
+        def _wr(c9):
+            _ks = list((c9.get("plans") or {}).keys()) or [c9.get("src")]
+            return max(float(window_rank.get(_k, -1.0)) for _k in _ks)
+        cands = sorted(cands, key=lambda c9: -_wr(c9))
 
     def _rotate(scope=None):
         if active is None or len(rotated) >= ROTATE_MAX:
@@ -1122,7 +1139,7 @@ def try_open(state: dict, cands: list, live_fn, active=None,
             continue
         if not entry_window_ok(c["src"], _t, c.get("fired_at")):
             # 🕐 GEN 22.3: 17–21 and 21–01 PKT take no seat and add no margin. A stream on the same card
-            # that is open in this window (the strong trigger, 17–21) seats with its own plan.
+            # that is open in this window (the strong trigger, 21–01) seats with its own plan.
             _alt = sorted(((_v[0], _k) for _k, _v in (c.get("plans") or {}).items()
                            if _k != c["src"] and entry_window_ok(_k, _t, _v[5])), reverse=True)
             if not _alt:
