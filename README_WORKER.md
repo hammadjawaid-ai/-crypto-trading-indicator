@@ -613,6 +613,24 @@ priority".
   67% / +0.21R (9), 01–05 58% / +0.03R (38; confirmed entry 86% / +0.81R on 7, strong trigger 43% / −0.37R on
   14). Revert: `WINDOW_LEV = {}`, `WINDOW_MAX_NEW = {}`, `ADD_WINDOWS = set()`. No reset.
 
+- **GEN 22.5 (2026-11-17; user: "1. We have 10x, ad ons all four streams where timings of 05-09 and 09-13 take
+  the higest seats · 2. timings 13-17 7x seats for all four streams and strong trigger and just 2 new seats ·
+  3. timings of 01-05 … · 4. Strong triggers will take only 10x on 17-21 and 21-01"; for 01–05, asked, he chose
+  "only … elite confirmed entries as they have the high score here").** The clock book now reads: 05–09 · 09–13
+  every stream at 10x with stream adds; 13–17 every stream at 7x, two new seats, no add; 17–21 · 21–01 the strong
+  trigger only at 10x; 01–05 the confirmed entry only at 10x, no add. In code: `NO_ENTRY_WINDOWS = {"17-21",
+  "21-01", "01-05"}`, `NO_ENTRY_EXEMPT = {("trig_strong", "17-21"), ("trig_strong", "21-01"), ("elite_confirm",
+  "01-05")}`, `WINDOW_LEV = {"13-17": 7.0}`, `ADD_WINDOWS = {"05-09", "09-13"}`. The fire-time rule still holds: a
+  seat fired in a window that is shut for its stream is not taken after that window ends. Measured (16 Nov ledger,
+  stock seats, desk booking, in-sample, thin): 01–05 confirmed entry 86% / +0.81R (7); 21–01 strong trigger 70% /
+  +0.33R (10); 17–21 87% / +0.37R (15); 13–17 all four 67% / +0.21R (9). No reset.
+  **Adds (user, the same hour: "add on 01-05 if go revived agree with it"):** `ADD_PAIRS = {("01-05", "go_revived",
+  "elite_confirm")}` read by `add_ok(win, by, base, now, fired_at)`: in 01–05 GO revived opens no seat but adds
+  one seat of margin to a name held through a confirmed entry. **Add fix:** the feed offers a desk seat for 45
+  minutes and `rank_candidates` folds every stream of a name into one card named after the highest stream, so a
+  GO revived fired within 45 minutes of the confirmed entry was hidden and its add often never made; `try_open`
+  now reads every stream on the card (`plans`) for an add on a held name.
+
 ## 📱 PHONE ROSTER BY ASSET CLASS (2026-11-17) — `tg_roster.py`
 
 User: "New Stream should be introduced for tokenized stocks … For Crypto …" · "measure stocks tokenzied stock

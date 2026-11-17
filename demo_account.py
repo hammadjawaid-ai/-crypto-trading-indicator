@@ -176,8 +176,22 @@ REENTRY_ON = False            # GEN 20: a TP1 bank is final; no momentum re-entr
 # When the stream whose plan a card carries is shut but another stream on the same card is open (a strong
 # trigger beside a star, 17–21), that stream seats with its OWN plan (the card's "plans").
 # Revert: NO_ENTRY_WINDOWS = set().
-NO_ENTRY_WINDOWS: set = {"17-21", "21-01"}
-NO_ENTRY_EXEMPT: set = {("trig_strong", "17-21")}
+# 🕐 GEN 22.5 (user 2026-11-17, after the window chart and table: "1. We have 10x, ad ons all four streams where
+# timings of 05-09 and 09-13 take the higest seats · 2. timings 13-17 7x seats for all four streams and strong
+# trigger and just 2 new seats · 3. timings of 01-05 Star Go revived will be only steam taking the seat ·
+# 4. Strong triggers will take only 10x on 17-21 and 21-01"; asked which stream he meant for 01–05 he answered
+# "01-05 I think we should only have elite confirmed entries as they have the high score here"). THE CLOCK BOOK:
+#   05–09 · 09–13   every stream, 10x, stream adds on
+#   13–17           every stream, 7x, at most 2 new seats in the window, no stream add
+#   17–21 · 21–01   the strong trigger only, 10x
+#   01–05           the confirmed entry only, 10x, no stream add
+# So 01–05 joins the shut windows with the confirmed entry as its one exception, the strong trigger's exception
+# covers 21–01 again, and stream adds are made 05–13 only. MEASURED, told to him (16 Nov ledger, stock seats, desk
+# booking, in-sample, thin): 01–05 confirmed entry 86% / +0.81R (7), GO revived 64% / +0.06R (11), star 50% /
+# −0.04R (6), strong trigger 43% / −0.37R (14); 21–01 strong trigger 70% / +0.33R (10); 17–21 87% / +0.37R (15);
+# 13–17 all four 67% / +0.21R (9); 05–09 strong trigger 54% / −0.11R (13), still at 10x.
+NO_ENTRY_WINDOWS: set = {"17-21", "21-01", "01-05"}
+NO_ENTRY_EXEMPT: set = {("trig_strong", "17-21"), ("trig_strong", "21-01"), ("elite_confirm", "01-05")}
 # 🕐 GEN 22.4 (user 2026-11-17: "priority on demos should be 05-09 , 9-13 signals and 01-05 with full leverage and
 # add ons · 13-17 we can trade but few good ones only with 5x leverage only · strong trigger full leverage even
 # for 17-21 · rest stays as it is"). The clock book of the demo, by the PKT window of the open:
@@ -193,9 +207,18 @@ NO_ENTRY_EXEMPT: set = {("trig_strong", "17-21")}
 # confirmed entry (86% / +0.81R, 7); the strong trigger there read 43% / −0.37R (14) and the star 50% / −0.04R (6).
 # The leverage cut lives here in try_open, never in lev_for (the real-money executor reads lev_for).
 # Revert: WINDOW_LEV = {}, WINDOW_MAX_NEW = {}, ADD_WINDOWS = set().
-WINDOW_LEV: dict = {"13-17": 5.0}
+# GEN 22.5: 13–17 is 7x (it was 5x for an hour under 22.4), and stream adds are made 05–09 and 09–13 only,
+# plus the pairs in ADD_PAIRS (user 2026-11-17: "add on 01-05 if go revived agree with it"): (window, adding
+# stream, the held seat's stream). In 01–05 GO revived opens no seat of its own, but when it fires on a name the
+# demo holds through a confirmed entry, same side, it adds one seat of margin.
+# ADD FIX the same day: the desk feed offers a seat for 45 minutes and rank_candidates folds every stream of a
+# name into ONE card that carries the highest stream's name, so a GO that fired within 45 minutes of the confirmed
+# entry was hidden behind it and its add was often never made. try_open now reads every stream on the card
+# ("plans") for an add on a held name.
+WINDOW_LEV: dict = {"13-17": 7.0}
 WINDOW_MAX_NEW: dict = {"13-17": 2}
-ADD_WINDOWS: set = {"05-09", "09-13", "01-05"}
+ADD_WINDOWS: set = {"05-09", "09-13"}
+ADD_PAIRS: set = {("01-05", "go_revived", "elite_confirm")}
 # 🎮 GEN 16 (user 2026-09-14: "Demo Trading Start Again now. We will
 # have only this and no limit on slots can be 20 at a time depending
 # on the signals with leverage of 10x of our total account 2000
@@ -604,6 +627,21 @@ def time_gate_ok(src, side, now=None) -> bool:
     if not closed:
         return True
     return pkt_window4(now) not in closed
+
+
+def add_ok(win, by, base, now=None, fired_at=None) -> bool:
+    """➕ GEN 22.5: may stream `by` add margin to a seat held through `base` while the PKT clock is in `win`?
+    Yes inside a paired window; else only in ADD_WINDOWS, on a fire from a window that is open for `by` (or
+    from a window paired for it)."""
+    if (win, by, base) in ADD_PAIRS:
+        return True
+    if ADD_WINDOWS and win not in ADD_WINDOWS:
+        return False
+    try:
+        _f = float(fired_at or 0)
+    except (TypeError, ValueError):
+        _f = 0.0
+    return entry_window_ok(by, now, fired_at) or (_f > 0 and (pkt_window4(_f), by, base) in ADD_PAIRS)
 
 
 def window_start(now=None) -> float:
@@ -1049,6 +1087,29 @@ def try_open(state: dict, cands: list, live_fn, active=None,
             continue            # two-key sort (top, rank) — a low
                                 # top-stream rank must not gate the
                                 # cards sorted after it
+        # ➕ GEN 22.2 / 22.5 STREAM ADD: a name the demo already holds takes no second seat; every stream on
+        # the card (not only the one whose plan it carries) may add one seat of margin, once, when add_ok
+        # allows it by the clock. (A seat held by a REPLACE_SRC stream keeps the older path below.)
+        _hp = (next((_p for _p in state["open"] if _p["symbol"] == c["symbol"]), None)
+               if c["symbol"] in held else None)
+        if _hp is not None and _hp.get("src") not in REPLACE_SRC:
+            _cs = sorted(((_v[0], _k, _v[5]) for _k, _v in (c.get("plans") or {}).items()), reverse=True) \
+                or [(0, c["src"], c.get("fired_at"))]
+            for _w9, _as, _af in _cs:
+                if (_as not in ADD_BY or _hp.get("src") not in ADD_BASE or _hp.get("side") != c["side"]
+                        or _as == _hp.get("src") or _as in (_hp.get("add_srcs") or [])
+                        or not add_ok(_win, _as, _hp.get("src"), _t, _af)):
+                    continue
+                _hp.setdefault("add_srcs", []).append(_as)          # one try per stream
+                try:
+                    _lv = float(live_fn(c["symbol"]) or 0)
+                except Exception:
+                    _lv = 0.0
+                if _lv > 0 and ((_lv < _hp["tp1"]) if _hp["side"] == "LONG" else (_lv > _hp["tp1"])):
+                    _ar = _stream_add(state, _hp, _lv, f"{_as} fired on the same name", _t)
+                    if _ar:
+                        STREAM_ADDS.append(_ar)
+            continue
         if not entry_window_ok(c["src"], _t, c.get("fired_at")):
             # 🕐 GEN 22.3: 17–21 and 21–01 PKT take no seat and add no margin. A stream on the same card
             # that is open in this window (the strong trigger, 17–21) seats with its own plan.
@@ -1066,7 +1127,7 @@ def try_open(state: dict, cands: list, live_fn, active=None,
                               and _p.get("src") in REPLACE_SRC), None)
             if _swap is None:
                 # ➕ GEN 22.2: a second / third elite-family stream on a held name adds margin
-                # 🕐 GEN 22.4: only while the clock is in a priority window (05–09, 09–13, 01–05)
+                # 🕐 GEN 22.4 / 22.5: only while the clock is in a priority window (05–09, 09–13)
                 if c["src"] in ADD_BY and (not ADD_WINDOWS or _win in ADD_WINDOWS):
                     _bp = next((_p for _p in state["open"] if _p["symbol"] == c["symbol"]), None)
                     if (_bp is not None and _bp.get("src") in ADD_BASE and _bp.get("side") == c["side"]
@@ -1163,7 +1224,7 @@ def try_open(state: dict, cands: list, live_fn, active=None,
         # what stops a wide-stopped seat from quietly betting the
         # account: HEAT_CAP on total open risk, and free collateral.
         lev = lev_for(c["src"], c.get("conf"), c.get("burst"))
-        lev = min(lev, float(WINDOW_LEV.get(_win, lev)))      # 🕐 GEN 22.4: 13–17 PKT opens at 5x
+        lev = min(lev, float(WINDOW_LEV.get(_win, lev)))      # 🕐 GEN 22.4 / 22.5: 13–17 PKT opens at 7x
         # real-account physics: the stop must sit well inside the
         # slot's margin — a stop past ~liquidation is not a trade.
         if stop_pct >= 0.8 / lev:
