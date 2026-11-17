@@ -169,13 +169,15 @@ REENTRY_ON = False            # GEN 20: a TP1 bank is final; no momentum re-entr
 # windows against 91% / +0.70R (22) outside; GO revived 25% / −0.35R (8) against 77% / +0.23R (35); star 42% /
 # −0.02R (12) against 79% / +0.41R (14)). The strong trigger reads the OTHER way: 80% / +0.36R (25) inside
 # against 60% / −0.04R (43) outside (17–21 87% / +0.37R on 15, 21–01 70% / +0.33R on 10).
-# His answer, minutes later: "just strong triggers of 21-01 can take a seat rest as planned" → NO_ENTRY_EXEMPT
-# holds (stream, window) pairs that stay open: the strong trigger seats 21–01, and is shut 17–21 like the rest.
+# His answer, minutes later: "just strong triggers of 21-01 can take a seat rest as planned" (live for half an
+# hour as 617fd80), then, after seeing the cells: "only strong trigger at the window of 17-21 shows really good
+# signs lets have that only instead of 21-01" → NO_ENTRY_EXEMPT holds the (stream, window) pairs that stay open:
+# the strong trigger seats 17–21, and is shut 21–01 like the rest.
 # When the stream whose plan a card carries is shut but another stream on the same card is open (a strong
-# trigger beside a star, 21–01), that stream seats with its OWN plan (the card's "plans").
+# trigger beside a star, 17–21), that stream seats with its OWN plan (the card's "plans").
 # Revert: NO_ENTRY_WINDOWS = set().
 NO_ENTRY_WINDOWS: set = {"17-21", "21-01"}
-NO_ENTRY_EXEMPT: set = {("trig_strong", "21-01")}
+NO_ENTRY_EXEMPT: set = {("trig_strong", "17-21")}
 # 🎮 GEN 16 (user 2026-09-14: "Demo Trading Start Again now. We will
 # have only this and no limit on slots can be 20 at a time depending
 # on the signals with leverage of 10x of our total account 2000
@@ -1011,7 +1013,7 @@ def try_open(state: dict, cands: list, live_fn, active=None,
                                 # cards sorted after it
         if not entry_window_ok(c["src"], _t, c.get("fired_at")):
             # 🕐 GEN 22.3: 17–21 and 21–01 PKT take no seat and add no margin. A stream on the same card
-            # that is open in this window (the strong trigger, 21–01) seats with its own plan.
+            # that is open in this window (the strong trigger, 17–21) seats with its own plan.
             _alt = sorted(((_v[0], _k) for _k, _v in (c.get("plans") or {}).items()
                            if _k != c["src"] and entry_window_ok(_k, _t, _v[5])), reverse=True)
             if not _alt:
