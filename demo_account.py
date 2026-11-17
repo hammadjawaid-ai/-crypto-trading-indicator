@@ -159,6 +159,23 @@ ADD_SEATS = 1.0
 STREAM_ADDS: list = []        # the adds made by the last try_open call (for the worker's log)
 STOCKS_ONLY = True            # GEN 21: only stock names with a Binance stock perpetual take a seat
 REENTRY_ON = False            # GEN 20: a TP1 bank is final; no momentum re-entry is queued
+# 🕐 GEN 22.3 (user 2026-11-17: "For Demo Trading We wont take trades on the timings of 17-21 and 21-01 for all
+# streams because they doesnt have good win rates"): no new seat and no stream add while the PKT clock is in
+# NO_ENTRY_WINDOWS, nor on a desk seat that was FIRED in one (the feed offers a seat for 45 minutes, so a 00:40
+# fire would otherwise be taken after 01:00). A seat already open keeps its stop, TP1 and near-TP bank all night.
+# MEASURED, told to him at wire time (16 Nov ledger, stock seats of the four streams, desk booking, in-sample:
+# the rule was read off these rows): 17–21 57% / −0.01R (49), 21–01 50% / +0.10R (24), the other four windows
+# 74% / +0.24R (114). The three elite-family streams agree (confirmed entry 46% / −0.13R (28) inside the two
+# windows against 91% / +0.70R (22) outside; GO revived 25% / −0.35R (8) against 77% / +0.23R (35); star 42% /
+# −0.02R (12) against 79% / +0.41R (14)). The strong trigger reads the OTHER way: 80% / +0.36R (25) inside
+# against 60% / −0.04R (43) outside (17–21 87% / +0.37R on 15, 21–01 70% / +0.33R on 10).
+# His answer, minutes later: "just strong triggers of 21-01 can take a seat rest as planned" → NO_ENTRY_EXEMPT
+# holds (stream, window) pairs that stay open: the strong trigger seats 21–01, and is shut 17–21 like the rest.
+# When the stream whose plan a card carries is shut but another stream on the same card is open (a strong
+# trigger beside a star, 21–01), that stream seats with its OWN plan (the card's "plans").
+# Revert: NO_ENTRY_WINDOWS = set().
+NO_ENTRY_WINDOWS: set = {"17-21", "21-01"}
+NO_ENTRY_EXEMPT: set = {("trig_strong", "21-01")}
 # 🎮 GEN 16 (user 2026-09-14: "Demo Trading Start Again now. We will
 # have only this and no limit on slots can be 20 at a time depending
 # on the signals with leverage of 10x of our total account 2000
@@ -569,6 +586,25 @@ def time_gate_ok(src, side, now=None) -> bool:
     return pkt_window4(now) not in closed
 
 
+def entry_window_ok(src, now=None, fired_at=None) -> bool:
+    """🕐 GEN 22.3: False when the PKT clock, or the fire the seat comes from, is in a window that is shut for
+    this stream (NO_ENTRY_WINDOWS less the (stream, window) pairs in NO_ENTRY_EXEMPT)."""
+    if not NO_ENTRY_WINDOWS:
+        return True
+
+    def _shut(ts) -> bool:
+        _w = pkt_window4(ts)
+        return _w in NO_ENTRY_WINDOWS and (src, _w) not in NO_ENTRY_EXEMPT
+
+    if _shut(now):
+        return False
+    try:
+        _f = float(fired_at or 0)
+    except (TypeError, ValueError):
+        _f = 0.0
+    return not (_f > 0 and _shut(_f))
+
+
 # 🕐 GEN 18 STAR CLOCK (user 2026-10-22: "timings are important here, green and
 # yellow are the ones when you take the trade; if it's red for the signal on
 # timing you won't"): the star seat reads the SAME clock cells the phone
@@ -828,9 +864,13 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
                           "kr_ok": bool(p.get("kr_agree")),
                           # GEN 19 sizing inputs (star heat / BTC day, the revival's GO tier)
                           "heat": p.get("heat"), "btc_day": p.get("btc_day"),
-                          "go_tier": p.get("go_tier")}
+                          "go_tier": p.get("go_tier"),
+                          # 🕐 GEN 22.3: the fire time of the plan's stream, and every stream's own plan
+                          "fired_at": p.get("fired_at"),
+                          "plans": {name: (w, e, st, t1, float(t2) if t2 else None, p.get("fired_at"))}}
             else:
                 cur["srcs"].add(name)
+                cur["plans"][name] = (w, e, st, t1, float(t2) if t2 else None, p.get("fired_at"))
                 cur["rank"] = max(cur["rank"], base_rank)
                 cur["score"] = max(cur["score"], sc)
                 cur["burst"] = max(float(cur.get("burst") or 0),
@@ -842,7 +882,7 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
                 if w > cur["w"]:        # higher-class plan wins
                     cur.update({"entry": e, "stop": st, "tp1": t1,
                                 "tp2": float(t2) if t2 else None,
-                                "src": name, "w": w})
+                                "src": name, "w": w, "fired_at": p.get("fired_at")})
     out = list(agg.values())
     # 🔀 the either/or gate: conditional-only candidates trade ONLY
     # with a kronos agreement or a second agreeing model.
@@ -969,6 +1009,16 @@ def try_open(state: dict, cands: list, live_fn, active=None,
             continue            # two-key sort (top, rank) — a low
                                 # top-stream rank must not gate the
                                 # cards sorted after it
+        if not entry_window_ok(c["src"], _t, c.get("fired_at")):
+            # 🕐 GEN 22.3: 17–21 and 21–01 PKT take no seat and add no margin. A stream on the same card
+            # that is open in this window (the strong trigger, 21–01) seats with its own plan.
+            _alt = sorted(((_v[0], _k) for _k, _v in (c.get("plans") or {}).items()
+                           if _k != c["src"] and entry_window_ok(_k, _t, _v[5])), reverse=True)
+            if not _alt:
+                continue
+            _av = c["plans"][_alt[0][1]]
+            c = dict(c, src=_alt[0][1], w=_av[0], entry=_av[1], stop=_av[2], tp1=_av[3], tp2=_av[4],
+                     fired_at=_av[5])
         _swap = None
         if c["symbol"] in held:
             if c["src"] in REPLACE_BY:      # 🔁 GEN 22.1: a conviction seat on this name gives way

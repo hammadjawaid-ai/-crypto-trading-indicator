@@ -588,6 +588,18 @@ priority".
   or the 8% guard), once per stream (`add_srcs` on the position), never at or past TP1. A strong trigger neither
   adds nor receives. The adds of the last call are in `demo_account.STREAM_ADDS`; the worker logs them. No reset.
 
+- **GEN 22.3 (2026-11-17; user: "For Demo Trading We wont take trades on the timings of 17-21 and 21-01 for all
+  streams because they doesnt have good win rates" · "just strong triggers of 21-01 can take a seat rest as
+  planned").** `demo_account.NO_ENTRY_WINDOWS = {"17-21", "21-01"}` and `NO_ENTRY_EXEMPT = {("trig_strong",
+  "21-01")}`, read by `entry_window_ok(src, now, fired_at)` at the top of the `try_open` loop: no new seat and no
+  stream add while the PKT clock is in a shut window, nor on a desk seat FIRED in one (the feed offers a seat for
+  45 minutes). The strong trigger seats 21–01 and is shut 17–21. A card that carries a shut stream's plan but also
+  an open stream (a strong trigger beside a star, 21–01) seats the open stream with its own plan (`plans` on the
+  ranked candidate). Open seats are managed as before; the real-money executor is not touched. Measured on the
+  16 Nov ledger (stock seats of the four streams, desk booking, in-sample): 17–21 57% / −0.01R (49), 21–01 50% /
+  +0.10R (24), the rest 74% / +0.24R (114); the strong trigger alone read 87% / +0.37R (15) and 70% / +0.33R (10)
+  in the two windows. Guard: `.demo_gen22_test.py`. Revert: `NO_ENTRY_WINDOWS = set()`. No reset.
+
 ## 📱 PHONE ROSTER BY ASSET CLASS (2026-11-17) — `tg_roster.py`
 
 User: "New Stream should be introduced for tokenized stocks … For Crypto …" · "measure stocks tokenzied stock
