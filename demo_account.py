@@ -932,9 +932,10 @@ WALK_MAX_S = 6 * 3600.0       # never further back than this (after an outage th
 _CLOSE_TS: list = [None]      # the candle time a walked close is stamped with
 
 
-def walk(state: dict, klines_fn, now=None) -> list:
-    """klines_fn(symbol, start_ts) -> [(open_ts, high, low, close)] one-minute candles, oldest first.
+def walk(state: dict, klines_fn, now=None, bar_s: float = 60.0) -> list:
+    """klines_fn(symbol, start_ts) -> [(open_ts, high, low, close)] candles of bar_s seconds, oldest first.
     Returns manage()'s events. Moves each seat's walk_ts past the candles it has read."""
+    bar_s = float(bar_s)
     global _clock
     events: list = []
     now = time.time() if now is None else float(now)
@@ -945,7 +946,7 @@ def walk(state: dict, klines_fn, now=None) -> list:
     for p in opens:
         start = max(float(p.get("walk_ts") or 0), float(p.get("opened_at") or 0), now - WALK_MAX_S)
         try:
-            rows = [r for r in (klines_fn(p["symbol"], start) or []) if r[0] >= start and r[0] + 60 <= now]
+            rows = [r for r in (klines_fn(p["symbol"], start) or []) if r[0] >= start and r[0] + bar_s <= now]
         except Exception:
             rows = []
         idx[p["symbol"]] = {float(r[0]): r for r in rows}
@@ -966,12 +967,12 @@ def walk(state: dict, klines_fn, now=None) -> list:
                     if _ph == "close":
                         return r[3]
                     return r[2] if (_sd.get(sym) == "LONG") == (_ph == "bad") else r[1]
-                _clock = (lambda _t=t: _t + 59.0)
-                _CLOSE_TS[0] = t + 59.0
+                _clock = (lambda _t=t: _t + bar_s - 1.0)
+                _CLOSE_TS[0] = t + bar_s - 1.0
                 events += manage(state, _px, None)
             for p in state.get("open") or []:
                 if t in idx.get(p["symbol"], {}):
-                    p["walk_ts"] = t + 60.0
+                    p["walk_ts"] = t + bar_s
     finally:
         _clock = _keep
         _CLOSE_TS[0] = None

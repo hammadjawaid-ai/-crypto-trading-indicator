@@ -161,7 +161,18 @@ done.set()
 th.join()
 check("watcher tick: while the cycle holds the book the tick does nothing and gives up within seconds",
       ev == [] and len(da.load()["open"]) == 1 and _time.time() - t0 < 4.0, (ev, _time.time() - t0))
-check("the watcher wakes every 5 minutes", dw.PERIOD_S == 300.0, dw.PERIOD_S)
+check("the watcher wakes every 5 minutes and reads 3-minute candles", dw.PERIOD_S == 300.0 and dw.BAR == "3m" and dw.BAR_S == 180.0, (dw.PERIOD_S, dw.BAR))
+st = seat()
+k3 = lambda sym, start: [r for r in [(M0, 106.5, 99.5, 106.0)] if r[0] >= start]
+check("walk on 3-minute candles: a candle is not read until its three minutes are over", da.walk(st, k3, now=M0 + 100, bar_s=180.0) == [] and len(st["open"]) == 1)
+ev = da.walk(st, k3, now=M0 + 181, bar_s=180.0)
+check("walk on 3-minute candles: read once closed, the close stamped at the end of that candle",
+      len(ev) == 1 and ev[0][1]["reason"] == "TP1 — banked 100%" and abs(ev[0][1]["closed_at"] - (M0 + 179)) < 1e-6, ev)
+st = seat()
+da.save(st)
+seen = []
+ev = dw.tick(now=M0 + 200, klines_fn=lambda sym, start: (seen.append(1) or [(M0, 100.5, 95.9, 100.0)]))
+check("watcher tick on 3-minute candles: a wick inside the candle still takes the stop", len(ev) == 1 and ev[0][1]["reason"] == "stop" and seen == [1], ev)
 dw.ON = False
 check("demo_watch.ON = False: no tick, no thread", dw.tick(now=M0 + 200, klines_fn=K([(0, 106.5, 99.5, 106.0)])) == [] and dw.start() is False)
 dw.ON = True

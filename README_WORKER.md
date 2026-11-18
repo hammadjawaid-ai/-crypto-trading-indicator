@@ -733,7 +733,7 @@ one fact: the demo touched its book once per worker cycle (17–20 minutes), at 
   `WINDOW_PICK` window (13–17: seats are picked by win rate at the end of the cycle), never inside the cycle's own
   demo block. Off: `agent_worker.DEMO_INSTANT = False`.
 - **The watcher** (`demo_watch`, started once from `cycle()`; `PERIOD_S = 300`, his word after the first build at 60 s: "switch it to 5-10 mints"): every 5 minutes, when the demo holds a seat, it
-  reads the one-minute candles closed since the seat was last looked at (Binance spot) and replays them through
+  reads the 3-minute candles (`BAR = "3m"`; one-minute for the first hour, then his word: "3 mint candles check and every 5 to 10 minutes will be suitab;e") closed since the seat was last looked at (Binance spot) and replays them through
   `demo_account.walk`, which drives the same `manage()` as the cycle: the bad extreme of each minute first, then
   the good one, then the close. A stop or TP1 is booked at its level and stamped with the minute it happened; a
   wick counts (the MVLL case of 17 Nov would have been a stop). The demo's win rate should come down to what an
