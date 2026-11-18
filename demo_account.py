@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import time
 
 import config
@@ -157,6 +158,7 @@ ADD_BASE: set = {"elite_confirm", "go_revived", "elite_star"}
 ADD_BY: set = {"elite_confirm", "go_revived", "elite_star"}
 ADD_SEATS = 1.0
 STREAM_ADDS: list = []        # the adds made by the last try_open call (for the worker's log)
+SKIP_KEEP = 60                # 📝 lines kept in the book's "seat not taken, and why" log
 STOCKS_ONLY = True            # GEN 21: only stock names with a Binance stock perpetual take a seat
 REENTRY_ON = False            # GEN 20: a TP1 bank is final; no momentum re-entry is queued
 # 🕐 GEN 22.3 (user 2026-11-17: "For Demo Trading We wont take trades on the timings of 17-21 and 21-01 for all
@@ -875,11 +877,107 @@ def load() -> dict:
 
 
 def save(state: dict) -> None:
+    """Atomic since 2026-11-18 (write beside, then replace): the one-minute watcher saves often, and the
+    page, a separate process, must never read half a file (it would show an empty book)."""
     try:
-        with open(STATE_FILE, "w", encoding="utf-8") as f:
+        _tmp = str(STATE_FILE) + ".tmp"
+        with open(_tmp, "w", encoding="utf-8") as f:
             json.dump(state, f)
+        os.replace(_tmp, STATE_FILE)
     except Exception:
         pass
+
+
+# 🔒 2026-11-18 THE STATE LOCK. Two writers now touch the demo book inside the worker process: the cycle's demo
+# block (load … manage … try_open … save) and the fast paths (the one-minute watcher, the seat taken the moment
+# a desk seat opens). Whoever writes holds this lock from its load to its save. It is NOT re-entrant on
+# purpose: a fast path that finds the lock already held by its own thread is running inside the cycle's
+# block and must do nothing (lock_mine). A block that raised before its save keeps the lock until the next
+# cycle's block saves: the fast paths idle for that one cycle.
+_LOCK = threading.Lock()
+_LOCK_OWNER: list = [None]
+
+
+def lock(timeout=None) -> bool:
+    me = threading.get_ident()
+    if _LOCK_OWNER[0] == me:
+        return True
+    ok = _LOCK.acquire() if timeout is None else _LOCK.acquire(timeout=float(timeout))
+    if ok:
+        _LOCK_OWNER[0] = me
+    return bool(ok)
+
+
+def unlock() -> None:
+    if _LOCK_OWNER[0] == threading.get_ident():
+        _LOCK_OWNER[0] = None
+        try:
+            _LOCK.release()
+        except RuntimeError:
+            pass
+
+
+def lock_mine() -> bool:
+    return _LOCK_OWNER[0] == threading.get_ident()
+
+
+# 🕐 2026-11-18 THE ONE-MINUTE WALK (user: "closing when tp is hit is slow on the demo trading can we fasten
+# that for accuracy"; and the MVLL star of 17 Nov, which the demo banked at TP1 although a one-minute wick had
+# taken the stop: the demo saw price once a worker cycle, every 17–20 minutes). walk() replays every CLOSED
+# one-minute candle since a seat was last looked at through the same manage() that the cycle uses: for each
+# minute the bad extreme first (the low for a long), then the good one, then the close. So a stop or a TP1 is
+# booked at its level, in the minute it happened, and a wick counts. The first, partial minute of a seat is
+# not read. Expect the demo's win rate to come DOWN to what an exchange stop would have given.
+WALK_MAX_S = 6 * 3600.0       # never further back than this (after an outage the cycle's own check stands)
+_CLOSE_TS: list = [None]      # the candle time a walked close is stamped with
+
+
+def walk(state: dict, klines_fn, now=None) -> list:
+    """klines_fn(symbol, start_ts) -> [(open_ts, high, low, close)] one-minute candles, oldest first.
+    Returns manage()'s events. Moves each seat's walk_ts past the candles it has read."""
+    global _clock
+    events: list = []
+    now = time.time() if now is None else float(now)
+    opens = list(state.get("open") or [])
+    if not opens:
+        return events
+    idx: dict = {}
+    for p in opens:
+        start = max(float(p.get("walk_ts") or 0), float(p.get("opened_at") or 0), now - WALK_MAX_S)
+        try:
+            rows = [r for r in (klines_fn(p["symbol"], start) or []) if r[0] >= start and r[0] + 60 <= now]
+        except Exception:
+            rows = []
+        idx[p["symbol"]] = {float(r[0]): r for r in rows}
+    times = sorted({t for d in idx.values() for t in d})
+    if not times:
+        return events
+    _hist = state.get("equity_hist")
+    _n_hist = len(_hist) if isinstance(_hist, list) else None
+    _keep = _clock
+    try:
+        for t in times:
+            sides = {q["symbol"]: q.get("side") for q in state.get("open") or []}
+            for phase in ("bad", "good", "close"):
+                def _px(sym, _t=t, _ph=phase, _sd=sides):
+                    r = idx.get(sym, {}).get(_t)
+                    if not r:
+                        return None
+                    if _ph == "close":
+                        return r[3]
+                    return r[2] if (_sd.get(sym) == "LONG") == (_ph == "bad") else r[1]
+                _clock = (lambda _t=t: _t + 59.0)
+                _CLOSE_TS[0] = t + 59.0
+                events += manage(state, _px, None)
+            for p in state.get("open") or []:
+                if t in idx.get(p["symbol"], {}):
+                    p["walk_ts"] = t + 60.0
+    finally:
+        _clock = _keep
+        _CLOSE_TS[0] = None
+        if _n_hist is not None:
+            del state["equity_hist"][_n_hist:]      # the cycle writes the equity curve, not the walk
+    return events
 
 
 def rank_candidates(pools: dict, tier_form: dict) -> list:
@@ -1035,6 +1133,22 @@ def try_open(state: dict, cands: list, live_fn, active=None,
     Returns (opened, rotated)."""
     del STREAM_ADDS[:]
     opened, rotated = [], []
+
+    def _skip(c9, why):
+        # 📝 2026-11-18 (user: "it didnt picked signals from 01-05 elitte confirmed entry can you tell me why"):
+        # every offered seat the demo refuses leaves one line in the book (the last SKIP_KEEP), shown on the
+        # demo page; the same name, stream and reason is not repeated within the hour
+        try:
+            _lg9 = state.setdefault("skip_log", [])
+            _k9 = (c9.get("symbol"), c9.get("src"), str(why)[:18])
+            for _e9 in reversed(_lg9[-30:]):
+                if (_e9.get("symbol"), _e9.get("src"), str(_e9.get("why"))[:18]) == _k9 and _t - float(_e9.get("ts") or 0) < 3600:
+                    return
+            _lg9.append({"ts": _t, "symbol": c9.get("symbol"), "base": c9.get("base"), "side": c9.get("side"),
+                         "src": c9.get("src"), "why": str(why)})
+            del _lg9[:-SKIP_KEEP]
+        except Exception:
+            pass
     # 🚧 GEN 11 DAILY RAILS (user 2026-09-10: "cap of 500 dollars
     # daily maximum earn and 150 dollars maximum per day lost — no
     # trades to be taken if that hits"): realized P&L over the last
@@ -1050,6 +1164,8 @@ def try_open(state: dict, cands: list, live_fn, active=None,
     _eq_day0 = max(1.0, float(state["balance"]) - _day_pnl)
     _loss_rail = DAY_MAX_LOSS_PCT * _eq_day0
     if _day_pnl >= DAY_MAX_GAIN or _day_pnl <= -_loss_rail:
+        for _c9 in cands[:3]:
+            _skip(_c9, f"daily rail: the last 24h booked {_day_pnl:+.0f}$, no new seat")
         return [], []
     # 🪑 dynamic seats (user: "10 slots at the best days of winning
     # ... when the signals are low we can trim down to 5 or 6"):
@@ -1136,6 +1252,8 @@ def try_open(state: dict, cands: list, live_fn, active=None,
                     _ar = _stream_add(state, _hp, _lv, f"{_as} fired on the same name", _t)
                     if _ar:
                         STREAM_ADDS.append(_ar)
+            if float(_hp.get("opened_at") or 0) < float(c.get("fired_at") or 0) - 120:
+                _skip(c, "already holding this name")      # only when the seat predates the signal
             continue
         if not entry_window_ok(c["src"], _t, c.get("fired_at")):
             # 🕐 GEN 22.3: 17–21 and 21–01 PKT take no seat and add no margin. A stream on the same card
@@ -1143,6 +1261,7 @@ def try_open(state: dict, cands: list, live_fn, active=None,
             _alt = sorted(((_v[0], _k) for _k, _v in (c.get("plans") or {}).items()
                            if _k != c["src"] and entry_window_ok(_k, _t, _v[5])), reverse=True)
             if not _alt:
+                _skip(c, f"{_win} PKT (or the fire's window) is shut for this stream")
                 continue
             _av = c["plans"][_alt[0][1]]
             c = dict(c, src=_alt[0][1], w=_av[0], entry=_av[1], stop=_av[2], tp1=_av[3], tp2=_av[4],
@@ -1172,6 +1291,7 @@ def try_open(state: dict, cands: list, live_fn, active=None,
                                 STREAM_ADDS.append(_ar)
                 continue
         if _wmax is not None and _wnew >= _wmax:
+            _skip(c, f"{_win} PKT has already taken its {_wmax} seats")
             continue            # 🕐 GEN 22.4: 13–17 PKT takes a few seats only
         if not time_gate_ok(c["src"], c["side"], _t):
             continue            # ⏰ GEN 16.5: 🔴 21-05 PKT, long seat closed
@@ -1180,11 +1300,13 @@ def try_open(state: dict, cands: list, live_fn, active=None,
             continue            # 🔴 DON'T window for this side — no seat
         _sz = seat_size(c, _t)    # ⭐ GEN 19: the book's cell → full / half / double, or no seat
         if _sz[0] is None:
+            _skip(c, "this stream has no seat on the roster")
             continue
         _res = SPARE_RESERVE.get(c["src"])
         if _res is not None and len(state["open"]) >= _slot_cap - _res:
             continue            # 🪑 spare-only stream: seats kept free
         if _swap is None and len(state["open"]) >= _slot_cap and not _rotate():
+            _skip(c, "the board is full")
             continue            # board full, nothing rotatable (a swap adds no seat)
         _cap = MAX_PER_SRC.get(c["src"])
         if _cap is not None and src_n.get(c["src"], 0) >= _cap:
@@ -1210,15 +1332,19 @@ def try_open(state: dict, cands: list, live_fn, active=None,
         except Exception:
             live = 0.0
         if live <= 0:
+            _skip(c, "no live price")
             continue
         lng = c["side"] == "LONG"
         prog = ((live - c["entry"]) / (c["tp1"] - c["entry"]) if lng
                 else (c["entry"] - live) / (c["entry"] - c["tp1"]))
         dead = live <= c["stop"] if lng else live >= c["stop"]
         if dead or prog > ZONE_MAX:
+            _skip(c, "price is already through the stop" if dead else
+                  f"price already ran {prog * 100:.0f}% of the way to TP1 (limit {ZONE_MAX * 100:.0f}%)")
             continue
         stop_pct = abs(live - c["stop"]) / live
         if stop_pct <= 0.001 or stop_pct > STOP_MAX_PCT:
+            _skip(c, f"stop {stop_pct * 100:.2f}% from the live price is out of range")
             continue
         # 📐 RR-AT-OPEN GUARD (GEN 15, from the 09-13 star autopsy):
         # seats open at the LIVE price with the plan's stop/TP1, so
@@ -1255,6 +1381,7 @@ def try_open(state: dict, cands: list, live_fn, active=None,
         # real-account physics: the stop must sit well inside the
         # slot's margin — a stop past ~liquidation is not a trade.
         if stop_pct >= 0.8 / lev:
+            _skip(c, f"stop {stop_pct * 100:.1f}% away is too wide for {lev:g}x")
             continue
         _bal = max(1.0, float(state["balance"]))
         _heat = 0.0
@@ -1272,10 +1399,12 @@ def try_open(state: dict, cands: list, live_fn, active=None,
                 continue
         margin = _bal / MAX_SLOTS * float(_sz[0])   # GEN 19: × the cell's multiplier
         if margin > _bal - _m_used:
+            _skip(c, "no free collateral")
             continue            # collateral spent — no seat
         notional = margin * lev
         risk_usd = notional * stop_pct
         if (_heat + risk_usd) / _bal > HEAT_CAP:
+            _skip(c, "the heat cap (open risk) is reached")
             continue            # portfolio already carrying its heat
         fee_in = notional * FEE
         if _swap is not None:   # 🔁 every check passed: the conviction seat closes at the live price
@@ -1322,7 +1451,7 @@ def _close_qty(state, p, qty, px, reason) -> dict:
            "entry": p["entry"], "exit": px, "qty": qty,
            "pnl": round(pnl - fee, 2), "reason": reason,
            "src": p["src"], "opened_at": p["opened_at"],
-           "closed_at": time.time()}
+           "closed_at": (_CLOSE_TS[0] or time.time())}
     return rec
 
 

@@ -720,3 +720,28 @@ rule of 15m rule stops" · "we will have this information of updated win rates f
   the worker passes `try_open(window_rank=…)` each stream's win rate over its closed stock seats opened in that PKT
   window (`tg_roster._stock_rows`, at least `WINDOW_PICK_MIN = 3` closes), and the window's two seats go to the
   best-ranked stream first; a card counts by the best-ranked stream on it; unranked streams keep the roster order.
+
+## 🕐 THE DEMO'S FAST PATHS (2026-11-18) — `demo_watch.py`, `demo_account.walk`, `agent_worker._demo_instant`
+
+User: "it didnt picked signals from 01-05 elitte confirmed entry can you tell me why? though they were good
+signals" · "closing when tp is hit is slow on the demo trading can we fasten that for accuracy". Both came from
+one fact: the demo touched its book once per worker cycle (17–20 minutes), at the end of it.
+
+- **Seat at the signal** (`agent_worker._demo_instant`, set as `shadow_trader.DEMO_HOOK`): the moment the desk
+  opens a stock seat of a demo stream, the demo runs `try_open` on that one candidate. Before, a fast signal was
+  refused minutes later because price had run more than 25% of the way to TP1 (`ZONE_MAX`). Not in a
+  `WINDOW_PICK` window (13–17: seats are picked by win rate at the end of the cycle), never inside the cycle's own
+  demo block. Off: `agent_worker.DEMO_INSTANT = False`.
+- **The watcher** (`demo_watch`, started once from `cycle()`; `PERIOD_S = 300`, his word after the first build at 60 s: "switch it to 5-10 mints"): every 5 minutes, when the demo holds a seat, it
+  reads the one-minute candles closed since the seat was last looked at (Binance spot) and replays them through
+  `demo_account.walk`, which drives the same `manage()` as the cycle: the bad extreme of each minute first, then
+  the good one, then the close. A stop or TP1 is booked at its level and stamped with the minute it happened; a
+  wick counts (the MVLL case of 17 Nov would have been a stop). The demo's win rate should come down to what an
+  exchange stop gives. Off: `demo_watch.ON = False`.
+- **The lock** (`demo_account.lock / unlock / lock_mine`): the cycle's demo block holds it from its `load()` to
+  its `save()`; the watcher and the instant seat take it for their own load-to-save, wait a few seconds, else skip.
+  `save()` is atomic now (write beside, replace), so the page never reads half a file.
+- **Seats not taken, and why** (`state["skip_log"]`, last `SKIP_KEEP = 60`; the demo page's 📝 list): every
+  refusal in `try_open` leaves one line (price already ran, window shut, 13–17 seats used, stop too wide for the
+  leverage, heat, collateral, already holding the name when the seat predates the signal).
+- Guard: `.demo_fast_test.py` (40 checks: lock, atomic save, walk, tick, hook, instant seat, reasons log).

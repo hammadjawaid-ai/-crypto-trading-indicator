@@ -82,6 +82,7 @@ DEMO_FEED: list = []          # 🎮 GEN 21: desk seats on stock names, offered 
 DEMO_FEED_TIERS: set = {"elite_confirm", "go_revived", "elite_star", "trig_strong"}   # elite_conv was here for an hour (GEN 22), removed 22.2
 DEMO_FEED_TTL_S = 2700        # a seat is offered for 45 minutes (the worker goes round in 17–20)
 DEMO_RULE_MAX = 0.078         # 🛡 the demo takes the stop rule's stop only while it sits under 7.8% from entry
+DEMO_HOOK = None              # 🎮 callable(feed entry), set by the worker: the demo's seat is taken as the desk opens it
 
 
 def open_from_signal(tier: str, p: dict, live_px: float | None) -> bool:
@@ -168,6 +169,11 @@ def open_from_signal(tier: str, p: dict, live_px: float | None) -> bool:
                               "plan_stop": plan_stop, "tp1": tp1, "tp2": tp2 or None, "conf": _cf, "heat": _ht,
                               "score": float(p.get("score") or 85), "burst": 0.0, "src": tier[4:], "fired_at": time.time()})
             del DEMO_FEED[:-60]
+            # 🎮 2026-11-18: the demo takes this seat NOW instead of at the end of the worker's cycle (the hook is
+            # set by the worker; see agent_worker._demo_instant). A fast signal used to be refused minutes later
+            # because price had already run more than a quarter of the way to TP1.
+            if DEMO_HOOK is not None:
+                DEMO_HOOK(DEMO_FEED[-1])
     except Exception:
         pass
     return True

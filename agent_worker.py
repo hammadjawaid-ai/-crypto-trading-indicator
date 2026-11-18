@@ -32,6 +32,7 @@ import tg_cells        # 🕐 2026-11-08: the one window-stamp rule for every be
 import tg_roster       # 📱 2026-11-17: the phone roster by asset class (class rule, stock cards, rang-bell log)
 import stop_rule       # 🛡 2026-11-17: the stop rule (coins 4h, stocks 15m) for desk seats and entry bells
 stop_rule.LIVE = True  # the worker is the one process that may fetch the rule's candles
+import demo_watch      # 🕐 2026-11-18: the demo's one-minute watcher (TP1 / stop on candle highs and lows)
 import bank_zone
 import support_resistance
 import rung_stats
@@ -2505,6 +2506,47 @@ STAR_CONFIRM_REC = "gated stars with one in the 6h before 65% / +0.43R (55) vs 5
 ROSTER_TS = 1794872916    # the roster cut-over (17 Nov 2026): 🏦 TP1 pings for bells rung before it bridge from the old streams for 48h
 
 
+DEMO_INSTANT = True      # 🎮 2026-11-18: the demo takes a seat as the desk opens it. False = end of the cycle only
+
+
+def _demo_instant(feed):
+    """🎮 The demo's seat, taken the moment the desk opens the stock seat it is fed from (shadow_trader.DEMO_HOOK).
+    User 2026-11-18: "it didnt picked signals from 01-05 elitte confirmed entry … though they were good signals".
+    The demo used to look at its feed once, at the end of the worker's cycle, minutes after the signal; a seat
+    whose price had by then run more than a quarter of the way to TP1 was refused (demo_account.ZONE_MAX), so
+    the fast signals were the ones it missed. Same rules as the cycle's own pass (try_open: the clock book, one
+    seat a name, stream adds, the 10x guard, heat, collateral). Not in a WINDOW_PICK window (13–17): there the
+    seats are picked by win rate at the end of the cycle. Never inside the cycle's own demo block (lock_mine).
+    Any error leaves the seat to the cycle's pass."""
+    try:
+        if not DEMO_INSTANT or demo_account.lock_mine():
+            return
+        if not demo_account.lock(timeout=3.0):
+            return
+        try:
+            # read the clock only once the book is ours: the one-minute walk pins demo_account's clock while it runs
+            if demo_account.pkt_window4() in demo_account.WINDOW_PICK:
+                return
+            _st_i = demo_account.load()
+            _rk_i = demo_account.rank_candidates({str(feed.get("src")): [dict(feed)]}, {})
+            _op_i, _rt_i = demo_account.try_open(_st_i, _rk_i, binance_client.get_ticker_price)
+            _ad_i = list(demo_account.STREAM_ADDS)
+            demo_account.save(_st_i)
+            for _p_i in _op_i:
+                print(f"[demo] 🎮 seat taken at the signal: {_p_i.get('base')} {_p_i.get('side')} via "
+                      f"{_p_i.get('src')} at {_p_i.get('entry')}", flush=True)
+            for _a_i in _ad_i:
+                print(f"[demo] ➕ margin added at the signal: {_a_i.get('base')} {_a_i.get('side')} "
+                      f"({_a_i.get('why')})", flush=True)
+        finally:
+            demo_account.unlock()
+    except Exception as _di_exc:
+        print("  demo instant seat error:", _di_exc, flush=True)
+
+
+shadow_trader.DEMO_HOOK = _demo_instant
+
+
 def _rule_card(text, sig, key=None):
     """🛡 the entry bell's text with its SL swapped to the stop rule's (coins 4h, stocks 15m) and the 🛡 line added
     (tg_roster.rule_card on stop_rule.for_signal). The signal and its gate keep the plan stop. On any miss the
@@ -2741,6 +2783,11 @@ _HYGIENE_DONE = False     # 🧹 the ledger sweep runs once per process
 def cycle() -> None:
     global _HYGIENE_DONE
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    try:   # 🕐 2026-11-18: the demo's one-minute watcher, started once (launch.py loops cycle(), never main())
+        if demo_watch.start():
+            print("🕐 demo watch: TP1 / stop checks every 5 minutes started", flush=True)
+    except Exception as _dw_exc:
+        print("  demo watch start error:", _dw_exc, flush=True)
     # 🧹 LEDGER HYGIENE (2026-11-05, floor 0.3% 2026-11-06): void the
     # thin-stop rows so no tier's Decision Desk light rides on -717R (or
     # +65R) of accounting noise. HERE, on the first cycle — not in main():
@@ -6556,6 +6603,7 @@ def cycle() -> None:
                       f"{_rec18['side']} {_rec18['pnl']:+.2f}$", flush=True)
         except Exception as _c18_exc:
             print("  demo cut-over error:", _c18_exc, flush=True)
+        demo_account.lock()      # 🔒 2026-11-18: held to the save below; the fast paths wait or skip
         _dz = demo_account.load()
         # GEN 6 (user 2026-08-23: "we only go with Strong triggers
         # and Re Run, and Elite conviction max... nothing else should
@@ -7358,6 +7406,7 @@ def cycle() -> None:
                   f"${_sa22.get('margin'):,.0f} at {_sa22.get('px')} ({_sa22.get('why')}); "
                   f"position ${_sa22.get('notional_total'):,.0f}", flush=True)
         demo_account.save(_dz)
+        demo_account.unlock()
         # 💸 GEN 10 LIVE (user 2026-09-07: "move from demo trading to
         # my real money with the same gen 10 demo", $1,500, full
         # sizing by explicit choice): the SAME ranked list the demo

@@ -10132,6 +10132,22 @@ if active_section == "🎮 Demo Trading":
                     st.line_chart(_cdf, height=190)
         except Exception:
             pass
+    # 📝 2026-11-18: every signal the demo was offered and did not take, with the reason
+    try:
+        _sk_rows = list(_dz.get("skip_log") or [])[-40:][::-1]
+        with st.expander(f"📝 Seats not taken, and why ({len(_sk_rows)})", expanded=False):
+            if not _sk_rows:
+                st.caption("· Nothing refused yet. Every signal the demo is offered and does not take leaves "
+                           "one line here (since 18 Nov).")
+            else:
+                import pandas as _dz_pd3
+                _skd = _dz_pd3.DataFrame(_sk_rows)
+                _skd["when (PKT)"] = _dz_pd3.to_datetime(
+                    _skd["ts"].astype(float) + 5 * 3600, unit="s").dt.strftime("%m-%d %H:%M")
+                st.dataframe(_skd[["when (PKT)", "base", "side", "src", "why"]],
+                             use_container_width=True, hide_index=True)
+    except Exception:
+        pass
     # closed trades
     st.markdown("#### 📋 Closed trades")
     if not _closedp:
