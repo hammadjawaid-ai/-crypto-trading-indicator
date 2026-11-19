@@ -60,6 +60,13 @@ PARTIAL_FRACTION = 0.5
 # 🛡 2026-11-17: positions open on the stop rule's stop (coins 4h, stocks 15m), see open_position. False = the
 # alert's own stop, as before.
 STOP_RULE = True
+# 🎯 2026-11-20 THE 92% CLOSE (user, after a TQQQB demo seat that climbed towards its TP1 and ended at the stop: "one
+# thing I want ti change in demo and paper trading as well … if the price is almost 92-95% to tp1 we should close
+# it"). A position closes in full once price has travelled NEAR_TARGET of the way from its entry to its target,
+# booked AT THAT LEVEL (an order that closes at 92% rests at 92%, so a move that goes on to the target is booked
+# at 92% too: every win pays 8% less). A PREMIUM position that chases TP2 is left alone (its plan is to lock TP1
+# and run). The closed record keeps exit_reason "target" and carries near_target. 0 = off.
+NEAR_TARGET = 0.92
 
 
 def load_state(path: Path) -> dict:
@@ -481,12 +488,20 @@ def evaluate(state: dict, prices: dict[str, float]) -> list[dict]:
         hit_stop = (price <= pos["stop"]) if long else (price >= pos["stop"])
         hit_target = ((price >= pos["target"]) if long
                       else (price <= pos["target"]))
-        if not (hit_stop or hit_target):
+        # 🎯 THE 92% CLOSE (NEAR_TARGET above): the level is passed before the target, so it is the fill
+        _near_px = None
+        if (NEAR_TARGET and not hit_stop and not pos.get("chase_tp2_eligible")
+                and not pos.get("chasing_tp2")):
+            _tgt_d = abs(pos["target"] - pos["entry"])
+            _near_lvl = pos["entry"] + (1 if long else -1) * float(NEAR_TARGET) * _tgt_d
+            if _tgt_d > 0 and ((price >= _near_lvl) if long else (price <= _near_lvl)):
+                _near_px = float(_near_lvl)
+        if not (hit_stop or hit_target or _near_px is not None):
             keep.append(pos)
             continue
         # Stop takes priority over target (the conservative assumption when
         # we lack intra-bar data).
-        exit_price = pos["stop"] if hit_stop else pos["target"]
+        exit_price = pos["stop"] if hit_stop else (_near_px if _near_px is not None else pos["target"])
         pnl_per_unit = ((exit_price - pos["entry"]) if long
                         else (pos["entry"] - exit_price))
         pnl_usd = pnl_per_unit * pos["qty"]
@@ -499,6 +514,8 @@ def evaluate(state: dict, prices: dict[str, float]) -> list[dict]:
             "pnl_pct": round(pnl_usd / state["balance"] * 100, 2)
                        if state["balance"] else 0.0,
         })
+        if not hit_stop and _near_px is not None:
+            closed["near_target"] = float(NEAR_TARGET)      # 🎯 closed at this share of the way to the target
         state["closed"].append(closed)
         state["balance"] = round(state["balance"] + pnl_usd, 2)
         just_closed.append(closed)

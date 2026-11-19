@@ -211,6 +211,12 @@ REENTRY_ON = False            # GEN 20: a TP1 bank is final; no momentum re-entr
 # that is the strong trigger (71% on 7); the revival has 2 closes there, the confirmed entry and the star none.
 NO_ENTRY_WINDOWS: set = {"17-21", "21-01", "01-05"}
 NO_ENTRY_EXEMPT: set = {("trig_strong", "21-01"), ("elite_confirm", "01-05"), ("go_revived", "01-05")}
+# 🚫 GEN 22.8 (user 2026-11-20: "i beleive we should close straong trigger as it isnt having much of a sucess in
+# it"): a stream in STREAM_OFF opens no seat and adds no margin (rank_candidates drops it before a card is made), so
+# 21–01 PKT, which was the strong trigger's alone, now opens nothing. A strong-trigger seat already open runs out on
+# its own stop / 92% close. The roster, the clock book and the 13–17 pick are left as they were, so
+# STREAM_OFF = set() brings the strong trigger back exactly as it was.
+STREAM_OFF: set = {"trig_strong"}
 WINDOW_PICK: set = {"13-17"}
 WINDOW_PICK_MIN = 3
 # 🕐 GEN 22.4 (user 2026-11-17: "priority on demos should be 05-09 , 9-13 signals and 01-05 with full leverage and
@@ -330,6 +336,20 @@ NEAR_TP_FADE = 0.60          # how far it has given back
 # 🪜 GEN 19: the fade bank is OFF — the ≥69% cells were measured on the desk ladder, so the
 # book exits the same way (LADDER_SRC below). Revert: put the streams back in this set.
 NEAR_TP_SRC: set = {"elite_confirm", "go_revived", "elite_star", "trig_strong", "elite_conv"}   # GEN 20–22: the 85% fade bank for every lane
+# 🎯 GEN 22.8 THE 92% CLOSE (user 2026-11-20, after the TQQQB confirmed-entry seat of 19 Nov, which climbed towards
+# its TP1 and ended at the stop, −$334 with its added margin: "if the price is almost 92-95% to tp1 we should close
+# it"). CAVEAT TOLD TO HIM: that seat's fade bank never fired although the watcher was reading every 3-minute
+# candle, so by the demo's own numbers it had printed LESS than 85% of the way (peak 56.23 from an averaged entry
+# of 53.91); this rule would not have closed it. A seat closes IN FULL the moment price has travelled
+# NEAR_TP_TOUCH of the way from its entry to TP1, and it is booked AT THAT LEVEL, never higher: an order that
+# closes at 92% has to rest at 92%, so a move that goes on to TP1 is booked at 92% too. In effect TP1 sits 8% of
+# its distance nearer; every win pays 8% less and a seat that turns between 92% and 100% is a win instead of a
+# fade bank or a stop. The fade bank above still covers a seat that peaks between 85% and 92%.
+# MEASURED, told to him (16 Nov ledger, stock seats of the demo's four streams, 15-minute candles, the 15m rule's
+# stop, in-sample): 73% / +0.05R (187) with it against 72% / +0.05R without, so about the same; under the fade
+# bank no seat of the 187 had printed 92% and still ended at the stop. Off: NEAR_TP_TOUCH = 0.
+NEAR_TP_TOUCH = 0.92
+NEAR_TP_TOUCH_SRC: set = {"elite_confirm", "go_revived", "elite_star", "trig_strong", "elite_conv"}
 # 🪜 THE DESK LADDER (shadow_trader's exit law, now the demo's for every GEN 19 lane): stop
 # → entry at +1R · stop → TP1 when TP1 prints · after TP1 the stop trails the peak by 1.2R ·
 # TP2 closes · 48h cuts at the live price. Nothing banks at TP1 — a winner runs to TP2 or
@@ -996,7 +1016,7 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
         # that is not on it takes no seat, no matter what a caller
         # puts in the pools — previously an unlisted name inherited a
         # default weight and could seat on rank alone.
-        if name not in CLASS_W:
+        if name not in CLASS_W or name in STREAM_OFF:
             continue
         w = CLASS_W[name]
         form = max(-10.0, min(float(tier_form.get(name, 0.0) or 0.0),
@@ -1708,6 +1728,18 @@ def manage(state: dict, live_fn, kr_get=None, addon_fn=None) -> list:
                 _ar = _add_on(state, p, live, _why, float(_clock()))
                 if _ar:
                     events.append(("add", _ar))
+        # 🎯 GEN 22.8 THE 92% CLOSE: price has travelled NEAR_TP_TOUCH of the way to TP1 → everything closes at
+        # that level (see NEAR_TP_TOUCH). The stop is booked first when both are true in one look.
+        if (NEAR_TP_TOUCH and not hit_stop and p["qty"] > 0 and not _lad and not p.get("be_set")
+                and p.get("src") in NEAR_TP_TOUCH_SRC):
+            _tpd9 = abs(p["tp1"] - p["entry"])
+            _lvl9 = p["entry"] + (1 if lng else -1) * float(NEAR_TP_TOUCH) * _tpd9
+            if _tpd9 > 0 and (live >= _lvl9 if lng else live <= _lvl9):
+                rec = _close_qty(state, p, p["qty"], _lvl9,
+                                 f"🎯 closed at {float(NEAR_TP_TOUCH) * 100:.0f}% of the way to TP1")
+                state["closed"].append(rec)
+                events.append(("close", rec))
+                continue
         # 🎯 NEAR-TP BANK — GEN 15: EVERY STREAM (user 2026-09-13:
         # "its sl and tp that should be set with it nothing less,
         # just a smart exit when its close to tp and you sense

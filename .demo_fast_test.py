@@ -96,8 +96,8 @@ check("save is atomic: the file loads and no .tmp is left beside it", da.load()[
 st = seat()
 n_hist = len(st["equity_hist"])
 ev = da.walk(st, K([(0, 101.0, 99.5, 100.5), (1, 106.5, 100.0, 106.0)]), now=M0 + 200)
-check("walk, long: TP1 banks in full at TP1, stamped with the minute it happened",
-      len(ev) == 1 and ev[0][1]["reason"] == "TP1 — banked 100%" and abs(ev[0][1]["exit"] - 106.0) < 1e-9 and not st["open"]
+check("walk, long: the 92% close books at its level (TP1 106 → 105.52), stamped with the minute it happened",
+      len(ev) == 1 and ev[0][1]["reason"] == "🎯 closed at 92% of the way to TP1" and abs(ev[0][1]["exit"] - 105.52) < 1e-9 and not st["open"]
       and abs(ev[0][1]["closed_at"] - (M0 + 60 + 59)) < 1e-6, ev)
 check("walk does not write the equity curve (the cycle does)", len(st["equity_hist"]) == n_hist, len(st["equity_hist"]))
 st = seat()
@@ -112,7 +112,7 @@ ev = da.walk(st, K([(0, 100.4, 99.0, 99.5), (1, 104.2, 99.0, 100.0)]), now=M0 + 
 check("walk, short: the high takes the stop", len(ev) == 1 and ev[0][1]["reason"] == "stop" and abs(ev[0][1]["exit"] - 104.0) < 1e-9, ev)
 st = seat(side="SHORT", stop=104.0, tp1=94.0)
 ev = da.walk(st, K([(0, 100.4, 93.8, 94.5)]), now=M0 + 200)
-check("walk, short: the low banks TP1", len(ev) == 1 and ev[0][1]["reason"] == "TP1 — banked 100%" and abs(ev[0][1]["exit"] - 94.0) < 1e-9, ev)
+check("walk, short: the low takes the 92% close (TP1 94 → 94.48)", len(ev) == 1 and ev[0][1]["reason"] == "🎯 closed at 92% of the way to TP1" and abs(ev[0][1]["exit"] - 94.48) < 1e-9, ev)
 st = seat()
 pre = lambda sym, start: [(T07 - 120.0, 120.0, 90.0, 100.0), (T07 - 60.0, 120.0, 90.0, 100.0)]
 check("walk: candles from before the seat opened are not read", da.walk(st, pre, now=M0 + 200) == [] and len(st["open"]) == 1)
@@ -167,7 +167,7 @@ k3 = lambda sym, start: [r for r in [(M0, 106.5, 99.5, 106.0)] if r[0] >= start]
 check("walk on 3-minute candles: a candle is not read until its three minutes are over", da.walk(st, k3, now=M0 + 100, bar_s=180.0) == [] and len(st["open"]) == 1)
 ev = da.walk(st, k3, now=M0 + 181, bar_s=180.0)
 check("walk on 3-minute candles: read once closed, the close stamped at the end of that candle",
-      len(ev) == 1 and ev[0][1]["reason"] == "TP1 — banked 100%" and abs(ev[0][1]["closed_at"] - (M0 + 179)) < 1e-6, ev)
+      len(ev) == 1 and ev[0][1]["reason"] == "🎯 closed at 92% of the way to TP1" and abs(ev[0][1]["closed_at"] - (M0 + 179)) < 1e-6, ev)
 st = seat()
 da.save(st)
 seen = []
