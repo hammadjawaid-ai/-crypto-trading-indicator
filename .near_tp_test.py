@@ -1,6 +1,6 @@
-"""Guard — THE 92% CLOSE (2026-11-20): a demo seat and a Paper Trader position close in full once price has
-travelled 92% of the way from the entry to TP1, booked at that level (never higher), the stop first, the fade bank
-and a TP2 chase untouched, and both switches turn it off. No network, no Telegram.
+"""Guard — THE NEAR-TP CLOSE (2026-11-20): a demo seat (85% of the way from the entry to TP1) and a Paper Trader
+position (92%) close in full at that level (never higher), the stop first, a TP2 chase untouched, and both switches
+turn it off. The demo checks read the level from demo_account. No network, no Telegram.
 Run: .venv/Scripts/python.exe .near_tp_test.py
 """
 import calendar
@@ -52,28 +52,31 @@ def K(rows):
     return lambda sym, start: [r for r in data if r[0] >= start]
 
 
-check("the switch is 92% and covers the demo's streams", da.NEAR_TP_TOUCH == 0.92
+TT = float(da.NEAR_TP_TOUCH)                 # the demo's close level
+LV, SV = 100.0 + TT * 10.0, 100.0 - TT * 10.0   # that level on a long 100 → 110 and on a short 100 → 90
+PCT = f"{TT * 100:.0f}% of the way to TP1"
+check("the demo's switch is 85% and covers its streams", da.NEAR_TP_TOUCH == 0.85
       and {"elite_confirm", "go_revived", "elite_star", "trig_strong"} <= da.NEAR_TP_TOUCH_SRC)
 st = seat()
-check("a seat opened (entry 100, TP1 110: the 92% level is 109.2)", len(st["open"]) == 1 and st["open"][0]["tp1"] == 110.0, st["open"])
-px["NVDABUSDT"] = 109.1
-check("demo, long: 91% of the way is not closed", da.manage(st, live) == [] and len(st["open"]) == 1)
-px["NVDABUSDT"] = 109.21
+check("a seat opened (entry 100, TP1 110)", len(st["open"]) == 1 and st["open"][0]["tp1"] == 110.0, st["open"])
+px["NVDABUSDT"] = LV - 0.1
+check("demo, long: just under the level is not closed", da.manage(st, live) == [] and len(st["open"]) == 1)
+px["NVDABUSDT"] = LV + 0.01
 ev = da.manage(st, live)
-check("demo, long: at 92% the whole seat closes, at the 92% level",
-      len(ev) == 1 and ev[0][0] == "close" and abs(ev[0][1]["exit"] - 109.2) < 1e-9 and "92% of the way to TP1" in ev[0][1]["reason"]
+check("demo, long: at the level the whole seat closes, at the level",
+      len(ev) == 1 and ev[0][0] == "close" and abs(ev[0][1]["exit"] - LV) < 1e-9 and PCT in ev[0][1]["reason"]
       and ev[0][1]["pnl"] > 0 and st["open"] == [], ev)
 st = seat()
 px["NVDABUSDT"] = 111.5
 ev = da.manage(st, live)
-check("demo, long: a look that finds price beyond TP1 still books the 92% level (the order rested there)",
-      len(ev) == 1 and abs(ev[0][1]["exit"] - 109.2) < 1e-9, ev)
+check("demo, long: a look that finds price beyond TP1 still books the level (the order rested there)",
+      len(ev) == 1 and abs(ev[0][1]["exit"] - LV) < 1e-9, ev)
 st = seat(side="SHORT", stop=104.0, tp1=90.0)
-px["NVDABUSDT"] = 90.9
-check("demo, short: 91% of the way is not closed", da.manage(st, live) == [])
-px["NVDABUSDT"] = 90.79
+px["NVDABUSDT"] = SV + 0.1
+check("demo, short: just short of the level is not closed", da.manage(st, live) == [])
+px["NVDABUSDT"] = SV - 0.01
 ev = da.manage(st, live)
-check("demo, short: at 92% it closes at 90.8", len(ev) == 1 and abs(ev[0][1]["exit"] - 90.8) < 1e-9 and ev[0][1]["pnl"] > 0, ev)
+check("demo, short: at the level it closes there", len(ev) == 1 and abs(ev[0][1]["exit"] - SV) < 1e-9 and ev[0][1]["pnl"] > 0, ev)
 st = seat()
 px["NVDABUSDT"] = 95.0
 ev = da.manage(st, live)
@@ -81,20 +84,22 @@ check("demo: the stop is still the stop", len(ev) == 1 and ev[0][1]["reason"] ==
 
 # the watcher's candle walk
 st = seat()
-ev = da.walk(st, K([(0, 101.0, 99.5, 100.5), (1, 109.5, 100.0, 104.0)]), now=M0 + 200)
-check("walk: a candle whose high reaches 92% closes the seat at the level, stamped with that candle",
-      len(ev) == 1 and abs(ev[0][1]["exit"] - 109.2) < 1e-9 and abs(ev[0][1]["closed_at"] - (M0 + 60 + 59)) < 1e-6, ev)
+ev = da.walk(st, K([(0, 101.0, 99.5, 100.5), (1, LV + 0.3, 100.0, 104.0)]), now=M0 + 200)
+check("walk: a candle whose high reaches the level closes the seat there, stamped with that candle",
+      len(ev) == 1 and abs(ev[0][1]["exit"] - LV) < 1e-9 and abs(ev[0][1]["closed_at"] - (M0 + 60 + 59)) < 1e-6, ev)
 st = seat()
 ev = da.walk(st, K([(0, 109.5, 99.0, 99.2), (1, 99.5, 95.5, 96.0)]), now=M0 + 200)
-check("walk: the case he described — 95% of the way, then down through the stop: a win at 92%, not a stop",
-      len(ev) == 1 and abs(ev[0][1]["exit"] - 109.2) < 1e-9 and ev[0][1]["pnl"] > 0 and st["open"] == [], ev)
+check("walk: the case he described — 95% of the way, then down through the stop: a win at the level, not a stop",
+      len(ev) == 1 and abs(ev[0][1]["exit"] - LV) < 1e-9 and ev[0][1]["pnl"] > 0 and st["open"] == [], ev)
 st = seat()
 ev = da.walk(st, K([(0, 109.6, 95.5, 100.0)]), now=M0 + 200)
-check("walk: the stop and the 92% level inside one candle books the stop (the bad side first)",
+check("walk: the stop and the level inside one candle books the stop (the bad side first)",
       len(ev) == 1 and ev[0][1]["reason"] == "stop", ev)
 st = seat()
+_tt_keep, da.NEAR_TP_TOUCH = da.NEAR_TP_TOUCH, 0.92      # with the level above 85% the fade bank has room again
 ev = da.walk(st, K([(0, 108.6, 100.0, 108.0), (1, 108.0, 105.5, 105.8)]), now=M0 + 200)
-check("walk: the fade bank still covers a seat that peaks between 85% and 92% and rolls back",
+da.NEAR_TP_TOUCH = _tt_keep
+check("walk: with the level at 92% the fade bank covers a seat that peaks between 85% and 92% and rolls back",
       len(ev) == 1 and "near-TP bank" in ev[0][1]["reason"] and ev[0][1]["pnl"] > 0, ev)
 
 # off switch and scope

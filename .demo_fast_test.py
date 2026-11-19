@@ -22,6 +22,8 @@ import demo_watch as dw        # noqa: E402
 import shadow_trader as sh     # noqa: E402
 
 da.STATE_FILE = os.path.join(TMP, "demo.json")
+TT = float(da.NEAR_TP_TOUCH)                                  # the demo's near-TP close level (22.8)
+R_NT = f"🎯 closed at {TT * 100:.0f}% of the way to TP1"
 PASS, FAIL = 0, []
 
 
@@ -96,8 +98,8 @@ check("save is atomic: the file loads and no .tmp is left beside it", da.load()[
 st = seat()
 n_hist = len(st["equity_hist"])
 ev = da.walk(st, K([(0, 101.0, 99.5, 100.5), (1, 106.5, 100.0, 106.0)]), now=M0 + 200)
-check("walk, long: the 92% close books at its level (TP1 106 → 105.52), stamped with the minute it happened",
-      len(ev) == 1 and ev[0][1]["reason"] == "🎯 closed at 92% of the way to TP1" and abs(ev[0][1]["exit"] - 105.52) < 1e-9 and not st["open"]
+check("walk, long: the near-TP close books at its level (entry 100, TP1 106), stamped with the minute it happened",
+      len(ev) == 1 and ev[0][1]["reason"] == R_NT and abs(ev[0][1]["exit"] - (100.0 + TT * 6.0)) < 1e-9 and not st["open"]
       and abs(ev[0][1]["closed_at"] - (M0 + 60 + 59)) < 1e-6, ev)
 check("walk does not write the equity curve (the cycle does)", len(st["equity_hist"]) == n_hist, len(st["equity_hist"]))
 st = seat()
@@ -112,7 +114,7 @@ ev = da.walk(st, K([(0, 100.4, 99.0, 99.5), (1, 104.2, 99.0, 100.0)]), now=M0 + 
 check("walk, short: the high takes the stop", len(ev) == 1 and ev[0][1]["reason"] == "stop" and abs(ev[0][1]["exit"] - 104.0) < 1e-9, ev)
 st = seat(side="SHORT", stop=104.0, tp1=94.0)
 ev = da.walk(st, K([(0, 100.4, 93.8, 94.5)]), now=M0 + 200)
-check("walk, short: the low takes the 92% close (TP1 94 → 94.48)", len(ev) == 1 and ev[0][1]["reason"] == "🎯 closed at 92% of the way to TP1" and abs(ev[0][1]["exit"] - 94.48) < 1e-9, ev)
+check("walk, short: the low takes the near-TP close (entry 100, TP1 94)", len(ev) == 1 and ev[0][1]["reason"] == R_NT and abs(ev[0][1]["exit"] - (100.0 - TT * 6.0)) < 1e-9, ev)
 st = seat()
 pre = lambda sym, start: [(T07 - 120.0, 120.0, 90.0, 100.0), (T07 - 60.0, 120.0, 90.0, 100.0)]
 check("walk: candles from before the seat opened are not read", da.walk(st, pre, now=M0 + 200) == [] and len(st["open"]) == 1)
@@ -124,8 +126,10 @@ check("walk: nothing is read twice", ev == [] and len(st["open"]) == 1)
 ev = da.walk(st, forming, now=M0 + 200)
 check("walk: the next pass picks up the minute once it has closed", len(ev) == 1 and ev[0][1]["reason"] == "stop", ev)
 st = seat("trig_strong")
+_tt_keep, da.NEAR_TP_TOUCH = da.NEAR_TP_TOUCH, 0.92      # at 85% the close fires before a fade can
 ev = da.walk(st, K([(0, 105.2, 100.0, 105.0), (1, 105.0, 103.4, 103.5)]), now=M0 + 200)
-check("walk: the near-TP bank (85% printed, back to 60%) still closes in profit", len(ev) == 1 and "near-TP bank" in ev[0][1]["reason"] and ev[0][1]["pnl"] > 0, ev)
+da.NEAR_TP_TOUCH = _tt_keep
+check("walk: with the close level at 92%, the near-TP bank (85% printed, back to 60%) still closes in profit", len(ev) == 1 and "near-TP bank" in ev[0][1]["reason"] and ev[0][1]["pnl"] > 0, ev)
 check("walk: no seat, no candles, an error in the feed → nothing happens",
       da.walk(fresh(), K([(0, 1, 1, 1)]), now=M0) == [] and da.walk(seat(), lambda s, t: [], now=M0 + 200) == []
       and da.walk(seat(), lambda s, t: (_ for _ in ()).throw(RuntimeError("down")), now=M0 + 200) == [])
@@ -167,7 +171,7 @@ k3 = lambda sym, start: [r for r in [(M0, 106.5, 99.5, 106.0)] if r[0] >= start]
 check("walk on 3-minute candles: a candle is not read until its three minutes are over", da.walk(st, k3, now=M0 + 100, bar_s=180.0) == [] and len(st["open"]) == 1)
 ev = da.walk(st, k3, now=M0 + 181, bar_s=180.0)
 check("walk on 3-minute candles: read once closed, the close stamped at the end of that candle",
-      len(ev) == 1 and ev[0][1]["reason"] == "🎯 closed at 92% of the way to TP1" and abs(ev[0][1]["closed_at"] - (M0 + 179)) < 1e-6, ev)
+      len(ev) == 1 and ev[0][1]["reason"] == R_NT and abs(ev[0][1]["closed_at"] - (M0 + 179)) < 1e-6, ev)
 st = seat()
 da.save(st)
 seen = []

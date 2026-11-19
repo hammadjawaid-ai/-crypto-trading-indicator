@@ -9992,17 +9992,18 @@ if active_section == "🎮 Demo Trading":
         "GO revived (the conviction revival) opens a seat, at 10x, and margin is added when the other of the two fires "
         "on the same name. A seat already open keeps its stop and TP1 through every window. <b>Stops are the 15m "
         "rule's</b> since 17 Nov (a little beyond the nearest 15m swing past the signal's stop). "
-        "Exit: the stop, or <b>the 92% close</b> (since 20 Nov a seat closes in full once price has travelled 92% of "
-        "the way to TP1, booked at that level, so a win pays 92% of the TP1 distance), or the near-TP bank (85% of the "
-        "way to TP1, then fading back to 60% while in profit). No trail, no ladder, no re-entry. Fresh $5,000 book since 17 Nov · "
+        "Exit: the stop, or <b>the 85% close</b> (since 20 Nov a seat closes in full once price has travelled 85% of "
+        "the way to TP1, booked at that level, so a win pays 85% of the TP1 distance; it takes the place of the older "
+        "bank at 85% printed then back to 60%). No trail, no ladder, no re-entry. Fresh $5,000 book since 17 Nov · "
         f"day {_days:.1f}.</span></div>",
         unsafe_allow_html=True)
     with st.expander("roster history (GEN 17 → 21)", expanded=False):   # 2026-11-07: moved out of the header
         st.caption(
-            "GEN 22.8 (20 Nov): a seat closes in full once price has travelled 92% of the way to TP1, booked at that "
-            "level (asked for after the TQQQB long of 19 Nov, which climbed towards its TP1 and ended at its stop; by the "
-            "demo's own numbers that seat had printed less than 85% of the way, so this rule would not have closed it); on the 16 Nov ledger the four "
-            "streams read 73% / +0.05R on 187 with it against 72% / +0.05R without, on candles, in-sample. The strong "
+            "GEN 22.8 (20 Nov): a seat closes in full once price has travelled 85% of the way to TP1, booked at that "
+            "level (set at 92% for an hour, then 85% on his word; asked for after the TQQQB long of 19 Nov, which "
+            "climbed towards its TP1 and ended at its stop; by the demo's own numbers that seat had printed less than "
+            "85% of the way, so neither level would have closed it); on the 16 Nov ledger the four streams read 73% / "
+            "+0.06R on 187 with the 85% close against 72% / +0.05R without, on candles, in-sample. The strong "
             "trigger left the demo the same day, so 21–01 opens nothing (in the hours the demo opened it, on that "
             "ledger: 74% / +0.10R on 39 against 86% / +0.29R on 65 for the other three, in-sample). "
             "GEN 22.7 (17 Nov): 17–21 opens nothing (the strong trigger's 87% / +0.37R there was the desk's booking; on "

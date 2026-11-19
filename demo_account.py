@@ -344,11 +344,16 @@ NEAR_TP_SRC: set = {"elite_confirm", "go_revived", "elite_star", "trig_strong", 
 # NEAR_TP_TOUCH of the way from its entry to TP1, and it is booked AT THAT LEVEL, never higher: an order that
 # closes at 92% has to rest at 92%, so a move that goes on to TP1 is booked at 92% too. In effect TP1 sits 8% of
 # its distance nearer; every win pays 8% less and a seat that turns between 92% and 100% is a win instead of a
-# fade bank or a stop. The fade bank above still covers a seat that peaks between 85% and 92%.
+# fade bank or a stop.
+# 92% → 85% THE SAME NIGHT (user, told that the TQQQB seat had topped out under 85%: "if it was 85% so switch it
+# to 85% on demo trading and deploy if it was 90-92% we keep it that way"). At 0.85 the close fires at the very
+# level that used to arm the fade bank, so the fade bank cannot fire any more: the demo exits at the stop or at
+# 85% of the way, and every win pays 15% less than TP1. TOLD TO HIM: TQQQB stopped short of 85% too, so this
+# level would not have closed it either; the level that would is not known (the closed list keeps no TP1).
 # MEASURED, told to him (16 Nov ledger, stock seats of the demo's four streams, 15-minute candles, the 15m rule's
-# stop, in-sample): 73% / +0.05R (187) with it against 72% / +0.05R without, so about the same; under the fade
-# bank no seat of the 187 had printed 92% and still ended at the stop. Off: NEAR_TP_TOUCH = 0.
-NEAR_TP_TOUCH = 0.92
+# stop, in-sample, n=187): no close and the fade bank 72% / +0.05R; close at 92% 73% / +0.05R; at 85% 73% /
+# +0.06R; at 80% 73% / +0.04R; at 75% 74% / +0.04R. No level moves the record. Off: NEAR_TP_TOUCH = 0.
+NEAR_TP_TOUCH = 0.85
 NEAR_TP_TOUCH_SRC: set = {"elite_confirm", "go_revived", "elite_star", "trig_strong", "elite_conv"}
 # 🪜 THE DESK LADDER (shadow_trader's exit law, now the demo's for every GEN 19 lane): stop
 # → entry at +1R · stop → TP1 when TP1 prints · after TP1 the stop trails the peak by 1.2R ·
