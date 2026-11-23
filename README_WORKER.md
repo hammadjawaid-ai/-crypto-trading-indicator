@@ -808,3 +808,28 @@ after a start because the forecast cache (2 h) is empty then and the first scan 
 - Nothing is switched off; a forecast does the same work on one thread (about 11 s on a 16-core desktop).
 - NOT verified from here: Render's own reason for each restart (its Events tab says "health check failed" or
   "out of memory"). If it says memory, this is not the whole fix. Guard: `.server_threads_test.py`.
+
+## 📱 THREE COIN BELLS + THE RECORD SINCE THE STOP RULE (2026-11-23) — `tg_roster.py`, `agent_worker.py`
+
+User: "Ok I want these on telegram now: For Crypto Coins: 1. Confirmed Entries 2. Conviction Revival (GO) 3. APEX V2
+Shorts and Longs both. Both should ring with the latest information on the buzz signal after the stop loss rule
+change. For Stocks, for Confirmed Entries: 13-17 timings and 21-01 timings were best update on the information buzz
+according to our new rule applied so we should know".
+- **Coins now also ring:** 💎✅ ELITE CONFIRMED ENTRY, every confirmed entry (`TG_CONFIRM_COIN`,
+  `tg_roster.coin_confirm_card`); 💎⚡ CONVICTION REVIVAL, every revival, as on stocks (`TG_CONV_REVIVAL_COIN`,
+  `coin_revival_card`; the gated coin bell of 14 / 19 Oct is no longer reached, kept for a revert); 🏆🔺 APEX V2
+  LONG beside the short (`TG_APEX_V2_LONG`, bell key `apex_v2_long`, one card `apex_v2_card` for both sides).
+  `tg_roster.STOCK_ONLY` is empty: each class has its own switch. All three are on the 🔔 Telegram Bells page.
+- **The record on these cards is read live:** `tg_roster.since_rule_line(tier, symbol, side)` = the desk's closed
+  trades OPENED since the stop rule went live (`RULE_SINCE_TS`, 17 Nov 20:08 PKT), for the bell's tier and class:
+  this PKT window, this side, all. Desk booking, counts under 10 marked thin, cached 30 minutes. APEX V2 shows its
+  own side's window and both sides. The APEX V2 short card no longer prints the fixed 23 Sep → 16 Nov stamp and
+  record line.
+- **Stock confirmed entry:** the same live line, plus `since_rule_windows` = every PKT window with a trade since
+  the rule, best first (on 23 Nov: 21–01 78% (9) · 13–17 75% (4) · 01–05 25% (4) · 17–21 25% (4) · 05–09 12% (8)).
+  Its fixed 🧪 replay cells to 16 Nov are removed (they read the other way round: 01–13 best, 21–01 29%).
+- **What he was shown before he chose** (23 Nov ledger read): confirmed entry on coins 49% / +0.05R (1,391) before
+  the stop change; conviction revival entered at the GO 54% / −0.04R (258); APEX V2 longs 41% / −0.04R (123); the
+  week since the change was a falling one in which shorts paid. The gatekeeper line on each coin card keeps that
+  longer read (`tg_cells.GATE_TRUST`: `elite_confirm` 🟡, `conv_revival` 🔴, `apex_v2_long` 🔴).
+- Guards: `.tg_roster_test.py` (101), `.tg_switches_test.py`.

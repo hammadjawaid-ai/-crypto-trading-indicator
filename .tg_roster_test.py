@@ -46,8 +46,9 @@ W = io.open(os.path.join(ROOT, "agent_worker.py"), encoding="utf-8").read()
 print("1. the class rule")
 check("a tokenized stock is a stock, a coin is not", tr.is_stock(STOCK) and not tr.is_stock(COIN) and not tr.is_stock(None))
 check("coin-only bells never ring on a stock", all(not tr.class_ok(k, STOCK) and tr.class_ok(k, COIN) for k in
-      ("leg2_prime", "star_takenow", "prime_trig", "confirm_star", "apex_v2_short", "elite_agrade")))
-check("stock-only bells never ring on a coin", all(tr.class_ok(k, STOCK) and not tr.class_ok(k, COIN) for k in ("elite_confirm", "conv_revival")))
+      ("leg2_prime", "star_takenow", "prime_trig", "confirm_star", "apex_v2_short", "apex_v2_long", "elite_agrade")))
+check("no bell is stock-only since 23 Nov: the confirmed entry and the conviction revival ring on both classes (own switches)",
+      tr.STOCK_ONLY == frozenset() and all(tr.class_ok(k, STOCK) and tr.class_ok(k, COIN) for k in ("elite_confirm", "conv_revival")))
 check("a bell in neither set rings on both (its own switch decides)", all(tr.class_ok(k, STOCK) and tr.class_ok(k, COIN) for k in
       ("elite_star", "star_prime", "conv_prime", "star_trig", "star_apexv2", "anything")))
 
@@ -90,6 +91,43 @@ tc._MKT.update(t=T0, below=False, gap=4.0)
 check("BTC above: a long is with it; a short is only noted", tr.market_tag("LONG", T0) == " · 🟢 WITH THE MARKET" and tr.market_tag("SHORT", T0) == " · 🟡 BTC ABOVE ITS 50-DAY")
 check("a stale read prints nothing", tr.market_tag("LONG", T0 + 37 * 3600) == "")
 
+print("4b. the record since the stop rule (2026-11-23): live from the desk, by tier and class")
+con = ws._open()
+for tier, sym, side, o, r in [
+        ("tok:elite_confirm", STOCK, "LONG", at(2026, 11, 18, 22), 1.0), ("tok:elite_confirm", STOCK, "SHORT", at(2026, 11, 19, 22), 0.6),
+        ("tok:elite_confirm", STOCK, "LONG", at(2026, 11, 19, 14), 0.4), ("tok:elite_confirm", STOCK, "LONG", at(2026, 11, 20, 6), -1.0),
+        ("tok:elite_confirm", STOCK, "LONG", at(2026, 11, 17, 19), 3.0),        # 19:00 PKT on 17 Nov: before the rule went live
+        ("elite_confirm", COIN, "SHORT", at(2026, 11, 19, 22), 0.6), ("elite_confirm", COIN, "LONG", at(2026, 11, 20, 10), -1.0),
+        ("go_revived", COIN, "SHORT", at(2026, 11, 19, 18), 0.4),
+        ("apex_v2", COIN, "SHORT", at(2026, 11, 19, 18), 0.5), ("apex_v2", COIN, "SHORT", at(2026, 11, 20, 18, 30), 0.7),
+        ("apex_v2", COIN, "SHORT", at(2026, 11, 20, 23), -1.0), ("apex_v2", COIN, "LONG", at(2026, 11, 21, 18), -1.0)]:
+    con.execute("INSERT INTO shadow_trades (tier, symbol, side, entry, stop, opened_at, status, closed_at, pnl_r) VALUES (?,?,?,?,?,?,?,?,?)",
+                (tier, sym, side, 100.0, 96.0, o, "CLOSED", o + 3600, r))
+con.commit()
+con.close()
+tr._SINCE_CACHE.clear()
+T1 = at(2026, 11, 21, 22)                      # 22:00 PKT -> the 21–01 window
+HEAD = "📊 since the stop change (17 Nov), desk: "
+s1 = tr.since_rule_line("elite_confirm", STOCK, "LONG", T1, what="confirmed entries on stocks")
+check("the rule went live 17 Nov 20:08 PKT", tr.RULE_SINCE_TS == at(2026, 11, 17, 20, 8))
+check("stock line: only stock seats opened since the rule; window, side, all; the 17 Nov 19:00 seat and the old seats are out",
+      s1 == HEAD + "🕐 🟢 21–01 PKT 100% (2, thin) · longs 67% / +0.13R (3, thin) · all 75% / +0.25R (4, thin) · confirmed entries on stocks", s1)
+check("coin line: the coin tier only", tr.since_rule_line("elite_confirm", COIN, "SHORT", T1, what="confirmed entries on coins")
+      == HEAD + "🕐 🟢 21–01 PKT 100% (1, thin) · shorts 100% / +0.60R (1, thin) · all 50% / -0.20R (2, thin) · confirmed entries on coins",
+      tr.since_rule_line("elite_confirm", COIN, "SHORT", T1))
+check("a window with no trade says so; a tier with no trade since the rule says so",
+      "🕐 🟡 09–13 PKT no trade yet · longs 67%" in tr.since_rule_line("elite_confirm", STOCK, "LONG", T0)
+      and tr.since_rule_line("elite_star", STOCK, "LONG", T1, what="x") == HEAD + "no closed trade yet · x")
+check("one side (APEX V2): the window cell is this side's, the other side closes the line",
+      tr.since_rule_line("apex_v2", COIN, "SHORT", at(2026, 11, 22, 18), one_side=True, what="APEX V2 on coins")
+      == HEAD + "🕐 🟢 17–21 PKT shorts 100% (2, thin) · shorts 67% / +0.07R (3, thin) · longs 0% / -1.00R (1, thin) · APEX V2 on coins"
+      and tr.since_rule_line("apex_v2", COIN, "LONG", at(2026, 11, 22, 18), one_side=True)
+      == HEAD + "🕐 🔴 17–21 PKT longs 0% (1, thin) · longs 0% / -1.00R (1, thin) · shorts 67% / +0.07R (3, thin)",
+      tr.since_rule_line("apex_v2", COIN, "SHORT", at(2026, 11, 22, 18), one_side=True))
+WIN_S = "🕐 by window since 17 Nov: 21–01 100% (2) · 13–17 100% (1) · 05–09 0% (1)"
+check("the windows list: every window with a trade since the rule, best first", tr.since_rule_windows("elite_confirm", STOCK, T1) == WIN_S
+      and tr.since_rule_windows("elite_star", STOCK, T1) == "", tr.since_rule_windows("elite_confirm", STOCK, T1))
+
 print("5. the stock cards carry stock numbers only")
 star = {"symbol": STOCK, "base": STOCK.replace("USDT", ""), "side": "LONG", "entry": 100.0, "stop": 96.0, "tp1": 104.0, "tp2": 110.0,
         "tier": "HIGH", "score": 78, "appr": True, "heat": 44}
@@ -102,7 +140,9 @@ check("star: the mark, the partner, the stock line, the session, what replies", 
 w = {"symbol": STOCK, "base": star["base"], "side": "LONG", "stop": 96.0, "tp1": 104.0, "tp2": None, "tier": "HIGH", "score": 81, "appr": True}
 c2 = tr.stock_confirm_card(w, 99.0, T0, conf=66)
 check("confirmed entry: header, the confirm close as the entry, the stock line", c2.split("\n")[0] == f"💎✅ *ELITE CONFIRMED ENTRY · STOCK — {star['base']} LONG · TAKE · 10:00 PKT*"
-      and "enter `99` · SL `96` · TP1 `104` (+1.7R) · elite HIGH 81 · 🚀 approved · conf 66" in c2 and "🏦 🕐 🟡 09–13 PKT 67%" in c2, c2)
+      and "enter `99` · SL `96` · TP1 `104` (+1.7R) · elite HIGH 81 · 🚀 approved · conf 66" in c2
+      and c2.split("\n")[3] == HEAD + "🕐 🟡 09–13 PKT no trade yet · longs 67% / +0.13R (3, thin) · all 75% / +0.25R (4, thin) · confirmed entries on stocks"
+      and c2.split("\n")[4] == WIN_S and "desk since 10 Nov" not in c2, c2)
 ew = {"symbol": STOCK, "base": star["base"], "side": "LONG", "stop": 96.0, "tp1": 104.0, "tp2": 110.0, "entry0": 100.0, "oneh": "DEAD", "star": True,
       "fired_at": T0 - 5400, "appr": True}
 c3 = tr.stock_go_card(ew, 0.3, 5400, 101.2, T0)
@@ -129,10 +169,32 @@ check("APEX V2 short: header with the market side", A1[0] == "🏆🔻 *APEX V2 
 check("the gate's read is ONE line, with the verdict first", A1[1] == "gate: ⚠️ NOT PASSED · ✅ BTC +0.40% today · ✅ stop 3.0% · ⚠️ 18 PKT (17–21 is the weak window)", A1[1])
 check("a passed gate says so", tr.apex_v2_short_card(sig, 99.5, read, True, T0).split("\n")[1].startswith("gate: ✅ PASSED · ✅ BTC"))
 check("plan at the live price with R", A1[2] == "entry `100` · live `99.5` · SL `103` · TP1 `96` (+1.0R) · TP2 `92` (+2.1R) · score 92 · heat 48", A1[2])
-check("its own window cell and period", A1[3] == "🕐 🟢 17–21 shorts 74% / +0.58R (27) · 🏆🔻 APEX V2 shorts, every fire · 23 Sep → 16 Nov", A1[3])
-check("the record says longs do not ring; the verdict replies; the gatekeeper line closes it", "longs 41% / −0.04R (123) do not ring" in A1[4]
-      and "⏱ 1h verdict replies here" in A1[4] and A1[5].startswith("🚦 *GATE → ") and "✅ APEX V2 shorts 62% / +0.30R (84)" in A1[5], A1[4:])
-check("21–01 is the red window", "🕐 🔴 21–01 shorts 36% / -0.40R (14)" in tr.apex_v2_short_card(sig, 99.5, read, True, at(2026, 11, 12, 22)).replace("−", "-"))
+check("its record is the desk since the stop rule, this side's window and both sides (no fixed 23 Sep → 16 Nov lines)",
+      A1[3] == HEAD + "🕐 🟢 17–21 PKT shorts 100% (2, thin) · shorts 67% / +0.07R (3, thin) · longs 0% / -1.00R (1, thin) · APEX V2 on coins"
+      and "23 Sep" not in a1 and "do not ring" not in a1, A1[3])
+check("the verdict replies; the gatekeeper line closes it", A1[4] == "⏱ 1h verdict replies here" and A1[5].startswith("🚦 *GATE → ")
+      and "✅ APEX V2 shorts 62% / +0.30R (84)" in A1[5] and len(A1) == 6, A1[4:])
+sigL = dict(sig, side="LONG", stop=97.0, tp1=104.0, tp2=108.0)
+aL = tr.apex_v2_card(sigL, 100.5, read, True, at(2026, 11, 12, 18)).split("\n")
+check("APEX V2 LONG rings too: its own header, its own side's record, the gatekeeper's long read", aL[0] == "🏆🔺 *APEX V2 LONG — SOL · TAKE · 18:00 PKT · ⚠️ AGAINST THE MARKET*"
+      and aL[3] == HEAD + "🕐 🔴 17–21 PKT longs 0% (1, thin) · longs 0% / -1.00R (1, thin) · shorts 67% / +0.07R (3, thin) · APEX V2 on coins"
+      and aL[5].startswith("🚦 *GATE → SMALL*") and "🔴 APEX V2 longs 41% / −0.04R (123) to 16 Nov" in aL[5], aL)
+check("the old card name is the same card", tr.apex_v2_short_card(sig, 99.5, read, False, at(2026, 11, 12, 18)) == tr.apex_v2_card(sig, 99.5, read, False, at(2026, 11, 12, 18)))
+wk = {"symbol": COIN, "base": "SOL", "side": "SHORT", "stop": 103.0, "tp1": 96.0, "tp2": None, "tier": "HIGH", "score": 84, "appr": True}
+k1 = tr.coin_confirm_card(wk, 100.0, at(2026, 11, 12, 22), conf=68).split("\n")
+check("coin confirmed entry: header with the market side, the plan, the coin record since the rule, the gatekeeper",
+      k1[0] == "💎✅ *ELITE CONFIRMED ENTRY — SOL SHORT · TAKE · 22:00 PKT · 🟢 WITH THE MARKET*"
+      and k1[1] == "enter `100` · SL `103` · TP1 `96` (+1.3R) · elite HIGH 84 · 🚀 approved · conf 68"
+      and k1[3] == HEAD + "🕐 🟢 21–01 PKT 100% (1, thin) · shorts 100% / +0.60R (1, thin) · all 50% / -0.20R (2, thin) · confirmed entries on coins"
+      and k1[4].startswith("🚦 *GATE → ") and "🟡 coins break-even before the stop change: 49% / +0.05R (1,391)" in k1[4] and len(k1) == 5, k1)
+ewk = {"symbol": COIN, "base": "SOL", "side": "SHORT", "stop": 103.0, "tp1": 96.0, "tp2": 92.0, "entry0": 100.0, "oneh": "DEAD", "star": False, "appr": True}
+k2 = tr.coin_revival_card(ewk, 0.27, 2 * 3600, 98.9, at(2026, 11, 12, 18)).split("\n")
+check("coin conviction revival: header, the fire plan with R left, the record of entering at the GO since the rule, the gatekeeper's hold read",
+      k2[0] == "💎⚡ *CONVICTION REVIVAL — SOL SHORT · GO FAST · 18:00 PKT · 🟢 WITH THE MARKET*"
+      and k2[1] == "fire `100` · SL `103` · TP1 `96` · TP2 `92` · ignited +27% of the path · live `98.9` · 1.0R left to TP1"
+      and k2[2] == "graded DEAD at the hour, then ignited · 120 min after the fire"
+      and k2[3] == HEAD + "🕐 🟢 17–21 PKT 100% (1, thin) · shorts 100% / +0.40R (1, thin) · all 100% / +0.40R (1, thin) · revivals entered at the GO, coins"
+      and k2[4].startswith("🚦 *GATE → HALF*") and "🔴 entered at the GO ≈ 0R: a hold read" in k2[4], k2)
 wc = {"symbol": COIN, "base": "SOL", "side": "LONG", "stop": 96.0, "tp1": 104.0, "tp2": None}
 a2 = tr.confirm_star_card(wc, 99.0, at(2026, 11, 12, 18), at(2026, 11, 12, 16, 30), conf=70)
 check("confirmed after a gated star: no TAKE word, the star's time, the honest record", "TAKE" not in a2.split("\n")[0]
@@ -176,7 +238,7 @@ got = [r for r in ws.recent_by_stream(tr.BELL, 10)]
 check("the log reads back with the key in tier", len(got) == 2 and {r["tier"] for r in got} == {"leg2_prime"})
 check("TP1 ping set: every bell on the roster (user 2026-11-17: 'add tp1 ones to the ones that rings')",
       tr.TP1_PING == {"elite_star", "elite_agrade", "elite_confirm", "leg2_prime", "prime_trig", "confirm_star", "kr_premium",
-                      "apex_v2_short", "conv_revival", "star_takenow"}
+                      "apex_v2_short", "apex_v2_long", "conv_revival", "star_takenow"}
       and tr.ping_stamp("apex_v2_short", COIN, "SHORT", T0).startswith("\n🕐 ") and tr.ping_stamp("star_takenow", COIN, "LONG", T0).startswith("\n🕐 ")
       and tr.ping_stamp("conv_revival", STOCK, "LONG", T0).startswith("\n🏦 "))
 check("ping stamp: a coin prints the old coin cell, a stock its stock line", tr.ping_stamp("elite_star", COIN, "LONG", T0) == tc.stamp_src("elite_star", "LONG", T0)
@@ -188,7 +250,8 @@ check("every switch is a module-level True / False in the worker", set(d) == set
 want = {"TG_CONFIRM_STOCK": True, "TG_STAR_STOCK": True, "TG_CONV_REVIVAL": True, "TG_AGRADE": True, "TG_LEG2_PRIME": True, "TG_PRIME_TRIG": True,
         "TG_STAR_TAKENOW": True, "TG_APEX_V2_SHORT": True, "TG_KR_PREMIUM": False, "TG_CONFIRM_STAR": False, "TG_STAR_PRIME": False, "TG_STAR_TRIG": False,
         "TG_STAR_APEXV2": False, "TG_CONV_PRIME": False, "TG_APEX_V2_GATED": False, "TG_GO_LIVE": False, "TG_TRIGKR_PRIME": False, "TG_ARRIVAL_T1": False,
-        "TG_NEAR90": False, "TG_FREEZE": False}
+        "TG_NEAR90": False, "TG_FREEZE": False,
+        "TG_APEX_V2_LONG": True, "TG_CONFIRM_COIN": True, "TG_CONV_REVIVAL_COIN": True}      # the three coin bells of 2026-11-23
 check("the roster's defaults", d == want, {k: (d.get(k), v) for k, v in want.items() if d.get(k) != v})
 check("the star's gate and the 13–17 window", re.search(r"^TG_GATES = True$", W, re.M) and re.search(r"^STAR_UNGATED_1317 = True\b", W, re.M))
 tmp = tempfile.mkdtemp(prefix="tgsw_")
@@ -204,8 +267,10 @@ con.execute("INSERT INTO shadow_trades (tier, symbol, side, opened_at, status, c
 con.execute("INSERT INTO shadow_trades (tier, symbol, side, opened_at, status, closed_at, pnl_r) VALUES ('apex_v2','B','LONG',?, 'CLOSED', ?, -1.0)", (nowg - 9000, nowg - 3600))
 rec = ts.records(con, nowg)
 con.close()
-check("the APEX V2 shorts record is the tier cut to its shorts", rec["apex_v2:short"]["all"]["n"] == 1 and rec["apex_v2:short"]["all"]["win"] == 1.0
-      and rec["elite_confirm"]["tok"]["n"] == 4 and rec["elite_confirm"]["all"]["n"] == 1)
+check("the APEX V2 record is the tier cut to one side: shorts and, since 23 Nov, longs (the seats of section 4b are in the same ledger)",
+      rec["apex_v2:short"]["all"]["n"] == 4 and rec["apex_v2:short"]["all"]["win"] == 0.75
+      and rec["apex_v2:long"]["all"]["n"] == 2 and rec["apex_v2:long"]["all"]["win"] == 0.0
+      and rec["elite_confirm"]["tok"]["n"] == 9 and rec["elite_confirm"]["all"]["n"] == 3, {k: rec[k]["all"] for k in ("apex_v2:short", "apex_v2:long", "elite_confirm")})
 check("every listed bell has a record cell or none by design", all((r["tier"] in rec) or r["tier"] is None for r in ts.status()))
 
 print("9. the worker's wiring")
@@ -215,21 +280,27 @@ check("stock star: its own card, rings past the gate, marks before the read on a
       and "elif _star9 and TG_GATES and not _gate9[0] and not _w1317 and not _free9:" in W and "if not _stk9:   # 🏦 a stock card keeps to stock numbers" in W
       and "_w1317 = (_star9 and not _stk9 and STAR_UNGATED_1317" in W)
 check("A-grade: its switch and coins only", 'if not _star9 and not (TG_AGRADE and tg_roster.class_ok(\n                                "elite_agrade", _pmx.get("symbol"))):' in W)
-check("confirmed entry: stock bell and the gated-star bell, the old coin bell still muted", "if TG_CONFIRM_STOCK:" in W and "elif TG_CONFIRM_STAR:" in W
+check("confirmed entry: stock bell, the coin bell of 23 Nov ahead of the gated-star bell, the old coin text still muted", "if TG_CONFIRM_STOCK:" in W
+      and W.index("elif TG_CONFIRM_COIN:") < W.index("elif TG_CONFIRM_STAR:") and "tg_roster.coin_confirm_card(" in W
       and W.count("ok, _ = _mute_ecf(") == 1 and "💎✅ *ELITE CONFIRMED ENTRY* — {_w9['base']}" in W)
 check("pairs and PRIME × trigger follow the class rule", '"class-out" if not tg_roster.class_ok(_tier_pp, _sym_pp) else' in W
       and 'if (TG_PRIME_TRIG and tg_roster.class_ok("prime_trig", _sym_pt)' in W)
-check("APEX V2: shorts bell, never two bells for one fire", 'if (TG_APEX_V2_SHORT and _sd2 == "SHORT" and tg_roster.class_ok("apex_v2_short", _sym2)' in W
+check("APEX V2: shorts and longs each on its own switch and key, never two bells for one fire",
+      '_v2key = "apex_v2_short" if _sd2 == "SHORT" else "apex_v2_long"' in W
+      and 'if ((TG_APEX_V2_SHORT if _sd2 == "SHORT" else (TG_APEX_V2_LONG and _sd2 == "LONG"))' in W
+      and "and tg_roster.class_ok(_v2key, _sym2) and not _bstock_quiet(_sym2)):" in W and "_tg_rang(_v2key, _sig2)" in W
       and "if TG_APEX_V2_GATED and not _srang2 and not _bstock_quiet(_sym2):" in W)
-check("conviction revival: stocks only, the coin bell intact behind it", W.index('"conv_revival", _ew.get("symbol")))):') < W.index("tg_roster.stock_revival_card(")
-      < W.index("# 💎 CONVICTION REVIVAL — its own bell (user 2026-11-07") and "_fmt_conv_revival(\n" in W)
+check("conviction revival: each class on its own switch; the coin card, then the stock card; the old gated coin bell kept behind them",
+      W.index("TG_CONV_REVIVAL if tg_roster.is_stock(_ew.get(\"symbol\"))") < W.index("tg_roster.coin_revival_card(") < W.index("tg_roster.stock_revival_card(")
+      < W.index("# 💎 CONVICTION REVIVAL — its own bell (user 2026-11-07") and "else TG_CONV_REVIVAL_COIN)):" in W and "_fmt_conv_revival(\n" in W
+      and W.count('_tg_rang("conv_revival", dict(_ew, entry=_ew_px))') == 2)
 check("stock replies: verdict and GO", "tg_roster.stock_verdict(_ew, _prg, _ew_now)" in W and "tg_roster.stock_go_card(" in W
       and W.count("and not _stk_go:") == 2)
 i0 = W.index("        _rg_watch = []")
 blk = W[i0:i0 + 1700]
 check("TP1 ping: the rang-bell log cut to TP1_PING, with the 48h bridge", "store.recent_by_stream(tg_roster.BELL, 150)" in blk and "in tg_roster.TP1_PING]" in blk
       and "for _rg_stream in TP1_STREAMS:" not in W and ">= ROSTER_TS:" in blk and "tg_roster.ping_stamp(_rg_src, _rg_sym, _rg_side, _rg_ts)" in W)
-check("every rung entry bell writes the log (star / A-grade, confirm, pairs, PRIME × trigger, APEX V2 short, KR premium, stock revival)", W.count("_tg_rang(") == 8, W.count("_tg_rang("))
+check("every rung entry bell writes the log (star / A-grade, confirm, pairs, PRIME × trigger, APEX V2 both sides, KR premium, coin revival, stock revival)", W.count("_tg_rang(") == 9, W.count("_tg_rang("))
 check("the gatekeeper line count on the old cards is unchanged", W.count("tg_cells.gate_note(") == 5, W.count("tg_cells.gate_note("))
 m = re.search(r"^ROSTER_TS = (\d+)\b", W, re.M)
 check("the cut-over stamp is a real epoch on 16–17 Nov 2026 UTC", bool(m) and calendar.timegm((2026, 11, 16, 0, 0, 0)) < int(m.group(1)) < calendar.timegm((2026, 11, 18, 0, 0, 0)))
@@ -293,21 +364,25 @@ rs_s = sr.for_signal(STK, "LONG", 100.0, 96.0, bars=[(100.4, 99.6, 100.0)] * 96)
 T7 = float(calendar.timegm((2026, 11, 18, 2, 30, 0)))                # 07:30 PKT → the 05–09 window
 out_s = tr.rule_card("💎✅ *ELITE CONFIRMED ENTRY · STOCK*\nenter `100` · SL `96` · TP1 `106` (+1.5R)", {"symbol": STK, "side": "LONG", "entry": 100.0, "stop": 96.0, "tp1": 106.0},
                      rs_s, "elite_confirm", T7)
-check("rule card, stock: the 15m rule's stop in the SL, TP1's R re-cut, and the replay with this PKT window's cell",
+check("rule card, stock confirmed entry: the 15m rule's stop in the SL, TP1's R re-cut, and NO fixed replay line since 23 Nov (its card reads the desk live)",
       bool(rs_s) and rs_s["rule"] == "15m" and abs(rs_s["stop"] - 95.8) < 1e-9
-      and out_s == "💎✅ *ELITE CONFIRMED ENTRY · STOCK*\nenter `100` · SL `95.8` · TP1 `106` (+1.4R)\n"
-      "🧪 replay on this stop (to 16 Nov, candles): 66% / +0.08R (50) · 05–09 PKT 82% / +0.47R (11, thin)", out_s)
+      and out_s == "💎✅ *ELITE CONFIRMED ENTRY · STOCK*\nenter `100` · SL `95.8` · TP1 `106` (+1.4R)", out_s)
+out_ss = tr.rule_card("⭐ *ELITE STAR · STOCK*\nentry `100` · SL `96` · TP1 `106` (+1.5R)", {"symbol": STK, "side": "LONG", "entry": 100.0, "stop": 96.0, "tp1": 106.0},
+                      rs_s, "elite_star", T7)
+check("rule card, stock star: the replay line with this PKT window's cell is still there",
+      out_ss == "⭐ *ELITE STAR · STOCK*\nentry `100` · SL `95.8` · TP1 `106` (+1.4R)\n"
+      "🧪 replay on this stop (to 16 Nov, candles): 65% / +0.10R (26) · 05–09 PKT 100% / +0.66R (5, thin)", out_ss)
 check("rule card: no rule result leaves the card untouched; a rule that keeps the plan's stop changes nothing but the replay line",
       tr.rule_card(card, sig_c, None, "elite_star", NOW_W) == card
       and tr.rule_card(card, sig_c, {"stop": 96.0, "plan": 96.0, "rule": "4h", "mark": 96.0, "capped": False}, "elite_star", NOW_W) == card + "\n" + REPLAY_C)
 check("rule card: a card with no SL token is left alone (and a bell with no replay cell gets no line)",
       tr.rule_card("a card with no SL token", sig_c, a1, None, NOW_W) == "a card with no SL token"
       and tr.rule_card(card, sig_c, a1, "kr_premium", NOW_W) == card.replace("SL `96`", "SL `93.5`").replace("(+1.5R)", "(+0.9R)"))
-check("worker: the rule's fetch is turned on, the six entry bells are swapped, the two reply sites follow", "stop_rule.LIVE = True" in W and W.count("_rule_card(") == 7
+check("worker: the rule's fetch is turned on, the six entry bells are swapped, the two reply sites follow", "stop_rule.LIVE = True" in W and W.count("_rule_card(") == 8
       and "def _rule_card(text, sig, key=None):" in W and W.count("tg_roster.rule_reply(") == 2 and "_wick_line" not in W
       and '_rule_card(_msg9, _pmx, "elite_star" if _star9 else "elite_agrade")' in W and "_rule_card(_rc_ec[1], dict(_w9, entry=_cl9), _rc_ec[0])" in W
-      and '+ _kr_note(_sig2), _sig2, "apex_v2_short"))' in W and "+ _kr_note(_sig_pp), _sig_pp, _tier_pp))" in W and '+ _kr_note(_sig_pt), _sig_pt, "prime_trig"))' in W
-      and 'dict(_ew, entry=_ew_px), "conv_revival"))' in W, W.count("_rule_card("))
+      and "+ _kr_note(_sig2), _sig2, _v2key))" in W and "+ _kr_note(_sig_pp), _sig_pp, _tier_pp))" in W and '+ _kr_note(_sig_pt), _sig_pt, "prime_trig"))' in W
+      and W.count('dict(_ew, entry=_ew_px), "conv_revival"))') == 2, W.count("_rule_card("))
 # the desk: a seat opens on the rule's stop; the demo feed and the stop_rule stream keep the plan's
 import shadow_trader as sh      # noqa: E402
 _opened, _recs = [], []

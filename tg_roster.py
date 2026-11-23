@@ -29,18 +29,22 @@ ROSTER_TAG = "2026-11-17"
 BELL = "tg_bell"                 # signals stream of rung entry bells; the `tier` column carries the bell's key
 # class rule. A key in neither set rings on both classes when its own switch is on.
 CRYPTO_ONLY = frozenset({"leg2_prime", "star_takenow", "prime_trig", "confirm_star", "apex_v2_short",
-                         "elite_agrade"})
-STOCK_ONLY = frozenset({"elite_confirm", "conv_revival"})
+                         "apex_v2_long", "elite_agrade"})
+# 2026-11-23 (user: "I want these on telegram now: For Crypto Coins: 1. Confirmed Entries 2. Conviction Revival (GO)
+# 3. APEX V2 Shorts and Longs both"): the confirmed entry and the conviction revival ring on coins too, each class
+# on its own switch in the worker (TG_CONFIRM_STOCK / TG_CONFIRM_COIN, TG_CONV_REVIVAL / TG_CONV_REVIVAL_COIN), so
+# no bell is stock-only any more. Before: frozenset({"elite_confirm", "conv_revival"}).
+STOCK_ONLY = frozenset()
 LABEL = {"elite_star": "⭐ ELITE STAR", "elite_agrade": "💎🏆 A-GRADE", "elite_confirm": "💎✅ CONFIRMED ENTRY",
          "leg2_prime": "🔥🥇 SECOND LEG × PRIME", "prime_trig": "💥🥇 PRIME × STRONG TRIGGER",
          "star_takenow": "⭐✅🔥 STAR × TAKE NOW HOT", "confirm_star": "💎✅⭐ CONFIRMED after a GATED STAR",
-         "apex_v2_short": "🏆🔻 APEX V2 SHORT", "conv_revival": "💎⚡ CONVICTION REVIVAL",
+         "apex_v2_short": "🏆🔻 APEX V2 SHORT", "apex_v2_long": "🏆🔺 APEX V2 LONG", "conv_revival": "💎⚡ CONVICTION REVIVAL",
          "kr_premium": "⚡🔮 KR-STRONG PREMIUM"}
 # 🏦 TP1 HIT ping: only for bells that rang, and for every bell on the roster (user 2026-11-17, after the first
 # build left three out: "add tp1 ones to the ones that rings so add it"). The log holds rung bells only, so a muted
 # bell can never ping. Remove a key to silence its ping.
 TP1_PING = frozenset({"elite_star", "elite_agrade", "elite_confirm", "leg2_prime", "prime_trig", "confirm_star",
-                      "kr_premium", "apex_v2_short", "conv_revival", "star_takenow"})
+                      "kr_premium", "apex_v2_short", "apex_v2_long", "conv_revival", "star_takenow"})
 # the desk tier whose stock seats a bell's stock line reads
 STOCK_TIER = {"elite_star": "elite_star", "elite_confirm": "elite_confirm", "conv_revival": "go_revived",
               "star_go": "star_go_chase"}
@@ -138,6 +142,89 @@ def stock_line(tier: str, side, now: float | None = None) -> str:
         return ""
 
 
+# ───────── 📊 the record since the stop rule, read live from the desk ─────────
+# User 2026-11-23: the new coin bells "should ring with the latest information on the buzz signal after the stop
+# loss rule change", and on the stock confirmed entry "13-17 timings and 21-01 timings were best update on the
+# information buzz according to our new rule applied so we should know". So these cards carry no fixed numbers:
+# every bell reads the desk's own closed trades OPENED since the rule went live, for its tier and its class (coins
+# or tok:<tier>), at the moment it rings (cached STOCK_TTL). Desk booking; a count under THIN_N is marked thin.
+RULE_SINCE_TS = 1794928080.0      # 17 Nov 2026 15:08 UTC (20:08 PKT): the stop rule live on the server (683be6e)
+RULE_SINCE_LABEL = "17 Nov"
+WINDOWS = ("01–05", "05–09", "09–13", "13–17", "17–21", "21–01")
+_SINCE_CACHE: dict = {}
+
+
+def _since_rows(tier: str, stock: bool, now: float) -> list:
+    """[(side, opened_at, pnl_r)] of the clean closes of this tier and class opened since the stop rule. [] on error."""
+    key = ("tok:" if stock else "") + str(tier)
+    c = _SINCE_CACHE.get(key)
+    if c is not None and now - c[0] < STOCK_TTL:
+        return c[1]
+    rows = c[1] if c is not None else []
+    try:
+        import worker_store as _ws
+        con = _ws._open()
+        try:
+            rows = [(str(s or "").upper(), float(o or 0.0), float(r)) for s, o, r in con.execute(
+                "SELECT side, opened_at, pnl_r FROM shadow_trades WHERE status='CLOSED' AND pnl_r IS NOT NULL "
+                "AND tier=? AND opened_at>=?", (key, RULE_SINCE_TS))]
+        finally:
+            con.close()
+    except Exception:
+        pass
+    _SINCE_CACHE[key] = (now, rows)
+    return rows
+
+
+def _recw(c) -> str:
+    return "no trade yet" if not c else f"{c[0]:.0f}% ({c[2]}{', thin' if c[2] < tg_cells.THIN_N else ''})"
+
+
+def since_rule_line(tier: str, symbol, side, now: float | None = None, one_side: bool = False, what: str = "") -> str:
+    """'📊 since the stop change (17 Nov), desk: 🕐 🟢 21–01 PKT 89% (19) · shorts 80% / +0.57R (30) · all 75% /
+    +0.40R (51) · confirmed entries on coins'. The window is the 4-hour PKT window of `now`. one_side (APEX V2,
+    where longs and shorts are two bells): the window cell is this side's own and the other side closes the line
+    in place of 'all'. '' on error."""
+    try:
+        now = time.time() if now is None else float(now)
+        sd = str(side or "").upper()
+        rows = _since_rows(str(tier), is_stock(symbol), now)
+        head = f"📊 since the stop change ({RULE_SINCE_LABEL}), desk: "
+        tail = f" · {what}" if what else ""
+        if not rows:
+            return head + "no closed trade yet" + tail
+        win = tg_cells.window_of(now)
+        who = {"LONG": "longs", "SHORT": "shorts"}.get(sd)
+        osd = {"LONG": "SHORT", "SHORT": "LONG"}.get(sd)
+        mine = one_side and bool(who)
+        wc = _cell(r for s, o, r in rows if tg_cells.window_of(o) == win and (s == sd or not mine))
+        bits = [f"🕐 {tg_cells.light(wc[0]) if wc else '🟡'} {win} PKT " + (f"{who} " if mine else "") + _recw(wc)]
+        if who:
+            bits.append(f"{who} {_rec(_cell(r for s, _, r in rows if s == sd))}")
+        if mine:
+            bits.append(f"{'shorts' if osd == 'SHORT' else 'longs'} {_rec(_cell(r for s, _, r in rows if s == osd))}")
+        else:
+            bits.append(f"all {_rec(_cell(r for _, _, r in rows))}")
+        return head + " · ".join(bits) + tail
+    except Exception:
+        return ""
+
+
+def since_rule_windows(tier: str, symbol, now: float | None = None) -> str:
+    """'🕐 by window since 17 Nov: 21–01 78% (9) · 13–17 75% (4) · 05–09 12% (8)': every PKT window that has a closed
+    trade since the stop rule, both sides, best first. '' with none or on error."""
+    try:
+        now = time.time() if now is None else float(now)
+        rows = _since_rows(str(tier), is_stock(symbol), now)
+        cells = [(w, _cell(r for _, o, r in rows if tg_cells.window_of(o) == w)) for w in WINDOWS]
+        cells = sorted([(w, c) for w, c in cells if c], key=lambda wc: (-wc[1][0], -wc[1][2]))
+        if not cells:
+            return ""
+        return f"🕐 by window since {RULE_SINCE_LABEL}: " + " · ".join(f"{w} {c[0]:.0f}% ({c[2]})" for w, c in cells)
+    except Exception:
+        return ""
+
+
 def us_session(now: float | None = None) -> str:
     """'🏛 US market OPEN (regular hours)' / '🏛 US market CLOSED · pre-market | after-hours | overnight | weekend |
     holiday'. New York time through zoneinfo; '' when the zone data is missing."""
@@ -226,9 +313,27 @@ def stock_confirm_card(w: dict, close: float, now: float, conf=None) -> str:
     plan = (_plan(close, w["stop"], w["tp1"], w.get("tp2"), word="enter")
             + f" · elite {w.get('tier')} {float(w.get('score') or 0):.0f} · {ap}"
             + (f" · conf {conf}" if conf is not None else ""))
+    # 2026-11-23: the record and the window list are the trades since the stop rule (user: "13-17 timings and 21-01
+    # timings were best update on the information buzz according to our new rule applied so we should know").
+    # Before: stock_line("elite_confirm", side, now), every stock close since 10 Nov on both stop rules.
     return _join([f"💎✅ *ELITE CONFIRMED ENTRY · STOCK — {_base(w)} {side} · TAKE · {_hm(now)} PKT*", plan,
                   "pulled back to the plan and confirmed on the 15-minute close",
-                  stock_line("elite_confirm", side, now), us_session(now)])
+                  since_rule_line("elite_confirm", w.get("symbol"), side, now, what="confirmed entries on stocks"),
+                  since_rule_windows("elite_confirm", w.get("symbol"), now), us_session(now)])
+
+
+def coin_confirm_card(w: dict, close: float, now: float, conf=None) -> str:
+    """💎✅ ELITE CONFIRMED ENTRY on a coin (rings since 2026-11-23): the pullback to the plan that confirmed, with
+    the coin record since the stop rule and the gatekeeper's read."""
+    side = str(w.get("side") or "").upper()
+    ap = "🚀 approved" if w.get("appr") else "approval unknown" if w.get("appr") is None else "unapproved"
+    plan = (_plan(close, w["stop"], w["tp1"], w.get("tp2"), word="enter")
+            + f" · elite {w.get('tier')} {float(w.get('score') or 0):.0f} · {ap}"
+            + (f" · conf {conf}" if conf is not None else ""))
+    card = _join([f"💎✅ *ELITE CONFIRMED ENTRY — {_base(w)} {side} · TAKE · {_hm(now)} PKT{market_tag(side, now)}*", plan,
+                  "pulled back to the plan and confirmed on the 15-minute close",
+                  since_rule_line("elite_confirm", w.get("symbol"), side, now, what="confirmed entries on coins")])
+    return card + tg_cells.gate_note("elite_confirm", side, now, symbol=w.get("symbol"))
 
 
 def _left(ew: dict, px: float) -> str:
@@ -284,20 +389,44 @@ def stock_revival_card(ew: dict, prg: float, age_s: float, px: float, now: float
                   stock_line("go_revived", side, now), us_session(now)])
 
 
+def coin_revival_card(ew: dict, prg: float, age_s: float, px: float, now: float) -> str:
+    """💎⚡ CONVICTION REVIVAL on a coin (rings since 2026-11-23, every revival, as on stocks): an elite conviction
+    fire graded DEAD at the hour that then ignited to +25% of its path. The record is of entering at the GO since
+    the stop rule (desk tier go_revived, which also holds the few star revivals)."""
+    side = str(ew.get("side") or "").upper()
+    cls = "LATE" if float(age_s) > 4 * 3600 else "FAST"
+    card = _join([f"💎⚡ *CONVICTION REVIVAL — {_base(ew)} {side} · GO {cls} · {_hm(now)} PKT{market_tag(side, now)}*",
+                  _fire_plan(ew, prg, px),
+                  f"graded DEAD at the hour, then ignited · {float(age_s) / 60:.0f} min after the fire"
+                  + ("" if ew.get("appr") else " · unapproved fire"),
+                  since_rule_line("go_revived", ew.get("symbol"), side, now, what="revivals entered at the GO, coins")])
+    return card + tg_cells.gate_note("conv_revival", side, now, symbol=ew.get("symbol"))
+
+
 # ───────── crypto: the two new cards ─────────
-def apex_v2_short_card(sig: dict, px, read_line, gate_ok: bool, now: float) -> str:
-    """🏆🔻 APEX V2 SHORT: every APEX V2 short fire on a coin, the three-rule gate's read on one line, the market
-    side in the header. Longs do not ring. The 1H verdict replies in this thread."""
+def apex_v2_card(sig: dict, px, read_line, gate_ok: bool, now: float) -> str:
+    """🏆🔻 APEX V2 SHORT / 🏆🔺 APEX V2 LONG: every APEX V2 fire on a coin (longs ring too since 2026-11-23, user:
+    "APEX V2 Shorts and Longs both"), the three-rule gate's read on one line, the market side in the header, and
+    this side's record since the stop rule with the other side beside it. The 1H verdict replies in this thread.
+    Before 2026-11-23 the short card printed the fixed 23 Sep → 16 Nov window stamp and APEX_V2_SHORT_REC here."""
+    side = str(sig.get("side") or "").upper()
+    short = side == "SHORT"
+    key = "apex_v2_short" if short else "apex_v2_long"
     e = float(px or sig["entry"])
     ticks = str(read_line or "").split(" — ")[0].replace("read: ", "")
-    return _join([f"🏆🔻 *APEX V2 SHORT — {_base(sig)} · TAKE · {_hm(now)} PKT{market_tag('SHORT', now)}*",
+    card = _join([f"{'🏆🔻' if short else '🏆🔺'} *APEX V2 {side} — {_base(sig)} · TAKE · {_hm(now)} PKT{market_tag(side, now)}*",
                   ("gate: ✅ PASSED · " if gate_ok else "gate: ⚠️ NOT PASSED · ") + ticks,
                   f"entry `{float(sig['entry']):g}` · live `{e:g}` · "
                   + _plan(e, sig["stop"], sig["tp1"], sig.get("tp2")).split(" · ", 1)[1]
                   + f" · score {float(sig.get('score') or 0):.0f} · heat {float(sig.get('heat') or 0):.0f}",
-                  tg_cells.stamp("apex_v2_short", "SHORT", now),
-                  APEX_V2_SHORT_REC + " · ⏱ 1h verdict replies here"]) \
-        + tg_cells.gate_note("apex_v2_short", "SHORT", now, symbol=sig.get("symbol"))
+                  since_rule_line("apex_v2", sig.get("symbol"), side, now, one_side=True, what="APEX V2 on coins"),
+                  "⏱ 1h verdict replies here"])
+    return card + tg_cells.gate_note(key, side, now, symbol=sig.get("symbol"))
+
+
+def apex_v2_short_card(sig: dict, px, read_line, gate_ok: bool, now: float) -> str:
+    """The old name of apex_v2_card (the card reads the side from the signal)."""
+    return apex_v2_card(sig, px, read_line, gate_ok, now)
 
 
 def confirm_star_card(w: dict, close: float, now: float, star_ts: float, conf=None) -> str:
@@ -353,9 +482,9 @@ RULE_REPLAY = {
     ("prime_trig", None): (78, 0.15, 32), ("star_takenow", None): (67, 0.05, 3), ("apex_v2_short", None): (81, 0.23, 84),
 }
 RULE_REPLAY_STOCK = {
-    ("elite_confirm", None): (66, 0.08, 50),
-    ("elite_confirm", "01–05"): (86, 0.60, 7), ("elite_confirm", "05–09"): (82, 0.47, 11), ("elite_confirm", "09–13"): (100, 0.42, 4),
-    ("elite_confirm", "17–21"): (57, -0.18, 21), ("elite_confirm", "21–01"): (29, -0.49, 7),
+    # ("elite_confirm", …) removed 2026-11-23: the stock confirmed entry prints its live record and windows since
+    # the stop rule instead (since_rule_line / since_rule_windows); the cells to 16 Nov read 01–13 PKT 82–100% and
+    # 21–01 29% (7), and since the rule the same windows read the other way round.
     ("elite_star", None): (65, 0.10, 26),
     ("elite_star", "01–05"): (50, -0.08, 6), ("elite_star", "05–09"): (100, 0.66, 5), ("elite_star", "09–13"): (100, 0.67, 3),
     ("elite_star", "17–21"): (43, -0.32, 7), ("elite_star", "21–01"): (60, 0.00, 5),

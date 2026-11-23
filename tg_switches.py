@@ -32,7 +32,12 @@ REGISTRY = [
     ("TG_LEG2_PRIME", "🪙 🔥🥇 SECOND LEG × PRIME · coins", "leg2_prime", ""),
     ("TG_PRIME_TRIG", "🪙 💥🥇 PRIME × STRONG TRIGGER · coins", "prime_trig", ""),
     ("TG_STAR_TAKENOW", "🪙 ⭐✅🔥 STAR × TAKE NOW HOT · coins", "star_takenow", ""),
-    ("TG_APEX_V2_SHORT", "🪙 🏆🔻 APEX V2 SHORTS · coins", "apex_v2:short", "every APEX V2 short fire, the gate's read on one line; longs do not ring"),
+    ("TG_APEX_V2_SHORT", "🪙 🏆🔻 APEX V2 SHORTS · coins", "apex_v2:short", "every APEX V2 short fire, the gate's read on one line"),
+    # 📱 2026-11-23 (user: "I want these on telegram now: For Crypto Coins: 1. Confirmed Entries 2. Conviction Revival
+    # (GO) 3. APEX V2 Shorts and Longs both"): three coin bells, each card with its record since the stop rule
+    ("TG_APEX_V2_LONG", "🪙 🏆🔺 APEX V2 LONGS · coins", "apex_v2:long", "on since 23 Nov on his word · every APEX V2 long fire"),
+    ("TG_CONFIRM_COIN", "🪙 💎✅ ELITE CONFIRMED ENTRY · coins", "elite_confirm", "on since 23 Nov on his word · every confirmed entry on a coin"),
+    ("TG_CONV_REVIVAL_COIN", "🪙 💎⚡ CONVICTION REVIVAL · coins", "go_revived", "on since 23 Nov on his word · every revival, entered at the GO"),
     ("TG_KR_PREMIUM", "⚡🔮 KR-STRONG PREMIUM", None, "muted on 17 Nov on his word"),
     ("TG_CONFIRM_STAR", "🪙 💎✅⭐ CONFIRMED ENTRY after a GATED STAR · coins", None,
      "built, off: 48% / −0.21R (33) with the star first. The order that paid (confirmed entry, then the gated star: 65% / +0.43R, 55) is a mark on the star's card"),
@@ -169,13 +174,14 @@ def records(con, now: float | None = None, days: float = 14.0) -> dict:
     g, gk = cells["elite_star"], cells["tok:elite_star"]
     out["elite_star:gated"] = {"all": _cell([r for _, r in g]), "recent": _cell([r for c, r in g if (c or 0) >= cut]),
                                "tok": _cell([r for _, r in gk]), "tok_recent": _cell([r for c, r in gk if (c or 0) >= cut])}
-    # 🏆🔻 APEX V2 SHORTS = the APEX V2 tier cut to its short seats (the bell rings on shorts only)
-    sh = {"apex_v2": [], "tok:apex_v2": []}
-    for tier, c, r in con.execute(
-            "SELECT tier, closed_at, pnl_r FROM shadow_trades WHERE status='CLOSED' AND pnl_r IS NOT NULL "
-            "AND tier IN ('apex_v2','tok:apex_v2') AND upper(side)='SHORT'"):
-        sh[tier].append((c, r))
-    a, k = sh["apex_v2"], sh["tok:apex_v2"]
-    out["apex_v2:short"] = {"all": _cell([r for _, r in a]), "recent": _cell([r for c, r in a if (c or 0) >= cut]),
-                            "tok": _cell([r for _, r in k]), "tok_recent": _cell([r for c, r in k if (c or 0) >= cut])}
+    # 🏆🔻 APEX V2 SHORTS / 🏆🔺 APEX V2 LONGS = the APEX V2 tier cut to one side's seats (two bells since 2026-11-23)
+    for sd, key in (("SHORT", "apex_v2:short"), ("LONG", "apex_v2:long")):
+        sh = {"apex_v2": [], "tok:apex_v2": []}
+        for tier, c, r in con.execute(
+                "SELECT tier, closed_at, pnl_r FROM shadow_trades WHERE status='CLOSED' AND pnl_r IS NOT NULL "
+                "AND tier IN ('apex_v2','tok:apex_v2') AND upper(side)=?", (sd,)):
+            sh[tier].append((c, r))
+        a, k = sh["apex_v2"], sh["tok:apex_v2"]
+        out[key] = {"all": _cell([r for _, r in a]), "recent": _cell([r for c, r in a if (c or 0) >= cut]),
+                    "tok": _cell([r for _, r in k]), "tok_recent": _cell([r for c, r in k if (c or 0) >= cut])}
     return out

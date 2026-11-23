@@ -2500,6 +2500,15 @@ TG_CONV_REVIVAL = True     # 💎⚡ conviction revival bell; stocks only (tg_ro
 TG_AGRADE = True           # 💎🏆 A-GRADE bell for a non-star A-grade fire; coins only (user 2026-11-17: "deploy A grade as well to the telegram crypto side").
 TG_APEX_V2_SHORT = True    # 🏆🔻 APEX V2 SHORTS bell: every APEX V2 short fire on a coin, the gate's read on one line.
 TG_CONFIRM_STAR = False    # 💎✅⭐ confirmed entry after a gated star (≤6h), coins. OFF: see the note above.
+# 📱 2026-11-23 (user: "Ok I want these on telegram now: For Crypto Coins: 1. Confirmed Entries 2. Conviction
+# Revival (GO) 3. APEX V2 Shorts and Longs both. Both should ring with the latest information on the buzz signal
+# after the stop loss rule change."). Three coin bells; each card reads the desk's closed trades since the stop rule
+# live when it rings (tg_roster.since_rule_line). The long records he was shown first: confirmed entry on coins
+# 49% / +0.05R (1,391) before the change, conviction revival entered at the GO 54% / −0.04R (258), APEX V2 longs
+# 41% / −0.04R (123); the week after the change was a falling one (shorts paid). Each is one switch.
+TG_CONFIRM_COIN = True       # 💎✅ ELITE CONFIRMED ENTRY on a coin, every confirmed entry (tg_roster.coin_confirm_card).
+TG_CONV_REVIVAL_COIN = True  # 💎⚡ CONVICTION REVIVAL on a coin, every revival, as on stocks (tg_roster.coin_revival_card).
+TG_APEX_V2_LONG = True       # 🏆🔺 APEX V2 LONG: every APEX V2 long fire on a coin (tg_roster.apex_v2_card).
 TG_KR_PREMIUM = False      # ⚡🔮 KR-STRONG PREMIUM bell MUTED 2026-11-17 (user: "Mute KR STRONG"); it rang from 2026-10-19. Records and the kr_premium_bell stamp go on. True = ring again.
 STAR_LEG2_REC = "stars with one in the 6h before 69% / +0.37R (16, thin) vs 54% / +0.10R (556) without"
 STAR_CONFIRM_REC = "gated stars with one in the 6h before 65% / +0.43R (55) vs 57% / +0.07R (51) without"
@@ -3017,26 +3026,29 @@ def cycle() -> None:
             # on a coin, gated or not, with the gate's read on one line and the market side in the header.
             # Longs do not ring. A thread anchor: the 1H verdict replies under it.
             _srang2 = False
-            if (TG_APEX_V2_SHORT and _sd2 == "SHORT" and tg_roster.class_ok("apex_v2_short", _sym2)
-                    and not _bstock_quiet(_sym2)):
+            # 🏆🔺 2026-11-23 (user: "APEX V2 Shorts and Longs both"): a long fire rings too, on its own switch
+            # and its own bell key, with the same card (tg_roster.apex_v2_card reads the side from the signal).
+            _v2key = "apex_v2_short" if _sd2 == "SHORT" else "apex_v2_long"
+            if ((TG_APEX_V2_SHORT if _sd2 == "SHORT" else (TG_APEX_V2_LONG and _sd2 == "LONG"))
+                    and tg_roster.class_ok(_v2key, _sym2) and not _bstock_quiet(_sym2)):
                 try:
                     _oks2, _ms2, _ids2 = tg.send_thread(_rule_card(
-                        tg_roster.apex_v2_short_card(_sig2, _px2, _grd2, _gok2, time.time())
-                        + _kr_note(_sig2), _sig2, "apex_v2_short"))
+                        tg_roster.apex_v2_card(_sig2, _px2, _grd2, _gok2, time.time())
+                        + _kr_note(_sig2), _sig2, _v2key))
                     n_alerts += 1 if _oks2 else 0
                     _srang2 = bool(_oks2)
                     if _oks2:
-                        _tg_rang("apex_v2_short", _sig2)
+                        _tg_rang(_v2key, _sig2)
                         for _ewb2 in _EGO_WATCH:
                             if (_ewb2["symbol"] == _sym2 and _ewb2["side"] == _sd2
                                     and _ewb2.get("fam") == "apexv2"):
                                 _ewb2["buzzed"] = True
                                 _ewb2["gated"] = bool(_gok2)
                                 _ewb2["tg_ids"] = _ids2
-                    print(f"  [apexv2-short] {_sig2['base']} gate={'pass' if _gok2 else 'muted'} "
+                    print(f"  [{_v2key}] {_sig2['base']} gate={'pass' if _gok2 else 'muted'} "
                           f"bell={'sent' if _oks2 else 'failed: ' + str(_ms2)}", flush=True)
                 except Exception as _sb_exc:
-                    print("  apexv2 short bell error:", _sb_exc, flush=True)
+                    print(f"  {_v2key} bell error:", _sb_exc, flush=True)
             if _gok2:
                 try:
                     store.record_signal("apex_v2_gated", _sig2)
@@ -4442,6 +4454,11 @@ def cycle() -> None:
                         if TG_CONFIRM_STOCK:
                             _rc_ec = ("elite_confirm", tg_roster.stock_confirm_card(
                                 _w9, _cl9, _now, _cf0))
+                    elif TG_CONFIRM_COIN:
+                        # 💎✅ 2026-11-23 (user: "For Crypto Coins: 1. Confirmed Entries"): every confirmed
+                        # entry on a coin rings, on its own coin card with the record since the stop rule
+                        _rc_ec = ("elite_confirm", tg_roster.coin_confirm_card(
+                            _w9, _cl9, _now, _cf0))
                     elif TG_CONFIRM_STAR:
                         _gs_ec = tg_roster.gated_star_ts(store, _w9["symbol"], _w9["side"], _now)
                         if _gs_ec:
@@ -7012,13 +7029,26 @@ def cycle() -> None:
                                         else:
                                             _bell9 = "off: star revival of an un-rung fire (board + ledger only)"
                                     elif (_ew.get("oneh") == "DEAD" and not (
-                                            TG_CONV_REVIVAL and tg_roster.class_ok(
-                                                "conv_revival", _ew.get("symbol")))):
-                                        # 📱 roster 2026-11-17: the conviction revival rings on stocks only
-                                        # (user: "Conviction GO revived on stocks Yes add it!!"); the coin bell
-                                        # below is intact and returns by taking "conv_revival" out of
-                                        # tg_roster.STOCK_ONLY.
-                                        _bell9 = "off: conviction revival rings on stocks only (roster 2026-11-17)"
+                                            TG_CONV_REVIVAL if tg_roster.is_stock(_ew.get("symbol"))
+                                            else TG_CONV_REVIVAL_COIN)):
+                                        # 📱 each class on its own switch (2026-11-23): TG_CONV_REVIVAL for a
+                                        # tokenized stock, TG_CONV_REVIVAL_COIN for a coin. Before, from the
+                                        # 17 Nov roster, the bell was stocks only (tg_roster.STOCK_ONLY).
+                                        _bell9 = "off: conviction revival switched off for this class"
+                                    elif _ew.get("oneh") == "DEAD" and not tg_roster.is_stock(_ew.get("symbol")):
+                                        # 💎⚡ 2026-11-23 (user: "For Crypto Coins: … 2. Conviction Revival (GO)"):
+                                        # EVERY coin revival rings, as on stocks, on its own coin card with the
+                                        # record since the stop rule. The desk tier go_revived opens a seat for
+                                        # every one, so the card's record is the bell's own population. The
+                                        # gated coin bell further down (the fire read + the entry cell, 14 / 19
+                                        # Oct) is no longer reached; it is kept for a revert.
+                                        _ok9, _m9x = tg.send(_rule_card(tg_roster.coin_revival_card(
+                                            _ew, _prg, _age, _ew_px, _ew_now),
+                                            dict(_ew, entry=_ew_px), "conv_revival"))
+                                        _bell9 = ("sent-standalone-coin" if _ok9
+                                                  else f"failed: {_m9x}")
+                                        if _ok9:
+                                            _tg_rang("conv_revival", dict(_ew, entry=_ew_px))
                                     elif _ew.get("oneh") == "DEAD" and tg_roster.is_stock(_ew.get("symbol")):
                                         # 🏦 its own stock card for every revival: the desk tier tok:go_revived
                                         # records every one, and the coin gates below were fit on coins
