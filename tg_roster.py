@@ -146,8 +146,9 @@ def stock_line(tier: str, side, now: float | None = None) -> str:
 # User 2026-11-23: the new coin bells "should ring with the latest information on the buzz signal after the stop
 # loss rule change", and on the stock confirmed entry "13-17 timings and 21-01 timings were best update on the
 # information buzz according to our new rule applied so we should know". So these cards carry no fixed numbers:
-# every bell reads the desk's own closed trades OPENED since the rule went live, for its tier and its class (coins
-# or tok:<tier>), at the moment it rings (cached STOCK_TTL). Desk booking; a count under THIN_N is marked thin.
+# they read the desk's own closed trades at the moment the bell rings (cached STOCK_TTL). The record itself is the
+# ⏪ / ⏩ block further down (before_after), on every entry bell; since_rule_windows is the stock confirmed entry's
+# list of PKT windows since the rule. Desk booking; a count under THIN_N is marked thin.
 RULE_SINCE_TS = 1794928080.0      # 17 Nov 2026 15:08 UTC (20:08 PKT): the stop rule live on the server (683be6e)
 RULE_SINCE_LABEL = "17 Nov"
 WINDOWS = ("01–05", "05–09", "09–13", "13–17", "17–21", "21–01")
@@ -180,36 +181,6 @@ def _recw(c) -> str:
     return "no trade yet" if not c else f"{c[0]:.0f}% ({c[2]}{', thin' if c[2] < tg_cells.THIN_N else ''})"
 
 
-def since_rule_line(tier: str, symbol, side, now: float | None = None, one_side: bool = False, what: str = "") -> str:
-    """'📊 since the stop change (17 Nov), desk: 🕐 🟢 21–01 PKT 89% (19) · shorts 80% / +0.57R (30) · all 75% /
-    +0.40R (51) · confirmed entries on coins'. The window is the 4-hour PKT window of `now`. one_side (APEX V2,
-    where longs and shorts are two bells): the window cell is this side's own and the other side closes the line
-    in place of 'all'. '' on error."""
-    try:
-        now = time.time() if now is None else float(now)
-        sd = str(side or "").upper()
-        rows = _since_rows(str(tier), is_stock(symbol), now)
-        head = f"📊 since the stop change ({RULE_SINCE_LABEL}), desk: "
-        tail = f" · {what}" if what else ""
-        if not rows:
-            return head + "no closed trade yet" + tail
-        win = tg_cells.window_of(now)
-        who = {"LONG": "longs", "SHORT": "shorts"}.get(sd)
-        osd = {"LONG": "SHORT", "SHORT": "LONG"}.get(sd)
-        mine = one_side and bool(who)
-        wc = _cell(r for s, o, r in rows if tg_cells.window_of(o) == win and (s == sd or not mine))
-        bits = [f"🕐 {tg_cells.light(wc[0]) if wc else '🟡'} {win} PKT " + (f"{who} " if mine else "") + _recw(wc)]
-        if who:
-            bits.append(f"{who} {_rec(_cell(r for s, _, r in rows if s == sd))}")
-        if mine:
-            bits.append(f"{'shorts' if osd == 'SHORT' else 'longs'} {_rec(_cell(r for s, _, r in rows if s == osd))}")
-        else:
-            bits.append(f"all {_rec(_cell(r for _, _, r in rows))}")
-        return head + " · ".join(bits) + tail
-    except Exception:
-        return ""
-
-
 def since_rule_windows(tier: str, symbol, now: float | None = None) -> str:
     """'🕐 by window since 17 Nov: 21–01 78% (9) · 13–17 75% (4) · 05–09 12% (8)': every PKT window that has a closed
     trade since the stop rule, both sides, best first. '' with none or on error."""
@@ -223,6 +194,110 @@ def since_rule_windows(tier: str, symbol, now: float | None = None) -> str:
         return f"🕐 by window since {RULE_SINCE_LABEL}: " + " · ".join(f"{w} {c[0]:.0f}% ({c[2]})" for w, c in cells)
     except Exception:
         return ""
+
+
+# ───────── ⏪⏩ before / after the stop rule: one block on every entry bell ─────────
+# User 2026-11-23, an hour after the three coin bells: "right now on telegram there is too much information and
+# layers can we have before the stop loss rule change and after the rule change and the red green yellow buttons
+# accordingly right now its getting very conufsing honestly", then "dont remove other layers but have the
+# information that is adjusted accordingly". So nothing is taken off a card. Every entry bell that goes through the
+# worker's _rule_card gets the same two lines at its foot, read live from the desk for the bell's own tier, class
+# (coin / tok:) and SIDE:
+#   ⏪ before the stop change: 🔴 shorts 54% / +0.12R (496)
+#   ⏩ after the stop change (17 Nov): 🟢 shorts 80% / +0.57R (30) · 21–01 PKT 🟢 89% (19)
+# The light is his window light (tg_cells.light: 🟢 68%+, 🟡 60–68%, 🔴 under 60%) on the win rate, with one guard:
+# a record that has lost money (average R at or under zero) is never green. ⚪ = no closed trade, or fewer than
+# THIN_N (10): too few to colour. The coin ⭐ star is cut to its gated fires (the gate stamp on the star's signal
+# row), as on the Bells page. Desk booking.
+BELL_TIER = {"elite_star": "elite_star", "elite_agrade": "elite_agrade", "elite_confirm": "elite_confirm",
+             "leg2_prime": "leg2_prime", "prime_trig": "prime_trig", "star_takenow": "star_takenow",
+             "apex_v2_short": "apex_v2", "apex_v2_long": "apex_v2", "conv_revival": "go_revived",
+             "star_prime": "star_prime", "star_trig": "star_trig", "star_apexv2": "star_apexv2", "conv_prime": "conv_prime"}
+_BELL_CACHE: dict = {}
+
+
+def _bell_rows(key, stock: bool, now: float):
+    """[(side, opened_at, pnl_r)]: every clean close of the bell's desk tier for this class, cached STOCK_TTL.
+    None when the bell has no desk tier of its own."""
+    tier = BELL_TIER.get(str(key))
+    if not tier:
+        return None
+    full = ("tok:" if stock else "") + tier
+    gated = str(key) == "elite_star" and not stock
+    c = _BELL_CACHE.get((full, gated))
+    if c is not None and now - c[0] < STOCK_TTL:
+        return c[1]
+    rows = c[1] if c is not None else []
+    try:
+        import bisect
+        import worker_store as _ws
+        con = _ws._open()
+        try:
+            got = [(str(sym), str(s or "").upper(), float(o or 0.0), float(r)) for sym, s, o, r in con.execute(
+                "SELECT symbol, side, opened_at, pnl_r FROM shadow_trades WHERE status='CLOSED' AND pnl_r IS NOT NULL AND tier=?",
+                (full,))]
+            if gated:
+                stamps: dict = {}
+                for ts, sym, sd in con.execute(
+                        "SELECT ts, symbol, side FROM signals WHERE stream='elite_star' AND (extra LIKE '%\"gate\": \"pass\"%' "
+                        "OR extra LIKE '%\"gate\": \"1317-pass\"%') ORDER BY ts"):
+                    stamps.setdefault((str(sym), str(sd or "").upper()), []).append(float(ts))
+                keep = []
+                for sym, s, o, r in got:
+                    L = stamps.get((sym, s), [])
+                    i = bisect.bisect_left(L, o)
+                    if any(abs(x - o) <= 1800 for x in L[max(0, i - 1):i + 1]):
+                        keep.append((sym, s, o, r))
+                got = keep
+            rows = [(s, o, r) for _, s, o, r in got]
+        finally:
+            con.close()
+    except Exception:
+        pass
+    _BELL_CACHE[(full, gated)] = (now, rows)
+    return rows
+
+
+def _ba_light(c) -> str:
+    """⚪ no closed trade or under THIN_N · his window light on the win rate · never green on a record that has
+    lost money."""
+    if not c or c[2] < tg_cells.THIN_N:
+        return "⚪"
+    lt = tg_cells.light(c[0])
+    return "🟡" if (lt == "🟢" and c[1] <= 0) else lt
+
+
+def before_after(key, symbol, side, now: float | None = None) -> str:
+    """The two lines (see the block comment above). '' when the bell has no desk tier or on any error."""
+    try:
+        now = time.time() if now is None else float(now)
+        rows = _bell_rows(key, is_stock(symbol), now)
+        if rows is None:
+            return ""
+        sd = str(side or "").upper()
+        who = {"LONG": "longs", "SHORT": "shorts"}.get(sd)
+        mine = [(o, r) for s, o, r in rows if s == sd] if who else [(o, r) for _, o, r in rows]
+        w_ = (who + " ") if who else ""
+        bef = _cell(r for o, r in mine if o < RULE_SINCE_TS)
+        aft = _cell(r for o, r in mine if o >= RULE_SINCE_TS)
+        win = tg_cells.window_of(now)
+        wc = _cell(r for o, r in mine if o >= RULE_SINCE_TS and tg_cells.window_of(o) == win)
+        return (f"⏪ before the stop change: {_ba_light(bef)} {w_}{_rec(bef)}\n"
+                f"⏩ after the stop change ({RULE_SINCE_LABEL}): {_ba_light(aft)} {w_}{_rec(aft)}"
+                + (f" · {win} PKT {_ba_light(wc)} {_recw(wc)}" if wc else ""))
+    except Exception:
+        return ""
+
+
+def with_record(text: str, sig: dict, key, now: float | None = None) -> str:
+    """The card with the before / after block at its foot (once). The card comes back unchanged on any miss."""
+    try:
+        if not key or "⏪ before the stop change" in str(text):
+            return text
+        ba = before_after(key, sig.get("symbol"), sig.get("side"), now)
+        return (text + "\n" + ba) if ba else text
+    except Exception:
+        return text
 
 
 def us_session(now: float | None = None) -> str:
@@ -318,7 +393,6 @@ def stock_confirm_card(w: dict, close: float, now: float, conf=None) -> str:
     # Before: stock_line("elite_confirm", side, now), every stock close since 10 Nov on both stop rules.
     return _join([f"💎✅ *ELITE CONFIRMED ENTRY · STOCK — {_base(w)} {side} · TAKE · {_hm(now)} PKT*", plan,
                   "pulled back to the plan and confirmed on the 15-minute close",
-                  since_rule_line("elite_confirm", w.get("symbol"), side, now, what="confirmed entries on stocks"),
                   since_rule_windows("elite_confirm", w.get("symbol"), now), us_session(now)])
 
 
@@ -331,8 +405,7 @@ def coin_confirm_card(w: dict, close: float, now: float, conf=None) -> str:
             + f" · elite {w.get('tier')} {float(w.get('score') or 0):.0f} · {ap}"
             + (f" · conf {conf}" if conf is not None else ""))
     card = _join([f"💎✅ *ELITE CONFIRMED ENTRY — {_base(w)} {side} · TAKE · {_hm(now)} PKT{market_tag(side, now)}*", plan,
-                  "pulled back to the plan and confirmed on the 15-minute close",
-                  since_rule_line("elite_confirm", w.get("symbol"), side, now, what="confirmed entries on coins")])
+                  "pulled back to the plan and confirmed on the 15-minute close"])
     return card + tg_cells.gate_note("elite_confirm", side, now, symbol=w.get("symbol"))
 
 
@@ -398,8 +471,7 @@ def coin_revival_card(ew: dict, prg: float, age_s: float, px: float, now: float)
     card = _join([f"💎⚡ *CONVICTION REVIVAL — {_base(ew)} {side} · GO {cls} · {_hm(now)} PKT{market_tag(side, now)}*",
                   _fire_plan(ew, prg, px),
                   f"graded DEAD at the hour, then ignited · {float(age_s) / 60:.0f} min after the fire"
-                  + ("" if ew.get("appr") else " · unapproved fire"),
-                  since_rule_line("go_revived", ew.get("symbol"), side, now, what="revivals entered at the GO, coins")])
+                  + ("" if ew.get("appr") else " · unapproved fire")])
     return card + tg_cells.gate_note("conv_revival", side, now, symbol=ew.get("symbol"))
 
 
@@ -419,7 +491,6 @@ def apex_v2_card(sig: dict, px, read_line, gate_ok: bool, now: float) -> str:
                   f"entry `{float(sig['entry']):g}` · live `{e:g}` · "
                   + _plan(e, sig["stop"], sig["tp1"], sig.get("tp2")).split(" · ", 1)[1]
                   + f" · score {float(sig.get('score') or 0):.0f} · heat {float(sig.get('heat') or 0):.0f}",
-                  since_rule_line("apex_v2", sig.get("symbol"), side, now, one_side=True, what="APEX V2 on coins"),
                   "⏱ 1h verdict replies here"])
     return card + tg_cells.gate_note(key, side, now, symbol=sig.get("symbol"))
 

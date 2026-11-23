@@ -2563,10 +2563,17 @@ def _rule_card(text, sig, key=None):
     today … to our telegram notificaion streams"."""
     try:
         _rs_c = stop_rule.for_signal(sig.get("symbol"), sig.get("side"), sig.get("entry"), sig.get("stop"))
-        return tg_roster.rule_card(text, sig, _rs_c, key, time.time())
+        text = tg_roster.rule_card(text, sig, _rs_c, key, time.time())
     except Exception as _rc_exc:
         print("  stop rule card error:", _rc_exc, flush=True)
-        return text
+    # ⏪⏩ 2026-11-23 (user: "can we have before the stop loss rule change and after the rule change and the red
+    # green yellow buttons accordingly" · "dont remove other layers"): every entry bell ends with its own record
+    # before and after the stop rule, by side, each with its light. Nothing else on the card is touched.
+    try:
+        text = tg_roster.with_record(text, sig, key, time.time())
+    except Exception as _ba_exc:
+        print("  before/after block error:", _ba_exc, flush=True)
+    return text
 
 
 def _tg_rang(key, sig):

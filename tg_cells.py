@@ -350,12 +350,13 @@ GATE_TRUST = {
     "conv_revival": ("🔴", "entered at the GO ≈ 0R: a hold read"),
     "go_revived": ("🔴", "entered at the GO ≈ 0R: a hold read"),
     "apex_v2_gated": {"SHORT": ("✅", "APEX V2 shorts 62% / +0.29R (79)"), "LONG": ("🔴", "APEX V2 longs 41% / −0.03R (124)")},
-    "apex_v2_short": ("✅", "APEX V2 shorts 62% / +0.30R (84)"),                    # roster 2026-11-17
+    "apex_v2_short": ("✅", "APEX V2 shorts paid before the stop change"),         # roster 2026-11-17; numbers moved to the card's ⏪ / ⏩ lines 2026-11-23 (was "APEX V2 shorts 62% / +0.30R (84)")
     "confirm_star": ("🔴", "confirmed after a gated star 48% / −0.21R (33)"),      # roster 2026-11-17
     # 2026-11-23, the coin bells he turned on: the trust read stays the long record (before the stop change);
     # the card's own 📊 line carries the trades since the change.
-    "elite_confirm": ("🟡", "coins break-even before the stop change: 49% / +0.05R (1,391)"),
-    "apex_v2_long": ("🔴", "APEX V2 longs 41% / −0.04R (123) to 16 Nov"),
+    # (no numbers here since the same afternoon: the card's ⏪ / ⏩ lines carry them, by side)
+    "elite_confirm": ("🟡", "a break-even stream before the stop change"),
+    "apex_v2_long": ("🔴", "APEX V2 longs lost before the stop change"),
 }
 GATE_SIZE = ("full", "half", "small")
 

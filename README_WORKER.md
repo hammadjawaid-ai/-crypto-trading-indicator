@@ -833,3 +833,27 @@ according to our new rule applied so we should know".
   week since the change was a falling one in which shorts paid. The gatekeeper line on each coin card keeps that
   longer read (`tg_cells.GATE_TRUST`: `elite_confirm` 🟡, `conv_revival` 🔴, `apex_v2_long` 🔴).
 - Guards: `.tg_roster_test.py` (101), `.tg_switches_test.py`.
+
+## ⏪⏩ BEFORE / AFTER THE STOP RULE ON EVERY ENTRY BELL (2026-11-23, the same evening) — `tg_roster.before_after`
+
+User, once the three coin bells were ringing: "right now on telegram there is too much information and layers can we
+have before the stop loss rule change and after the rule change and the red green yellow buttons accordingly right
+now its getting very conufsing honestly", then, as the first build started to strip lines: "dont remove other layers
+but have the information that is adjusted accordingly".
+- Nothing is taken off any card. Every entry bell that goes through the worker's `_rule_card` (star / A-grade,
+  confirmed entry, the pairs, PRIME × trigger, APEX V2 both sides, both revivals; coins and stocks) ends with the
+  same two lines, read live from the desk for the bell's own tier, class and SIDE (`tg_roster.with_record`):
+  `⏪ before the stop change: 🔴 shorts 54% / +0.12R (496)` and
+  `⏩ after the stop change (17 Nov): 🟢 shorts 80% / +0.57R (30) · 21–01 PKT 🟢 93% (14)` (the last cell = this PKT
+  window since the rule, left off when it has no trade).
+- The light: his window light on the win rate (🟢 68%+, 🟡 60–68%, 🔴 under 60%), with two guards so a light never
+  flatters: a record whose average R is at or under zero is never green, and under 10 trades the light is ⚪.
+- The coin ⭐ star's two lines are cut to its gated fires (as on the Bells page). `BELL_TIER` maps a bell to its
+  desk tier; a bell with no tier of its own (KR premium) gets no block.
+- Adjusted so one card never shows two different numbers for the same thing: the morning's single 📊 line on the
+  five new / changed cards is replaced by this block (`since_rule_line` is gone; the stock confirmed entry keeps its
+  window list), and the gatekeeper's trust text for `apex_v2_short`, `apex_v2_long` and `elite_confirm` says its
+  verdict in words, without the numbers.
+- NOT changed: the older record lines the other cards already had (the stock line "desk since …", the 🕐 stamps to
+  4 / 16 Nov, the 🧪 replay to 16 Nov). They stay on his word; they are older, fixed periods.
+- Guard: `.tg_roster_test.py` (104).

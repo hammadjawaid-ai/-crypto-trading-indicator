@@ -107,23 +107,46 @@ con.commit()
 con.close()
 tr._SINCE_CACHE.clear()
 T1 = at(2026, 11, 21, 22)                      # 22:00 PKT -> the 21–01 window
-HEAD = "📊 since the stop change (17 Nov), desk: "
-s1 = tr.since_rule_line("elite_confirm", STOCK, "LONG", T1, what="confirmed entries on stocks")
 check("the rule went live 17 Nov 20:08 PKT", tr.RULE_SINCE_TS == at(2026, 11, 17, 20, 8))
-check("stock line: only stock seats opened since the rule; window, side, all; the 17 Nov 19:00 seat and the old seats are out",
-      s1 == HEAD + "🕐 🟢 21–01 PKT 100% (2, thin) · longs 67% / +0.13R (3, thin) · all 75% / +0.25R (4, thin) · confirmed entries on stocks", s1)
-check("coin line: the coin tier only", tr.since_rule_line("elite_confirm", COIN, "SHORT", T1, what="confirmed entries on coins")
-      == HEAD + "🕐 🟢 21–01 PKT 100% (1, thin) · shorts 100% / +0.60R (1, thin) · all 50% / -0.20R (2, thin) · confirmed entries on coins",
-      tr.since_rule_line("elite_confirm", COIN, "SHORT", T1))
-check("a window with no trade says so; a tier with no trade since the rule says so",
-      "🕐 🟡 09–13 PKT no trade yet · longs 67%" in tr.since_rule_line("elite_confirm", STOCK, "LONG", T0)
-      and tr.since_rule_line("elite_star", STOCK, "LONG", T1, what="x") == HEAD + "no closed trade yet · x")
-check("one side (APEX V2): the window cell is this side's, the other side closes the line",
-      tr.since_rule_line("apex_v2", COIN, "SHORT", at(2026, 11, 22, 18), one_side=True, what="APEX V2 on coins")
-      == HEAD + "🕐 🟢 17–21 PKT shorts 100% (2, thin) · shorts 67% / +0.07R (3, thin) · longs 0% / -1.00R (1, thin) · APEX V2 on coins"
-      and tr.since_rule_line("apex_v2", COIN, "LONG", at(2026, 11, 22, 18), one_side=True)
-      == HEAD + "🕐 🔴 17–21 PKT longs 0% (1, thin) · longs 0% / -1.00R (1, thin) · shorts 67% / +0.07R (3, thin)",
-      tr.since_rule_line("apex_v2", COIN, "SHORT", at(2026, 11, 22, 18), one_side=True))
+# ⏪⏩ the before / after block: the bell's own tier, class and side; lights; thin = white; never green on a loss
+con = ws._open()
+for i in range(12):                            # PRIME × trigger shorts before the rule: 9 of 12 won
+    con.execute("INSERT INTO shadow_trades (tier, symbol, side, entry, stop, opened_at, status, closed_at, pnl_r) VALUES ('prime_trig',?, 'SHORT',100,104,?, 'CLOSED',?,?)",
+                (COIN, at(2026, 11, 5, 9) + i * 600, at(2026, 11, 5, 12), 1.0 if i < 9 else -1.0))
+for i in range(10):                            # … and after it: 8 of 10 won, small wins, the record lost money
+    con.execute("INSERT INTO shadow_trades (tier, symbol, side, entry, stop, opened_at, status, closed_at, pnl_r) VALUES ('prime_trig',?, 'SHORT',100,104,?, 'CLOSED',?,?)",
+                (COIN, at(2026, 11, 19, 22) + i * 60, at(2026, 11, 19, 23), 0.1 if i < 8 else -1.0))
+for j, g in enumerate(("pass", "muted")):      # two coin star longs before the rule: one gated, one not
+    t_ = at(2026, 11, 6, 10) + j * 7200
+    con.execute("INSERT INTO shadow_trades (tier, symbol, side, entry, stop, opened_at, status, closed_at, pnl_r) VALUES ('elite_star',?, 'LONG',100,96,?, 'CLOSED',?,1.0)",
+                (COIN, t_, t_ + 3600))
+    con.execute("INSERT INTO signals (ts, stream, symbol, base, side, extra) VALUES (?, 'elite_star', ?, 'SOL', 'LONG', ?)", (t_ - 5, COIN, '{"gate": "%s"}' % g))
+con.commit()
+con.close()
+tr._BELL_CACHE.clear()
+BA = tr.before_after("prime_trig", COIN, "SHORT", T1)
+check("before / after: this bell's side, each line with its light; a winning rate on a losing record is yellow, never green",
+      BA == "⏪ before the stop change: 🟢 shorts 75% / +0.50R (12)\n⏩ after the stop change (17 Nov): 🟡 shorts 80% / -0.12R (10) · 21–01 PKT 🟡 80% (10)", BA)
+check("the window cell is left off when this window has no trade since the rule; a side with no trade says so in white",
+      tr.before_after("prime_trig", COIN, "SHORT", T0).endswith("⏩ after the stop change (17 Nov): 🟡 shorts 80% / -0.12R (10)")
+      and tr.before_after("prime_trig", COIN, "LONG", T1) == "⏪ before the stop change: ⚪ longs no closes yet\n⏩ after the stop change (17 Nov): ⚪ longs no closes yet")
+check("under ten trades the light is white, whatever the win rate; coin and stock seats never mix",
+      tr.before_after("elite_confirm", COIN, "SHORT", T1) == "⏪ before the stop change: ⚪ shorts no closes yet\n"
+      "⏩ after the stop change (17 Nov): ⚪ shorts 100% / +0.60R (1, thin) · 21–01 PKT ⚪ 100% (1, thin)"
+      and tr.before_after("elite_confirm", STOCK, "LONG", T1) == "⏪ before the stop change: ⚪ longs 75% / +0.88R (4, thin)\n"      # incl. the 17 Nov 19:00 seat
+      "⏩ after the stop change (17 Nov): ⚪ longs 67% / +0.13R (3, thin) · 21–01 PKT ⚪ 100% (1, thin)",
+      (tr.before_after("elite_confirm", COIN, "SHORT", T1), tr.before_after("elite_confirm", STOCK, "LONG", T1)))
+check("APEX V2: the short bell reads the shorts, the long bell the longs, both from the one tier",
+      tr.before_after("apex_v2_short", COIN, "SHORT", T1).endswith("⚪ shorts 67% / +0.07R (3, thin) · 21–01 PKT ⚪ 0% (1, thin)")
+      and tr.before_after("apex_v2_long", COIN, "LONG", T1).endswith("⚪ longs 0% / -1.00R (1, thin)"), tr.before_after("apex_v2_short", COIN, "SHORT", T1))
+check("the coin star is cut to its gated fires; a bell with no desk tier gets no block",
+      tr.before_after("elite_star", COIN, "LONG", T1).startswith("⏪ before the stop change: ⚪ longs 100% / +1.00R (1, thin)")
+      and tr.before_after("kr_premium", COIN, "LONG", T1) == "" and tr.before_after(None, COIN, "LONG", T1) == "")
+_c0 = "💥🥇 *PRIME × STRONG TRIGGER — SOL SHORT*\nentry `100` · SL `104` · TP1 `96`"
+_c1 = tr.with_record(_c0, {"symbol": COIN, "side": "SHORT"}, "prime_trig", T1)
+check("with_record: the block goes at the foot, once, and the card above it is untouched",
+      _c1 == _c0 + "\n" + BA and tr.with_record(_c1, {"symbol": COIN, "side": "SHORT"}, "prime_trig", T1) == _c1
+      and tr.with_record(_c0, {"symbol": COIN, "side": "SHORT"}, None, T1) == _c0)
 WIN_S = "🕐 by window since 17 Nov: 21–01 100% (2) · 13–17 100% (1) · 05–09 0% (1)"
 check("the windows list: every window with a trade since the rule, best first", tr.since_rule_windows("elite_confirm", STOCK, T1) == WIN_S
       and tr.since_rule_windows("elite_star", STOCK, T1) == "", tr.since_rule_windows("elite_confirm", STOCK, T1))
@@ -141,8 +164,7 @@ w = {"symbol": STOCK, "base": star["base"], "side": "LONG", "stop": 96.0, "tp1":
 c2 = tr.stock_confirm_card(w, 99.0, T0, conf=66)
 check("confirmed entry: header, the confirm close as the entry, the stock line", c2.split("\n")[0] == f"💎✅ *ELITE CONFIRMED ENTRY · STOCK — {star['base']} LONG · TAKE · 10:00 PKT*"
       and "enter `99` · SL `96` · TP1 `104` (+1.7R) · elite HIGH 81 · 🚀 approved · conf 66" in c2
-      and c2.split("\n")[3] == HEAD + "🕐 🟡 09–13 PKT no trade yet · longs 67% / +0.13R (3, thin) · all 75% / +0.25R (4, thin) · confirmed entries on stocks"
-      and c2.split("\n")[4] == WIN_S and "desk since 10 Nov" not in c2, c2)
+      and c2.split("\n")[3] == WIN_S and "desk since 10 Nov" not in c2 and "📊" not in c2 and len(c2.split("\n")) == 5, c2)
 ew = {"symbol": STOCK, "base": star["base"], "side": "LONG", "stop": 96.0, "tp1": 104.0, "tp2": 110.0, "entry0": 100.0, "oneh": "DEAD", "star": True,
       "fired_at": T0 - 5400, "appr": True}
 c3 = tr.stock_go_card(ew, 0.3, 5400, 101.2, T0)
@@ -169,32 +191,28 @@ check("APEX V2 short: header with the market side", A1[0] == "🏆🔻 *APEX V2 
 check("the gate's read is ONE line, with the verdict first", A1[1] == "gate: ⚠️ NOT PASSED · ✅ BTC +0.40% today · ✅ stop 3.0% · ⚠️ 18 PKT (17–21 is the weak window)", A1[1])
 check("a passed gate says so", tr.apex_v2_short_card(sig, 99.5, read, True, T0).split("\n")[1].startswith("gate: ✅ PASSED · ✅ BTC"))
 check("plan at the live price with R", A1[2] == "entry `100` · live `99.5` · SL `103` · TP1 `96` (+1.0R) · TP2 `92` (+2.1R) · score 92 · heat 48", A1[2])
-check("its record is the desk since the stop rule, this side's window and both sides (no fixed 23 Sep → 16 Nov lines)",
-      A1[3] == HEAD + "🕐 🟢 17–21 PKT shorts 100% (2, thin) · shorts 67% / +0.07R (3, thin) · longs 0% / -1.00R (1, thin) · APEX V2 on coins"
-      and "23 Sep" not in a1 and "do not ring" not in a1, A1[3])
-check("the verdict replies; the gatekeeper line closes it", A1[4] == "⏱ 1h verdict replies here" and A1[5].startswith("🚦 *GATE → ")
-      and "✅ APEX V2 shorts 62% / +0.30R (84)" in A1[5] and len(A1) == 6, A1[4:])
+check("no fixed 23 Sep → 16 Nov lines on the card (its record is the ⏪ / ⏩ block the worker adds)", "23 Sep" not in a1 and "do not ring" not in a1 and "📊" not in a1)
+check("the verdict replies; the gatekeeper line closes it", A1[3] == "⏱ 1h verdict replies here" and A1[4].startswith("🚦 *GATE → ")
+      and "✅ APEX V2 shorts paid before the stop change" in A1[4] and len(A1) == 5, A1[3:])
 sigL = dict(sig, side="LONG", stop=97.0, tp1=104.0, tp2=108.0)
 aL = tr.apex_v2_card(sigL, 100.5, read, True, at(2026, 11, 12, 18)).split("\n")
 check("APEX V2 LONG rings too: its own header, its own side's record, the gatekeeper's long read", aL[0] == "🏆🔺 *APEX V2 LONG — SOL · TAKE · 18:00 PKT · ⚠️ AGAINST THE MARKET*"
-      and aL[3] == HEAD + "🕐 🔴 17–21 PKT longs 0% (1, thin) · longs 0% / -1.00R (1, thin) · shorts 67% / +0.07R (3, thin) · APEX V2 on coins"
-      and aL[5].startswith("🚦 *GATE → SMALL*") and "🔴 APEX V2 longs 41% / −0.04R (123) to 16 Nov" in aL[5], aL)
+      and aL[3] == "⏱ 1h verdict replies here" and aL[4].startswith("🚦 *GATE → SMALL*") and "🔴 APEX V2 longs lost before the stop change" in aL[4]
+      and len(aL) == 5, aL)
 check("the old card name is the same card", tr.apex_v2_short_card(sig, 99.5, read, False, at(2026, 11, 12, 18)) == tr.apex_v2_card(sig, 99.5, read, False, at(2026, 11, 12, 18)))
 wk = {"symbol": COIN, "base": "SOL", "side": "SHORT", "stop": 103.0, "tp1": 96.0, "tp2": None, "tier": "HIGH", "score": 84, "appr": True}
 k1 = tr.coin_confirm_card(wk, 100.0, at(2026, 11, 12, 22), conf=68).split("\n")
-check("coin confirmed entry: header with the market side, the plan, the coin record since the rule, the gatekeeper",
+check("coin confirmed entry: header with the market side, the plan, the gatekeeper (the record block is added by the worker)",
       k1[0] == "💎✅ *ELITE CONFIRMED ENTRY — SOL SHORT · TAKE · 22:00 PKT · 🟢 WITH THE MARKET*"
       and k1[1] == "enter `100` · SL `103` · TP1 `96` (+1.3R) · elite HIGH 84 · 🚀 approved · conf 68"
-      and k1[3] == HEAD + "🕐 🟢 21–01 PKT 100% (1, thin) · shorts 100% / +0.60R (1, thin) · all 50% / -0.20R (2, thin) · confirmed entries on coins"
-      and k1[4].startswith("🚦 *GATE → ") and "🟡 coins break-even before the stop change: 49% / +0.05R (1,391)" in k1[4] and len(k1) == 5, k1)
+      and k1[3].startswith("🚦 *GATE → ") and "🟡 a break-even stream before the stop change" in k1[3] and len(k1) == 4, k1)
 ewk = {"symbol": COIN, "base": "SOL", "side": "SHORT", "stop": 103.0, "tp1": 96.0, "tp2": 92.0, "entry0": 100.0, "oneh": "DEAD", "star": False, "appr": True}
 k2 = tr.coin_revival_card(ewk, 0.27, 2 * 3600, 98.9, at(2026, 11, 12, 18)).split("\n")
-check("coin conviction revival: header, the fire plan with R left, the record of entering at the GO since the rule, the gatekeeper's hold read",
+check("coin conviction revival: header, the fire plan with R left, the gatekeeper's hold read (the record block is added by the worker)",
       k2[0] == "💎⚡ *CONVICTION REVIVAL — SOL SHORT · GO FAST · 18:00 PKT · 🟢 WITH THE MARKET*"
       and k2[1] == "fire `100` · SL `103` · TP1 `96` · TP2 `92` · ignited +27% of the path · live `98.9` · 1.0R left to TP1"
       and k2[2] == "graded DEAD at the hour, then ignited · 120 min after the fire"
-      and k2[3] == HEAD + "🕐 🟢 17–21 PKT 100% (1, thin) · shorts 100% / +0.40R (1, thin) · all 100% / +0.40R (1, thin) · revivals entered at the GO, coins"
-      and k2[4].startswith("🚦 *GATE → HALF*") and "🔴 entered at the GO ≈ 0R: a hold read" in k2[4], k2)
+      and k2[3].startswith("🚦 *GATE → HALF*") and "🔴 entered at the GO ≈ 0R: a hold read" in k2[3] and len(k2) == 4, k2)
 wc = {"symbol": COIN, "base": "SOL", "side": "LONG", "stop": 96.0, "tp1": 104.0, "tp2": None}
 a2 = tr.confirm_star_card(wc, 99.0, at(2026, 11, 12, 18), at(2026, 11, 12, 16, 30), conf=70)
 check("confirmed after a gated star: no TAKE word, the star's time, the honest record", "TAKE" not in a2.split("\n")[0]
@@ -378,6 +396,9 @@ check("rule card: no rule result leaves the card untouched; a rule that keeps th
 check("rule card: a card with no SL token is left alone (and a bell with no replay cell gets no line)",
       tr.rule_card("a card with no SL token", sig_c, a1, None, NOW_W) == "a card with no SL token"
       and tr.rule_card(card, sig_c, a1, "kr_premium", NOW_W) == card.replace("SL `96`", "SL `93.5`").replace("(+1.5R)", "(+0.9R)"))
+check("worker: every entry bell that takes the rule's stop also takes the ⏪ / ⏩ block, in _rule_card, after the swap",
+      W.index("text = tg_roster.rule_card(text, sig, _rs_c, key, time.time())") < W.index("text = tg_roster.with_record(text, sig, key, time.time())")
+      < W.index("def _tg_rang(key, sig):") and W.count("tg_roster.with_record(") == 1)
 check("worker: the rule's fetch is turned on, the six entry bells are swapped, the two reply sites follow", "stop_rule.LIVE = True" in W and W.count("_rule_card(") == 8
       and "def _rule_card(text, sig, key=None):" in W and W.count("tg_roster.rule_reply(") == 2 and "_wick_line" not in W
       and '_rule_card(_msg9, _pmx, "elite_star" if _star9 else "elite_agrade")' in W and "_rule_card(_rc_ec[1], dict(_w9, entry=_cl9), _rc_ec[0])" in W
