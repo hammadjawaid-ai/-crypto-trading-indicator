@@ -68,8 +68,31 @@ def available() -> bool:
         return False
 
 
+THREADS = max(1, int((os.environ.get("KRONOS_THREADS") or "1").strip() or 1))
+_threads_set = [False]
+
+
+def _cap_threads() -> None:
+    """🧵 2026-11-18: torch starts one thread per HOST core; the instance has one processor, so a forecast with
+    dozens of threads stalled the whole container (see launch.py). One thread is also the fastest setting on one
+    processor. KRONOS_THREADS in the environment overrides it. Safe to call often; never raises."""
+    if _threads_set[0]:
+        return
+    _threads_set[0] = True
+    try:
+        import torch
+        torch.set_num_threads(THREADS)
+        try:
+            torch.set_num_interop_threads(THREADS)      # only allowed before torch has done parallel work
+        except Exception:
+            pass
+    except Exception:
+        pass
+
+
 def _get_predictor():
     global _predictor
+    _cap_threads()
     if _predictor is None:
         from model import Kronos, KronosPredictor, KronosTokenizer
         tok = KronosTokenizer.from_pretrained(TOKENIZER_ID)

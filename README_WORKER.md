@@ -758,3 +758,53 @@ one fact: the demo touched its book once per worker cycle (17–20 minutes), at 
     `<STATE_DIR>/.feed_status.json` (latest numbers + the last 48 hourly rows, so a state backup carries them). The
     admin panel (`?admin=`) shows two lines, the page's process and the worker's: they are separate processes.
   - No reading, bell, tier, seat or decision changes. Guard: `.feed_diag_test.py`.
+
+## ⏳ WORKER SPEED + TWO BELL / METER FIXES (2026-11-23) — deployed on the user's word
+
+User, after the 23 Nov ledger read: "The worker is slow … fix this we need to get it asap" · "apex v2 idont think i
+got every signal here" · (the meter) "can you fix this and deploy as well".
+- **Measured (cycles + signals tables, 23 Nov backup).** A cycle ran every ~17 min on 15–16 Nov and every 26–40 min
+  from 17 Nov, with a 1.5–2.5 h gap every day. The scan itself is ~1.4 min. The time is the Kronos forecasts: up to
+  8 new candidates plus the 20-coin flip watch (`config.WORKER_FLIP_WATCH`, forecast EVERY cycle, past the 2 h
+  cache), one after the other, and one forecast took 21–24 s on the server until 17 Nov midday and 38–55 s since.
+  20 × 22 s = the 8 silent minutes of a fast day; 20 × 55 s = the 18 silent minutes of a slow one.
+- **Deployed, no reading changed:** the 18 Nov one-thread fix below (it had been written and was waiting for his
+  word), and the futures back-off: `binance_client.futures_symbols()` asks a refusing futures host once per 5
+  minutes (`_FUT_RETRY_TS`), not on every `has_perp()` call, and `prime_prices` skips the futures ticker when
+  there is no perpetual list. On this server the host answers HTTP 451 (the feed meter, 23 Nov: 498 refused
+  requests for 498 candle fetches in one scan), so every fetch paid one refused request plus a 0.2 s pause.
+- **NOT changed, his decision:** the 20 flip-watch forecasts every cycle. Refreshing them less often is the
+  certain way to a short cycle, and it changes how fresh the Kronos read is on those coins.
+- **🏆🔻 APEX V2 SHORT bell.** `n_alerts` was created below the APEX V2 loop, so the bell's own `n_alerts += 1`
+  raised right after the bell was sent: the phone got the bell, the rang-bell log did not (30 short fires, 0 rows,
+  17 → 23 Nov), so no TP1 HIT ping, no gatekeeper count, no thread for the 1H verdict. The counter is created
+  above the loop now.
+- **🩺 feed meter.** Its hook called `_os.replace`, and `cycle()` uses `_os` as a loop variable further down (a
+  local, unbound at the hook): the log line printed, the file stayed `.feed_status.json.tmp`. It imports
+  `os as _fd_os` itself now.
+- **The class of mistake** (a `cycle()` variable read before its first assignment; the unbound-name gate in
+  `.agrade_test.py` cannot see it because the name IS bound somewhere): `.feed_diag_test.py` checks the meter's
+  hook for it, and a bytecode scan of `cycle()` found `n_alerts` as the only other case.
+- Guards: `.feed_diag_test.py` (the back-off: 300 checks + fetches = 1 futures request, 1 more after the wait),
+  `.server_threads_test.py` (7).
+
+## 🧵 ONE THREAD PER NUMERIC LIBRARY (2026-11-18) — `launch.py`, `kronos_forecast._cap_threads`
+
+User: "i have a lot of server downs cant we fix it without reducing anything". Measured that evening with nothing
+but health probes: full restarts at 19:10, 19:23 and 19:36 PKT (each about 13 minutes after the previous start),
+then at 19:52 a two-minute stall (a timed-out check and four short 502s) with no page open. Short 502s are Render
+taking an unresponsive service out of rotation (its health check on `/_stcore/health` failing ~15 s); a minute of
+that and Render restarts it. Cause: torch (Kronos), OpenMP, MKL and OpenBLAS start one thread per HOST core, the
+instance has one processor (plan `standard`), and no cap was set anywhere, so a batch of forecasts ran dozens of
+threads inside a one-processor quota and throttled the whole container, the web process included. It clusters
+after a start because the forecast cache (2 h) is empty then and the first scan runs the most forecasts.
+- `launch.py` sets `OMP_NUM_THREADS`, `MKL_NUM_THREADS`, `OPENBLAS_NUM_THREADS`, `NUMEXPR_NUM_THREADS`,
+  `VECLIB_MAXIMUM_THREADS` to 1 (`setdefault`: a dashboard value wins) and `TOKENIZERS_PARALLELISM=false`, at module
+  level, before numpy / torch are imported and before the Streamlit subprocess starts (it inherits them).
+- `kronos_forecast._cap_threads()` sets `torch.set_num_threads` / `set_num_interop_threads` to `KRONOS_THREADS`
+  (default 1) before the model is built, in whichever process forecasts.
+- The brain thread lowers its own priority (`BRAIN_NICE = 10`, `os.setpriority` on its native thread id; inherited
+  by the threads it starts): the web process goes first when both want the processor.
+- Nothing is switched off; a forecast does the same work on one thread (about 11 s on a 16-core desktop).
+- NOT verified from here: Render's own reason for each restart (its Events tab says "health check failed" or
+  "out of memory"). If it says memory, this is not the whole fix. Guard: `.server_threads_test.py`.

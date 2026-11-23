@@ -30,6 +30,8 @@ FUTURES_BASES = ["https://fapi.binance.com"]
 _FUT_SET: set = set()
 _FUT_TS = 0.0
 _FUT_TTL = 3600.0
+_FUT_RETRY_TS = 0.0       # no futures request before this time (set after a failed attempt)
+_FUT_RETRY_S = 300.0
 
 # 🩺 FEED DIAGNOSTIC (2026-11-17, read-only): which Binance feed actually answered.
 # Counters only. Nothing in the app reads them to decide anything; feed_status()
@@ -155,8 +157,15 @@ def _get(path: str, params: dict | None = None,
 def futures_symbols() -> set:
     """USDT-M PERPETUAL symbols in TRADING status, cached 1h. Fail-soft: on
     an error the last good set stays (empty on the first failure -> spot)."""
-    global _FUT_SET, _FUT_TS
+    global _FUT_SET, _FUT_TS, _FUT_RETRY_TS
     if time.time() - _FUT_TS < _FUT_TTL and _FUT_SET:
+        return _FUT_SET
+    # ⏳ 2026-11-23 (user: "the worker is slow … fix this we need to get it asap"): after a failed attempt the
+    # futures host is asked again in 5 minutes, not on every call. The "retry in 5 min" below only ever held
+    # once a list existed; with an EMPTY list every has_perp() call asked again, so on a server the futures
+    # host refuses (Render: HTTP 451, measured 498 refused requests for 498 candle fetches in one scan) every
+    # candle fetch paid one refused request plus _get's 0.2s pause. The readings are the same spot readings.
+    if time.time() < _FUT_RETRY_TS:
         return _FUT_SET
     try:
         info = _get("/fapi/v1/exchangeInfo", bases=FUTURES_BASES, max_attempts=2)
@@ -165,8 +174,11 @@ def futures_symbols() -> set:
                and s.get("quoteAsset") == config.QUOTE_ASSET}
         if got:
             _FUT_SET, _FUT_TS = got, time.time()
+        else:
+            _FUT_RETRY_TS = time.time() + _FUT_RETRY_S
     except Exception:
         _FUT_TS = time.time() - _FUT_TTL + 300    # retry in 5 min
+        _FUT_RETRY_TS = time.time() + _FUT_RETRY_S
     return _FUT_SET
 
 
@@ -318,8 +330,10 @@ def prime_prices(symbols=None) -> int:
     if PERP_FIRST:
         _np = 0                                   # 🩺 perp prices written this refresh
         try:
-            fut = _get("/fapi/v1/ticker/price", bases=FUTURES_BASES, max_attempts=2)
+            # ⏳ 2026-11-23: the perpetual list first. With no list (the futures host refuses this server) the
+            # futures ticker could not change a single price below, so it is not requested at all.
             perps = futures_symbols()
+            fut = _get("/fapi/v1/ticker/price", bases=FUTURES_BASES, max_attempts=2) if perps else []
             for row in fut or []:
                 try:
                     sym = row["symbol"]

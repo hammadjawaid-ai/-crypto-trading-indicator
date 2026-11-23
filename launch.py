@@ -20,6 +20,22 @@ import threading
 import time
 import traceback
 
+# 🧵 2026-11-18 ONE THREAD PER NUMERIC LIBRARY (user: "i have a lot of server downs cant we fix it without reducing
+# anything"). torch (the Kronos forecasts), OpenMP, MKL and OpenBLAS each start as many threads as the HOST has
+# cores, but this instance is given ONE processor (render.yaml plan: standard). A batch of forecasts then ran
+# dozens of threads on a one-processor quota: the whole container was throttled for seconds at a time, the web
+# process could not answer Render's health check (/_stcore/health), Render stopped routing to it (the short 502s)
+# and, after a minute of that, restarted the service. It clustered ten to thirteen minutes after every start, when
+# the forecast cache is empty and the first scan runs the most forecasts (measured 18 Nov: restarts 19:10, 19:23,
+# 19:36 PKT; 19:52 a two-minute stall with no page open). Capping the pools to one thread removes the thrash and
+# costs nothing on one processor. Set here, before numpy / torch are imported anywhere and before the Streamlit
+# subprocess starts, so both processes inherit it. setdefault: a value set in the Render dashboard still wins.
+for _k in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "NUMEXPR_NUM_THREADS",
+           "VECLIB_MAXIMUM_THREADS"):
+    os.environ.setdefault(_k, "1")
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+BRAIN_NICE = 10            # the scan's threads run at lower priority: the web app goes first when both want the CPU
+
 
 def _brain() -> None:
     # Let Streamlit bind the port first so the service passes its health
@@ -31,6 +47,15 @@ def _brain() -> None:
     # 45 -> 120s (2026-11-13, the same loop came back with a 119-symbol scan): the web
     # process gets two quiet minutes to pass its health checks before the first heavy scan.
     time.sleep(120)
+    # 🧵 2026-11-18: this thread, and every thread it starts (the scan's pools, the demo watcher), yields the
+    # processor to the web process when both want it, so the health check and the pages keep answering during a
+    # heavy scan. On Linux the nice value is per thread and inherited by the threads it creates. The scan still
+    # uses every idle moment; nothing is skipped. No-op where the call does not exist (Windows).
+    try:
+        os.setpriority(os.PRIO_PROCESS, threading.get_native_id(), BRAIN_NICE)
+        print(f"[brain] scan threads at nice {BRAIN_NICE}: the web app goes first", flush=True)
+    except Exception as _nice_exc:
+        print("[brain] could not lower the scan's priority:", _nice_exc, flush=True)
     import agent_worker
     try:
         import telegram_notify as tg

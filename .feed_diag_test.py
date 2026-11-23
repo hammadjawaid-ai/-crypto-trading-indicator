@@ -46,7 +46,7 @@ def session(futures_open):
 
 
 def reset():
-    bc._FUT_SET, bc._FUT_TS, bc._PX_PRIME_TS = set(), 0.0, 0.0
+    bc._FUT_SET, bc._FUT_TS, bc._PX_PRIME_TS, bc._FUT_RETRY_TS = set(), 0.0, 0.0, 0.0
     bc._KL_CACHE.clear(); bc._PX_CACHE.clear(); calls.clear()
     for k in bc._FEED:
         bc._FEED[k] = "" if k == "fut_last_err" else 0
@@ -62,11 +62,24 @@ if float(df_b["close"].iloc[-1]) != 100.55 or px_b != 100.55:
     fails.append("blocked: the reading must be the spot one")
 if (st["kl_perp"], st["kl_spot"], st["px_perp"], st["px_spot"]) != (0, 1, 0, 1):
     fails.append(f"blocked: counters {st}")
-if st["fut_ok"] != 0 or st["fut_fail"] < 3 or "451" not in st["fut_last_err"] or st["perp_symbols"] != 0:
-    fails.append(f"blocked: futures failure not recorded {st}")
+if st["fut_ok"] != 0 or st["fut_fail"] != 1 or "451" not in st["fut_last_err"] or st["perp_symbols"] != 0:
+    fails.append(f"blocked: one futures failure must be recorded, then the back-off {st}")
 if st["prime_perp_last"] != 0:
     fails.append("blocked: bulk refresh must report 0 perp prices")
 line_b = bc.feed_line(st)
+# 1b) ⏳ the back-off (2026-11-23): a refused futures host is asked ONCE, then left alone for 5 minutes, however
+# many candles and prices are fetched; after the 5 minutes it is asked once more. Before, every fetch asked.
+n_fut = sum("fapi.binance.com" in u for u in calls)
+for _s in ["BTCUSDT", "ETHUSDT", "SOLUSDT"] * 100:
+    bc.has_perp(_s)
+bc._KL_CACHE.clear(); bc._PX_CACHE.clear(); bc._PX_PRIME_TS = 0.0
+bc._get_klines_uncached("ETHUSDT", "1h", 3); bc.get_ticker_price("ETHUSDT"); bc.prime_prices()
+if n_fut != 1 or sum("fapi.binance.com" in u for u in calls) != 1:
+    fails.append(f"back-off: {sum('fapi.binance.com' in u for u in calls)} futures requests while the host refuses (want 1)")
+bc._FUT_RETRY_TS = bc.time.time() - 1.0                 # the 5 minutes are over
+bc.has_perp("BTCUSDT"); bc.has_perp("ETHUSDT")
+if sum("fapi.binance.com" in u for u in calls) != 2:
+    fails.append("back-off: the futures host must be asked again once after the wait, and only once")
 
 # 2) futures host answers: perp readings, counted as perp
 reset(); bc._session.get = session(True)
@@ -113,6 +126,34 @@ W = open(os.path.join(HERE, "agent_worker.py"), encoding="utf-8").read()
 i_s, i_d = W.find("r = scan_core.scan_all("), W.find('print("🩺 feed: " + binance_client.feed_line(_fd), flush=True)')
 if not (0 < i_s < i_d) or i_d - i_s > 1200 or '.feed_status.json' not in W[i_s:i_d + 1200]:
     fails.append("worker feed hook missing or misplaced")
+# 6b) the hook must not read a name that is a LOCAL of cycle() bound somewhere else in it. The first build
+# called _os.replace(): cycle() has `for _os in …` far below, so _os was an unbound local at the hook and the status
+# file stayed as .feed_status.json.tmp (seen in the 23 Nov backup). Names the hook binds itself are fine.
+import ast
+import textwrap
+
+
+def hook_ghosts(src):
+    a, b = src.find("    if time.time() - _FEED_DIAG[\"t\"] >= 3600:"), src.find("    sst1, takenow = r[\"sst1\"], r[\"takenow\"]")
+    blk = ast.parse(textwrap.dedent(src[a:b]))
+    loads, stores = set(), set()
+    for n in ast.walk(blk):
+        if isinstance(n, ast.Name):
+            (stores if isinstance(n.ctx, ast.Store) else loads).add(n.id)
+        elif isinstance(n, (ast.Import, ast.ImportFrom)):
+            stores.update((x.asname or x.name).split(".")[0] for x in n.names)
+        elif isinstance(n, ast.ExceptHandler) and n.name:
+            stores.add(n.name)
+        elif isinstance(n, ast.withitem) and n.optional_vars is not None:
+            stores.update(t.id for t in ast.walk(n.optional_vars) if isinstance(t, ast.Name))
+    cyc = [c for c in compile(src, "agent_worker.py", "exec").co_consts if getattr(c, "co_name", "") == "cycle"][0]
+    return sorted((loads - stores) & set(cyc.co_varnames))
+
+
+if hook_ghosts(W):
+    fails.append(f"the worker hook reads cycle() locals it does not bind itself: {hook_ghosts(W)}")
+if hook_ghosts(W.replace("_fd_os.replace(", "_os.replace(")) != ["_os"]:
+    fails.append("the local-name check no longer catches the _os mistake")
 A = open(os.path.join(HERE, "app.py"), encoding="utf-8").read()
 i_m, i_f = A.find('if _mig_token and _qp.get("admin") == _mig_token:'), A.find('st.text("this page: " + binance_client.feed_line())')
 if not (0 < i_m < i_f) or A[i_m:i_f].count("\nst.") or A[i_m:i_f].count("\nif "):

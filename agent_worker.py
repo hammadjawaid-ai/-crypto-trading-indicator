@@ -2865,6 +2865,7 @@ def cycle() -> None:
         _FEED_DIAG["t"] = time.time()
         try:
             import json as _fd_json
+            import os as _fd_os      # NOT _os: cycle() uses _os as a loop variable further down, which makes it a local here
             _fd = binance_client.feed_status()
             print("🩺 feed: " + binance_client.feed_line(_fd), flush=True)
             _FEED_DIAG["hist"].append(
@@ -2876,7 +2877,7 @@ def cycle() -> None:
             with open(_fd_p + ".tmp", "w", encoding="utf-8") as _fd_f:
                 _fd_json.dump({"ts": time.time(), "worker": _fd,
                                "hourly": _FEED_DIAG["hist"]}, _fd_f)
-            _os.replace(_fd_p + ".tmp", _fd_p)
+            _fd_os.replace(_fd_p + ".tmp", _fd_p)
         except Exception as _fd_exc:
             print("feed diagnostic error:", _fd_exc, flush=True)
     sst1, takenow = r["sst1"], r["takenow"]
@@ -2964,6 +2965,11 @@ def cycle() -> None:
     # trig_strong fire on the same coin+side within 90min AFTER the
     # v2 fire = the 76.5%/+0.484R hold class vs silent 41.9%/-0.19R)
     # stamps as apex_v2_trig from the trigger fire site.
+    # 🔔 2026-11-23 the cycle's bell counter starts HERE. It used to be created further down (after this loop),
+    # so the 🏆🔻 APEX V2 SHORT bell's own `n_alerts += 1` raised right after the bell was sent: the bell reached
+    # the phone but was never written to the rang-bell log (30 short fires, 0 rows, 17 → 23 Nov), so it got no
+    # TP1 HIT ping, the gatekeeper never counted it and the 1H verdict had no thread to reply in.
+    n_alerts = 0
     for _av2 in apex:
         try:
             if (_av2.get("tier") or "").upper() != "STRONG":
@@ -3125,7 +3131,7 @@ def cycle() -> None:
     #      (validated: 22% reach 2R+, 65% win — the VANRY-hunter subset only)
     # REMOVED: Leaderboard alerts (heads-up tier, ~33-45% forward — weakest
     # link; still stored + shown in-app). SST1 standalone removed earlier.
-    n_alerts = 0
+    # (n_alerts is created above the APEX V2 loop since 2026-11-23, so that loop's bells are counted too)
 
     # 🟢 DESK AUTO-GATE (user 2026-07-25: "skip the ones that aren't
     # good"): each stream buzzes only while its own desk tier is GREEN.
