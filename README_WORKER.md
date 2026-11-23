@@ -846,8 +846,10 @@ but have the information that is adjusted accordingly".
   `⏪ before the stop change: 🔴 shorts 54% / +0.12R (496)` and
   `⏩ after the stop change (17 Nov): 🟢 shorts 80% / +0.57R (30) · 21–01 PKT 🟢 93% (14)` (the last cell = this PKT
   window since the rule, left off when it has no trade).
-- The light: his window light on the win rate (🟢 68%+, 🟡 60–68%, 🔴 under 60%), with two guards so a light never
-  flatters: a record whose average R is at or under zero is never green, and under 10 trades the light is ⚪.
+- The light: his window light on the win rate (🟢 68%+, 🟡 60–68%, 🔴 under 60%), with one guard so a light never
+  flatters: a record whose average R is at or under zero is never green. ⚪ = no closed trade. Under 10 trades the
+  light keeps its colour and the text says `(n, thin)` (user the same evening, on "⚪ 83% / +0.26R (6)": "mark this
+  green instead of grey just write (thin)"; the first build showed ⚪ for a thin record).
 - The coin ⭐ star's two lines are cut to its gated fires (as on the Bells page). `BELL_TIER` maps a bell to its
   desk tier; a bell with no tier of its own (KR premium) gets no block.
 - Adjusted so one card never shows two different numbers for the same thing: the morning's single 📊 line on the

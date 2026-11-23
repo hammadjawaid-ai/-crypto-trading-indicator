@@ -108,7 +108,8 @@ con.close()
 tr._SINCE_CACHE.clear()
 T1 = at(2026, 11, 21, 22)                      # 22:00 PKT -> the 21–01 window
 check("the rule went live 17 Nov 20:08 PKT", tr.RULE_SINCE_TS == at(2026, 11, 17, 20, 8))
-# ⏪⏩ the before / after block: the bell's own tier, class and side; lights; thin = white; never green on a loss
+# ⏪⏩ the before / after block: the bell's own tier, class and side; lights; a thin record keeps its colour and says
+# (n, thin); never green on a loss; white only when there is no closed trade
 con = ws._open()
 for i in range(12):                            # PRIME × trigger shorts before the rule: 9 of 12 won
     con.execute("INSERT INTO shadow_trades (tier, symbol, side, entry, stop, opened_at, status, closed_at, pnl_r) VALUES ('prime_trig',?, 'SHORT',100,104,?, 'CLOSED',?,?)",
@@ -130,17 +131,17 @@ check("before / after: this bell's side, each line with its light; a winning rat
 check("the window cell is left off when this window has no trade since the rule; a side with no trade says so in white",
       tr.before_after("prime_trig", COIN, "SHORT", T0).endswith("⏩ after the stop change (17 Nov): 🟡 shorts 80% / -0.12R (10)")
       and tr.before_after("prime_trig", COIN, "LONG", T1) == "⏪ before the stop change: ⚪ longs no closes yet\n⏩ after the stop change (17 Nov): ⚪ longs no closes yet")
-check("under ten trades the light is white, whatever the win rate; coin and stock seats never mix",
+check("under ten trades the light keeps its colour and the text says thin (user: 'mark this green instead of grey just write (thin)'); coin and stock seats never mix",
       tr.before_after("elite_confirm", COIN, "SHORT", T1) == "⏪ before the stop change: ⚪ shorts no closes yet\n"
-      "⏩ after the stop change (17 Nov): ⚪ shorts 100% / +0.60R (1, thin) · 21–01 PKT ⚪ 100% (1, thin)"
-      and tr.before_after("elite_confirm", STOCK, "LONG", T1) == "⏪ before the stop change: ⚪ longs 75% / +0.88R (4, thin)\n"      # incl. the 17 Nov 19:00 seat
-      "⏩ after the stop change (17 Nov): ⚪ longs 67% / +0.13R (3, thin) · 21–01 PKT ⚪ 100% (1, thin)",
+      "⏩ after the stop change (17 Nov): 🟢 shorts 100% / +0.60R (1, thin) · 21–01 PKT 🟢 100% (1, thin)"
+      and tr.before_after("elite_confirm", STOCK, "LONG", T1) == "⏪ before the stop change: 🟢 longs 75% / +0.88R (4, thin)\n"      # incl. the 17 Nov 19:00 seat
+      "⏩ after the stop change (17 Nov): 🟡 longs 67% / +0.13R (3, thin) · 21–01 PKT 🟢 100% (1, thin)",
       (tr.before_after("elite_confirm", COIN, "SHORT", T1), tr.before_after("elite_confirm", STOCK, "LONG", T1)))
 check("APEX V2: the short bell reads the shorts, the long bell the longs, both from the one tier",
-      tr.before_after("apex_v2_short", COIN, "SHORT", T1).endswith("⚪ shorts 67% / +0.07R (3, thin) · 21–01 PKT ⚪ 0% (1, thin)")
-      and tr.before_after("apex_v2_long", COIN, "LONG", T1).endswith("⚪ longs 0% / -1.00R (1, thin)"), tr.before_after("apex_v2_short", COIN, "SHORT", T1))
+      tr.before_after("apex_v2_short", COIN, "SHORT", T1).endswith("🟡 shorts 67% / +0.07R (3, thin) · 21–01 PKT 🔴 0% (1, thin)")
+      and tr.before_after("apex_v2_long", COIN, "LONG", T1).endswith("🔴 longs 0% / -1.00R (1, thin)"), tr.before_after("apex_v2_short", COIN, "SHORT", T1))
 check("the coin star is cut to its gated fires; a bell with no desk tier gets no block",
-      tr.before_after("elite_star", COIN, "LONG", T1).startswith("⏪ before the stop change: ⚪ longs 100% / +1.00R (1, thin)")
+      tr.before_after("elite_star", COIN, "LONG", T1).startswith("⏪ before the stop change: 🟢 longs 100% / +1.00R (1, thin)")
       and tr.before_after("kr_premium", COIN, "LONG", T1) == "" and tr.before_after(None, COIN, "LONG", T1) == "")
 _c0 = "💥🥇 *PRIME × STRONG TRIGGER — SOL SHORT*\nentry `100` · SL `104` · TP1 `96`"
 _c1 = tr.with_record(_c0, {"symbol": COIN, "side": "SHORT"}, "prime_trig", T1)

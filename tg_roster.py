@@ -206,9 +206,9 @@ def since_rule_windows(tier: str, symbol, now: float | None = None) -> str:
 #   ⏪ before the stop change: 🔴 shorts 54% / +0.12R (496)
 #   ⏩ after the stop change (17 Nov): 🟢 shorts 80% / +0.57R (30) · 21–01 PKT 🟢 89% (19)
 # The light is his window light (tg_cells.light: 🟢 68%+, 🟡 60–68%, 🔴 under 60%) on the win rate, with one guard:
-# a record that has lost money (average R at or under zero) is never green. ⚪ = no closed trade, or fewer than
-# THIN_N (10): too few to colour. The coin ⭐ star is cut to its gated fires (the gate stamp on the star's signal
-# row), as on the Bells page. Desk booking.
+# a record that has lost money (average R at or under zero) is never green. ⚪ = no closed trade. Fewer than THIN_N
+# (10) trades keeps the colour and is marked (n, thin). The coin ⭐ star is cut to its gated fires (the gate stamp on
+# the star's signal row), as on the Bells page. Desk booking.
 BELL_TIER = {"elite_star": "elite_star", "elite_agrade": "elite_agrade", "elite_confirm": "elite_confirm",
              "leg2_prime": "leg2_prime", "prime_trig": "prime_trig", "star_takenow": "star_takenow",
              "apex_v2_short": "apex_v2", "apex_v2_long": "apex_v2", "conv_revival": "go_revived",
@@ -259,9 +259,10 @@ def _bell_rows(key, stock: bool, now: float):
 
 
 def _ba_light(c) -> str:
-    """⚪ no closed trade or under THIN_N · his window light on the win rate · never green on a record that has
-    lost money."""
-    if not c or c[2] < tg_cells.THIN_N:
+    """⚪ no closed trade · his window light on the win rate · never green on a record that has lost money. A thin
+    record keeps its colour and the text beside it says (n, thin) (user 2026-11-23, on "⚪ 83% / +0.26R (6)": "mark
+    this green instead of grey just write (thin)"); for two hours that evening under THIN_N was ⚪."""
+    if not c:
         return "⚪"
     lt = tg_cells.light(c[0])
     return "🟡" if (lt == "🟢" and c[1] <= 0) else lt
