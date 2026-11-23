@@ -268,7 +268,7 @@ def _ba_light(c) -> str:
     return "🟡" if (lt == "🟢" and c[1] <= 0) else lt
 
 
-def before_after(key, symbol, side, now: float | None = None) -> str:
+def before_after(key, symbol, side, now: float | None = None, window_ts: float | None = None) -> str:
     """The two lines (see the block comment above). '' when the bell has no desk tier or on any error."""
     try:
         now = time.time() if now is None else float(now)
@@ -281,7 +281,7 @@ def before_after(key, symbol, side, now: float | None = None) -> str:
         w_ = (who + " ") if who else ""
         bef = _cell(r for o, r in mine if o < RULE_SINCE_TS)
         aft = _cell(r for o, r in mine if o >= RULE_SINCE_TS)
-        win = tg_cells.window_of(now)
+        win = tg_cells.window_of(now if window_ts is None else float(window_ts))    # a TP1 ping: the window the bell rang in
         wc = _cell(r for o, r in mine if o >= RULE_SINCE_TS and tg_cells.window_of(o) == win)
         return (f"⏪ before the stop change: {_ba_light(bef)} {w_}{_rec(bef)}\n"
                 f"⏩ after the stop change ({RULE_SINCE_LABEL}): {_ba_light(aft)} {w_}{_rec(aft)}"
@@ -642,19 +642,19 @@ def bell_row(key: str, sig: dict) -> dict:
 
 
 def ping_stamp(key, symbol, side, ts: float) -> str:
-    """'\\n…' under a 🏦 TP1 HIT ping: the stock line for a stock, the bell's 🕐 crypto cell for a coin."""
+    """'\\n…' under a 🏦 TP1 HIT ping: the bell's own record line as before (the stock line for a stock, the bell's
+    🕐 crypto cell for a coin, nothing where the bell has no cell), THEN the bell's live ⏪ / ⏩ record, read from the
+    desk as the ping goes out, so a closed trade shows the stream's updated win rate with no backup in between
+    (user 2026-11-23: "for every closed trades can it update it by itself … can the telegram notification do it
+    after the closed trades and update the win rates as per the streams by themselves" · "Yes, add them"). The
+    window cell on the ⏩ line is the window the bell rang in (`ts`); the records are as of now."""
     try:
         if is_stock(symbol):
             ln = stock_line(STOCK_TIER.get(str(key), str(key)), side, ts)
-            return ("\n" + ln) if ln else ""
-        st = tg_cells.stamp_src(str(key), side, ts)
-        if st:
-            return st
-        # 2026-11-23: a coin bell with no fixed cell of its own (the coin confirmed entry, the coin conviction
-        # revival, APEX V2 longs) would leave the ping bare, so it prints the bell's live record instead: the
-        # same ⏪ / ⏩ lines as its entry bell, read from the desk as the ping goes out (user: "can you not
-        # update the win rate as the trade closes and the telegram information for the closed trades accoridngly")
-        ba = before_after(key, symbol, side, ts)
-        return ("\n" + ba) if ba else ""
+            out = ("\n" + ln) if ln else ""
+        else:
+            out = tg_cells.stamp_src(str(key), side, ts) or ""
+        ba = before_after(key, symbol, side, time.time(), window_ts=ts)
+        return out + (("\n" + ba) if ba else "")
     except Exception:
         return ""

@@ -873,3 +873,11 @@ but have the information that is adjusted accordingly".
   with no cell of its own (coin confirmed entry, coin conviction revival, APEX V2 longs) prints its live ⏪ / ⏩ record
   instead of nothing (`tg_roster.ping_stamp`). Same evening he asked whether the win rates can update by themselves as
   trades close: they do, on every entry bell and on these pings, read from the desk as the message goes out.
+
+- **🏦 TP1 HIT ping: the live ⏪ / ⏩ record under every ping (2026-11-23 night).** User: "for every closed trades
+  can it update it by itself with me not building the backup … can the telegram notification do it after the closed
+  trades and update the win rates as per the streams by themselves" · "Yes, add them". `tg_roster.ping_stamp` prints
+  the bell's own record line as before (stock line / 🕐 coin cell) and THEN the bell's before / after the stop rule
+  lines, read from the desk as the ping goes out (`before_after(..., time.time(), window_ts=<the bell's fire time>)`:
+  the cache runs on the real clock, the window cell is the window the bell rang in). Nothing is removed. The older
+  fixed cells (to 4 / 16 Nov) stay as they are; the two new lines are the ones that move with every closed trade.

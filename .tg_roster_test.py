@@ -260,12 +260,17 @@ check("TP1 ping set: every bell on the roster (user 2026-11-17: 'add tp1 ones to
                       "apex_v2_short", "apex_v2_long", "conv_revival", "star_takenow"}
       and tr.ping_stamp("apex_v2_short", COIN, "SHORT", T0).startswith("\n🕐 ") and tr.ping_stamp("star_takenow", COIN, "LONG", T0).startswith("\n🕐 ")
       and tr.ping_stamp("conv_revival", STOCK, "LONG", T0).startswith("\n🏦 "))
-check("ping stamp: a coin prints the old coin cell, a stock its stock line", tr.ping_stamp("elite_star", COIN, "LONG", T0) == tc.stamp_src("elite_star", "LONG", T0)
+check("ping stamp: a coin prints the old coin cell first, a stock its stock line first",
+      tr.ping_stamp("elite_star", COIN, "LONG", T0).startswith(tc.stamp_src("elite_star", "LONG", T0) + "\n⏪ before the stop change: ")
       and tr.ping_stamp("elite_confirm", STOCK, "LONG", T0).startswith("\n🏦 🕐 "))
-check("ping stamp: a coin bell with no cell of its own prints its live before / after record; a bell with no desk tier prints nothing",
+check("ping stamp: EVERY bell's ping ends with its live before / after record (the window cell = the window the bell rang in); a bell with no cell "
+      "of its own prints only that; a bell with no desk tier prints nothing more",
       tr.ping_stamp("elite_confirm", COIN, "SHORT", T1) == "\n" + tr.before_after("elite_confirm", COIN, "SHORT", T1)
       and tr.ping_stamp("apex_v2_long", COIN, "LONG", T1).startswith("\n⏪ before the stop change: ")
-      and tr.ping_stamp("kr_premium", COIN, "LONG", T0) == "", tr.ping_stamp("elite_confirm", COIN, "SHORT", T1))
+      and tr.ping_stamp("elite_confirm", STOCK, "LONG", T1).endswith("\n" + tr.before_after("elite_confirm", STOCK, "LONG", T1))
+      and tr.ping_stamp("prime_trig", COIN, "SHORT", T1).endswith("\n" + BA) and tr.ping_stamp("prime_trig", COIN, "SHORT", T0).endswith("🟡 shorts 80% / -0.12R (10)")
+      and tr.before_after("prime_trig", COIN, "SHORT", T0, window_ts=T1) == BA
+      and tr.ping_stamp("kr_premium", COIN, "LONG", T0) == "", tr.ping_stamp("elite_confirm", STOCK, "LONG", T1))
 check("TP1 ping: the streams and their fire times on their own 'from:' line, the plan on the next (as before 7 Nov), then the record line",
       'f"from: {_rg_from or tg_roster.LABEL.get(_rg_src) or TP1_STREAMS.get(_rg_src, _rg_src)}\\n"' in W
       and 'f"fire entry `{_rg_ent:g}` · SL `{_rg_stp:g}` · TP1 `{_rg_tp1:g}`"\n                        + tg_roster.ping_stamp(' in W)
