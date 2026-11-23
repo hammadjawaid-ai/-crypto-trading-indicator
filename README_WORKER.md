@@ -864,3 +864,12 @@ but have the information that is adjusted accordingly".
   11 before the stop change, none since): "remove only A grade from the telegram notification". `TG_AGRADE = False`;
   the tier `elite_agrade` keeps recording and the switch is still on the 🔔 Telegram Bells page. The other three bells
   the read named (APEX V2 longs, confirmed entry and conviction revival on coins) stay ON: he chose only this one.
+
+- **🏦 TP1 HIT ping: the streams and their fire times on their own line again (2026-11-23 night).** User: "tp1 hit
+  notificaitons on the telegram should have the streams and time as it used to have before only for tp1 hit telegram
+  notifications". The ping reads header · `from: <stream> fired HH:MM PKT · …` · `fire entry · SL · TP1` · record line,
+  as before the 7 Nov concise pass put the streams, the entry and the stop on one line. Nothing else on Telegram changes.
+  The record line is unchanged (the live stock line for a stock, the bell's 🕐 cell for a coin), except that a coin bell
+  with no cell of its own (coin confirmed entry, coin conviction revival, APEX V2 longs) prints its live ⏪ / ⏩ record
+  instead of nothing (`tg_roster.ping_stamp`). Same evening he asked whether the win rates can update by themselves as
+  trades close: they do, on every entry bell and on these pings, read from the desk as the message goes out.

@@ -8633,10 +8633,15 @@ def cycle() -> None:
                         f"{rung_stats.pkt_hm(_t)} PKT"
                         for _t, _s in sorted(
                             _rg_by.get((_rg_sym, _rg_side), [])))
-                    ok, _ = tg.send(   # 2026-11-07 concise ping
+                    # 2026-11-23 (user: "tp1 hit notificaitons on the telegram should have the streams and time as
+                    # it used to have before only for tp1 hit telegram notifications"): the streams with their fire
+                    # times are on their own "from:" line again, and the plan on the line under it, as the ping read
+                    # before the 7 Nov concise pass squeezed both into one line. Header and record line unchanged.
+                    ok, _ = tg.send(
                         f"🏦 *{_rg_b2} {_rg_side} · TP1 HIT `{_rg_tp1:g}` · BANK 100%*\n"
-                        f"from {_rg_from or tg_roster.LABEL.get(_rg_src) or TP1_STREAMS.get(_rg_src, _rg_src)} · fire `{_rg_ent:g}` · SL `{_rg_stp:g}`"
-                        + tg_roster.ping_stamp(_rg_src, _rg_sym, _rg_side, _rg_ts))   # 🕐 the bell's own cell: the stock line for a stock, the coin cell for a coin (2026-11-17; a coin prints what it printed before)
+                        f"from: {_rg_from or tg_roster.LABEL.get(_rg_src) or TP1_STREAMS.get(_rg_src, _rg_src)}\n"
+                        f"fire entry `{_rg_ent:g}` · SL `{_rg_stp:g}` · TP1 `{_rg_tp1:g}`"
+                        + tg_roster.ping_stamp(_rg_src, _rg_sym, _rg_side, _rg_ts))   # 🕐 the bell's own cell: the stock line for a stock, the coin cell for a coin (2026-11-17); a coin bell with no cell of its own prints its live ⏪ / ⏩ record (2026-11-23)
                     n_alerts += 1 if ok else 0
                 continue
             if _rg_stopped:

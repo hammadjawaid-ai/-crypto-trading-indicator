@@ -647,6 +647,14 @@ def ping_stamp(key, symbol, side, ts: float) -> str:
         if is_stock(symbol):
             ln = stock_line(STOCK_TIER.get(str(key), str(key)), side, ts)
             return ("\n" + ln) if ln else ""
-        return tg_cells.stamp_src(str(key), side, ts)
+        st = tg_cells.stamp_src(str(key), side, ts)
+        if st:
+            return st
+        # 2026-11-23: a coin bell with no fixed cell of its own (the coin confirmed entry, the coin conviction
+        # revival, APEX V2 longs) would leave the ping bare, so it prints the bell's live record instead: the
+        # same ⏪ / ⏩ lines as its entry bell, read from the desk as the ping goes out (user: "can you not
+        # update the win rate as the trade closes and the telegram information for the closed trades accoridngly")
+        ba = before_after(key, symbol, side, ts)
+        return ("\n" + ba) if ba else ""
     except Exception:
         return ""
