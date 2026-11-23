@@ -2497,7 +2497,7 @@ TG_NEAR90 = False        # 🎯 90%-of-TP1 printed ping MUTED 2026-11-07 (user);
 TG_STAR_STOCK = True       # 🏦 ⭐ a star on a tokenized stock rings on every fire, no gate. False = stocks follow the gate like coins.
 TG_CONFIRM_STOCK = True    # 🏦 💎✅ ELITE CONFIRMED ENTRY bell on tokenized stocks (the coin bell stays muted, as since 2026-09-03).
 TG_CONV_REVIVAL = True     # 💎⚡ conviction revival bell; stocks only (tg_roster.STOCK_ONLY).
-TG_AGRADE = True           # 💎🏆 A-GRADE bell for a non-star A-grade fire; coins only (user 2026-11-17: "deploy A grade as well to the telegram crypto side").
+TG_AGRADE = False          # 💎🏆 A-GRADE bell for a non-star A-grade fire; coins only. MUTED 2026-11-23 (user, after the roster read by history showed 36% / −0.01R over 11: "remove only A grade from the telegram notification"); its tier keeps recording. It was ON from 2026-11-17 ("deploy A grade as well to the telegram crypto side"). True = back.
 TG_APEX_V2_SHORT = True    # 🏆🔻 APEX V2 SHORTS bell: every APEX V2 short fire on a coin, the gate's read on one line.
 TG_CONFIRM_STAR = False    # 💎✅⭐ confirmed entry after a gated star (≤6h), coins. OFF: see the note above.
 # 📱 2026-11-23 (user: "Ok I want these on telegram now: For Crypto Coins: 1. Confirmed Entries 2. Conviction

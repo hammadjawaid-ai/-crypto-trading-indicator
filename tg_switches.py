@@ -28,7 +28,7 @@ REGISTRY = [
     ("TG_STAR_STOCK", "🏦 ⭐ ELITE STAR, every fire · stocks", "elite_star", "🎮 demo stream · no gate on stocks; the 1H verdict and GO fast / late reply in its thread"),
     ("TG_CONV_REVIVAL", "🏦 💎⚡ CONVICTION REVIVAL · stocks", "go_revived", "🎮 demo stream (GO revived) · entered at the GO"),
     (None, "🪙 ⭐ ELITE STAR, gated · coins", "elite_star:gated", "rings when the star passes its four-rule read, and every star 13–17 PKT with a caution line; replies in its thread"),
-    ("TG_AGRADE", "🪙 💎🏆 ELITE A-GRADE · coins", "elite_agrade", ""),
+    ("TG_AGRADE", "🪙 💎🏆 ELITE A-GRADE · coins", "elite_agrade", "muted on 23 Nov on his word; it keeps recording"),
     ("TG_LEG2_PRIME", "🪙 🔥🥇 SECOND LEG × PRIME · coins", "leg2_prime", ""),
     ("TG_PRIME_TRIG", "🪙 💥🥇 PRIME × STRONG TRIGGER · coins", "prime_trig", ""),
     ("TG_STAR_TAKENOW", "🪙 ⭐✅🔥 STAR × TAKE NOW HOT · coins", "star_takenow", ""),

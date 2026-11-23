@@ -266,7 +266,7 @@ check("ping stamp: a coin prints the old coin cell, a stock its stock line", tr.
 print("8. the switches")
 d = ts.code_defaults()
 check("every switch is a module-level True / False in the worker", set(d) == set(ts.FLAGS) and len(ts.FLAGS) == len(set(ts.FLAGS)), sorted(set(ts.FLAGS) - set(d)))
-want = {"TG_CONFIRM_STOCK": True, "TG_STAR_STOCK": True, "TG_CONV_REVIVAL": True, "TG_AGRADE": True, "TG_LEG2_PRIME": True, "TG_PRIME_TRIG": True,
+want = {"TG_CONFIRM_STOCK": True, "TG_STAR_STOCK": True, "TG_CONV_REVIVAL": True, "TG_AGRADE": False, "TG_LEG2_PRIME": True, "TG_PRIME_TRIG": True,      # A-grade muted 2026-11-23
         "TG_STAR_TAKENOW": True, "TG_APEX_V2_SHORT": True, "TG_KR_PREMIUM": False, "TG_CONFIRM_STAR": False, "TG_STAR_PRIME": False, "TG_STAR_TRIG": False,
         "TG_STAR_APEXV2": False, "TG_CONV_PRIME": False, "TG_APEX_V2_GATED": False, "TG_GO_LIVE": False, "TG_TRIGKR_PRIME": False, "TG_ARRIVAL_T1": False,
         "TG_NEAR90": False, "TG_FREEZE": False,

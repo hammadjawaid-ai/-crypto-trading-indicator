@@ -859,3 +859,8 @@ but have the information that is adjusted accordingly".
 - NOT changed: the older record lines the other cards already had (the stock line "desk since …", the 🕐 stamps to
   4 / 16 Nov, the 🧪 replay to 16 Nov). They stay on his word; they are older, fixed periods.
 - Guard: `.tg_roster_test.py` (104).
+
+- **💎🏆 A-GRADE bell muted (2026-11-23 night).** User, after the roster read by history (A-grade 36% / −0.01R over
+  11 before the stop change, none since): "remove only A grade from the telegram notification". `TG_AGRADE = False`;
+  the tier `elite_agrade` keeps recording and the switch is still on the 🔔 Telegram Bells page. The other three bells
+  the read named (APEX V2 longs, confirmed entry and conviction revival on coins) stay ON: he chose only this one.
