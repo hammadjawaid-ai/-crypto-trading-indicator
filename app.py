@@ -9659,6 +9659,19 @@ if _mig_token and _qp.get("admin") == _mig_token:
     for _r9 in _mig_inventory():
         st.markdown(f"- {_r9}")
 
+    # 🩺 FEED DIAGNOSTIC (2026-11-17, read-only): which Binance feed answers on this
+    # server. Two lines, because the page and the worker are two processes. Counters
+    # only: nothing here sends a request or changes a reading.
+    st.markdown("**🩺 Binance feed (perpetual first, spot fallback):**")
+    try:
+        st.text("this page: " + binance_client.feed_line())
+        with open(config.state_path(".feed_status.json"), encoding="utf-8") as _ff9:
+            _fs9 = json.load(_ff9)
+        st.text(f"worker ({(time.time() - float(_fs9['ts'])) / 60:.0f} min ago): "
+                + binance_client.feed_line(_fs9["worker"], now=float(_fs9["ts"])))
+    except Exception as _fe9:
+        st.caption(f"worker feed status not written yet ({_fe9})")
+
     if st.button("📦 Build backup zip"):
         _buf9 = _mio.BytesIO()
         _nf9 = 0

@@ -1,6 +1,7 @@
 """Binance public market-data client (no API key required)."""
 from __future__ import annotations
 
+import threading
 import time
 
 import pandas as pd
@@ -30,6 +31,71 @@ _FUT_SET: set = set()
 _FUT_TS = 0.0
 _FUT_TTL = 3600.0
 
+# 🩺 FEED DIAGNOSTIC (2026-11-17, read-only): which Binance feed actually answered.
+# Counters only. Nothing in the app reads them to decide anything; feed_status()
+# hands back a copy for one worker log line and the admin panel. Counts are per
+# PROCESS: the worker thread and the Streamlit page are two processes, each with
+# its own numbers.
+_FEED_LOCK = threading.Lock()
+_FEED = {"since": time.time(), "fut_ok": 0, "fut_fail": 0, "fut_last_ok": 0.0,
+         "fut_last_fail": 0.0, "fut_last_err": "", "kl_perp": 0, "kl_spot": 0,
+         "kl_bybit": 0, "px_perp": 0, "px_spot": 0, "prime_perp_last": 0}
+
+
+def _feed_note(key: str, err=None, value=None) -> None:
+    """Count one event (or store `value`). Never raises and never changes what
+    the caller returns."""
+    try:
+        with _FEED_LOCK:
+            if value is not None:
+                _FEED[key] = value
+                return
+            _FEED[key] = _FEED.get(key, 0) + 1
+            if key == "fut_ok":
+                _FEED["fut_last_ok"] = time.time()
+            elif key == "fut_fail":
+                _FEED["fut_last_fail"] = time.time()
+                _FEED["fut_last_err"] = str(err)[:200]
+    except Exception:
+        pass
+
+
+def feed_status() -> dict:
+    """A copy of the feed counters plus the size and age of the perpetual list
+    this process holds. Reads memory only: it never sends a request."""
+    with _FEED_LOCK:
+        out = dict(_FEED)
+    out["perp_first"] = bool(PERP_FIRST)
+    out["perp_symbols"] = len(_FUT_SET)
+    out["perp_list_age_s"] = round(time.time() - _FUT_TS) if _FUT_SET else None
+    return out
+
+
+def feed_line(st: dict | None = None, now: float | None = None) -> str:
+    """The counters as one line of text (worker log, admin panel)."""
+    st = feed_status() if st is None else st
+    now = time.time() if now is None else now
+
+    def _ago(t) -> str:
+        if not t:
+            return "never"
+        d = max(0.0, now - float(t))
+        return (f"{d:.0f}s ago" if d < 120 else
+                f"{d / 60:.0f} min ago" if d < 7200 else f"{d / 3600:.1f}h ago")
+
+    line = (f"perp first {'ON' if st.get('perp_first') else 'OFF'} · perpetual list "
+            f"{st.get('perp_symbols', 0)} symbols · futures requests "
+            f"{st.get('fut_ok', 0)} ok / {st.get('fut_fail', 0)} failed "
+            f"(last ok {_ago(st.get('fut_last_ok'))}, last failure "
+            f"{_ago(st.get('fut_last_fail'))}) · candles {st.get('kl_perp', 0)} perp / "
+            f"{st.get('kl_spot', 0)} spot / {st.get('kl_bybit', 0)} bybit · single prices "
+            f"{st.get('px_perp', 0)} perp / {st.get('px_spot', 0)} spot · last bulk price "
+            f"refresh wrote {st.get('prime_perp_last', 0)} perp prices · counting since "
+            f"{time.strftime('%d %b %H:%M UTC', time.gmtime(float(st.get('since') or now)))}")
+    if st.get("fut_last_err"):
+        line += f" · last futures error: {st['fut_last_err']}"
+    return line
+
 
 def _get(path: str, params: dict | None = None,
          max_attempts: int = 4, bases=None) -> object:
@@ -41,6 +107,7 @@ def _get(path: str, params: dict | None = None,
     """
     global _active_base
     _custom = bases is not None
+    _fut = _custom and path.startswith(("/fapi/", "/futures/"))   # 🩺 counted only
     bases = list(bases) if _custom else list(config.BINANCE_BASES)
     if _active_base and not _custom:  # try the known-good base first
         bases = [_active_base] + [b for b in bases if b != _active_base]
@@ -54,6 +121,8 @@ def _get(path: str, params: dict | None = None,
                 if resp.status_code == 200:
                     if not _custom:
                         _active_base = base
+                    if _fut:
+                        _feed_note("fut_ok")
                     return resp.json()
                 # 418 = IP banned briefly; 429 = rate-limited.
                 # Sleep longer, then retry this attempt loop on the
@@ -78,6 +147,8 @@ def _get(path: str, params: dict | None = None,
         if attempt < max_attempts - 1:
             backoff = 2.0 * (2 ** attempt)  # 2s, 4s, 8s, 16s
             time.sleep(backoff)
+    if _fut:
+        _feed_note("fut_fail", last_err)
     raise BinanceError(f"All Binance endpoints failed for {path}: {last_err}")
 
 
@@ -245,6 +316,7 @@ def prime_prices(symbols=None) -> int:
     # ⚡ PERP FIRST: the futures last price overrides the spot one for every
     # perpetual (one weight-2 call; fail-soft keeps the spot numbers).
     if PERP_FIRST:
+        _np = 0                                   # 🩺 perp prices written this refresh
         try:
             fut = _get("/fapi/v1/ticker/price", bases=FUTURES_BASES, max_attempts=2)
             perps = futures_symbols()
@@ -254,10 +326,12 @@ def prime_prices(symbols=None) -> int:
                     if sym not in perps or (want is not None and sym not in want):
                         continue
                     _PX_CACHE[sym] = (now, float(row["price"]))
+                    _np += 1
                 except (KeyError, TypeError, ValueError):
                     continue
         except Exception:
             pass
+        _feed_note("prime_perp_last", value=_np)
     _PX_PRIME_TS = now
     return n
 
@@ -279,12 +353,14 @@ def get_ticker_price(symbol: str) -> float | None:
             data = _get("/fapi/v1/ticker/price", {"symbol": symbol},
                         bases=FUTURES_BASES, max_attempts=2)
             px = float(data["price"])
+            _feed_note("px_perp")
         except (BinanceError, KeyError, TypeError, ValueError):
             px = None
     if px is None:
         try:
             data = _get("/api/v3/ticker/price", {"symbol": symbol})
             px = float(data["price"])
+            _feed_note("px_spot")
         except (BinanceError, KeyError, TypeError, ValueError):
             return None
     _cache_put(_PX_CACHE, symbol, px)
@@ -412,6 +488,7 @@ def _get_klines_uncached(symbol: str, interval: str,
                        bases=FUTURES_BASES, max_attempts=2)
         except BinanceError:
             raw = None
+    _src = "kl_perp" if raw else "kl_spot"        # 🩺 which feed this frame is from
     if not raw:
         try:
             raw = _get(
@@ -422,7 +499,9 @@ def _get_klines_uncached(symbol: str, interval: str,
                 raise BinanceError(f"No klines for {symbol} {interval}")
         except BinanceError:
             # Binance failed (rate-limit, network, etc.) — try Bybit.
+            _feed_note("kl_bybit")
             return _bybit_klines(symbol, interval, limit)
+    _feed_note(_src)
 
     cols = [
         "open_time", "open", "high", "low", "close", "volume",

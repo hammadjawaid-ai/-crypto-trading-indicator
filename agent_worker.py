@@ -2778,6 +2778,7 @@ def _fmt_prime_pair(kind, sig, px, now):
 
 
 _HYGIENE_DONE = False     # 🧹 the ledger sweep runs once per process
+_FEED_DIAG = {"t": 0.0, "hist": []}   # 🩺 feed diagnostic: last log time + the last 48 hourly rows
 
 
 def cycle() -> None:
@@ -2856,6 +2857,28 @@ def cycle() -> None:
     r = scan_core.scan_all(
         scan_n=int(getattr(config, "WORKER_SCAN_N", 100)),
         min_conv=MIN_CONV)
+    # 🩺 FEED DIAGNOSTIC (2026-11-17, read-only): which Binance feed answered this process.
+    # One log line after the first scan and then once an hour, and the same numbers in
+    # <STATE_DIR>/.feed_status.json so the admin panel and the next state backup carry them.
+    # It reads counters only: no request, no bell, no tier, no decision.
+    if time.time() - _FEED_DIAG["t"] >= 3600:
+        _FEED_DIAG["t"] = time.time()
+        try:
+            import json as _fd_json
+            _fd = binance_client.feed_status()
+            print("🩺 feed: " + binance_client.feed_line(_fd), flush=True)
+            _FEED_DIAG["hist"].append(
+                {k: _fd.get(k) for k in ("perp_symbols", "fut_ok", "fut_fail",
+                                         "kl_perp", "kl_spot", "kl_bybit")}
+                | {"ts": round(time.time())})
+            del _FEED_DIAG["hist"][:-48]
+            _fd_p = str(config.state_path(".feed_status.json"))
+            with open(_fd_p + ".tmp", "w", encoding="utf-8") as _fd_f:
+                _fd_json.dump({"ts": time.time(), "worker": _fd,
+                               "hourly": _FEED_DIAG["hist"]}, _fd_f)
+            _os.replace(_fd_p + ".tmp", _fd_p)
+        except Exception as _fd_exc:
+            print("feed diagnostic error:", _fd_exc, flush=True)
     sst1, takenow = r["sst1"], r["takenow"]
     apex = r.get("apex", [])
     lb_all = r.get("leaderboard", [])

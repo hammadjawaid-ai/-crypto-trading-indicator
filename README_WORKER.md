@@ -745,3 +745,16 @@ one fact: the demo touched its book once per worker cycle (17–20 minutes), at 
   refusal in `try_open` leaves one line (price already ran, window shut, 13–17 seats used, stop too wide for the
   leverage, heat, collateral, already holding the name when the seat predates the signal).
 - Guard: `.demo_fast_test.py` (40 checks: lock, atomic save, walk, tick, hook, instant seat, reasons log).
+- **🩺 Feed diagnostic (written 2026-11-17, deployed 2026-11-23 on the user's "Yes, deploy"; read-only).**
+  - Why: the ledger shows the server has read SPOT all along. After the 24 Oct perp-first change 209 of 215 BTC
+    2-hour pulse readings equal the spot close to the cent and none equal the perpetual close; BTC desk prices sit
+    off the perpetual's $0.10 grid as often as before; the OI radar and the funding edge (same futures host) have
+    never recorded once on the server. Nothing said so anywhere: every futures failure is swallowed.
+  - What: `binance_client._FEED` counts futures requests ok / failed (with the last error text, so the HTTP status
+    is visible), candles from perp / spot / Bybit, single prices from perp / spot, and how many perpetual prices the
+    last bulk refresh wrote. `feed_status()` returns a copy, `feed_line()` the same as one line. Neither sends a
+    request; a failing counter cannot reach a caller.
+  - Where: the worker prints `🩺 feed: …` after its first scan and then once an hour, and writes
+    `<STATE_DIR>/.feed_status.json` (latest numbers + the last 48 hourly rows, so a state backup carries them). The
+    admin panel (`?admin=`) shows two lines, the page's process and the worker's: they are separate processes.
+  - No reading, bell, tier, seat or decision changes. Guard: `.feed_diag_test.py`.
