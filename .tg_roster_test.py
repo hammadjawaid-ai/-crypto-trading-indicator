@@ -436,7 +436,8 @@ ok_m = sh.open_from_signal("conviction_v2_rev", {"symbol": "SOLUSDT", "side": "L
 check("desk: the mirrored conviction tier keeps its own stop", ok_m and len(_opened) == 2 and _opened[1][4] == 96.0 and len(_recs) == 1, _opened[-1])
 sr.FETCH = (lambda sym, iv, limit=0: None)
 sr._MEMO.clear()
-ok_n = sh.open_from_signal("elite_confirm", {"symbol": STK, "side": "LONG", "stop": 96.0, "tp1": 106.0}, 100.0)
+del sh.DEMO_FEED[:]                                               # GEN 23: the coin star above was offered to the demo too
+ok_n = sh.open_from_signal("trig_strong", {"symbol": STK, "side": "LONG", "stop": 96.0, "tp1": 106.0}, 100.0)
 check("desk: with no candles the plan stop stays, and the demo feed always carries the plan stop", ok_n and _opened[2][4] == 96.0 and len(sh.DEMO_FEED) == 1 and sh.DEMO_FEED[0]["stop"] == 96.0, (_opened[-1], sh.DEMO_FEED))
 sr.FETCH = (lambda sym, iv, limit=0: pd.DataFrame({"high": [100.4] * 97, "low": [99.6] * 97, "close": [100.0] * 97},
                                                    index=pd.to_datetime([_tn - 900 * (96 - i) - 300 for i in range(97)], unit="s")) if iv == "15m" else None)
@@ -447,8 +448,9 @@ check("desk: a stock seat opens on the 15m rule's stop and the demo is offered t
       and len(sh.DEMO_FEED) == 1 and abs(sh.DEMO_FEED[0]["stop"] - 95.8) < 1e-9 and sh.DEMO_FEED[0]["plan_stop"] == 96.0 and _recs[-1][1]["rule"] == "15m", (_opened[-1], sh.DEMO_FEED))
 del sh.DEMO_FEED[:]
 ok_w = sh.open_from_signal("go_revived", {"symbol": STK, "side": "LONG", "stop": 92.3, "tp1": 106.0}, 100.0)      # plan 7.7% away → the rule's is 7.9%
-check("desk: a rule stop too wide for the demo's 10x guard leaves the demo on the plan stop", ok_w and sh.DEMO_RULE_MAX == 0.078 and abs(_opened[4][4] - 92.1) < 1e-9
-      and len(sh.DEMO_FEED) == 1 and sh.DEMO_FEED[0]["stop"] == 92.3, (_opened[-1], sh.DEMO_FEED))
+check("desk: GEN 23, a rule stop too wide for 10x is still the stop the demo is offered (it opens at 8x); the plan's rides along", ok_w and abs(_opened[4][4] - 92.1) < 1e-9
+      and len(sh.DEMO_FEED) == 1 and abs(sh.DEMO_FEED[0]["stop"] - 92.1) < 1e-9 and sh.DEMO_FEED[0]["plan_stop"] == 92.3
+      and sh.DEMO_FEED[0]["star"] is False, (_opened[-1], sh.DEMO_FEED))
 sr.RULE_ON = False
 sr._MEMO.clear()
 ok_o = sh.open_from_signal("elite_star", {"symbol": "ETHUSDT", "side": "LONG", "stop": 96.0, "tp1": 106.0}, 100.0)

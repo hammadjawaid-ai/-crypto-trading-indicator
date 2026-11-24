@@ -212,7 +212,12 @@ def since_rule_windows(tier: str, symbol, now: float | None = None) -> str:
 BELL_TIER = {"elite_star": "elite_star", "elite_agrade": "elite_agrade", "elite_confirm": "elite_confirm",
              "leg2_prime": "leg2_prime", "prime_trig": "prime_trig", "star_takenow": "star_takenow",
              "apex_v2_short": "apex_v2", "apex_v2_long": "apex_v2", "conv_revival": "go_revived",
-             "star_prime": "star_prime", "star_trig": "star_trig", "star_apexv2": "star_apexv2", "conv_prime": "conv_prime"}
+             "star_prime": "star_prime", "star_trig": "star_trig", "star_apexv2": "star_apexv2", "conv_prime": "conv_prime",
+             "trig_strong": "trig_strong"}     # no bell of this name: the demo's window light reads the tier (demo_light)
+# 🎮 GEN 23: the demo's stream → the bell whose record is its window light. The ⭐ star's GO reads the star's.
+DEMO_BELL = {"elite_star": "elite_star", "star_go": "elite_star", "elite_confirm": "elite_confirm",
+             "go_revived": "conv_revival", "apex_v2": "apex_v2_short", "star_takenow": "star_takenow",
+             "leg2_prime": "leg2_prime", "trig_strong": "trig_strong"}
 _BELL_CACHE: dict = {}
 
 
@@ -299,6 +304,24 @@ def with_record(text: str, sig: dict, key, now: float | None = None) -> str:
         return (text + "\n" + ba) if ba else text
     except Exception:
         return text
+
+
+def demo_light(src, symbol, side, ts, now: float | None = None):
+    """🚦 GEN 23 (user 2026-11-23: the demo opens "as per the timeframes which are marked 🟢 and 🟡 even the size is
+    thin, nothing marked 🔴 … This is after the stop loss rule"): the light the demo reads before it opens a seat or
+    adds margin. It is the window cell before_after prints on the bell after "⏩ after the stop change": this stream's
+    closed desk seats of this class (coin / stock) and this side, opened since the stop rule in the PKT window of
+    `ts` (the fire), read live. -> (light, text). ("⚪", "… no closed trade yet") when the cell is empty: the demo
+    opens on it. Raises for a stream with no record of its own, so the demo refuses rather than guesses."""
+    now = time.time() if now is None else float(now)
+    rows = _bell_rows(DEMO_BELL[str(src)], is_stock(symbol), now)
+    if rows is None:
+        raise KeyError(str(src))
+    sd = str(side or "").upper()
+    win = tg_cells.window_of(float(ts))
+    wc = _cell(r for s, o, r in rows if s == sd and o >= RULE_SINCE_TS and tg_cells.window_of(o) == win)
+    who = {"LONG": "longs", "SHORT": "shorts"}.get(sd, "")
+    return _ba_light(wc), (f"{win} PKT {who} {_recw(wc)}" if wc else f"{win} PKT {who} no closed trade yet")
 
 
 def us_session(now: float | None = None) -> str:

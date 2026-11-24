@@ -91,10 +91,15 @@ config.BSTOCK_VALIDATED = False
 check("demo: with the gate closed again it would take no seat (the revert works)",
       da.rank_candidates({"elite_star": [cand]}, {}) == [])
 config.BSTOCK_VALIDATED = True
-check("demo GEN 21 is stocks only: a crypto star takes no seat", da.STOCKS_ONLY is True and da.rank_candidates({"elite_star": [dict(cand, symbol="SOLUSDT", base="SOL")]}, {}) == [])
-da.STOCKS_ONLY = False
-check("demo: with the stocks-only switch off a crypto star ranks again", len(da.rank_candidates({"elite_star": [dict(cand, symbol="SOLUSDT", base="SOL")]}, {})) == 1)
+check("demo GEN 23 takes coins and stocks: a coin star the gate passed ranks, one it did not takes no seat",
+      da.STOCKS_ONLY is False and len(da.rank_candidates({"elite_star": [dict(cand, symbol="SOLUSDT", base="SOL", gate="pass")]}, {})) == 1
+      and da.rank_candidates({"elite_star": [dict(cand, symbol="SOLUSDT", base="SOL")]}, {}) == []
+      and da.rank_candidates({"elite_star": [dict(cand, symbol="SOLUSDT", base="SOL", gate="muted")]}, {}) == [])
 da.STOCKS_ONLY = True
+check("demo: the stocks-only switch still shuts every coin out (the GEN 22 revert)",
+      da.rank_candidates({"elite_star": [dict(cand, symbol="SOLUSDT", base="SOL", gate="pass")]}, {}) == []
+      and len(da.rank_candidates({"elite_star": [cand]}, {})) == 1)
+da.STOCKS_ONLY = False
 print("5. the tokenized desk record, on its own (2026-11-10: 'have these for tokenized desk records separately')")
 import time as _t                 # noqa: E402
 import worker_store as store     # noqa: E402

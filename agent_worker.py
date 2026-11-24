@@ -2518,6 +2518,12 @@ ROSTER_TS = 1794872916    # the roster cut-over (17 Nov 2026): 🏦 TP1 pings fo
 DEMO_INSTANT = True      # 🎮 2026-11-18: the demo takes a seat as the desk opens it. False = end of the cycle only
 
 
+def _demo_light(src, symbol, side, ts):
+    """🚦 GEN 23: the window light the demo reads before a seat or an add (demo_account.try_open's light_fn): the
+    cell the bell prints after "⏩ after the stop change", for this stream, class, side and the fire's PKT window."""
+    return tg_roster.demo_light(src, symbol, side, ts)
+
+
 def _demo_instant(feed):
     """🎮 The demo's seat, taken the moment the desk opens the stock seat it is fed from (shadow_trader.DEMO_HOOK).
     User 2026-11-18: "it didnt picked signals from 01-05 elitte confirmed entry … though they were good signals".
@@ -2536,9 +2542,14 @@ def _demo_instant(feed):
             # read the clock only once the book is ours: the one-minute walk pins demo_account's clock while it runs
             if demo_account.pkt_window4() in demo_account.WINDOW_PICK:
                 return
+            # 🎮 GEN 23: never before the cut-over. load() gives a blank new-generation book for an old file, and
+            # saving it here would overwrite the old ledger before the cycle has closed and archived its seats.
+            if demo_account.cutover_pending():
+                return
             _st_i = demo_account.load()
             _rk_i = demo_account.rank_candidates({str(feed.get("src")): [dict(feed)]}, {})
-            _op_i, _rt_i = demo_account.try_open(_st_i, _rk_i, binance_client.get_ticker_price)
+            _op_i, _rt_i = demo_account.try_open(_st_i, _rk_i, binance_client.get_ticker_price,
+                                                 light_fn=_demo_light)
             _ad_i = list(demo_account.STREAM_ADDS)
             demo_account.save(_st_i)
             for _p_i in _op_i:
@@ -6656,6 +6667,14 @@ def cycle() -> None:
                       f"{_rec18['side']} {_rec18['pnl']:+.2f}$", flush=True)
         except Exception as _c18_exc:
             print("  demo cut-over error:", _c18_exc, flush=True)
+        try:
+            # 🎮 GEN 23: while the cut-over waits (a seat's price could not be read) the old book stays as it is:
+            # demo_account.save refuses to write the new generation over it. This line is the trace of that.
+            if demo_account.cutover_pending():
+                print(f"[gen{demo_account.GEN}] cut-over waiting: an old seat's price could not be read; "
+                      f"the old book is untouched and nothing is saved this cycle", flush=True)
+        except Exception as _cp23_exc:
+            print("  demo cut-over check error:", _cp23_exc, flush=True)
         demo_account.lock()      # 🔒 2026-11-18: held to the save below; the fast paths wait or skip
         _dz = demo_account.load()
         # GEN 6 (user 2026-08-23: "we only go with Strong triggers
@@ -6666,9 +6685,12 @@ def cycle() -> None:
         # GEN 8 form boosts: each pool's own live desk ledger (duo
         # form = the duo85 tier; young tiers just read ~0 = neutral).
         _dz_form = {}
-        for _dt, _sh in (("elite_confirm", "tok:elite_confirm"),   # GEN 21: his four, on stock names
-                         ("go_revived", "tok:go_revived"),
-                         ("elite_star", "tok:elite_star"),
+        for _dt, _sh in (("elite_confirm", "elite_confirm"),       # GEN 23: coins and stocks (GEN 21–22: the tok: tiers)
+                         ("go_revived", "go_revived"),
+                         ("elite_star", "elite_star"),
+                         ("apex_v2", "apex_v2"),
+                         ("star_takenow", "star_takenow"),
+                         ("leg2_prime", "leg2_prime"),
                          ("trig_strong", "tok:trig_strong")):
             try:
                 _dz_form[_dt] = store.shadow_recent_net(_sh)["net_r"]
@@ -7200,6 +7222,21 @@ def cycle() -> None:
                             "star_gate": _ew.get("star_gate"),
                             "star_read": _ew.get("star_read"),
                             "bell": _bell9})
+                        # 🎮➕ GEN 23 (user 2026-11-23: "Elite Stars Gated, Add on if go fast and go late bell
+                        # rings" · "Elite Confirmed Entry, Add on if we have elite star or go to it"): the GO of a
+                        # star the phone heard is offered to the demo as an add-only fire (star_go). It opens no
+                        # seat; demo_account adds one seat of margin to a star or confirmed-entry seat it holds
+                        # on this name and side, once, if the star's window light is not 🔴.
+                        if _ew.get("star") and _ew.get("buzzed"):
+                            try:
+                                shadow_trader.demo_offer({
+                                    "symbol": _ew["symbol"], "base": _ew["base"], "side": _ew["side"],
+                                    "entry": _ew_px, "stop": float(_ew["stop"]), "tp1": float(_ew["tp1"]),
+                                    "tp2": _ew.get("tp2"), "conf": None, "heat": None, "score": 85.0,
+                                    "burst": 0.0, "src": "star_go", "fired_at": _ew_now,
+                                    "go_tier": str(_ew.get("go") or "").upper(), "star": True})
+                            except Exception as _sg23_exc:
+                                print("  demo star GO offer error:", _sg23_exc, flush=True)
                         if (_ew.get("oneh") == "DEAD"
                                 and (not REVIVED_LONG_FAST
                                      or (_ew["side"] == "LONG"
@@ -7372,9 +7409,11 @@ def cycle() -> None:
         _dz_feed = [d for d in shadow_trader.DEMO_FEED
                     if _now - d["fired_at"] <= shadow_trader.DEMO_FEED_TTL_S
                     and d.get("entry") and d.get("stop") and d.get("tp1")]
+        # 🎮 GEN 23 POOLS (user 2026-11-23): coins and stocks, every stream on demo_account's ladder, the star's
+        # GO (star_go, add-only) among them. demo_account's two rosters decide which class each one seats on.
         _dz_pools = {_s21: ([dict(d) for d in _dz_feed if d["src"] == _s21]
                             + [d for d in _dz_reo if d["src"] == _s21])
-                     for _s21 in ("elite_confirm", "go_revived", "elite_star", "trig_strong")}
+                     for _s21 in demo_account.CLASS_W}
         # 🔄 GEN 7 rotation input: every (coin, side) with a LIVE
         # signal this cycle — positions outside this set are the
         # rotation candidates ("a losing trade stands only while
@@ -7466,7 +7505,8 @@ def cycle() -> None:
             _dz_wrank = None
             print("  demo window rank error:", _wr_exc, flush=True)
         _dz_opened, _dz_rot = demo_account.try_open(
-            _dz, _dz_ranked, _live, active=_dz_active, window_rank=_dz_wrank)
+            _dz, _dz_ranked, _live, active=_dz_active, window_rank=_dz_wrank,
+            light_fn=_demo_light)      # 🚦 GEN 23: nothing opens or adds in a 🔴 window
         for _sa22 in list(demo_account.STREAM_ADDS):
             print(f"[demo] ➕ margin added {_sa22.get('base')} {_sa22.get('side')}: "
                   f"${_sa22.get('margin'):,.0f} at {_sa22.get('px')} ({_sa22.get('why')}); "

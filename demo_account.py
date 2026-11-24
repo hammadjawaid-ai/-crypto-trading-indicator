@@ -132,7 +132,36 @@ STATE_FILE = os.environ.get("DEMO_STATE") or \
 # (43) before; its target sits about 1.4R away, so it wins less often than the other four by design.
 # It is the PARENT fire of the confirmed entry, the GO and the star: it fires first, and the demo holds
 # one seat per name, so it will often be the seat taken on a move. Revert: GEN 21 is at cdd45c3.
-GEN = 22
+# 🎮 GEN 23 (user 2026-11-23: "One change for demo trading I want to do. Reset the demo trading again. We will
+# have for crypto and for Stocks." Coins, in his order: "1. Elite Stars Gated, Add on if go fast and go late bell
+# rings · 2. Elite Confirmed Entry, Add on if we have elite star or go to it · 3. Conviction revival (GO), Add on
+# money to elite confirmed entry if it does not opened on elite confirmed, or have the trade opened seperately ·
+# 4. Apex v2 Shorts", then "Second priorties: 1. Star × take-now hot · 2. Second leg × PRIME". "These all shoud
+# open trades as per the timeframes which are marked 🟢 and 🟡 even the size is thin, nothing marked 🔴 should open
+# on their times. This is after the stop loss rule." Stocks: "1. Elite Stars add on and go · 2. Conviction revival
+# (GO) · 3. Strong Triggers. All should have 85-100% tp1 hit rule all bank").
+# A fresh $5,000 book, coins and stocks, each class on its own roster (ROSTER), CLASS_W the one priority ladder.
+#   THE LIGHT RULE (LIGHT_RULE): a seat opens, and margin is added, only when the stream's own window light is not
+#   🔴. The light is the cell the bell prints after "⏩ after the stop change": this stream's closed desk seats of
+#   this class and this side, opened since the stop rule (17 Nov) in the PKT window of the fire, read live
+#   (tg_roster.demo_light, handed to try_open as light_fn). 🟢 and 🟡 open however thin; a window with no closed
+#   trade yet (⚪) opens too, or star × take-now and second leg × PRIME (no closes since the rule) could never
+#   trade. The GEN 22 clock book (shut windows, 13–17 at 7x with two seats, the 13–17 pick, add windows) is off for
+#   both classes: the lights replace it.
+#   ADDS (ADD_MAP: the held seat's stream → the streams that add): a star seat takes one seat of margin more when
+#   that star's GO FAST or GO LATE rings ("star_go", an add-only fire the worker offers at the GO); a confirmed
+#   entry seat takes one when an elite star fires on the name, when the star's GO rings, or when a conviction
+#   revival fires. One add a stream, ADD_MAX adds a position. A conviction revival on a name the demo does not
+#   hold opens its own seat. A star's revival (a GO after a DEAD verdict) opens no seat of its own.
+#   THE STOP: every seat carries the stop rule's stop (coins the 4h swing, stocks the 15m swing), as the lights
+#   were measured. A 10x seat cannot carry a stop 8% away, and the 4h rule's stop on a coin is often at its 8%
+#   cap, so a seat whose stop is WIDE_STOP_PCT or further from the live price opens at WIDE_STOP_LEV (8x) on the
+#   same margin. (GEN 22 fell back to the plan's tighter stop there; on coins that would have been most seats.)
+#   EXIT: as GEN 22.8 for every stream: the stop, or everything closed at 85% of the way to TP1, booked there.
+# TOLD TO HIM AT WIRE TIME: the lights are six days of one falling market, most cells under ten trades, so one
+# close can turn a window; coin shorts carried that week and coin longs lost. GEN 22 ended near $4,569 of $5,000.
+# Revert: GEN 22 is at 00fa0af.
+GEN = 23
 START_BAL = 5000.0
 # 🔁 GEN 22.1 (user 2026-11-17: "yes let confirmed entry, go and star replace the conviction seat remove
 # elite convcition from it"): elite conviction is the first fire on a move and the demo holds one seat
@@ -140,8 +169,8 @@ START_BAL = 5000.0
 # closed at the live price when a REPLACE_BY stream offers a seat on the same name, and the newcomer
 # takes it, but only once the newcomer has passed every opening check (zone, stop, heat, collateral).
 # A strong trigger does not replace. No reset: the $5,000 book carries on. Revert: REPLACE_SRC = set().
-REPLACE_SRC: set = {"elite_conv"}
-REPLACE_BY: set = {"elite_confirm", "go_revived", "elite_star"}
+REPLACE_SRC: set = set()      # GEN 23: no elite conviction seat exists on the fresh book (GEN 22: {"elite_conv"})
+REPLACE_BY: set = set()       # GEN 22: {"elite_confirm", "go_revived", "elite_star"}
 # ➕ GEN 22.2 (user 2026-11-17: "remove conviction" · "have the elite confirmed run, if go revived is added to
 # the same elite confirmed we add more margin to it, like more money, even if its elite star … 10x leverage
 # but we add more margins if elite star fires or go revived fires"). Elite conviction is off the roster
@@ -154,12 +183,28 @@ REPLACE_BY: set = {"elite_confirm", "go_revived", "elite_star"}
 # nor receives. Measured caveat told to him: a later entry on the same move is a worse price (the
 # meta-label lab read an add at the hour at about −0.06R on crypto); one stop then costs up to three seats.
 # Revert: ADD_BY = set().
-ADD_BASE: set = {"elite_confirm", "go_revived", "elite_star"}
-ADD_BY: set = {"elite_confirm", "go_revived", "elite_star"}
+# ➕ GEN 23: who adds to whom (the held seat's stream → the streams whose fire adds one seat of margin to it).
+# GEN 22 let the three elite streams add to each other: {s: {the other two} for s in the three}.
+ADD_MAP: dict = {"elite_star": {"star_go"},
+                 "elite_confirm": {"elite_star", "star_go", "go_revived"}}
+ADD_ONLY: set = {"star_go"}   # a fire that only ever adds margin: the ⭐ star's GO FAST / GO LATE. It opens no seat.
+ADD_MAX = 2                   # adds a position may take (GEN 22.2 had the same ceiling: two other streams)
+ADD_BASE: set = set(ADD_MAP)
+ADD_BY: set = {_s for _v in ADD_MAP.values() for _s in _v}
 ADD_SEATS = 1.0
 STREAM_ADDS: list = []        # the adds made by the last try_open call (for the worker's log)
 SKIP_KEEP = 60                # 📝 lines kept in the book's "seat not taken, and why" log
-STOCKS_ONLY = True            # GEN 21: only stock names with a Binance stock perpetual take a seat
+STOCKS_ONLY = False           # GEN 23: coins and stocks (GEN 21–22: True, stock names only)
+# 🎮 GEN 23 THE TWO ROSTERS, each in his order. A stream opens a seat only on the class that lists it.
+ROSTER: dict = {"coin": ("elite_star", "elite_confirm", "go_revived", "apex_v2", "star_takenow", "leg2_prime"),
+                "stock": ("elite_star", "go_revived", "trig_strong")}
+STAR_GATED_COIN = True        # a coin star seats only when the gate passed it (the star bell's own rule on coins)
+STAR_GATE_PASS: set = {"pass", "1317-pass"}
+SIDE_ONLY: dict = {"apex_v2": "SHORT"}      # "Apex v2 Shorts"
+REVIVAL_CONV_ONLY = True      # go_revived seats are conviction revivals; a star's revival is the star seat's add
+LIGHT_RULE = True             # 🚦 a stream whose window light is 🔴 opens no seat and adds no margin (see GEN 23)
+WIDE_STOP_PCT = 0.078         # 🛡 a stop this far from the live price, or further, …
+WIDE_STOP_LEV = 8.0           # … opens at 8x on the same margin (a 10x seat cannot carry it). 0 = off
 REENTRY_ON = False            # GEN 20: a TP1 bank is final; no momentum re-entry is queued
 # 🕐 GEN 22.3 (user 2026-11-17: "For Demo Trading We wont take trades on the timings of 17-21 and 21-01 for all
 # streams because they doesnt have good win rates"): no new seat and no stream add while the PKT clock is in
@@ -209,15 +254,20 @@ REENTRY_ON = False            # GEN 20: a TP1 bank is final; no momentum re-entr
 # the worker hands try_open the live win rate of each stream's closed stock seats opened 13–17 PKT (a stream
 # needs WINDOW_PICK_MIN closes to be ranked; unranked streams follow in the roster's order). On the 16 Nov ledger
 # that is the strong trigger (71% on 7); the revival has 2 closes there, the confirmed entry and the star none.
-NO_ENTRY_WINDOWS: set = {"17-21", "21-01", "01-05"}
-NO_ENTRY_EXEMPT: set = {("trig_strong", "21-01"), ("elite_confirm", "01-05"), ("go_revived", "01-05")}
+# 🚦 GEN 23: the clock book below is OFF for both classes; the live window lights replace it (LIGHT_RULE).
+# GEN 22.8 values, for a revert: NO_ENTRY_WINDOWS = {"17-21", "21-01", "01-05"} · NO_ENTRY_EXEMPT =
+# {("trig_strong", "21-01"), ("elite_confirm", "01-05"), ("go_revived", "01-05")} · STREAM_OFF = {"trig_strong"} ·
+# WINDOW_PICK = {"13-17"} · WINDOW_LEV = {"13-17": 7.0} · WINDOW_MAX_NEW = {"13-17": 2} · ADD_WINDOWS =
+# {"05-09", "09-13"} · ADD_PAIRS = {("01-05", "go_revived", "elite_confirm"), ("01-05", "elite_confirm", "go_revived")}
+NO_ENTRY_WINDOWS: set = set()
+NO_ENTRY_EXEMPT: set = set()
 # 🚫 GEN 22.8 (user 2026-11-20: "i beleive we should close straong trigger as it isnt having much of a sucess in
 # it"): a stream in STREAM_OFF opens no seat and adds no margin (rank_candidates drops it before a card is made), so
 # 21–01 PKT, which was the strong trigger's alone, now opens nothing. A strong-trigger seat already open runs out on
 # its own stop / 92% close. The roster, the clock book and the 13–17 pick are left as they were, so
 # STREAM_OFF = set() brings the strong trigger back exactly as it was.
-STREAM_OFF: set = {"trig_strong"}
-WINDOW_PICK: set = {"13-17"}
+STREAM_OFF: set = set()       # GEN 23: the strong trigger is back, on stock names ("3. Strong Triggers")
+WINDOW_PICK: set = set()
 WINDOW_PICK_MIN = 3
 # 🕐 GEN 22.4 (user 2026-11-17: "priority on demos should be 05-09 , 9-13 signals and 01-05 with full leverage and
 # add ons · 13-17 we can trade but few good ones only with 5x leverage only · strong trigger full leverage even
@@ -242,10 +292,10 @@ WINDOW_PICK_MIN = 3
 # name into ONE card that carries the highest stream's name, so a GO that fired within 45 minutes of the confirmed
 # entry was hidden behind it and its add was often never made. try_open now reads every stream on the card
 # ("plans") for an add on a held name.
-WINDOW_LEV: dict = {"13-17": 7.0}
-WINDOW_MAX_NEW: dict = {"13-17": 2}
-ADD_WINDOWS: set = {"05-09", "09-13"}
-ADD_PAIRS: set = {("01-05", "go_revived", "elite_confirm"), ("01-05", "elite_confirm", "go_revived")}   # 22.6: both ways
+WINDOW_LEV: dict = {}         # GEN 23: off (see the 🚦 note above for the GEN 22.8 values)
+WINDOW_MAX_NEW: dict = {}
+ADD_WINDOWS: set = set()
+ADD_PAIRS: set = set()
 # 🎮 GEN 16 (user 2026-09-14: "Demo Trading Start Again now. We will
 # have only this and no limit on slots can be 20 at a time depending
 # on the signals with leverage of 10x of our total account 2000
@@ -335,7 +385,8 @@ NEAR_TP_FADE = 0.60          # how far it has given back
 # +0.050R, PRIME +0.127R vs +0.100R): back on for all four.
 # 🪜 GEN 19: the fade bank is OFF — the ≥69% cells were measured on the desk ladder, so the
 # book exits the same way (LADDER_SRC below). Revert: put the streams back in this set.
-NEAR_TP_SRC: set = {"elite_confirm", "go_revived", "elite_star", "trig_strong", "elite_conv"}   # GEN 20–22: the 85% fade bank for every lane
+NEAR_TP_SRC: set = {"elite_confirm", "go_revived", "elite_star", "trig_strong", "elite_conv",
+                    "apex_v2", "star_takenow", "leg2_prime"}   # GEN 20–23: the 85% fade bank for every lane
 # 🎯 GEN 22.8 THE 92% CLOSE (user 2026-11-20, after the TQQQB confirmed-entry seat of 19 Nov, which climbed towards
 # its TP1 and ended at the stop, −$334 with its added margin: "if the price is almost 92-95% to tp1 we should close
 # it"). CAVEAT TOLD TO HIM: that seat's fade bank never fired although the watcher was reading every 3-minute
@@ -353,8 +404,11 @@ NEAR_TP_SRC: set = {"elite_confirm", "go_revived", "elite_star", "trig_strong", 
 # MEASURED, told to him (16 Nov ledger, stock seats of the demo's four streams, 15-minute candles, the 15m rule's
 # stop, in-sample, n=187): no close and the fade bank 72% / +0.05R; close at 92% 73% / +0.05R; at 85% 73% /
 # +0.06R; at 80% 73% / +0.04R; at 75% 74% / +0.04R. No level moves the record. Off: NEAR_TP_TOUCH = 0.
+# GEN 23 (user 2026-11-23: "All should have 85-100% tp1 hit rule all bank"): the same close for every stream of
+# both rosters, coins included.
 NEAR_TP_TOUCH = 0.85
-NEAR_TP_TOUCH_SRC: set = {"elite_confirm", "go_revived", "elite_star", "trig_strong", "elite_conv"}
+NEAR_TP_TOUCH_SRC: set = {"elite_confirm", "go_revived", "elite_star", "trig_strong", "elite_conv",
+                          "apex_v2", "star_takenow", "leg2_prime"}
 # 🪜 THE DESK LADDER (shadow_trader's exit law, now the demo's for every GEN 19 lane): stop
 # → entry at +1R · stop → TP1 when TP1 prints · after TP1 the stop trails the peak by 1.2R ·
 # TP2 closes · 48h cuts at the live price. Nothing banks at TP1 — a winner runs to TP2 or
@@ -471,7 +525,8 @@ ELITE_FAMILY_CAP = 0
 ROTATE_MAX = 0   # GEN 9 user order: rotation REMOVED
 SMART_EXIT_SKIP: set = {"elite_star", "star_prime", "star_trig", "conv_revival", "star_apexv2",
                         "apex_v2_gated", "prime_trig", "elite_confirm", "go_revived",
-                        "trig_strong", "elite_conv"}   # GEN 19–22: no kronos exit anywhere
+                        "trig_strong", "elite_conv",
+                        "apex_v2", "star_takenow", "leg2_prime"}   # GEN 19–23: no kronos exit anywhere
 # GEN 12: kronos smart-exit off for all. Exits: SL-or-TP1-bank-100%
 # everywhere EXCEPT ⭐ elite_star's near-TP bank (own block) and
 # 💎🔮 elite_kr's RIDE (half-bank TP1 + BE + trail, in the TP1
@@ -579,10 +634,16 @@ MIN_RANK = 85.0  # GEN 9: anyone can take any place
 # 🎮 GEN 19 — THE FIVE, GATED (user 2026-11-07), in his order. CLASS_W is the roster.
 # 🎮 GEN 21 — HIS FOUR ON STOCK NAMES (user 2026-11-17), in his order; the keys are the desk tiers.
 # (GEN 20, for a few hours: elite_star gated, star_prime, apex_v2_gated, prime_trig, star_apexv2.)
-CLASS_W = {"elite_confirm": 105,  # 1. 💎✅ ELITE CONFIRMED ENTRY
-           "go_revived": 104,     # 2. ⚡ GO REVIVED (star and conviction revivals, entered at the GO)
-           "elite_star": 103,     # 3. ⭐ ELITE STAR, every fire
-           "trig_strong": 102}    # 4. 💥 STRONG TRIGGER   (elite_conv was rung 5 for an hour on 17 Nov: removed, 22.2)
+# 🎮 GEN 23 — COINS AND STOCKS (user 2026-11-23), one ladder that keeps his order inside each class (ROSTER says
+# which class a stream seats on). GEN 22 was elite_confirm 105 · go_revived 104 · elite_star 103 · trig_strong 102.
+CLASS_W = {"elite_star": 110,     # coins 1 (gated) · stocks 1 (every fire)   ⭐ ELITE STAR
+           "elite_confirm": 109,  # coins 2                                   💎✅ ELITE CONFIRMED ENTRY
+           "go_revived": 108,     # coins 3 · stocks 2                        💎⚡ CONVICTION REVIVAL (GO)
+           "apex_v2": 107,        # coins 4, shorts only                      🏆🔻 APEX V2 SHORTS
+           "star_takenow": 106,   # coins, second priority 1                  ⭐✅🔥 STAR × TAKE-NOW HOT
+           "leg2_prime": 105,     # coins, second priority 2                  🔥🥇 SECOND LEG × PRIME
+           "trig_strong": 104,    # stocks 3                                  💥 STRONG TRIGGER
+           "star_go": 100}        # add-only (ADD_ONLY): the ⭐ star's GO FAST / GO LATE, never a seat
 # 🪑 SPARE-SEAT RULE: a listed stream may open only while at least
 # this many seats stay free after it, so the priority three always
 # find room — rotation is off (ROTATE_MAX = 0) and a seat once taken
@@ -821,7 +882,7 @@ def star_seat(side, now=None, heat=None, btc_day=None):
 def seat_size(c: dict, now=None):
     """GEN 20 -> (mult, word, detail) for a ranked candidate; mult None = no seat."""
     src = c.get("src")
-    if src in CLASS_W:            # GEN 20: every roster lane takes one full seat, at any hour
+    if src in CLASS_W and src not in ADD_ONLY:   # GEN 20: every roster lane takes one full seat, at any hour
         return 1.0, "full", "pair, at the second fire" if src in PAIR_SEAT else "full seat"
     return None, None, "not on the roster"
 
@@ -884,7 +945,9 @@ def lev_for(src: str, conf=None, burst=None) -> float:
     (The GEN 15 star 6x/8x-by-burst ladder is in git at 2a56c58.)"""
     return {"elite_star": 10.0, "star_prime": 10.0, "star_trig": 10.0, "conv_revival": 10.0,
             "star_apexv2": 10.0, "apex_v2_gated": 10.0, "prime_trig": 10.0, "elite_confirm": 10.0,
-            "go_revived": 10.0, "trig_strong": 10.0, "elite_conv": 10.0}.get(src, LEV_GEN13)   # GEN 19–22: flat 10x
+            "go_revived": 10.0, "trig_strong": 10.0, "elite_conv": 10.0,
+            "apex_v2": 10.0, "star_takenow": 10.0, "leg2_prime": 10.0,
+            "star_go": 10.0}.get(src, LEV_GEN13)   # GEN 19–23: flat 10x (try_open opens a wide stop at WIDE_STOP_LEV)
 
 
 def load() -> dict:
@@ -901,10 +964,16 @@ def load() -> dict:
             "equity_hist": []}
 
 
-def save(state: dict) -> None:
+def save(state: dict, cutover: bool = False) -> None:
     """Atomic since 2026-11-18 (write beside, then replace): the one-minute watcher saves often, and the
-    page, a separate process, must never read half a file (it would show an empty book)."""
+    page, a separate process, must never read half a file (it would show an empty book).
+    🎮 GEN 23: a book of this generation is never written over a file of an earlier one, except by the cut-over
+    itself (cutover=True). load() hands a blank new book for an old file, so when the cut-over has to wait (a
+    seat's price could not be read) the cycle's own save at the end of its demo block would otherwise replace
+    the old ledger, unarchived, with its open seats never closed."""
     try:
+        if not cutover and isinstance(state, dict) and state.get("gen") == GEN and cutover_pending():
+            return
         _tmp = str(STATE_FILE) + ".tmp"
         with open(_tmp, "w", encoding="utf-8") as f:
             json.dump(state, f)
@@ -1039,9 +1108,20 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
             if sym in getattr(config, "TOKENIZED_STOCKS", ()) \
                     and not getattr(config, "BSTOCK_VALIDATED", False):
                 continue
-            # 🎮 GEN 21: stock names only, and only those with a Binance stock perpetual
-            if STOCKS_ONLY and sym not in (getattr(config, "BSTOCK_PERP", None) or {}):
+            # 🎮 GEN 21: a stock name needs a Binance stock perpetual (GEN 21–22: stock names only)
+            _stk = sym in (getattr(config, "TOKENIZED_STOCKS", None) or ())
+            if (STOCKS_ONLY or _stk) and sym not in (getattr(config, "BSTOCK_PERP", None) or {}):
                 continue
+            # 🎮 GEN 23: each class has its own roster; an add-only fire (the star's GO) is on neither and rides along
+            if ROSTER and name not in ADD_ONLY and name not in ROSTER.get("stock" if _stk else "coin", ()):
+                continue
+            if SIDE_ONLY.get(name) and side != SIDE_ONLY[name]:
+                continue        # APEX V2: shorts only
+            if (name == "elite_star" and not _stk and STAR_GATED_COIN
+                    and str(p.get("gate") or "") not in STAR_GATE_PASS):
+                continue        # a coin star seats only when the gate passed it
+            if name == "go_revived" and REVIVAL_CONV_ONLY and p.get("star"):
+                continue        # a star's revival opens no seat: its GO is the star seat's add (star_go)
             # 🎯 GEN 10 conf-band seat gate (user 2026-09-07): each
             # stream trades ONLY in its measured-green band(s). A
             # candidate with no conf can't prove its band — no seat.
@@ -1144,10 +1224,14 @@ def rank_candidates(pools: dict, tier_form: dict) -> list:
 
 
 def try_open(state: dict, cands: list, live_fn, active=None,
-             now=None, window_rank=None):
+             now=None, window_rank=None, light_fn=None):
     """Fill free slots with the best in-zone candidates. Real-account
     rules: seat caps, one per coin, margin sized off the CURRENT
     balance, entry fee paid immediately.
+
+    🚦 GEN 23: light_fn(stream, symbol, side, fire_ts) -> (light, text) is the stream's own window light since
+    the stop rule (the worker hands tg_roster.demo_light). 🔴 opens no seat and adds no margin; a light that
+    cannot be read is treated as 🔴. With no light_fn (or LIGHT_RULE off) no light is read.
 
     GEN 7 ROTATION (user 2026-08-26: "if the signals get healthier
     from other coins we should close the weak ones"): `active` = the
@@ -1202,6 +1286,22 @@ def try_open(state: dict, cands: list, live_fn, active=None,
     src_n: dict = {}
     for p in state["open"]:
         src_n[p.get("src")] = src_n.get(p.get("src"), 0) + 1
+    def _light(src9, c9, fired9):
+        """🚦 GEN 23 -> (ok, text). ok is False only when this stream's window light is 🔴 or cannot be read."""
+        if not LIGHT_RULE or light_fn is None:
+            return True, ""
+        try:
+            _f9 = float(fired9 or 0) or _t
+        except (TypeError, ValueError):
+            _f9 = _t
+        try:
+            _l9, _x9 = light_fn(src9, c9.get("symbol"), c9.get("side"), _f9)
+        except Exception as _le9:
+            return False, f"the window light could not be read ({str(_le9)[:40]})"
+        if str(_l9) == "🔴":
+            return False, f"🔴 window for this stream since the stop change: {_x9}"
+        return True, f"{_l9} {_x9}"
+
     _win = pkt_window4(_t)                      # 🕐 GEN 22.4: the window's leverage, its seat cap, its adds
     _wmax = WINDOW_MAX_NEW.get(_win)
     _wnew = window_new_seats(state, _t) if _wmax is not None else 0
@@ -1264,11 +1364,16 @@ def try_open(state: dict, cands: list, live_fn, active=None,
         if _hp is not None and _hp.get("src") not in REPLACE_SRC:
             _cs = sorted(((_v[0], _k, _v[5]) for _k, _v in (c.get("plans") or {}).items()), reverse=True) \
                 or [(0, c["src"], c.get("fired_at"))]
+            _added9 = False     # GEN 23: a card that added margin is not also logged as "already holding"
             for _w9, _as, _af in _cs:
-                if (_as not in ADD_BY or _hp.get("src") not in ADD_BASE or _hp.get("side") != c["side"]
+                # ➕ GEN 23: ADD_MAP says which stream adds to which held seat; ADD_MAX adds a position at most
+                if (_as not in ADD_MAP.get(_hp.get("src"), ()) or _hp.get("side") != c["side"]
                         or _as == _hp.get("src") or _as in (_hp.get("add_srcs") or [])
+                        or len(_hp.get("adds") or []) >= ADD_MAX
                         or not add_ok(_win, _as, _hp.get("src"), _t, _af)):
                     continue
+                if not _light(_as, c, _af)[0]:
+                    continue                                        # 🚦 a stream in a 🔴 window adds no margin
                 _hp.setdefault("add_srcs", []).append(_as)          # one try per stream
                 try:
                     _lv = float(live_fn(c["symbol"]) or 0)
@@ -1278,9 +1383,26 @@ def try_open(state: dict, cands: list, live_fn, active=None,
                     _ar = _stream_add(state, _hp, _lv, f"{_as} fired on the same name", _t)
                     if _ar:
                         STREAM_ADDS.append(_ar)
-            if float(_hp.get("opened_at") or 0) < float(c.get("fired_at") or 0) - 120:
+                        _added9 = True
+            if (c["src"] not in ADD_ONLY and not _added9
+                    and float(_hp.get("opened_at") or 0) < float(c.get("fired_at") or 0) - 120):
                 _skip(c, "already holding this name")      # only when the seat predates the signal
             continue
+        if c["src"] in ADD_ONLY:
+            continue            # ➕ GEN 23: the star's GO only ever adds to a held seat; alone it opens nothing
+        _lo = _light(c["src"], c, c.get("fired_at"))
+        if not _lo[0]:
+            # 🚦 GEN 23: this stream's window is 🔴. Another stream on the same card whose own window is not red
+            # seats with its OWN plan (the same rule GEN 22.3 used for a shut window).
+            _alt = sorted(((_v[0], _k) for _k, _v in (c.get("plans") or {}).items()
+                           if _k != c["src"] and _k not in ADD_ONLY and _light(_k, c, _v[5])[0]), reverse=True)
+            if not _alt:
+                _skip(c, _lo[1])
+                continue
+            _av = c["plans"][_alt[0][1]]
+            c = dict(c, src=_alt[0][1], w=_av[0], entry=_av[1], stop=_av[2], tp1=_av[3], tp2=_av[4],
+                     fired_at=_av[5])
+            _lo = _light(c["src"], c, c.get("fired_at"))
         if not entry_window_ok(c["src"], _t, c.get("fired_at")):
             # 🕐 GEN 22.3: 17–21 and 21–01 PKT take no seat and add no margin. A stream on the same card
             # that is open in this window (the strong trigger, 21–01) seats with its own plan.
@@ -1404,6 +1526,8 @@ def try_open(state: dict, cands: list, live_fn, active=None,
         # account: HEAT_CAP on total open risk, and free collateral.
         lev = lev_for(c["src"], c.get("conf"), c.get("burst"))
         lev = min(lev, float(WINDOW_LEV.get(_win, lev)))      # 🕐 GEN 22.4 / 22.5: 13–17 PKT opens at 7x
+        if WIDE_STOP_LEV and stop_pct >= WIDE_STOP_PCT:
+            lev = min(lev, float(WIDE_STOP_LEV))               # 🛡 GEN 23: the rule's wide stop opens at 8x
         # real-account physics: the stop must sit well inside the
         # slot's margin — a stop past ~liquidation is not a trade.
         if stop_pct >= 0.8 / lev:
@@ -1457,7 +1581,8 @@ def try_open(state: dict, cands: list, live_fn, active=None,
                "opened_at": _t, "fees": fee_in,
                "tp1_banked": 0.0, "be_set": False, "peak": live,
                "clock": _ck[1], "adds": [],          # GEN 18 stamps
-               "size": _sz[1], "mult": float(_sz[0]), "size_why": _sz[2]}   # GEN 19 stamps
+               "size": _sz[1], "mult": float(_sz[0]), "size_why": _sz[2],   # GEN 19 stamps
+               "light": _lo[1]}                      # 🚦 GEN 23: the window light the seat opened on
         state["balance"] -= fee_in
         state["open"].append(pos)
         held.add(c["symbol"])
@@ -1556,12 +1681,26 @@ def cutover_fresh_book(live_fn) -> list:
         pass
     save({"gen": GEN, "balance": START_BAL, "start": START_BAL,
           "started_at": time.time(), "open": [], "closed": [],
-          "equity_hist": [], "from": arch, "cutover_closed": len(out)})
+          "equity_hist": [], "from": arch, "cutover_closed": len(out)}, cutover=True)
     return out
 
 
+def cutover_pending() -> bool:
+    """True while the state file still belongs to an earlier generation, i.e. cutover_fresh_book has not yet
+    closed and archived it. 🎮 GEN 23: load() hands a blank book of the new generation for such a file, so a
+    writer that loads and saves before the cut-over (the seat taken at the signal, agent_worker._demo_instant,
+    which did not exist at any earlier cut-over) would overwrite the old ledger unarchived, its open seats never
+    closed. Such a writer must wait while this is True. False when there is no file, or it cannot be read."""
+    try:
+        with open(STATE_FILE, encoding="utf-8") as f:
+            old = json.load(f)
+    except Exception:
+        return False
+    return isinstance(old, dict) and "balance" in old and old.get("gen") != GEN
+
+
 cutover_gen18 = cutover_fresh_book        # the GEN 18 name, kept for callers
-CUTOVER_DATE = "2026-11-17"
+CUTOVER_DATE = "2026-11-23"
 
 
 def _add_on(state: dict, p: dict, live: float, why: str, now: float):

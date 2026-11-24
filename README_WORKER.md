@@ -881,3 +881,47 @@ but have the information that is adjusted accordingly".
   lines, read from the desk as the ping goes out (`before_after(..., time.time(), window_ts=<the bell's fire time>)`:
   the cache runs on the real clock, the window cell is the window the bell rang in). Nothing is removed. The older
   fixed cells (to 4 / 16 Nov) stay as they are; the two new lines are the ones that move with every closed trade.
+
+## 🎮 DEMO GEN 23 — COINS + STOCKS, THE LIGHT RULE (2026-11-23 / 24) — `demo_account.py`, `shadow_trader.py`, `tg_roster.demo_light`
+
+User: "Reset the demo trading again. We will have for crypto and for Stocks." Coins, his order: 1. Elite Stars Gated
+("Add on if go fast and go late bell rings") · 2. Elite Confirmed Entry ("Add on if we have elite star or go to it") ·
+3. Conviction revival (GO) ("Add on money to elite confirmed entry … or have the trade opened seperately") · 4. Apex v2
+Shorts · second priority 1. Star × take-now hot · 2. Second leg × PRIME. "These all shoud open trades as per the
+timeframes which are marked 🟢 and 🟡 even the size is thin, nothing marked 🔴 should open on their times. This is after
+the stop loss rule." Stocks: 1. Elite Stars add on and go · 2. Conviction revival (GO) · 3. Strong Triggers. "All
+should have 85-100% tp1 hit rule all bank".
+
+- **The book.** `GEN = 23`, a fresh $5,000 (`cutover_fresh_book` closes the GEN 22 seats at the live price into their
+  own ledger, archives it beside the state file, writes the new book). One full seat each ($250 margin), 10x.
+- **Two rosters** (`ROSTER`), one ladder (`CLASS_W`): coins `elite_star` (only when the gate passed it,
+  `STAR_GATED_COIN`) > `elite_confirm` > `go_revived` (conviction revivals only, `REVIVAL_CONV_ONLY`) > `apex_v2`
+  (shorts only, `SIDE_ONLY`) > `star_takenow` > `leg2_prime`; stocks `elite_star` (every fire) > `go_revived` >
+  `trig_strong`. A stream opens a seat only on the class that lists it. The desk feed now offers coin seats too
+  (`shadow_trader.DEMO_FEED_COIN` / `DEMO_FEED_STOCK`, `demo_offer`).
+- **The light rule** (`LIGHT_RULE`, `try_open(..., light_fn=)`): a seat opens, and margin is added, only when the
+  stream's own window light is not 🔴. The light is `tg_roster.demo_light`: the cell the bell prints after "⏩ after
+  the stop change" (this stream's closed desk seats of this class and SIDE, opened since 17 Nov, in the PKT window of
+  the fire; 🟢 68%+, 🟡 60–68%, 🔴 under 60%, never 🟢 on a record whose average R is at or under zero). ⚪ (no closed
+  trade yet) opens. A light that cannot be read opens nothing. A card whose plan stream is 🔴 seats through another
+  stream on it that is not, on that stream's own plan. The GEN 22 clock book is off for both classes
+  (`NO_ENTRY_WINDOWS`, `WINDOW_LEV`, `WINDOW_MAX_NEW`, `WINDOW_PICK`, `ADD_WINDOWS`, `ADD_PAIRS` emptied; the old
+  values are in the comment above them). The bell cache is 30 minutes, so a close moves a light within half an hour.
+- **Adds** (`ADD_MAP`, one seat of margin, once a stream, `ADD_MAX = 2` a position): a star seat when that star's GO
+  FAST / GO LATE rings (`star_go`, an add-only fire the worker offers at the GO of a star the phone heard); a
+  confirmed-entry seat on an elite star, the star's GO, or a conviction revival. A star's revival opens no seat.
+- **The stop** is the stop rule's on every seat. A stop `WIDE_STOP_PCT` (7.8%) or further from the live price opens at
+  `WIDE_STOP_LEV` (8x) on the same margin; GEN 22 fell back to the plan's tighter stop there. Since the rule, 65–77% of
+  the coin seats of the three elite streams carry a stop that wide (the 4h rule at its 8% cap).
+- **Exit**: unchanged, for every stream: the stop, or everything closed at 85% of the way to TP1, booked there.
+- **Cut-over safety (new).** `load()` hands a blank new book for an old file. `cutover_pending()` is True until the old
+  book is closed and archived; while it is, `save()` refuses to write the new generation over it and
+  `_demo_instant` does nothing. Before, a seat taken at the signal ahead of the first cycle's cut-over, or a cut-over
+  that had to wait on an unreadable price, would have replaced the old ledger unarchived.
+- **TOLD TO HIM.** 23 Nov ledger, desk booking, six days of one falling market. Walking the light forward over the
+  desk's own seats since the rule (the light as it stood at each fire): coins that would open 82% / +0.38R (98), the
+  ones 🔴 would have blocked 100% / +0.65R (18); stocks 58% / +0.03R (48) against 75% / +0.20R (8). On this week the
+  red lights did not sort winners from losers. Stock strong trigger since the rule 56% / −0.02R (41), stock star
+  40% / −0.14R (5). The real-money executor is untouched (`GEN10_ENTRY_HOLD = True`).
+- Guards: `.demo_gen23_test.py` (72), `.demo_fast_test.py` (48), `.bstock_restore_test.py`, `.tg_roster_test.py`.
+  Revert: GEN 22 is at 00fa0af.

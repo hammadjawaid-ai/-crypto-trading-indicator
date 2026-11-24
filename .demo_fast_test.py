@@ -193,11 +193,22 @@ da.try_open(st, [cand("elite_confirm")], live, now=T07 + 3700)
 check("reasons log: … and is written again after it", len(st["skip_log"]) == 2)
 px["NVDABUSDT"] = 100.0
 st = fresh()
+RED = lambda src, sym, side, ts: ("🔴", "17–21 PKT longs 0% (2, thin)")
+da.try_open(st, [cand("elite_star")], live, now=T(19), light_fn=RED)
+check("reasons log: a 🔴 window is named with its record (GEN 23)", not st["open"] and len(st.get("skip_log") or []) == 1 and "🔴 window" in st["skip_log"][0]["why"] and "17–21 PKT longs 0% (2, thin)" in st["skip_log"][0]["why"], st.get("skip_log"))
+st = fresh()
 da.try_open(st, [cand("elite_star")], live, now=T(19))
-check("reasons log: a shut window is named", len(st.get("skip_log") or []) == 1 and "17-21 PKT" in st["skip_log"][0]["why"] and "shut" in st["skip_log"][0]["why"], st.get("skip_log"))
+check("GEN 23: no clock book, a seat opens at 19:00 PKT when no light is read", len(st["open"]) == 1 and not st.get("skip_log"), st.get("skip_log"))
 st = fresh()
 da.try_open(st, [cand("elite_confirm", stop=91.5)], live, now=T07)
-check("reasons log: a stop too wide for 10x is named", len(st.get("skip_log") or []) == 1 and "too wide for 10x" in st["skip_log"][0]["why"], st.get("skip_log"))
+check("GEN 23: a stop 8.5% away opens at 8x on the same margin ($250, $2,000 position)",
+      len(st["open"]) == 1 and st["open"][0]["lev"] == 8.0 and abs(st["open"][0]["margin"] - 250) < 0.01 and abs(st["open"][0]["notional"] - 2000) < 0.01 and not st.get("skip_log"), st["open"])
+st = fresh()
+da.try_open(st, [cand("elite_confirm", stop=92.5)], live, now=T07)
+check("GEN 23: a stop 7.5% away still opens at 10x", len(st["open"]) == 1 and st["open"][0]["lev"] == 10.0, st["open"])
+st = fresh()
+da.try_open(st, [cand("elite_confirm", stop=89.5)], live, now=T07)
+check("reasons log: a stop too wide for 8x is named", not st["open"] and len(st.get("skip_log") or []) == 1 and "too wide for 8x" in st["skip_log"][0]["why"], st.get("skip_log"))
 st = seat("elite_confirm")
 da.try_open(st, [cand("elite_confirm", fired_at=T07 - 30)], live, now=T07 + 600)
 check("reasons log: the seat's own signal still in the feed is not logged as 'already holding'", not st.get("skip_log"), st.get("skip_log"))
@@ -218,13 +229,17 @@ sh.store = types.SimpleNamespace(MIN_RISK_FRAC=0.003, desk_tier=lambda tier, sym
 sh.DEMO_HOOK = lambda feed: calls.append(dict(feed))
 del sh.DEMO_FEED[:]
 sig = {"symbol": "NVDABUSDT", "side": "LONG", "stop": 96.0, "tp1": 106.0, "tp2": 110.0, "score": 91}
-sh.open_from_signal("elite_confirm", sig, 100.0)
-sh.open_from_signal("elite_confirm", dict(sig, symbol="SOLUSDT"), 100.0)        # a coin: no demo offer, no hook
-sh.open_from_signal("apex", dict(sig, symbol="MUBUSDT"), 100.0)                 # a stock under a tier off the demo's roster
-check("desk hook: called once for a stock seat of a demo stream, with the offered plan",
-      len(calls) == 1 and (calls[0]["symbol"], calls[0]["src"], calls[0]["entry"], calls[0]["stop"]) == ("NVDABUSDT", "elite_confirm", 100.0, 96.0), calls)
+sh.open_from_signal("elite_star", sig, 100.0)
+sh.open_from_signal("elite_confirm", sig, 100.0)                                # GEN 23: a stock confirmed entry is on no list
+sh.open_from_signal("elite_confirm", dict(sig, symbol="SOLUSDT"), 100.0)        # GEN 23: a coin seat is offered too
+sh.open_from_signal("apex", dict(sig, symbol="MUBUSDT"), 100.0)                 # a stock under a tier off the demo's lists
+sh.open_from_signal("apex_v2", dict(sig, symbol="MUBUSDT"), 100.0)              # a coin-only tier on a stock name
+sh.open_from_signal("elite_star", dict(sig, symbol="SOLUSDT", gate="pass"), 100.0)
+check("desk hook: called for a stock seat and for a coin seat of a demo stream, with the offered plan (GEN 23)",
+      [(c["symbol"], c["src"], c["entry"], c["stop"]) for c in calls] == [("NVDABUSDT", "elite_star", 100.0, 96.0), ("SOLUSDT", "elite_confirm", 100.0, 96.0), ("SOLUSDT", "elite_star", 100.0, 96.0)]
+      and calls[2]["gate"] == "pass" and calls[0]["star"] is False, calls)
 sh.DEMO_HOOK = lambda feed: (_ for _ in ()).throw(RuntimeError("boom"))
-check("desk hook: an error inside it never stops the desk seat", sh.open_from_signal("go_revived", dict(sig, symbol="SOXLBUSDT"), 100.0) is True and len(sh.DEMO_FEED) == 2)
+check("desk hook: an error inside it never stops the desk seat", sh.open_from_signal("go_revived", dict(sig, symbol="SOXLBUSDT"), 100.0) is True and len(sh.DEMO_FEED) == 4)
 sh.store, sh.DEMO_HOOK = _keep_store, _keep_hook
 # the worker's own hook, against this temp book
 import agent_worker as aw      # noqa: E402
@@ -243,35 +258,46 @@ bc.get_ticker_price = lambda s: px.get(s, 0.0)
 da.save(fresh())
 da._clock = lambda: T07                                            # 07:00 PKT, an open window
 aw._demo_instant({"symbol": "NVDABUSDT", "base": "NVDAB", "side": "LONG", "entry": 100.0, "stop": 96.0, "tp1": 106.0, "tp2": 110.0,
-                  "score": 91.0, "burst": 0.0, "src": "elite_confirm", "fired_at": T07 - 5})
+                  "score": 91.0, "burst": 0.0, "src": "elite_star", "fired_at": T07 - 5})
 got = da.load()
 check("instant seat: the demo opens the seat at the signal, at 10x, and frees the lock",
-      len(got["open"]) == 1 and got["open"][0]["src"] == "elite_confirm" and got["open"][0]["lev"] == 10.0 and not da._LOCK.locked(), got["open"])
+      len(got["open"]) == 1 and got["open"][0]["src"] == "elite_star" and got["open"][0]["lev"] == 10.0 and not da._LOCK.locked()
+      and "no closed trade yet" in str(got["open"][0].get("light")), got["open"])
 aw._demo_instant({"symbol": "NVDABUSDT", "base": "NVDAB", "side": "LONG", "entry": 100.5, "stop": 96.5, "tp1": 106.5, "tp2": 110.0,
-                  "score": 91.0, "burst": 0.0, "src": "go_revived", "fired_at": T07 + 300})
+                  "score": 91.0, "burst": 0.0, "src": "star_go", "fired_at": T07 + 300})
 got = da.load()
-check("instant seat: a second elite-family signal on the held name adds its seat of margin at once",
-      len(got["open"]) == 1 and abs(got["open"][0]["margin"] - 500) < 3 and got["open"][0].get("add_srcs") == ["go_revived"], got["open"])
+check("instant seat: the star's GO on the held star seat adds its seat of margin at once (GEN 23)",
+      len(got["open"]) == 1 and abs(got["open"][0]["margin"] - 500) < 3 and got["open"][0].get("add_srcs") == ["star_go"], got["open"])
 da.save(fresh())
-da._clock = lambda: T(15)                                          # 13–17: the seats are picked by win rate at the end of the cycle
+da._clock = lambda: T(15)                                          # 13–17 was a pick window in GEN 22.7; GEN 23 has none
 aw._demo_instant({"symbol": "NVDABUSDT", "base": "NVDAB", "side": "LONG", "entry": 100.0, "stop": 96.0, "tp1": 106.0, "tp2": 110.0,
-                  "score": 91.0, "burst": 0.0, "src": "elite_confirm", "fired_at": T(15) - 5})
-check("instant seat: not in the 13–17 window", not da.load()["open"])
+                  "score": 91.0, "burst": 0.0, "src": "elite_star", "fired_at": T(15) - 5})
+check("instant seat: 13–17 is an ordinary window in GEN 23", len(da.load()["open"]) == 1)
+da.WINDOW_PICK = {"13-17"}
+da.save(fresh())
+aw._demo_instant({"symbol": "NVDABUSDT", "base": "NVDAB", "side": "LONG", "entry": 100.0, "stop": 96.0, "tp1": 106.0, "tp2": 110.0,
+                  "score": 91.0, "burst": 0.0, "src": "elite_star", "fired_at": T(15) - 5})
+check("instant seat: not in a pick window, when one is set", not da.load()["open"])
+da.WINDOW_PICK = set()
+da.save(fresh())
 da._clock = lambda: T(19)
+_keep_light = aw._demo_light
+aw._demo_light = lambda src, sym, side, ts: ("🔴", "17–21 PKT longs 0% (2, thin)")
 aw._demo_instant({"symbol": "NVDABUSDT", "base": "NVDAB", "side": "LONG", "entry": 100.0, "stop": 96.0, "tp1": 106.0, "tp2": 110.0,
-                  "score": 91.0, "burst": 0.0, "src": "elite_confirm", "fired_at": T(19) - 5})
+                  "score": 91.0, "burst": 0.0, "src": "elite_star", "fired_at": T(19) - 5})
 got = da.load()
-check("instant seat: a shut window opens nothing and leaves its reason in the book", not got["open"] and len(got.get("skip_log") or []) == 1 and "shut" in got["skip_log"][0]["why"], got.get("skip_log"))
+check("instant seat: a 🔴 window opens nothing and leaves its reason in the book", not got["open"] and len(got.get("skip_log") or []) == 1 and "🔴 window" in got["skip_log"][0]["why"], got.get("skip_log"))
+aw._demo_light = _keep_light
 da.save(fresh())
 da._clock = lambda: T07
 da.lock()
 aw._demo_instant({"symbol": "NVDABUSDT", "base": "NVDAB", "side": "LONG", "entry": 100.0, "stop": 96.0, "tp1": 106.0, "tp2": 110.0,
-                  "score": 91.0, "burst": 0.0, "src": "elite_confirm", "fired_at": T07 - 5})
+                  "score": 91.0, "burst": 0.0, "src": "elite_star", "fired_at": T07 - 5})
 check("instant seat: inside the cycle's own demo block it does nothing and does not let go of the lock", not da.load()["open"] and da.lock_mine())
 da.unlock()
 aw.DEMO_INSTANT = False
 aw._demo_instant({"symbol": "NVDABUSDT", "base": "NVDAB", "side": "LONG", "entry": 100.0, "stop": 96.0, "tp1": 106.0, "tp2": 110.0,
-                  "score": 91.0, "burst": 0.0, "src": "elite_confirm", "fired_at": T07 - 5})
+                  "score": 91.0, "burst": 0.0, "src": "elite_star", "fired_at": T07 - 5})
 check("DEMO_INSTANT = False: the seat waits for the end of the cycle", not da.load()["open"])
 aw.DEMO_INSTANT = True
 bc.get_ticker_price = _keep_px

@@ -78,11 +78,28 @@ def mirror_signal(p: dict) -> dict:
     return q
 
 
-DEMO_FEED: list = []          # 🎮 GEN 21: desk seats on stock names, offered to the demo (newest last)
-DEMO_FEED_TIERS: set = {"elite_confirm", "go_revived", "elite_star", "trig_strong"}   # elite_conv was here for an hour (GEN 22), removed 22.2
+DEMO_FEED: list = []          # 🎮 desk seats offered to the demo (newest last). GEN 21–22: stock names; GEN 23: coins too
+# 🎮 GEN 23 (user 2026-11-23): the desk tiers offered to the demo, by class. demo_account's own roster decides what
+# seats (the gated coin star, APEX V2 shorts only, conviction revivals only); this is only what is put on the list.
+DEMO_FEED_COIN: set = {"elite_star", "elite_confirm", "go_revived", "apex_v2", "star_takenow", "leg2_prime"}
+DEMO_FEED_STOCK: set = {"elite_star", "go_revived", "trig_strong"}
+DEMO_FEED_TIERS: set = DEMO_FEED_STOCK   # the GEN 21–22 name (stock tiers), kept for callers
+DEMO_FEED_KEEP = 200          # entries kept (60 while the feed was stock names only)
 DEMO_FEED_TTL_S = 2700        # a seat is offered for 45 minutes (the worker goes round in 17–20)
-DEMO_RULE_MAX = 0.078         # 🛡 the demo takes the stop rule's stop only while it sits under 7.8% from entry
+# 🛡 GEN 21–22: the demo took the stop rule's stop only while it sat under 7.8% from entry, else the plan's, because
+# a 10x seat cannot carry an 8% stop. GEN 23: the feed always carries the rule's stop and demo_account opens a stop
+# that wide at 8x (WIDE_STOP_PCT / WIDE_STOP_LEV); on coins the 4h rule's stop is at its 8% cap more often than not.
+DEMO_RULE_MAX = 0.078
 DEMO_HOOK = None              # 🎮 callable(feed entry), set by the worker: the demo's seat is taken as the desk opens it
+
+
+def demo_offer(d: dict) -> None:
+    """🎮 Put one entry on the demo's feed and call the instant hook (the worker's _demo_instant). The entry is a
+    desk seat, or an add-only fire such as the ⭐ star's GO (src "star_go")."""
+    DEMO_FEED.append(d)
+    del DEMO_FEED[:-DEMO_FEED_KEEP]
+    if DEMO_HOOK is not None:
+        DEMO_HOOK(DEMO_FEED[-1])
 
 
 def open_from_signal(tier: str, p: dict, live_px: float | None) -> bool:
@@ -159,21 +176,23 @@ def open_from_signal(tier: str, p: dict, live_px: float | None) -> bool:
     # 🎮 GEN 21 demo feed (user 2026-11-17: stock names only, four streams): a seat the desk opens on a
     # tokenized name under one of the watched tiers is offered to the demo with the same plan. The desk
     # itself is untouched; the worker reads this list when it fills the demo's seats.
+    # 🎮 GEN 23 (user 2026-11-23): coin seats are offered too, each class from its own tier list.
     try:
-        if tier.startswith("tok:") and tier[4:] in DEMO_FEED_TIERS:
-            DEMO_FEED.append({"symbol": sym, "base": p.get("base") or sym.replace("USDT", ""), "side": side,
-                              # 🛡 the demo trades the 15m rule's stop too (user 2026-11-17: "also on demo trading apply
-                              # 15m rule to it as well"), unless that stop is too wide for the demo's 10x guard
-                              # (try_open refuses a stop 8% or more away): then it keeps the plan's
-                              "entry": entry, "stop": (stop if abs(entry - stop) / entry < DEMO_RULE_MAX else plan_stop),
-                              "plan_stop": plan_stop, "tp1": tp1, "tp2": tp2 or None, "conf": _cf, "heat": _ht,
-                              "score": float(p.get("score") or 85), "burst": 0.0, "src": tier[4:], "fired_at": time.time()})
-            del DEMO_FEED[:-60]
-            # 🎮 2026-11-18: the demo takes this seat NOW instead of at the end of the worker's cycle (the hook is
-            # set by the worker; see agent_worker._demo_instant). A fast signal used to be refused minutes later
-            # because price had already run more than a quarter of the way to TP1.
-            if DEMO_HOOK is not None:
-                DEMO_HOOK(DEMO_FEED[-1])
+        _stock = tier.startswith("tok:")
+        _bt = tier[4:] if _stock else tier
+        if _bt in (DEMO_FEED_STOCK if _stock else DEMO_FEED_COIN) and not p.get("mirror_of"):
+            # 🛡 the demo trades the stop rule's stop (user 2026-11-17: "also on demo trading apply 15m rule to it
+            # as well"). GEN 23: always, a wide one at 8x (see DEMO_RULE_MAX above); the plan's stop rides along.
+            # 🎮 2026-11-18: the demo takes this seat NOW instead of at the end of the worker's cycle (demo_offer
+            # calls the worker's _demo_instant). A fast signal used to be refused minutes later because price had
+            # already run more than a quarter of the way to TP1.
+            demo_offer({"symbol": sym, "base": p.get("base") or sym.replace("USDT", ""), "side": side,
+                        "entry": entry, "stop": stop, "plan_stop": plan_stop, "tp1": tp1, "tp2": tp2 or None,
+                        "conf": _cf, "heat": _ht, "score": float(p.get("score") or 85), "burst": 0.0,
+                        "src": _bt, "fired_at": time.time(),
+                        # GEN 23 roster reads: the star gate's stamp, and whether a revival is a star's
+                        "gate": p.get("gate"), "star": bool(p.get("star")),
+                        "go_tier": (str(p.get("tier") or "").upper() if _bt == "go_revived" else None)})
     except Exception:
         pass
     return True
